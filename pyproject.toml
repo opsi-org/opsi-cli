@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "opsicli"
+version = "0.1.0"
+description = ""
+authors = ["doerrer <n.doerrer@uib.de>"]
+
+[[tool.poetry.source]]
+name = "uib"
+url = "http://pypi.uib.gmbh:8080/simple/"
+
+[tool.poetry.dependencies]
+python = "^3.7"
+click = "^7.1.2"
+python-opsi = "^4.2.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^4.6"
+opsi-dev-tools = "^1.0.49"
+pyinstaller = "^4.1"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

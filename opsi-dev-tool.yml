@@ -1,0 +1,26 @@
+pyinstaller-poetry:
+  one_file: no
+  hidden_imports:
+    all: []
+    windows: []
+    linux: []
+    darwin: []
+  extra_args:
+    darwin:
+      - --exclude-module
+      - tkinter
+  scripts:
+    - script: run-opsicli
+      binaries:
+        - opsi
+  before_script:
+    linux: []
+    darwin: []
+    windows: []
+  data_files: []
+  dirname: opsicli
+  locale_install: []
+  after_script:
+    linux: []
+    darwin: []
+    windows: []
