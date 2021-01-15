@@ -1,8 +1,12 @@
 [tool.poetry]
 name = "opsicli"
 version = "0.1.0"
-description = ""
-authors = ["doerrer <n.doerrer@uib.de>"]
+description = "opsi command line interface"
+homepage = "https://www.opsi.org"
+license = "AGPL-3.0"
+authors = ["uib GmbH <info@uib.de>"]
+maintainers = ["uib GmbH <info@uib.de>"]
+
 
 [[tool.poetry.source]]
 name = "uib"
