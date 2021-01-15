@@ -1,5 +1,5 @@
-import click
 import os
+import click
 
 __version__ = "0.1.0"
 
@@ -7,24 +7,25 @@ __version__ = "0.1.0"
 plugin_folder = os.path.join(os.path.dirname(__file__), 'commands')
 
 class OpsiCLI(click.MultiCommand):
-
 	def list_commands(self, ctx):
-		rv = []
+		result = []
 		for filename in os.listdir(plugin_folder):
-			if filename.endswith('.py'):
-				rv.append(filename[:-3])
-		rv.sort()
-		return rv
+			if not os.path.isdir(os.path.join(plugin_folder, filename)):
+				continue
+			if os.path.exists(os.path.join(plugin_folder, filename, "__init__.py")):
+				result.append(filename)
+		result.sort()
+		return result
 
-	def get_command(self, ctx, name):
-		if name == "__init__":
+	def get_command(self, ctx, cmd_name):
+		if cmd_name == "__init__":
 			return None 	# cli is called without subcommand
-		ns = {}
-		fn = os.path.join(plugin_folder, name + '.py')
-		with open(fn) as f:
-			code = compile(f.read(), fn, 'exec')
-			eval(code, ns, ns)
-		return ns['cli']
+		namespace = {}
+		filename = os.path.join(plugin_folder, cmd_name, '__init__.py')
+		with open(filename) as command_file:
+			code = compile(command_file.read(), filename, 'exec')
+			eval(code, namespace, namespace)		# pylint: disable=W0123
+		return namespace['cli']
 
 @click.command(cls=OpsiCLI)
 #@click.version_option(f"{__version__}", message="%(package)s, version %(version)s")
