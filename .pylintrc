@@ -1,0 +1,37 @@
+[BASIC]
+# Regular expression matching correct argument names. Overrides argument-
+# naming-style.
+argument-rgx=[a-z_][a-zA-Z0-9_]{2,30}$   # CHANGED: allow legacy naming
+
+# Regular expression matching correct attribute names. Overrides attr-naming-
+# style.
+attr-rgx=[_]{0,2}[a-z][a-zA-Z_]{2,30}$   # CHANGED: allow legacy naming
+
+# Regular expression matching correct function names. Overrides function-
+# naming-style.
+function-rgx=[_]{0,2}[a-z][a-zA-Z0-9_]{2,}$   # CHANGED: allow legacy naming
+
+# Regular expression matching correct method names. Overrides method-naming-
+# style.
+method-rgx=(([_]{0,2}[a-z][a-zA-Z0-9]{2,})|([a-zA-Z_]{2,}_[a-zA-Z]{2,})|(__.*__))$   # CHANGED: allow legacy naming
+
+# Regular expression matching correct module names. Overrides module-naming-
+# style.
+module-rgx=[_a-zA-Z]+   # CHANGED: allow legacy naming
+
+# Regular expression which should only match function or class names that do
+# not require a docstring.
+no-docstring-rgx=.*   # CHANGED: ^_ => .* # disabled for old project
+
+# Regular expression matching correct variable names. Overrides variable-
+# naming-style.
+variable-rgx=[_]{0,2}[a-zA-Z0-9_]{2,30}$   # CHANGED: allow legacy naming
+
+
+[FORMAT]
+# String used as indentation unit. This is usually "    " (4 spaces) or "\t" (1
+# tab).
+indent-string='\t'   # CHANGED: '    ' => '\t' # using tabs
+
+# Maximum number of characters on a single line.
+max-line-length=140   # CHANGED: 100 => 140
