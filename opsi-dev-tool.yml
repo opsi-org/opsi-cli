@@ -16,6 +16,6 @@ pyinstaller-poetry:
   after_script:
     linux:
       - mkdir -p ~/.local/lib/opsicli/
-      - cp -r opsicli/commands ~/.local/lib/opsicli/
+      - cp -r commands ~/.local/lib/opsicli/
   dirname: opsicli
   locale_install: []

@@ -9,8 +9,7 @@ class OpsiCLI(click.MultiCommand):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.plugin_folders = [os.path.expanduser("~/.local/lib/opsicli/commands")]
-		self.plugin_modules = []
-		self.plugin_info = {}
+		self.plugin_modules = {}
 
 	def register_commands(self):
 		result = []
@@ -19,27 +18,25 @@ class OpsiCLI(click.MultiCommand):
 				path = os.path.join(folder, filename, "__init__.py")
 				if os.path.exists(path):
 					spec = importlib.util.spec_from_file_location("dummy", path)
-					self.plugin_modules.append(importlib.util.module_from_spec(spec))
-					spec.loader.exec_module(self.plugin_modules[-1])
-					info = self.plugin_modules[-1].get_plugin_info()
-					self.plugin_info[info["name"]] = info
-					self.plugin_info[info["name"]]["index"] = len(self.plugin_modules) - 1
+					new_plugin = importlib.util.module_from_spec(spec)
+					spec.loader.exec_module(new_plugin)
+					name = new_plugin.get_plugin_name()
+					self.plugin_modules[name] = new_plugin
 
-					#print(f'Adding command {info["name"]}')
-					result.append(info["name"])
+					#print(f'Adding command {name}')
+					result.append(name)
 
 	def list_commands(self, ctx):
-		if not self.plugin_info:
+		if not self.plugin_modules:
 			self.register_commands()
-		return sorted(self.plugin_info.keys())
+		return sorted(self.plugin_modules.keys())
 
 	def get_command(self, ctx, cmd_name):
-		if not cmd_name in self.plugin_info:
+		if not cmd_name in self.plugin_modules:
 			self.register_commands()
-			if not cmd_name in self.plugin_info:
+			if not cmd_name in self.plugin_modules:
 				raise ValueError(f"invalid command {cmd_name}")
-		index = self.plugin_info[cmd_name]["index"]
-		return self.plugin_modules[index].cli
+		return self.plugin_modules[cmd_name].cli
 
 
 @click.command(cls=OpsiCLI)
