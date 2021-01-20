@@ -1,5 +1,5 @@
 pyinstaller-poetry:
-  one_file: no
+  one_file: yes
   hidden_imports:
     all: []
     windows: []
@@ -13,17 +13,9 @@ pyinstaller-poetry:
     - script: run-opsicli
       binaries:
         - opsi
-  before_script:
-    linux: []
-    darwin: []
-    windows: []
-  data_files:
-    - src: opsicli/commands/**/*
-      dst: opsicli/commands
-
+  after_script:
+    linux:
+      - mkdir -p ~/.local/lib/opsicli/
+      - cp -r opsicli/commands ~/.local/lib/opsicli/
   dirname: opsicli
   locale_install: []
-  after_script:
-    linux: []
-    darwin: []
-    windows: []
