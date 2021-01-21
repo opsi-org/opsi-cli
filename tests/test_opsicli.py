@@ -1,9 +1,8 @@
 import sys
-import os
 from typing import Tuple
 import pytest
 
-from opsicli import cli
+from opsicli.__main__ import cli
 
 class Utils:
 	#https://medium.com/python-pandemonium/testing-sys-exit-with-pytest-10c6e5f7726f

@@ -122,7 +122,7 @@ reference = "uib"
 name = "certifi"
 version = "2020.12.5"
 description = "Python package for providing Mozilla's CA Bundle."
-category = "dev"
+category = "main"
 optional = false
 python-versions = "*"
 
@@ -151,7 +151,7 @@ reference = "uib"
 name = "chardet"
 version = "4.0.0"
 description = "Universal encoding detector for Python 2 and 3"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
@@ -259,6 +259,19 @@ reference = "uib"
 name = "distro"
 version = "1.5.0"
 description = "Distro - an OS platform information API"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.source]
+type = "legacy"
+url = "http://pypi.uib.gmbh:8080/simple"
+reference = "uib"
+
+[[package]]
+name = "docopt"
+version = "0.6.2"
+description = "Pythonic argument parser, that will make you smile"
 category = "main"
 optional = false
 python-versions = "*"
@@ -469,7 +482,7 @@ reference = "uib"
 
 [[package]]
 name = "opsi-dev-tools"
-version = "1.0.49"
+version = "1.0.50"
 description = "opsi development tools"
 category = "dev"
 optional = false
@@ -519,6 +532,23 @@ python-versions = "*"
 
 [package.dependencies]
 future = "*"
+
+[package.source]
+type = "legacy"
+url = "http://pypi.uib.gmbh:8080/simple"
+reference = "uib"
+
+[[package]]
+name = "pipreqs"
+version = "0.4.10"
+description = "Pip requirements.txt generator based on imports in project"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+docopt = "*"
+yarg = "*"
 
 [package.source]
 type = "legacy"
@@ -893,7 +923,7 @@ reference = "uib"
 name = "requests"
 version = "2.25.1"
 description = "Python HTTP for Humans."
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
@@ -1087,7 +1117,7 @@ reference = "uib"
 name = "urllib3"
 version = "1.26.2"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4"
 
@@ -1167,6 +1197,22 @@ url = "http://pypi.uib.gmbh:8080/simple"
 reference = "uib"
 
 [[package]]
+name = "yarg"
+version = "0.1.9"
+description = "A semi hard Cornish cheese, also queries PyPI (PyPI client)"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+requests = "*"
+
+[package.source]
+type = "legacy"
+url = "http://pypi.uib.gmbh:8080/simple"
+reference = "uib"
+
+[[package]]
 name = "zipp"
 version = "3.4.0"
 description = "Backport of pathlib-compatible object wrapper for zip files"
@@ -1204,7 +1250,7 @@ reference = "uib"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "8f9a35011e3c8a50e676a6f29dd9de72d571e98248b3105e9c6b3b2a57613c10"
+content-hash = "b7fd6985a3d06a1b7f72b11c71fb5766d498052a73dd251724426f2c0c9bafe3"
 
 [metadata.files]
 altgraph = [
@@ -1318,6 +1364,9 @@ distro = [
     {file = "distro-1.5.0-py2.py3-none-any.whl", hash = "sha256:df74eed763e18d10d0da624258524ae80486432cd17392d9c3d96f5e83cd2799"},
     {file = "distro-1.5.0.tar.gz", hash = "sha256:0e58756ae38fbd8fc3020d54badb8eae17c5b9dcbed388b17bb55b8a5928df92"},
 ]
+docopt = [
+    {file = "docopt-0.6.2.tar.gz", hash = "sha256:49b3a825280bd66b3aa83585ef59c4a8c82f2c8a522dbe754a8bc8d08c85c491"},
+]
 future = [
     {file = "future-0.18.2.tar.gz", hash = "sha256:b1bead90b70cf6ec3f0710ae53a525360fa360d306a86583adc6bf83a4db537d"},
 ]
@@ -1420,8 +1469,8 @@ mysqlclient = [
     {file = "mysqlclient-1.4.6.tar.gz", hash = "sha256:f3fdaa9a38752a3b214a6fe79d7cae3653731a53e577821f9187e67cbecb2e16"},
 ]
 opsi-dev-tools = [
-    {file = "opsi-dev-tools-1.0.49.tar.gz", hash = "md5:dec49d5be8f483171e88b9520ae4b0d7"},
-    {file = "opsi_dev_tools-1.0.49-py3-none-any.whl", hash = "md5:8d1958d4fb830d3067db39a56a4c48af"},
+    {file = "opsi-dev-tools-1.0.50.tar.gz", hash = "md5:459901a0d29cab102be0c1da7080f13a"},
+    {file = "opsi_dev_tools-1.0.50-py3-none-any.whl", hash = "md5:7e077a34e3c99b93ad409439fa3dc5e8"},
 ]
 packaging = [
     {file = "packaging-20.8-py2.py3-none-any.whl", hash = "sha256:24e0da08660a87484d1602c30bb4902d74816b6985b93de36926f5bc95741858"},
@@ -1429,6 +1478,10 @@ packaging = [
 ]
 pefile = [
     {file = "pefile-2019.4.18.tar.gz", hash = "sha256:a5d6e8305c6b210849b47a6174ddf9c452b2888340b8177874b862ba6c207645"},
+]
+pipreqs = [
+    {file = "pipreqs-0.4.10-py2.py3-none-any.whl", hash = "sha256:cafe42ab70628d408c147fb8944bc303355ea8f91fddca4a98d273e572e39905"},
+    {file = "pipreqs-0.4.10.tar.gz", hash = "sha256:9e351d644b28b98d7386b046a73806cbb3bb66b23a30e74feeb95ed9571db939"},
 ]
 pluggy = [
     {file = "pluggy-0.13.1-py2.py3-none-any.whl", hash = "sha256:966c145cd83c96502c3c3868f50408687b38434af77734af1e9ca461a4081d2d"},
@@ -1737,6 +1790,10 @@ wmi = [
 ]
 wrapt = [
     {file = "wrapt-1.12.1.tar.gz", hash = "sha256:b62ffa81fb85f4332a4f609cab4ac40709470da05643a082ec1eb88e6d9b97d7"},
+]
+yarg = [
+    {file = "yarg-0.1.9-py2.py3-none-any.whl", hash = "sha256:4f9cebdc00fac946c9bf2783d634e538a71c7d280a4d806d45fd4dc0ef441492"},
+    {file = "yarg-0.1.9.tar.gz", hash = "sha256:55695bf4d1e3e7f756496c36a69ba32c40d18f821e38f61d028f6049e5e15911"},
 ]
 zipp = [
     {file = "zipp-3.4.0-py3-none-any.whl", hash = "sha256:102c24ef8f171fd729d46599845e95c7ab894a4cf45f5de11a44cc7444fb1108"},

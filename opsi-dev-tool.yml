@@ -13,9 +13,14 @@ pyinstaller-poetry:
     - script: run-opsicli
       binaries:
         - opsi
-  after_script:
-    linux:
-      - mkdir -p ~/.local/lib/opsicli/
-      - cp -r commands ~/.local/lib/opsicli/
+  #after_script:
+  #  linux:
+  #    - mkdir -p ~/.local/lib/opsicli/
+  #    - cp -r commands ~/.local/lib/opsicli/
+  data_files:
+    - src: ${VENV_SITE_PACKAGES}/pipreqs/stdlib
+      dst: pipreqs
+    - src: ${VENV_SITE_PACKAGES}/pipreqs/mapping
+      dst: pipreqs
   dirname: opsicli
   locale_install: []

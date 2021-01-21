@@ -1,4 +1,4 @@
-#import requests
+import requests
 import click
 
 __version__ = "0.1.0"
