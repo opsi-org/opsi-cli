@@ -23,6 +23,9 @@ class Utils:
 def utils():
 	return Utils
 
+def test_plugin_register(utils):
+	utils.set_args(["plugin", "register", "commands/support"])
+	utils.call_cli()
 
 def test_initial(utils):
 	for args in [[], ["support"], ["support", "ticket"]]:

@@ -47,4 +47,6 @@ def register(path):
 
 	dirname = os.path.basename(os.path.dirname(path))
 	print(f"copying {path} to {os.path.join(COMMANDS_DIR, dirname)}")
+	if os.path.exists(os.path.join(COMMANDS_DIR, dirname)):
+		shutil.rmtree(os.path.join(COMMANDS_DIR, dirname))
 	shutil.copytree(path, os.path.join(COMMANDS_DIR, dirname))
