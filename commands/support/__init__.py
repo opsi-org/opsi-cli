@@ -1,6 +1,8 @@
+import logging
 import click
 
 __version__ = "0.1.0"
+logger = logging.getLogger()
 
 
 def get_plugin_name():
@@ -15,7 +17,7 @@ def cli():
 	opsi support subcommand.
 	This is the long help.
 	"""
-	print("support subcommand")
+	logger.info("support subcommand")
 
 
 @cli.command(short_help='short help for ticket')
@@ -24,4 +26,4 @@ def ticket():
 	opsi support ticket subsubcommand.
 	This is the long help.
 	"""
-	print("ticket subsubcommand")
+	logger.info("ticket subsubcommand")

@@ -25,7 +25,7 @@ def cli():
 	opsi plugin subcommand.
 	This is the long help.
 	"""
-	print("plugin subcommand")
+	logger.info("plugin subcommand")
 
 
 @cli.command(short_help='add new plugin (python package or .opsiplugin)')
@@ -47,9 +47,9 @@ def add_from_package(path):
 	install_dependencies(path)
 
 	dirname = os.path.basename(os.path.dirname(path + "/"))
-	print(f"copying {path} to {os.path.join(COMMANDS_DIR, dirname)}")
+	logger.info("copying %s to %s", path, os.path.join(COMMANDS_DIR, dirname))
 	if os.path.exists(os.path.join(COMMANDS_DIR, dirname)):
-		print(f"overwriting existing plugin code for {dirname}")
+		logger.debug("overwriting existing plugin code for %s", dirname)
 		shutil.rmtree(os.path.join(COMMANDS_DIR, dirname))
 	shutil.copytree(path, os.path.join(COMMANDS_DIR, dirname))
 
@@ -63,23 +63,23 @@ def add_from_opsiplugin(path):
 
 def install_dependencies(path):
 	if os.path.exists(os.path.join(path, "requirements.txt")):
-		print(f"reading requirements.txt from {path}")
+		logger.debug("reading requirements.txt from %s", path)
 		dependencies = pipreqs.parse_requirements(os.path.join(path, "requirements.txt"))
 	else:
-		print(f"generating requirements dict from package {path}")
+		logger.debug("generating requirements dict from package %s", path)
 		candidates = pipreqs.get_pkg_names(pipreqs.get_all_imports(path))
 		dependencies = pipreqs.get_imports_info(candidates, pypi_server="https://pypi.python.org/pypi/")	#proxy possible
 	for dependency in dependencies:
 		try:
-			print("installing", dependency["name"], "version", dependency["version"])
+			logger.info("installing %s, version %s", dependency["name"], dependency["version"])
 			subprocess.check_call(["python3", '-m', 'pip', 'install', f"{dependency['name']}=={dependency['version']}", f"--target={LIB_DIR}"])
 		except subprocess.CalledProcessError as process_error:
-			print("Could not install ", dependency["name"], " ... aborting")
+			logger.error("Could not install %s ... aborting", dependency["name"])
 			raise process_error
 
 
 @cli.command(short_help='export plugin as .opsiplugin')
-@click.argument('name')
+@click.argument('name', type=str)
 def export(name):
 	"""
 	opsi plugin export subsubcommand.
@@ -89,7 +89,7 @@ def export(name):
 	if not name in plugin_dirs:
 		raise ValueError(f"Plugin {name} (requested to export) not found.")
 
-	print("exporting command {name} to {name}.opsiplugin")
+	logger.info("exporting command %s to %s", name, f"{name}.opsiplugin")
 	arcname = os.path.split(plugin_dirs[name])[1]
 	with zipfile.ZipFile(f"{name}.opsiplugin", "w", zipfile.ZIP_DEFLATED) as zfile:
 		for root, _, files in os.walk(plugin_dirs[name]):
