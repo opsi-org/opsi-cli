@@ -66,9 +66,10 @@ def install_dependencies(path):
 		logger.debug("reading requirements.txt from %s", path)
 		dependencies = pipreqs.parse_requirements(os.path.join(path, "requirements.txt"))
 	else:
-		logger.debug("generating requirements dict from package %s", path)
+		logger.debug("generating requirements.txt from package %s", path)
 		candidates = pipreqs.get_pkg_names(pipreqs.get_all_imports(path))
 		dependencies = pipreqs.get_imports_info(candidates, pypi_server="https://pypi.python.org/pypi/")	#proxy possible
+		pipreqs.generate_requirements_file(os.path.join(path, "requirements.txt"), dependencies)
 	for dependency in dependencies:
 		try:
 			logger.info("installing %s, version %s", dependency["name"], dependency["version"])

@@ -1,7 +1,7 @@
-import requests
-import magic
-import click
 import logging
+import requests
+import magic		# pylint: disable=E0401
+import click
 
 __version__ = "0.1.0"
 logger = logging.getLogger()

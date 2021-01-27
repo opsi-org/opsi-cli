@@ -18,7 +18,7 @@ test:pylint-pytest:
     - poetry install
     - poetry run opsi-dev-tool -l info --pyinstaller-poetry-build #for postinst command dir stuff
     #- poetry run pylint --errors-only opsicli
-    - poetry run pylint --disable=R,C opsicli
+    - poetry run pylint --disable=R,C opsicli commands
     - poetry run pytest
 
 build:linux-pyinstaller:
