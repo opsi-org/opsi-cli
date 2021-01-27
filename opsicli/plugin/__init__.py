@@ -1,20 +1,23 @@
 import os
 import shutil
-import click
 import subprocess
+import logging
+import zipfile
+import click
 from pipreqs import pipreqs
 
 from opsicli import COMMANDS_DIR, LIB_DIR
 
 
 __version__ = "0.1.0"
+logger = logging.getLogger()
 
 
 def get_plugin_name():
 	return "plugin"
 
 
-@click.group(short_help="manage opsi CLI plugins")
+@click.group(name="plugin", short_help="manage opsi CLI plugins")
 #@click.version_option(f"{__version__}", message="%(package)s, version %(version)s")
 @click.version_option(__version__, message="opsi plugin, version %(version)s")
 def cli():
@@ -25,28 +28,71 @@ def cli():
 	print("plugin subcommand")
 
 
-@cli.command(short_help='register a new plugin')
-@click.argument('path')
-def register(path):
+@cli.command(short_help='add new plugin (python package or .opsiplugin)')
+@click.argument('path', type=click.Path(exists=True))
+def add(path):
 	"""
-	opsi plugin register subsubcommand.
+	opsi plugin add subsubcommand.
 	This is the long help.
 	"""
-	candidates = pipreqs.get_all_imports(path)
-	candidates = pipreqs.get_pkg_names(candidates)
-	dependencies = pipreqs.get_imports_info(candidates, pypi_server="https://pypi.python.org/pypi/")	#proxy possible
+	if os.path.exists(os.path.join(path, "__init__.py")):
+		add_from_package(path)
+	elif path.endswith(".opsiplugin"):
+		add_from_opsiplugin(path)
+	else:
+		raise ValueError(f"Invalid path given {path}")
+
+
+def add_from_package(path):
+	install_dependencies(path)
+
+	dirname = os.path.basename(os.path.dirname(path + "/"))
+	print(f"copying {path} to {os.path.join(COMMANDS_DIR, dirname)}")
+	if os.path.exists(os.path.join(COMMANDS_DIR, dirname)):
+		print(f"overwriting existing plugin code for {dirname}")
+		shutil.rmtree(os.path.join(COMMANDS_DIR, dirname))
+	shutil.copytree(path, os.path.join(COMMANDS_DIR, dirname))
+
+
+def add_from_opsiplugin(path):
+	with zipfile.ZipFile(path, "r") as zfile:
+		zfile.extractall(COMMANDS_DIR)
+	name = os.path.basename(path)[:-11]		# cut the ".opsiplugin"
+	install_dependencies(os.path.join(COMMANDS_DIR, name))
+
+
+def install_dependencies(path):
+	if os.path.exists(os.path.join(path, "requirements.txt")):
+		print(f"reading requirements.txt from {path}")
+		dependencies = pipreqs.parse_requirements(os.path.join(path, "requirements.txt"))
+	else:
+		print(f"generating requirements dict from package {path}")
+		candidates = pipreqs.get_pkg_names(pipreqs.get_all_imports(path))
+		dependencies = pipreqs.get_imports_info(candidates, pypi_server="https://pypi.python.org/pypi/")	#proxy possible
 	for dependency in dependencies:
 		try:
 			print("installing", dependency["name"], "version", dependency["version"])
 			subprocess.check_call(["python3", '-m', 'pip', 'install', f"{dependency['name']}=={dependency['version']}", f"--target={LIB_DIR}"])
 		except subprocess.CalledProcessError as process_error:
-			print("Could not install ", dependency["name"])
-			print(process_error)
-			print("... aborting")
-			exit(1)
+			print("Could not install ", dependency["name"], " ... aborting")
+			raise process_error
 
-	dirname = os.path.basename(os.path.dirname(path))
-	print(f"copying {path} to {os.path.join(COMMANDS_DIR, dirname)}")
-	if os.path.exists(os.path.join(COMMANDS_DIR, dirname)):
-		shutil.rmtree(os.path.join(COMMANDS_DIR, dirname))
-	shutil.copytree(path, os.path.join(COMMANDS_DIR, dirname))
+
+@cli.command(short_help='export plugin as .opsiplugin')
+@click.argument('name')
+def export(name):
+	"""
+	opsi plugin export subsubcommand.
+	This is the long help.
+	"""
+	plugin_dirs = click.get_current_context().obj
+	if not name in plugin_dirs:
+		raise ValueError(f"Plugin {name} (requested to export) not found.")
+
+	print("exporting command {name} to {name}.opsiplugin")
+	arcname = os.path.split(plugin_dirs[name])[1]
+	with zipfile.ZipFile(f"{name}.opsiplugin", "w", zipfile.ZIP_DEFLATED) as zfile:
+		for root, _, files in os.walk(plugin_dirs[name]):
+			base = os.path.relpath(root, start=plugin_dirs[name])
+			for single_file in files:
+				zfile.write(os.path.join(root, single_file), arcname=os.path.join(arcname, base, single_file))

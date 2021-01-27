@@ -7,7 +7,7 @@ def get_plugin_name():
 	return "support"
 
 
-@click.group(short_help="short help for support")
+@click.group(name="support", short_help="short help for support")
 #@click.version_option(f"{__version__}", message="%(package)s, version %(version)s")
 @click.version_option(__version__, message="opsi support, version %(version)s")
 def cli():
