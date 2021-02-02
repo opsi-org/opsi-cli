@@ -1,6 +1,7 @@
 import os
 import shutil
 import subprocess
+import tempfile
 import logging
 import zipfile
 import click
@@ -35,33 +36,51 @@ def add(path):
 	opsi plugin add subsubcommand.
 	This is the long help.
 	"""
+	with tempfile.TemporaryDirectory() as tmpdir:
+		os.makedirs(os.path.join(tmpdir, "lib"), exist_ok=True)
+		name = prepare_plugin(path, tmpdir)
+		install_plugin(tmpdir, name)
+
+
+def prepare_plugin(path, tmpdir):
+	logger.info("inspecting plugin source %s", path)
 	if os.path.exists(os.path.join(path, "__init__.py")):
-		add_from_package(path)
+		name = os.path.basename(os.path.dirname(path + "/"))
+		shutil.copytree(path, os.path.join(tmpdir, name))
 	elif path.endswith(".opsiplugin"):
-		add_from_opsiplugin(path)
+		with zipfile.ZipFile(path, "r") as zfile:
+			zfile.extractall(tmpdir)
+		name = os.path.basename(path)[:-11]		# cut the ".opsiplugin"
 	else:
 		raise ValueError(f"Invalid path given {path}")
 
-
-def add_from_package(path):
-	install_dependencies(path)
-
-	dirname = os.path.basename(os.path.dirname(path + "/"))
-	logger.info("copying %s to %s", path, os.path.join(COMMANDS_DIR, dirname))
-	if os.path.exists(os.path.join(COMMANDS_DIR, dirname)):
-		logger.debug("overwriting existing plugin code for %s", dirname)
-		shutil.rmtree(os.path.join(COMMANDS_DIR, dirname))
-	shutil.copytree(path, os.path.join(COMMANDS_DIR, dirname))
+	logger.info("retrieving libraries for new plugin")
+	install_dependencies(os.path.join(tmpdir, name), os.path.join(tmpdir, "lib"))
+	return name
 
 
-def add_from_opsiplugin(path):
-	with zipfile.ZipFile(path, "r") as zfile:
-		zfile.extractall(COMMANDS_DIR)
-	name = os.path.basename(path)[:-11]		# cut the ".opsiplugin"
-	install_dependencies(os.path.join(COMMANDS_DIR, name))
+def install_plugin(source_dir, name):
+	logger.info("installing libraries")
+	#https://lukelogbook.tech/2018/01/25/merging-two-folders-in-python/
+	for src_dir, _, files in os.walk(os.path.join(source_dir, "lib")):
+		dst_dir = src_dir.replace(os.path.join(source_dir, "lib"), LIB_DIR, 1)
+		if not os.path.exists(dst_dir):
+			os.makedirs(dst_dir)
+		for file_ in files:
+			src_file = os.path.join(src_dir, file_)
+			dst_file = os.path.join(dst_dir, file_)
+			if os.path.exists(dst_file):
+				os.remove(dst_file)
+			shutil.copy(src_file, dst_dir)
+
+	logger.info("installing plugin")
+	destination = os.path.join(COMMANDS_DIR, name)
+	if os.path.exists(destination):
+		shutil.rmtree(destination)
+	shutil.copytree(os.path.join(source_dir, name), destination)
 
 
-def install_dependencies(path):
+def install_dependencies(path, target_dir):
 	if os.path.exists(os.path.join(path, "requirements.txt")):
 		logger.debug("reading requirements.txt from %s", path)
 		dependencies = pipreqs.parse_requirements(os.path.join(path, "requirements.txt"))
@@ -72,8 +91,8 @@ def install_dependencies(path):
 		pipreqs.generate_requirements_file(os.path.join(path, "requirements.txt"), dependencies)
 	for dependency in dependencies:
 		try:
-			logger.info("installing %s, version %s", dependency["name"], dependency["version"])
-			subprocess.check_call(["python3", '-m', 'pip', 'install', f"{dependency['name']}=={dependency['version']}", f"--target={LIB_DIR}"])
+			logger.debug("installing %s, version %s", dependency["name"], dependency["version"])
+			subprocess.check_call(["python3", '-m', 'pip', 'install', f"{dependency['name']}=={dependency['version']}", f"--target={target_dir}"])
 		except subprocess.CalledProcessError as process_error:
 			logger.error("Could not install %s ... aborting", dependency["name"])
 			raise process_error

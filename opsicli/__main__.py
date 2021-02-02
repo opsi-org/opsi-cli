@@ -32,9 +32,15 @@ class OpsiCLI(click.MultiCommand):
 			for filename in os.listdir(folder):
 				path = os.path.join(folder, filename, "__init__.py")
 				if os.path.exists(path):
-					spec = importlib.util.spec_from_file_location("temp", path)
-					new_plugin = importlib.util.module_from_spec(spec)
-					spec.loader.exec_module(new_plugin)
+					try:
+						spec = importlib.util.spec_from_file_location("temp", path)
+						new_plugin = importlib.util.module_from_spec(spec)
+						spec.loader.exec_module(new_plugin)
+					except ImportError as import_error:
+						logger.error("Could not load plugin from %s, skipping", path)
+						# Caution: loglevel does not affect this message
+						logger.debug(import_error, exc_info=True)
+						continue
 					name = new_plugin.get_plugin_name()
 					self.plugin_modules[name] = new_plugin
 
