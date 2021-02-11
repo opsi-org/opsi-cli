@@ -17,6 +17,7 @@ python = "^3.7"
 click = "^7.1.2"
 python-opsi = "^4.2.0"
 pipreqs = "^0.4.10"
+netifaces = "^0.10.9"
 
 [tool.poetry.dev-dependencies]
 pytest = "^4.6"

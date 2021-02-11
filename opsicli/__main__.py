@@ -3,7 +3,7 @@ import sys
 import importlib
 import click
 
-from opsicli import plugin, COMMANDS_DIR, LIB_DIR, init_logging, logger
+from opsicli import plugin, support, COMMANDS_DIR, LIB_DIR, init_logging, logger
 
 __version__ = "0.1.0"
 
@@ -53,6 +53,8 @@ class OpsiCLI(click.MultiCommand):
 					ctx.obj.update({name : os.path.join(folder, filename)})
 
 		self.plugin_modules["plugin"] = plugin
+		self.plugin_modules["support"] = support
+
 
 
 	def list_commands(self, ctx):
