@@ -103,8 +103,8 @@ def write_client_info(directory, past_days):
 
 	os.makedirs(directory)
 	copy_client_config(directory)
-	if platform.platform().lower() == "windows":
-		copy_logs(directory, r"C:\opsi.org\logs", past_days)
+	if platform.system().lower() == "windows":
+		copy_logs(directory, r"C:\opsi.org\log", past_days)
 	else:
 		copy_logs(directory, "/var/log/opsi-client-agent/", past_days)
 		copy_logs(directory, "/var/log/opsi-script/", past_days)
