@@ -26,7 +26,8 @@ def cli():
 
 
 @cli.command(short_help='short help for collect')
-def collect():
+@click.option("--past-days", default=7, help="number of days to collect logs for")
+def collect(past_days):
 	"""
 	opsi support collect subsubcommand.
 	This is the long help.
@@ -35,9 +36,9 @@ def collect():
 	with tempfile.TemporaryDirectory() as tmpdir:
 		write_general_info(os.path.join(tmpdir, "general"))
 		if os.path.exists("/etc/opsi/opsiconfd.conf"):
-			write_server_info(os.path.join(tmpdir, "server"))
-		if os.path.exists("/etc/opsi-client-agent/opsiclientd.conf"):	#TODO: windows clients
-			write_client_info(os.path.join(tmpdir, "client"))
+			write_server_info(os.path.join(tmpdir, "server"), past_days)
+		if os.path.exists("/etc/opsi-client-agent/opsiclientd.conf") or os.path.exists(r"C:\opsi.org"):
+			write_client_info(os.path.join(tmpdir, "client"), past_days)
 
 		with zipfile.ZipFile("collected_infos.zip", "w", zipfile.ZIP_DEFLATED) as zfile:
 			for root, _, files in os.walk(tmpdir):
@@ -46,25 +47,7 @@ def collect():
 					zfile.write(os.path.join(root, single_file), arcname=os.path.join("collected_infos", base, single_file))
 
 
-
-"""
-concept
-support collect --make-ticket --day-span <days> (default 7) --remote <url>
-
-collect logs: everything at most <days> days old
-inspect self unless --remote <url> is given
-
-# server
-/var/log/opsi
-/etc/opsi
-ip a
-lsb_release -a
-
-# client
-/var/log/opsi-client-agent	|| C:\opsi.org\log
-/var/log/opsi-script		|| C:\opsi.org\applog
-/etc/opsi-client-agent		|| C:\opsi.org\opsiclientd
-/etc/opsi-script			|| C:\Program Files (x86)\opsi.org\opsi-client-agent
-ip a						|| ipconfig
-lsb_release -a				|| systeminfo
-"""
+#concept
+#support collect --make-ticket --past-days <days> (default 7) --remote <url>
+#	collect logs: everything at most <days> days old
+#	inspect self unless --remote <url> is given
