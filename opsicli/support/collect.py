@@ -50,7 +50,8 @@ def copy_logs(directory, log_dir, past_days):
 		print(f"Could not find any logs at {log_dir}")
 		return
 
-	os.makedirs(os.path.join(directory, "log"))
+	if not os.path.exists(os.path.join(directory, "log")):
+		os.makedirs(os.path.join(directory, "log"))
 	time_threshold = time.time() - 3600*24*past_days
 	for root, dirs, files in os.walk(log_dir):
 		target_dir = os.path.relpath(root, log_dir)
@@ -100,7 +101,7 @@ def write_client_info(directory, past_days):
 		if os.path.exists(r"C:\Program Files (x86)\opsi.org\opsi-client-agent\opsiclientd\opsiclientd.conf"):
 			shutil.copy(r"C:\Program Files (x86)\opsi.org\opsi-client-agent\opsiclientd\opsiclientd.conf", directory)
 
-
+	os.makedirs(directory)
 	copy_client_config(directory)
 	if platform.platform().lower() == "windows":
 		copy_logs(directory, r"C:\opsi.org\logs", past_days)
