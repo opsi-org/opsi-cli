@@ -27,7 +27,8 @@ def cli():
 
 @cli.command(short_help='short help for collect')
 @click.option("--past-days", default=7, help="number of days to collect logs for")
-def collect(past_days):
+@click.option("--no-logs", default=False, help="if True, do not collect logfiles")
+def collect(past_days, no_logs):
 	"""
 	opsi support collect subsubcommand.
 	This is the long help.
@@ -36,9 +37,9 @@ def collect(past_days):
 	with tempfile.TemporaryDirectory() as tmpdir:
 		write_general_info(os.path.join(tmpdir, "general"))
 		if os.path.exists("/etc/opsi/opsiconfd.conf"):
-			write_server_info(os.path.join(tmpdir, "server"), past_days)
+			write_server_info(os.path.join(tmpdir, "server"), past_days, no_logs)
 		if os.path.exists("/etc/opsi-client-agent/opsiclientd.conf") or os.path.exists(r"C:\opsi.org"):
-			write_client_info(os.path.join(tmpdir, "client"), past_days)
+			write_client_info(os.path.join(tmpdir, "client"), past_days, no_logs)
 
 		with zipfile.ZipFile("collected_infos.zip", "w", zipfile.ZIP_DEFLATED) as zfile:
 			for root, _, files in os.walk(tmpdir):

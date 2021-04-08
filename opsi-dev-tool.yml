@@ -12,7 +12,7 @@ pyinstaller-poetry:
   scripts:
     - script: run-opsicli
       binaries:
-        - opsi
+        - opsi-cli
   data_files:
     - src: ${VENV_SITE_PACKAGES}/pipreqs/stdlib
       dst: pipreqs

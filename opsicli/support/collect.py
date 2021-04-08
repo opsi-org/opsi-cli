@@ -67,7 +67,7 @@ def copy_logs(directory, log_dir, past_days):
 				shutil.copy(source, destination)
 
 
-def write_server_info(directory, past_days):
+def write_server_info(directory, past_days, no_logs=False):
 
 	def copy_server_config(directory):
 		if os.path.exists("/etc/opsi/opsiconfd.conf"):
@@ -82,16 +82,17 @@ def write_server_info(directory, past_days):
 			shutil.copytree("/etc/opsi/backends", os.path.join(directory, "backends"))
 		if os.path.exists("/etc/opsi/backendManager"):
 			shutil.copytree("/etc/opsi/backendManager", os.path.join(directory, "backendManager"))
-		if os.path.exists("/etc/opsi/hwaudit"):
-			shutil.copytree("/etc/opsi/hwaudit", os.path.join(directory, "hwaudit"))
+		if os.path.exists("/etc/opsi/hwaudit/opsihwaudit.conf"):
+			shutil.copy("/etc/opsi/hwaudit/opsihwaudit.conf", directory)
 
 
 	os.makedirs(directory)
 	copy_server_config(directory)
-	copy_logs(directory, "/var/log/opsi/", past_days)
+	if not no_logs:
+		copy_logs(directory, "/var/log/opsi/", past_days)
 
 
-def write_client_info(directory, past_days):
+def write_client_info(directory, past_days, no_logs=False):
 
 	def copy_client_config(directory):
 		if os.path.exists("/etc/opsi-client-agent/opsiclientd.conf"):
@@ -103,8 +104,9 @@ def write_client_info(directory, past_days):
 
 	os.makedirs(directory)
 	copy_client_config(directory)
-	if platform.system().lower() == "windows":
-		copy_logs(directory, r"C:\opsi.org\log", past_days)
-	else:
-		copy_logs(directory, "/var/log/opsi-client-agent/", past_days)
-		copy_logs(directory, "/var/log/opsi-script/", past_days)
+	if not no_logs:
+		if platform.system().lower() == "windows":
+			copy_logs(directory, r"C:\opsi.org\log", past_days)
+		else:
+			copy_logs(directory, "/var/log/opsi-client-agent/", past_days)
+			copy_logs(directory, "/var/log/opsi-script/", past_days)
