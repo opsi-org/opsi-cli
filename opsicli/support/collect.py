@@ -6,6 +6,10 @@ import shutil
 import psutil
 import netifaces
 
+
+from opsicli.support.diagnose import diagnose_problems
+
+
 def write_general_info(directory):
 
 	def write_system_info(filehandle):
@@ -43,6 +47,12 @@ def write_general_info(directory):
 		write_system_info(outfile)
 		write_network_info(outfile)
 		write_service_info(outfile)
+
+
+def write_diagnose_file(directory):
+	result = diagnose_problems()
+	with open(os.path.join(directory, "diagnose_problems.txt"), "w") as outfile:
+		outfile.write(result)
 
 
 def copy_logs(directory, log_dir, past_days):

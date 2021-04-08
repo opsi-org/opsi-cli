@@ -4,7 +4,8 @@ import zipfile
 import tempfile
 import click
 
-from .collect import write_general_info, write_server_info, write_client_info
+from opsicli.support.collect import write_general_info, write_diagnose_file, write_server_info, write_client_info
+from opsicli.support.diagnose import diagnose_problems
 
 __version__ = "0.1.0"
 logger = logging.getLogger()
@@ -14,28 +15,29 @@ def get_plugin_name():
 	return "support"
 
 
-@click.group(name="support", short_help="short help for support")
+@click.group(name="support", short_help="support command for troubleshoot and help")
 #@click.version_option(f"{__version__}", message="%(package)s, version %(version)s")
 @click.version_option(__version__, message="opsi support, version %(version)s")
 def cli():
 	"""
-	opsi support subcommand.
+	opsi support command.
 	This is the long help.
 	"""
-	logger.info("support subcommand")
+	logger.info("support command")
 
 
-@cli.command(short_help='short help for collect')
+@cli.command(short_help='collect information about system and opsi environment')
 @click.option("--past-days", default=7, help="number of days to collect logs for")
 @click.option("--no-logs", default=False, help="if True, do not collect logfiles")
 def collect(past_days, no_logs):
 	"""
-	opsi support collect subsubcommand.
+	opsi-cli support collect subcommand.
 	This is the long help.
 	"""
-	logger.info("collect subsubcommand")
+	logger.info("collect subcommand")
 	with tempfile.TemporaryDirectory() as tmpdir:
 		write_general_info(os.path.join(tmpdir, "general"))
+		write_diagnose_file(os.path.join(tmpdir, "general"))
 		if os.path.exists("/etc/opsi/opsiconfd.conf"):
 			write_server_info(os.path.join(tmpdir, "server"), past_days, no_logs)
 		if os.path.exists("/etc/opsi-client-agent/opsiclientd.conf") or os.path.exists(r"C:\opsi.org"):
@@ -46,6 +48,17 @@ def collect(past_days, no_logs):
 				base = os.path.relpath(root, start=tmpdir)
 				for single_file in files:
 					zfile.write(os.path.join(root, single_file), arcname=os.path.join("collected_infos", base, single_file))
+
+
+@cli.command(short_help='identify possible problems')
+def diagnose():
+	"""
+	opsi-cli support diagnose subcommand.
+	This is the long help.
+	"""
+	logger.info("diagnose subcommand")
+	result = diagnose_problems()
+	print(result)
 
 
 #concept

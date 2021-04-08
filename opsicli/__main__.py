@@ -78,7 +78,7 @@ class OpsiCLI(click.MultiCommand):
 def main(log_level):
 	"""
 	opsi Command Line Interface\n
-	Subcommands are dynamically loaded from a subfolder
+	commands are dynamically loaded from a subfolder
 	"""
 	init_logging(log_level)
 	logger.info("cli was called")
