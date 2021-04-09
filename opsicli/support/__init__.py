@@ -18,7 +18,8 @@ def get_plugin_name():
 @click.group(name="support", short_help="support command for troubleshoot and help")
 #@click.version_option(f"{__version__}", message="%(package)s, version %(version)s")
 @click.version_option(__version__, message="opsi support, version %(version)s")
-def cli():
+@click.pass_context
+def cli(ctx):
 	"""
 	opsi support command.
 	This is the long help.
@@ -29,7 +30,8 @@ def cli():
 @cli.command(short_help='collect information about system and opsi environment')
 @click.option("--past-days", default=7, help="number of days to collect logs for")
 @click.option("--no-logs", default=False, help="if True, do not collect logfiles")
-def collect(past_days, no_logs):
+@click.pass_context
+def collect(ctx, past_days, no_logs):
 	"""
 	opsi-cli support collect subcommand.
 	This is the long help.
@@ -37,7 +39,7 @@ def collect(past_days, no_logs):
 	logger.info("collect subcommand")
 	with tempfile.TemporaryDirectory() as tmpdir:
 		write_general_info(os.path.join(tmpdir, "general"))
-		write_diagnose_file(os.path.join(tmpdir, "general"))
+		write_diagnose_file(os.path.join(tmpdir, "general"), ctx.obj.get("server_interface"), ctx.obj.get("user"), ctx.obj.get("password"))
 		if os.path.exists("/etc/opsi/opsiconfd.conf"):
 			write_server_info(os.path.join(tmpdir, "server"), past_days, no_logs)
 		if os.path.exists("/etc/opsi-client-agent/opsiclientd.conf") or os.path.exists(r"C:\opsi.org"):
@@ -51,13 +53,14 @@ def collect(past_days, no_logs):
 
 
 @cli.command(short_help='identify possible problems')
-def diagnose():
+@click.pass_context
+def diagnose(ctx):
 	"""
 	opsi-cli support diagnose subcommand.
 	This is the long help.
 	"""
 	logger.info("diagnose subcommand")
-	result = diagnose_problems()
+	result = diagnose_problems(ctx.obj.get("server_interface"), ctx.obj.get("user"), ctx.obj.get("password"))
 	print(result)
 
 

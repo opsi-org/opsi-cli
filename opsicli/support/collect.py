@@ -49,8 +49,8 @@ def write_general_info(directory):
 		write_service_info(outfile)
 
 
-def write_diagnose_file(directory):
-	result = diagnose_problems()
+def write_diagnose_file(directory, server_interface, user, password):
+	result = diagnose_problems(server_interface, user, password)
 	with open(os.path.join(directory, "diagnose_problems.txt"), "w") as outfile:
 		outfile.write(result)
 

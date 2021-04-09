@@ -75,10 +75,20 @@ class OpsiCLI(click.MultiCommand):
 #@click.version_option(f"{__version__}", message="%(package)s, version %(version)s")
 @click.version_option(f"{__version__}", message="opsiCLI, version %(version)s")
 @click.option('--log-level', "-l", default="warning", type=click.Choice(['critical', 'error', "warning", "info", "debug"]))
-def main(log_level):
+@click.option('--server-interface', envvar="OPSI_SERVER_INTERFACE", default="https://localhost:4447", type=str)
+@click.option('--user', "-u", envvar="OPSI_CLI_USER", type=str)
+@click.option('--password', "-p", envvar="OPSI_CLI_PASSWORD", type=str)
+@click.pass_context
+def main(ctx, log_level, user, password, server_interface):
 	"""
 	opsi Command Line Interface\n
 	commands are dynamically loaded from a subfolder
 	"""
 	init_logging(log_level)
+	ctx.obj = {
+		"log_level" : log_level,
+		"user" : user,
+		"password" : password,
+		"server_interface" : server_interface
+	}
 	logger.info("cli was called")
