@@ -19,7 +19,7 @@ def get_plugin_name():
 #@click.version_option(f"{__version__}", message="%(package)s, version %(version)s")
 @click.version_option(__version__, message="opsi support, version %(version)s")
 @click.pass_context
-def cli(ctx):
+def cli(ctx):	#pylint: disable=unused-argument
 	"""
 	opsi support command.
 	This is the long help.
