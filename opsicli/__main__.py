@@ -31,6 +31,7 @@ class OpsiCLI(click.MultiCommand):
 	def register_commands(self, ctx):
 		if self.external_lib_folder not in sys.path:
 			sys.path.append(self.external_lib_folder)
+		logger.devel("sys.path is %s", sys.path)
 
 		if ctx.obj is None:
 			ctx.obj = {}
@@ -92,7 +93,6 @@ def main(ctx, log_level, user, password, service_url):
 
 	if not ctx.obj:  # stacked execution in pytest circumvents register_commands -> explicit call here
 		ctx.command.register_commands(ctx)
-	logger.devel("context object after register_commands is: %s", ctx.obj)
 	ctx.obj.update({
 		"user": user,
 		"password": password,
