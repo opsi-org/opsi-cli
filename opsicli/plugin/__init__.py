@@ -51,7 +51,7 @@ def add(path):
 def prepare_plugin(path, tmpdir):
 	logger.info("inspecting plugin source %s", path)
 	if os.path.exists(os.path.join(path, "__init__.py")):
-		name = os.path.basename(os.path.dirname(path + "/"))
+		name = os.path.basename(os.path.dirname(path + os.pathsep))
 		shutil.copytree(path, os.path.join(tmpdir, name))
 	elif path.endswith(".opsiplugin"):
 		with zipfile.ZipFile(path, "r") as zfile:
