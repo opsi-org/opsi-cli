@@ -1,3 +1,9 @@
+"""
+opsi-cli Basic command line interface for opsi
+
+plugin subcommand
+"""
+
 import os
 import shutil
 import subprocess
@@ -19,9 +25,9 @@ def get_plugin_name():
 
 
 @click.group(name="plugin", short_help="manage opsi CLI plugins")
-#@click.version_option(f"{__version__}", message="%(package)s, version %(version)s")
 @click.version_option(__version__, message="opsi plugin, version %(version)s")
-def cli():
+@click.pass_context
+def cli(ctx):  # pylint: disable=unused-argument
 	"""
 	opsi plugin subcommand.
 	This is the long help.
@@ -50,7 +56,7 @@ def prepare_plugin(path, tmpdir):
 	elif path.endswith(".opsiplugin"):
 		with zipfile.ZipFile(path, "r") as zfile:
 			zfile.extractall(tmpdir)
-		name = os.path.basename(path)[:-11]		# cut the ".opsiplugin"
+		name = os.path.basename(path)[:-11]  # cut the ".opsiplugin"
 	else:
 		raise ValueError(f"Invalid path given {path}")
 
@@ -61,7 +67,7 @@ def prepare_plugin(path, tmpdir):
 
 def install_plugin(source_dir, name):
 	logger.info("installing libraries")
-	#https://lukelogbook.tech/2018/01/25/merging-two-folders-in-python/
+	# https://lukelogbook.tech/2018/01/25/merging-two-folders-in-python/
 	for src_dir, _, files in os.walk(os.path.join(source_dir, "lib")):
 		dst_dir = src_dir.replace(os.path.join(source_dir, "lib"), LIB_DIR, 1)
 		if not os.path.exists(dst_dir):
@@ -87,8 +93,8 @@ def install_dependencies(path, target_dir):
 	else:
 		logger.debug("generating requirements.txt from package %s", path)
 		candidates = pipreqs.get_pkg_names(pipreqs.get_all_imports(path))
-		dependencies = pipreqs.get_imports_info(candidates, pypi_server="https://pypi.python.org/pypi/")	#proxy possible
-		pipreqs.generate_requirements_file(os.path.join(path, "requirements.txt"), dependencies)
+		dependencies = pipreqs.get_imports_info(candidates, pypi_server="https://pypi.python.org/pypi/")  # proxy possible
+		pipreqs.generate_requirements_file(os.path.join(path, "requirements.txt"), dependencies, symbol=">=")
 	for dependency in dependencies:
 		try:
 			logger.debug("installing %s, version %s", dependency["name"], dependency["version"])
@@ -98,21 +104,54 @@ def install_dependencies(path, target_dir):
 			raise process_error
 
 
+def get_plugin_path(ctx, name):
+	plugin_dirs = ctx.obj["plugins"]
+	logger.info("trying to get plugin %s", name)
+	logger.debug("list of available plugins is: %s", plugin_dirs)
+	if name not in plugin_dirs:
+		raise ValueError(f"Plugin {name} not found.")
+	return plugin_dirs[name]
+
+
 @cli.command(short_help='export plugin as .opsiplugin')
 @click.argument('name', type=str)
-def export(name):
+@click.pass_context
+def export(ctx, name):
 	"""
 	opsi plugin export subsubcommand.
 	This is the long help.
 	"""
-	plugin_dirs = click.get_current_context().obj
-	if not name in plugin_dirs:
-		raise ValueError(f"Plugin {name} (requested to export) not found.")
+	path = get_plugin_path(ctx, name)
 
 	logger.info("exporting command %s to %s", name, f"{name}.opsiplugin")
-	arcname = os.path.split(plugin_dirs[name])[1]
+	arcname = os.path.split(path)[1]
 	with zipfile.ZipFile(f"{name}.opsiplugin", "w", zipfile.ZIP_DEFLATED) as zfile:
-		for root, _, files in os.walk(plugin_dirs[name]):
-			base = os.path.relpath(root, start=plugin_dirs[name])
+		for root, _, files in os.walk(path):
+			base = os.path.relpath(root, start=path)
 			for single_file in files:
 				zfile.write(os.path.join(root, single_file), arcname=os.path.join(arcname, base, single_file))
+
+
+@cli.command(name="list", short_help='list imported plugins')
+@click.pass_context
+def list_command(ctx):
+	"""
+	opsi plugin list subsubcommand.
+	This is the long help.
+	"""
+	for plugin_name in ctx.obj["plugins"].keys():
+		print(plugin_name)  # check for validity?
+
+
+@cli.command(short_help='removes a plugin')
+@click.argument('name', type=str)
+@click.pass_context
+def remove(ctx, name):
+	"""
+	opsi plugin remove subsubcommand.
+	This is the long help.
+	"""
+	path = get_plugin_path(ctx, name)
+	assert COMMANDS_DIR in path  # to be sure...
+	logger.notice("removing plugin %s", name)
+	shutil.rmtree(path)

@@ -13,17 +13,18 @@ name = "uib"
 url = "http://pypi.uib.gmbh:8080/simple/"
 
 [tool.poetry.dependencies]
-python = "^3.7"
-click = "^7.1.2"
+python = "^3.7,<3.11"
+click = "^8.0"
 python-opsi = "^4.2.0"
 pipreqs = "^0.4.10"
-netifaces = "^0.10.9"
+python-opsi-common = "^4.2.0"
 
 [tool.poetry.dev-dependencies]
-pytest = "^4.6"
+pytest = "^6.2"
 opsi-dev-tools = "^1.0.49"
 pyinstaller = "^4.1"
 pylint = "^2.6.0"
+flake8 = "^4.0.1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

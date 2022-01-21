@@ -1,10 +1,16 @@
-import logging
+"""
+opsi-cli Basic command line interface for opsi
+
+dummy command - proof of concept
+"""
+
 import requests
-import magic		# pylint: disable=E0401
+import magic		# pylint: disable=import-error
 import click
 
+from opsicommon.logging import logger
+
 __version__ = "0.1.0"
-logger = logging.getLogger()
 
 
 def get_plugin_name():
@@ -12,8 +18,7 @@ def get_plugin_name():
 
 
 @click.group(name="dummy", short_help="short help for dummy")
-#@click.version_option(f"{__version__}", message="%(package)s, version %(version)s")
-@click.version_option(__version__, message="opsi support, version %(version)s")
+@click.version_option(__version__, message="dummy plugin test, version %(version)s")
 def cli():
 	"""
 	opsi dummy subcommand.
@@ -23,7 +28,7 @@ def cli():
 
 
 @cli.command(short_help='short help for subdummy')
-def subdummy():
+def libtest():
 	"""
 	opsi dummy subdummy subsubcommand.
 	This is the long help.
@@ -31,3 +36,4 @@ def subdummy():
 	logger.info("subdummy subsubcommand")
 	magic_resolver = magic.Magic(mime=True, uncompress=True)
 	print(magic_resolver.from_file('opsi-dev-tool.yml'))
+	print(requests.get("https://opsi.org"))
