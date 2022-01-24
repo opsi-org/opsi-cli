@@ -27,9 +27,10 @@ class OpsiCLI(click.MultiCommand):
 
 	def register_commands(self, ctx):
 		if not os.path.exists(COMMANDS_DIR):
-			os.makedirs(COMMANDS_DIR, exist_ok=True)
+			os.makedirs(COMMANDS_DIR)
 		if not os.path.exists(LIB_DIR):
-			os.makedirs(LIB_DIR, exist_ok=True)
+			os.makedirs(LIB_DIR)
+		logger.debug("initializing plugins from dir %s", COMMANDS_DIR)
 
 		if self.external_lib_folder not in sys.path:
 			sys.path.append(self.external_lib_folder)
