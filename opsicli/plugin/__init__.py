@@ -45,7 +45,7 @@ def add(path):
 	This is the long help.
 	"""
 	with tempfile.TemporaryDirectory() as tmpdir:
-		os.makedirs(os.path.join(tmpdir, "lib"), exist_ok=True)
+		os.makedirs(os.path.join(tmpdir, "lib"))
 		name = prepare_plugin(path, tmpdir)
 		install_plugin(tmpdir, name)
 
@@ -70,8 +70,15 @@ def prepare_plugin(path, tmpdir):
 
 def install_plugin(source_dir, name):
 	logger.info("installing libraries")
-	destination = os.path.join(LIB_DIR, name)
-	shutil.copytree(os.path.join(source_dir, "lib"), destination, dirs_exist_ok=True)
+	# https://lukelogbook.tech/2018/01/25/merging-two-folders-in-python/
+	for src_dir, _, files in os.walk(os.path.join(source_dir, "lib")):
+		dst_dir = src_dir.replace(os.path.join(source_dir, "lib"), LIB_DIR, 1)
+		if not os.path.exists(dst_dir):
+			os.makedirs(dst_dir)
+		for file_ in files:
+			if not os.path.exists(os.path.join(dst_dir, file_)):
+				# avoid replacing files that might be currently loaded -> segfault
+				shutil.copy2(os.path.join(src_dir, file_), os.path.join(dst_dir, file_))
 
 	logger.info("installing plugin")
 	destination = os.path.join(COMMANDS_DIR, name)
