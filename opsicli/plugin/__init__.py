@@ -115,9 +115,12 @@ def install_dependencies(path, target_dir):
 			try:
 				logger.info("installing %s, version %s", dependency["name"], dependency["version"])
 				subprocess.check_call(["python3", '-m', 'pip', 'install', f"{dependency['name']}=={dependency['version']}", f"--target={target_dir}"])
-			except subprocess.CalledProcessError as process_error:
-				logger.error("Could not install %s ... aborting", dependency["name"])
-				raise process_error
+			except subprocess.CalledProcessError:
+				try:
+					subprocess.check_call(["python", '-m', 'pip', 'install', f"{dependency['name']}=={dependency['version']}", f"--target={target_dir}"])
+				except subprocess.CalledProcessError as process_error:
+					logger.error("Could not install %s ... aborting", dependency["name"])
+					raise process_error
 
 
 def get_plugin_path(ctx, name):
