@@ -4,6 +4,8 @@ opsi-cli Basic command line interface for opsi
 plugin subcommand
 """
 
+from packaging.version import parse
+import importlib
 import os
 import shutil
 import subprocess
@@ -51,7 +53,8 @@ def add(path):
 def prepare_plugin(path, tmpdir):
 	logger.info("inspecting plugin source %s", path)
 	if os.path.exists(os.path.join(path, "__init__.py")):
-		name = os.path.basename(os.path.dirname(path + os.pathsep))
+		# normpath to be resistant against trailing separators
+		name = os.path.basename(os.path.normpath(path))
 		shutil.copytree(path, os.path.join(tmpdir, name))
 	elif path.endswith(".opsiplugin"):
 		with zipfile.ZipFile(path, "r") as zfile:
@@ -92,16 +95,29 @@ def install_dependencies(path, target_dir):
 		dependencies = pipreqs.parse_requirements(os.path.join(path, "requirements.txt"))
 	else:
 		logger.debug("generating requirements.txt from package %s", path)
+		# candidates: python libraries (like requests, magic)
 		candidates = pipreqs.get_pkg_names(pipreqs.get_all_imports(path))
+		# dependencies: python package names (like Requests, python_magic)
+		# this failes for packages not available at pypi.python.org (like opsicommon) -> those are ignored	TODO
 		dependencies = pipreqs.get_imports_info(candidates, pypi_server="https://pypi.python.org/pypi/")  # proxy possible
 		pipreqs.generate_requirements_file(os.path.join(path, "requirements.txt"), dependencies, symbol=">=")
+	logger.debug("got dependencies: %s", dependencies)
 	for dependency in dependencies:
 		try:
-			logger.debug("installing %s, version %s", dependency["name"], dependency["version"])
-			subprocess.check_call(["python3", '-m', 'pip', 'install', f"{dependency['name']}=={dependency['version']}", f"--target={target_dir}"])
-		except subprocess.CalledProcessError as process_error:
-			logger.error("Could not install %s ... aborting", dependency["name"])
-			raise process_error
+			logger.debug("checking dependency %s", dependency["name"])
+			temp_module = importlib.import_module(dependency["name"])
+			assert parse(temp_module.__version__) >= parse(dependency["version"])
+			logger.debug(
+				"module %s present in version %s (required %s) - not installing",
+				dependency["name"], temp_module.__version__, dependency["version"]
+			)
+		except (ImportError, AssertionError, AttributeError):
+			try:
+				logger.info("installing %s, version %s", dependency["name"], dependency["version"])
+				subprocess.check_call(["python3", '-m', 'pip', 'install', f"{dependency['name']}=={dependency['version']}", f"--target={target_dir}"])
+			except subprocess.CalledProcessError as process_error:
+				logger.error("Could not install %s ... aborting", dependency["name"])
+				raise process_error
 
 
 def get_plugin_path(ctx, name):
@@ -121,9 +137,10 @@ def export(ctx, name):
 	opsi plugin export subsubcommand.
 	This is the long help.
 	"""
+	logger.notice("exporting command %s to %s", name, f"{name}.opsiplugin")
 	path = get_plugin_path(ctx, name)
+	logger.debug("compressing plugin path %s", path)
 
-	logger.info("exporting command %s to %s", name, f"{name}.opsiplugin")
 	arcname = os.path.split(path)[1]
 	with zipfile.ZipFile(f"{name}.opsiplugin", "w", zipfile.ZIP_DEFLATED) as zfile:
 		for root, _, files in os.walk(path):
@@ -154,4 +171,5 @@ def remove(ctx, name):
 	path = get_plugin_path(ctx, name)
 	assert COMMANDS_DIR in path  # to be sure...
 	logger.notice("removing plugin %s", name)
+	logger.debug("deleting %s", path)
 	shutil.rmtree(path)

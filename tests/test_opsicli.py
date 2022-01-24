@@ -5,9 +5,12 @@ Tests
 """
 
 import os
+import shutil
+import pytest
 from click.testing import CliRunner
 
 from opsicli.__main__ import main
+from opsicli import CLI_BASE_PATH
 
 runner = CliRunner()
 
@@ -20,6 +23,7 @@ def test_initial():
 
 # @pytest.mark.xfail(reason="does not work on windows since pip install fails")
 def test_plugin_add_remove():
+	shutil.rmtree(CLI_BASE_PATH, ignore_errors=True)
 	result = runner.invoke(main, ["plugin", "add", "commands/dummy"], obj={})
 	assert result.exit_code == 0
 	result = runner.invoke(main, ["plugin", "list"], obj={})
@@ -33,7 +37,8 @@ def test_plugin_add_remove():
 
 
 def test_pluginarchive_export_import():
-	result = runner.invoke(main, ["plugin", "add", "commands/dummy"], obj={})
+	shutil.rmtree(CLI_BASE_PATH, ignore_errors=True)
+	result = runner.invoke(main, ["plugin", "add", "commands/dummy/"], obj={})
 	assert result.exit_code == 0
 	result = runner.invoke(main, ["plugin", "export", "dummy"], obj={})
 	assert result.exit_code == 0
