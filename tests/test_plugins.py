@@ -24,7 +24,7 @@ def test_initial():
 # @pytest.mark.xfail(reason="does not work on windows since pip install fails")
 def test_plugin_add_remove():
 	shutil.rmtree(CLI_BASE_PATH, ignore_errors=True)
-	result = runner.invoke(main, ["plugin", "add", "tests/test_data/commands/dummy"], obj={})
+	result = runner.invoke(main, ["plugin", "add", os.path.join("tests", "test_data", "commands", "dummy")], obj={})
 	assert result.exit_code == 0
 	result = runner.invoke(main, ["plugin", "list"], obj={})
 	assert result.exit_code == 0
@@ -38,11 +38,11 @@ def test_plugin_add_remove():
 
 def test_pluginarchive_export_import():
 	shutil.rmtree(CLI_BASE_PATH, ignore_errors=True)
-	result = runner.invoke(main, ["plugin", "add", "tests/test_data/commands/dummy"], obj={})
+	result = runner.invoke(main, ["plugin", "add", os.path.join("tests", "test_data", "commands", "dummy")], obj={})
 	assert result.exit_code == 0
 	result = runner.invoke(main, ["plugin", "export", "dummy"], obj={})
 	assert result.exit_code == 0
-	os.path.exists("dummy.opsiplugin")
+	assert os.path.exists("dummy.opsiplugin")
 	result = runner.invoke(main, ["plugin", "remove", "dummy"], obj={})
 	assert result.exit_code == 0
 	result = runner.invoke(main, ["plugin", "add", "dummy.opsiplugin"], obj={})
