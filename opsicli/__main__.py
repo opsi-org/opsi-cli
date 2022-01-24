@@ -33,7 +33,6 @@ class OpsiCLI(click.MultiCommand):
 
 		if self.external_lib_folder not in sys.path:
 			sys.path.append(self.external_lib_folder)
-		logger.devel("sys.path is %s", sys.path)
 
 		if ctx.obj is None:
 			ctx.obj = {}
