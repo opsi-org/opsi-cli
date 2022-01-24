@@ -70,17 +70,8 @@ def prepare_plugin(path, tmpdir):
 
 def install_plugin(source_dir, name):
 	logger.info("installing libraries")
-	# https://lukelogbook.tech/2018/01/25/merging-two-folders-in-python/
-	for src_dir, _, files in os.walk(os.path.join(source_dir, "lib")):
-		dst_dir = src_dir.replace(os.path.join(source_dir, "lib"), LIB_DIR, 1)
-		if not os.path.exists(dst_dir):
-			os.makedirs(dst_dir)
-		for file_ in files:
-			src_file = os.path.join(src_dir, file_)
-			dst_file = os.path.join(dst_dir, file_)
-			if os.path.exists(dst_file):
-				os.remove(dst_file)
-			shutil.copy(src_file, dst_dir)
+	destination = os.path.join(LIB_DIR, name)
+	shutil.copytree(os.path.join(source_dir, "lib"), destination, dirs_exist_ok=True)
 
 	logger.info("installing plugin")
 	destination = os.path.join(COMMANDS_DIR, name)
