@@ -5,7 +5,7 @@ dummy command - proof of concept
 """
 
 import requests
-import magic		# pylint: disable=import-error
+import netifaces		# pylint: disable=import-error
 import click
 
 from opsicommon.logging import logger
@@ -34,6 +34,5 @@ def libtest():
 	This is the long help.
 	"""
 	logger.info("subdummy subsubcommand")
-	magic_resolver = magic.Magic(mime=True, uncompress=True)
-	print(magic_resolver.from_file('opsi-dev-tool.yml'))
+	print(netifaces.gateways())
 	print(requests.get("https://opsi.org"))
