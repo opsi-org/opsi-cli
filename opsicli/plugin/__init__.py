@@ -112,11 +112,11 @@ def install_dependencies(path, target_dir):
 		except (ImportError, AssertionError, AttributeError):
 			try:
 				logger.info("installing %s, version %s", dependency["name"], dependency["version"])
-				subprocess.check_call(["python3", '-m', 'pip', 'install', f"{dependency['name']}>={dependency['version']}", f"--target={target_dir}"])
+				subprocess.check_call(["python3", '-m', 'pip', 'install', f"{dependency['name']}>={dependency['version']}", "--target", target_dir])
 			except subprocess.CalledProcessError:
 				try:
 					logger.warning("python3 -m pip failed, trying python -m pip")
-					subprocess.check_call(["python", '-m', 'pip', 'install', f"{dependency['name']}>={dependency['version']}", f"--target={target_dir}"])
+					subprocess.check_call(["python", '-m', 'pip', 'install', f"{dependency['name']}>={dependency['version']}", "--target", target_dir])
 				except subprocess.CalledProcessError as process_error:
 					logger.error("Could not install %s ... aborting", dependency["name"])
 					raise process_error
