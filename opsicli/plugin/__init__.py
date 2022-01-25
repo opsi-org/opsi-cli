@@ -87,6 +87,21 @@ def install_plugin(source_dir, name):
 	shutil.copytree(os.path.join(source_dir, name), destination)
 
 
+def install_python_package(target_dir, package):
+	try:
+		logger.info("installing %s, version %s", package["name"], package["version"])
+		result = subprocess.check_output(["python3", '-m', 'pip', 'install', f"{package['name']}>={package['version']}", "--target", target_dir], stderr=subprocess.STDOUT)
+		logger.devel(result)
+	except subprocess.CalledProcessError:
+		try:
+			logger.warning("python3 -m pip failed, trying python -m pip")
+			result = subprocess.check_output(["python", '-m', 'pip', 'install', f"{package['name']}>={package['version']}", "--target", target_dir], stderr=subprocess.STDOUT)
+			logger.devel(result)
+		except subprocess.CalledProcessError as process_error:
+			logger.error("Could not install %s ... aborting", package["name"])
+			raise process_error
+
+
 def install_dependencies(path, target_dir):
 	if os.path.exists(os.path.join(path, "requirements.txt")):
 		logger.debug("reading requirements.txt from %s", path)
@@ -110,16 +125,7 @@ def install_dependencies(path, target_dir):
 				dependency["name"], temp_module.__version__, dependency["version"]
 			)
 		except (ImportError, AssertionError, AttributeError):
-			try:
-				logger.info("installing %s, version %s", dependency["name"], dependency["version"])
-				subprocess.check_call(["python3", '-m', 'pip', 'install', f"{dependency['name']}>={dependency['version']}", "--target", target_dir])
-			except subprocess.CalledProcessError:
-				try:
-					logger.warning("python3 -m pip failed, trying python -m pip")
-					subprocess.check_call(["python", '-m', 'pip', 'install', f"{dependency['name']}>={dependency['version']}", "--target", target_dir])
-				except subprocess.CalledProcessError as process_error:
-					logger.error("Could not install %s ... aborting", dependency["name"])
-					raise process_error
+			install_python_package(target_dir, dependency)
 
 
 def get_plugin_path(ctx, name):

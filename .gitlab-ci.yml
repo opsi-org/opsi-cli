@@ -29,7 +29,7 @@ test:pytest-windows:
     - win10
   script:
     - poetry install
-    - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_windows.xml --cov-append --cov opsicli --cov-report term --cov-report xml -v tests
+    - poetry run pytest -s --tb=short -o junit_family=xunit2 --junitxml=testreport_windows.xml --cov-append --cov opsicli --cov-report term --cov-report xml -v tests
     - Rename-Item -Path .coverage -NewName coverage_windows
   artifacts:
     name: 'opsi-cli_test_windows'
