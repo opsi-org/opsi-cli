@@ -29,7 +29,7 @@ test:pytest-windows:
     - win10
   script:
     - poetry install
-    - poetry run pytest -s --tb=short -o junit_family=xunit2 --junitxml=testreport_windows.xml --cov-append --cov opsicli --cov-report term --cov-report xml -v tests
+    - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_windows.xml --cov-append --cov opsicli --cov-report term --cov-report xml -v tests
     - Rename-Item -Path .coverage -NewName coverage_windows
   artifacts:
     name: 'opsi-cli_test_windows'
@@ -67,8 +67,8 @@ test:pylint-pytest:
     - apt-get update
     - apt-get --yes install sqlite3
     - poetry install
-    - poetry run pylint --disable=R,fixme opsicli commands tests
-    - poetry run flake8 opsicli commands tests
+    - poetry run pylint --disable=R,fixme opsicli tests
+    - poetry run flake8 opsicli tests
     - for db in coverage_*; do sqlite3 $db 'update file set path=replace(substr(path,instr(path,"opsicli")),"\","/");'; done
     - echo -e '[run]\nrelative_files = True\n' > .coveragerc
     - poetry run coverage combine coverage_*

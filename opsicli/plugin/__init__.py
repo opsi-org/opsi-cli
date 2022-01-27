@@ -4,7 +4,6 @@ opsi-cli Basic command line interface for opsi
 plugin subcommand
 """
 
-from packaging.version import parse
 import importlib
 import os
 import shutil
@@ -12,6 +11,8 @@ import subprocess
 import tempfile
 import logging
 import zipfile
+from typing import Dict
+from packaging.version import parse
 import click
 from pipreqs import pipreqs
 
@@ -22,24 +23,24 @@ __version__ = "0.1.0"
 logger = logging.getLogger()
 
 
-def get_plugin_name():
+def get_plugin_name() -> str:
 	return "plugin"
 
 
 @click.group(name="plugin", short_help="manage opsi CLI plugins")
 @click.version_option(__version__, message="opsi plugin, version %(version)s")
 @click.pass_context
-def cli(ctx):  # pylint: disable=unused-argument
+def cli(ctx: click.Context) -> None:  # pylint: disable=unused-argument
 	"""
 	opsi plugin subcommand.
 	This is the long help.
 	"""
-	logger.info("plugin subcommand")
+	logger.debug("plugin subcommand")
 
 
 @cli.command(short_help='add new plugin (python package or .opsiplugin)')
 @click.argument('path', type=click.Path(exists=True))
-def add(path):
+def add(path: str) -> None:
 	"""
 	opsi plugin add subsubcommand.
 	This is the long help.
@@ -50,7 +51,8 @@ def add(path):
 		install_plugin(tmpdir, name)
 
 
-def prepare_plugin(path, tmpdir):
+# this creates the plugin command and libs in tmp
+def prepare_plugin(path: str, tmpdir: str) -> str:
 	logger.info("inspecting plugin source %s", path)
 	if os.path.exists(os.path.join(path, "__init__.py")):
 		# normpath to be resistant against trailing separators
@@ -68,8 +70,9 @@ def prepare_plugin(path, tmpdir):
 	return name
 
 
-def install_plugin(source_dir, name):
-	logger.info("installing libraries")
+# this copies the prepared plugin from tmp to LIB_DIR
+def install_plugin(source_dir: str, name: str) -> None:
+	logger.info("installing libraries from %s", os.path.join(source_dir, "lib"))
 	# https://lukelogbook.tech/2018/01/25/merging-two-folders-in-python/
 	for src_dir, _, files in os.walk(os.path.join(source_dir, "lib")):
 		dst_dir = src_dir.replace(os.path.join(source_dir, "lib"), LIB_DIR, 1)
@@ -80,29 +83,32 @@ def install_plugin(source_dir, name):
 				# avoid replacing files that might be currently loaded -> segfault
 				shutil.copy2(os.path.join(src_dir, file_), os.path.join(dst_dir, file_))
 
-	logger.info("installing plugin")
+	logger.info("installing plugin from %s", os.path.join(source_dir, name))
 	destination = os.path.join(COMMANDS_DIR, name)
 	if os.path.exists(destination):
 		shutil.rmtree(destination)
 	shutil.copytree(os.path.join(source_dir, name), destination)
 
 
-def install_python_package(target_dir, package):
-	try:
-		logger.info("installing %s, version %s", package["name"], package["version"])
-		result = subprocess.check_output(["python3", '-m', 'pip', 'install', f"{package['name']}>={package['version']}", "--target", target_dir], stderr=subprocess.STDOUT)
-		logger.devel(result)
-	except subprocess.CalledProcessError:
+def install_python_package(target_dir: str, package: Dict[str, str]) -> None:
+	logger.info("installing %s, version %s", package["name"], package["version"])
+	for pyversion in ["python3", "python"]:
 		try:
-			logger.warning("python3 -m pip failed, trying python -m pip")
-			result = subprocess.check_output(["python", '-m', 'pip', 'install', f"{package['name']}>={package['version']}", "--target", target_dir], stderr=subprocess.STDOUT)
-			logger.devel(result)
+			# cmd = [pyversion, '-m', 'pip', 'install', f"{package['name']}>={package['version']}", "--target", target_dir]
+			cmd = f"{pyversion} -m pip install {package['name']}>={package['version']} --target \"{target_dir}\""
+			logger.debug("executing %s", cmd)
+			result = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
+			logger.debug("success\n%s", result.decode("utf-8"))
+			return
 		except subprocess.CalledProcessError as process_error:
-			logger.error("Could not install %s ... aborting", package["name"])
-			raise process_error
+			logger.warning("%s -m pip failed: %s", pyversion, process_error, exc_info=True)
+		finally:
+			logger.devel(f"content of {target_dir}: {os.listdir(target_dir)}")
+	logger.error("Could not install %s ... aborting", package["name"])
+	raise RuntimeError(f"Could not install {package['name']} ... aborting")
 
 
-def install_dependencies(path, target_dir):
+def install_dependencies(path: str, target_dir: str) -> None:
 	if os.path.exists(os.path.join(path, "requirements.txt")):
 		logger.debug("reading requirements.txt from %s", path)
 		dependencies = pipreqs.parse_requirements(os.path.join(path, "requirements.txt"))
@@ -128,7 +134,7 @@ def install_dependencies(path, target_dir):
 			install_python_package(target_dir, dependency)
 
 
-def get_plugin_path(ctx, name):
+def get_plugin_path(ctx: click.Context, name: str) -> str:
 	plugin_dirs = ctx.obj["plugins"]
 	logger.info("trying to get plugin %s", name)
 	logger.debug("list of available plugins is: %s", plugin_dirs)
@@ -140,7 +146,7 @@ def get_plugin_path(ctx, name):
 @cli.command(short_help='export plugin as .opsiplugin')
 @click.argument('name', type=str)
 @click.pass_context
-def export(ctx, name):
+def export(ctx: click.Context, name: str) -> None:
 	"""
 	opsi plugin export subsubcommand.
 	This is the long help.
@@ -159,7 +165,7 @@ def export(ctx, name):
 
 @cli.command(name="list", short_help='list imported plugins')
 @click.pass_context
-def list_command(ctx):
+def list_command(ctx: click.Context) -> None:
 	"""
 	opsi plugin list subsubcommand.
 	This is the long help.
@@ -171,7 +177,7 @@ def list_command(ctx):
 @cli.command(short_help='removes a plugin')
 @click.argument('name', type=str)
 @click.pass_context
-def remove(ctx, name):
+def remove(ctx: click.Context, name: str) -> None:
 	"""
 	opsi plugin remove subsubcommand.
 	This is the long help.

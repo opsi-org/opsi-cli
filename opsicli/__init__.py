@@ -13,3 +13,10 @@ else:
 	CLI_BASE_PATH = os.path.join(os.path.expanduser("~"), ".local", "lib", "opsicli")
 COMMANDS_DIR = os.path.join(CLI_BASE_PATH, "commands")
 LIB_DIR = os.path.join(CLI_BASE_PATH, "lib")
+
+
+def make_cli_paths():
+	if not os.path.exists(COMMANDS_DIR):
+		os.makedirs(COMMANDS_DIR)
+	if not os.path.exists(LIB_DIR):
+		os.makedirs(LIB_DIR)
