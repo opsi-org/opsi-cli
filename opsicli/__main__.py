@@ -7,33 +7,29 @@ Main command
 import os
 import sys
 import importlib
+from typing import List, Callable
 import click
 
 from opsicommon.logging import logger, logging_config, DEFAULT_COLORED_FORMAT
 
-from opsicli import plugin, COMMANDS_DIR, LIB_DIR
+from opsicli import plugin, COMMANDS_DIR, LIB_DIR, make_cli_paths
 
 __version__ = "0.1.0"
 
 
 # https://click.palletsprojects.com/en/7.x/commands/#custom-multi-commands
 class OpsiCLI(click.MultiCommand):
-	def __init__(self, *args, **kwargs):
+	def __init__(self, *args, **kwargs) -> None:
 		super().__init__(*args, **kwargs)
 		self.plugin_folders = [COMMANDS_DIR]
-		self.external_lib_folder = LIB_DIR
 		self.plugin_modules = {}
 
-
-	def register_commands(self, ctx):
-		if not os.path.exists(COMMANDS_DIR):
-			os.makedirs(COMMANDS_DIR)
-		if not os.path.exists(LIB_DIR):
-			os.makedirs(LIB_DIR)
+	def register_commands(self, ctx: click.Context) -> None:
+		make_cli_paths()
 		logger.debug("initializing plugins from dir %s", COMMANDS_DIR)
 
-		if self.external_lib_folder not in sys.path:
-			sys.path.append(self.external_lib_folder)
+		if LIB_DIR not in sys.path:
+			sys.path.append(LIB_DIR)
 
 		if ctx.obj is None:
 			ctx.obj = {}
@@ -65,12 +61,12 @@ class OpsiCLI(click.MultiCommand):
 
 		self.plugin_modules["plugin"] = plugin
 
-	def list_commands(self, ctx):
+	def list_commands(self, ctx: click.Context) -> List[str]:
 		if not self.plugin_modules:
 			self.register_commands(ctx)
 		return sorted(self.plugin_modules.keys())
 
-	def get_command(self, ctx, cmd_name):
+	def get_command(self, ctx: click.Context, cmd_name: str) -> Callable:
 		if cmd_name not in self.plugin_modules:
 			self.register_commands(ctx)
 			if cmd_name not in self.plugin_modules:
@@ -85,7 +81,7 @@ class OpsiCLI(click.MultiCommand):
 @click.option('--user', "-u", envvar="OPSI_USER", type=str)
 @click.option('--password', "-p", envvar="OPSI_PASSWORD", type=str)
 @click.pass_context
-def main(ctx, log_level, user, password, service_url):
+def main(ctx: click.Context, log_level: int, user: str, password: str, service_url: str) -> None:
 	"""
 	opsi Command Line Interface\n
 	commands are dynamically loaded from a subfolder
@@ -94,10 +90,11 @@ def main(ctx, log_level, user, password, service_url):
 	logging_config(stderr_level=log_level, stderr_format=DEFAULT_COLORED_FORMAT)
 
 	if not ctx.obj:  # stacked execution in pytest circumvents register_commands -> explicit call here
+		logger.notice("explicitely calling register_commands")
 		ctx.command.register_commands(ctx)
 	ctx.obj.update({
 		"user": user,
 		"password": password,
 		"service_url": service_url
 	})
-	logger.info("cli was called")
+	logger.debug("cli was called")
