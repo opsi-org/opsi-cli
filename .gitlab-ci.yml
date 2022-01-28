@@ -97,7 +97,7 @@ build:linux-pyinstaller:
 
 build:macos-pyinstaller:
   stage: build
- tags:
+  tags:
     - macos
   script:
     - poetry install
@@ -108,7 +108,7 @@ build:macos-pyinstaller:
 
 build:windows-pyinstaller:
   stage: build
- tags:
+  tags:
     - win10
   script:
     - poetry install
