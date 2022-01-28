@@ -42,6 +42,7 @@ test:pytest-windows:
 test:pytest-linux:
   stage: test
   script:
+    - env
     - poetry install
     - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_linux.xml --cov-append --cov opsicli --cov-report term --cov-report xml -v tests
     - mv .coverage coverage_linux
