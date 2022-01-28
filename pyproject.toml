@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "opsicli"
+name = "opsi-cli"
 version = "0.1.0"
 description = "opsi command line interface"
 homepage = "https://www.opsi.org"

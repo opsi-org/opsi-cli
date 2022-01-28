@@ -95,7 +95,7 @@ def install_python_package(target_dir: str, package: Dict[str, str]) -> None:
 	for pyversion in ["python3", "python"]:
 		try:
 			# cmd = [pyversion, '-m', 'pip', 'install', f"{package['name']}>={package['version']}", "--target", target_dir]
-			cmd = f"{pyversion} -m pip install {package['name']}>={package['version']} --target \"{target_dir}\""
+			cmd = f"{pyversion} -m pip install '{package['name']}>={package['version']}' --target \"{target_dir}\""
 			logger.debug("executing %s", cmd)
 			result = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
 			logger.debug("success\n%s", result.decode("utf-8"))
