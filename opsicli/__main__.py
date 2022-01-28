@@ -47,15 +47,12 @@ class OpsiCLI(click.MultiCommand):
 					spec.loader.exec_module(new_plugin)
 				except ImportError as import_error:
 					logger.error("Could not load plugin from %s, skipping", path)
-					# Caution: loglevel does not affect this message
 					logger.debug(import_error, exc_info=True)
 					continue
 				name = new_plugin.get_plugin_name()
 				self.plugin_modules[name] = new_plugin
 
-				# Caution: loglevel does not affect this message
 				logger.debug('Adding command %s', name)
-
 				# add reference to plugin modules into context to access it in plugin management
 				ctx.obj["plugins"].update({name: os.path.join(folder, filename)})
 
@@ -97,4 +94,4 @@ def main(ctx: click.Context, log_level: int, user: str, password: str, service_u
 		"password": password,
 		"service_url": service_url
 	})
-	logger.debug("cli was called")
+	logger.trace("cli was called")

@@ -35,7 +35,7 @@ def cli(ctx: click.Context) -> None:  # pylint: disable=unused-argument
 	opsi plugin subcommand.
 	This is the long help.
 	"""
-	logger.debug("plugin subcommand")
+	logger.trace("plugin subcommand")
 
 
 @cli.command(short_help='add new plugin (python package or .opsiplugin)')

@@ -28,7 +28,15 @@ def test_initial():
 		assert run_cli(args)
 
 
-def test_plugin_add_remove():
+def test_plugin_add():
+	shutil.rmtree(CLI_BASE_PATH, ignore_errors=True)
+	run_cli(["plugin", "add", TESTPLUGIN])
+	result = run_cli(["dummy", "libtest"])
+	assert "Response" in result  # requests.get("https://opsi.org")
+	assert "default" in result  # netifaces.gateways()
+
+
+def test_plugin_remove():
 	shutil.rmtree(CLI_BASE_PATH, ignore_errors=True)
 	run_cli(["plugin", "add", TESTPLUGIN])
 	output = run_cli(["plugin", "list"])

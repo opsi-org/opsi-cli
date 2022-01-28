@@ -24,7 +24,7 @@ def cli():
 	opsi dummy subcommand.
 	This is the long help.
 	"""
-	logger.info("dummy subcommand")
+	logger.trace("dummy subcommand")
 
 
 @cli.command(short_help='short help for subdummy')
@@ -33,6 +33,5 @@ def libtest():
 	opsi dummy subdummy subsubcommand.
 	This is the long help.
 	"""
-	logger.info("subdummy subsubcommand")
 	print(netifaces.gateways())
 	print(requests.get("https://opsi.org"))
