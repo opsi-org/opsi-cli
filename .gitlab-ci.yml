@@ -93,7 +93,7 @@ build:linux-pyinstaller:
     - poetry run opsi-dev-tool -l info --pyinstaller-poetry-build
     - '[ "$CI_COMMIT_TAG" = "" ] && poetry run opsi-dev-tool -l info --binary-push dist/opsi-cli "$CI_JOB_ID"'
     - '[ "$CI_COMMIT_TAG" = "" ] || poetry run opsi-dev-tool -l info --binary-push dist/opsi-cli'
-
+    - dist/opsi-cli --version
 
 build:macos-pyinstaller:
   stage: build
@@ -102,12 +102,13 @@ build:macos-pyinstaller:
     - poetry run opsi-dev-tool -l info --pyinstaller-poetry-build
     - '[ "$CI_COMMIT_TAG" = "" ] && poetry run opsi-dev-tool -l info --binary-push dist/opsi-cli "$CI_JOB_ID"'
     - '[ "$CI_COMMIT_TAG" = "" ] || poetry run opsi-dev-tool -l info --binary-push dist/opsi-cli'
-
+    - dist/opsi-cli --version
 
 build:windows-pyinstaller:
   stage: build
   script:
     - poetry install
     - poetry run opsi-dev-tool -l info --pyinstaller-poetry-build
-    - '[ "$CI_COMMIT_TAG" = "" ] && poetry run opsi-dev-tool -l info --binary-push dist/opsi-cli "$CI_JOB_ID"'
-    - '[ "$CI_COMMIT_TAG" = "" ] || poetry run opsi-dev-tool -l info --binary-push dist/opsi-cli'
+    - if (! $CI_COMMIT_TAG) {poetry run opsi-dev-tool -l info --binary-push dist\opsi-cli.exe "$CI_JOB_ID"}
+    - if ($CI_COMMIT_TAG) {poetry run opsi-dev-tool -l info --binary-push dist\opsi-cli.exe}
+    - dist\opsi-cli.exe --help
