@@ -97,6 +97,8 @@ build:linux-pyinstaller:
 
 build:macos-pyinstaller:
   stage: build
+ tags:
+    - macos
   script:
     - poetry install
     - poetry run opsi-dev-tool -l info --pyinstaller-poetry-build
@@ -106,6 +108,8 @@ build:macos-pyinstaller:
 
 build:windows-pyinstaller:
   stage: build
+ tags:
+    - win10
   script:
     - poetry install
     - poetry run opsi-dev-tool -l info --pyinstaller-poetry-build
