@@ -5,6 +5,7 @@ Tests
 """
 
 import os
+import platform
 from pathlib import Path
 import pytest
 
@@ -24,10 +25,10 @@ def test_initial() -> None:
 			assert run_cli(args)
 
 
-def test_no_python_path():
+def test_no_python_path() -> None:
 	with temp_context():
 		with temp_env(PATH=""):
-			# no python found in PATH
+			# no python found in PATH (check this before any plugin add since lru_cache otherwise uses cached value)
 			with pytest.raises(RuntimeError):
 				run_cli(["plugin", "add", str(TESTPLUGIN)])
 
@@ -40,6 +41,11 @@ def test_pip() -> None:
 
 
 def test_plugin_add() -> None:
+	# Permission Error on windows: file unlink is impossible if handle is opened
+	# Problem: add plugin, then load plugin -> open file handle until teardown of python process
+	if platform.system().lower() == "windows":
+		pytest.skip("Must run in docker")
+		return
 	with temp_context():
 		run_cli(["plugin", "add", str(TESTPLUGIN)])
 		result = run_cli(["dummy", "libtest"])
