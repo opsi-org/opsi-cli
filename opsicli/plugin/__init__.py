@@ -47,14 +47,14 @@ def add(path: str) -> None:
 	install it as plugin for opsi cli
 	"""
 	with tempfile.TemporaryDirectory() as tmpdir:
-		tmpdir = Path(tmpdir)
-		os.makedirs(tmpdir / "lib")
-		name = prepare_plugin(Path(path), tmpdir)
-		install_plugin(tmpdir, name)
+		tmpdir_path = Path(tmpdir)
+		os.makedirs(tmpdir_path / "lib")
+		name = prepare_plugin(Path(path), tmpdir_path)
+		install_plugin(tmpdir_path, name)
 
 
 # this creates the plugin command and libs in tmp
-def prepare_plugin(path: str, tmpdir: str) -> str:
+def prepare_plugin(path: Path, tmpdir: Path) -> str:
 	logger.info("Inspecting plugin source %s", path)
 	name = path.stem
 	if (path / "__init__.py").exists():
@@ -71,7 +71,7 @@ def prepare_plugin(path: str, tmpdir: str) -> str:
 
 
 # this copies the prepared plugin from tmp to LIB_DIR
-def install_plugin(source_dir: str, name: str) -> None:
+def install_plugin(source_dir: Path, name: str) -> None:
 	logger.info("Installing libraries from %s", source_dir / "lib")
 	# https://lukelogbook.tech/2018/01/25/merging-two-folders-in-python/
 	for src_dir, _, files in os.walk(source_dir / "lib"):
@@ -90,7 +90,7 @@ def install_plugin(source_dir: str, name: str) -> None:
 	shutil.copytree(source_dir / name, destination)
 
 
-def install_python_package(target_dir: str, package: Dict[str, str]) -> None:
+def install_python_package(target_dir: Path, package: Dict[str, str]) -> None:
 	logger.info("Installing %r, version %r", package["name"], package["version"])
 	pypath = get_python_path()
 	try:
@@ -106,7 +106,7 @@ def install_python_package(target_dir: str, package: Dict[str, str]) -> None:
 	raise RuntimeError(f"Could not install {package['name']} ... aborting")
 
 
-def install_dependencies(path: str, target_dir: str) -> None:
+def install_dependencies(path: Path, target_dir: Path) -> None:
 	if (path / "requirements.txt").exists():
 		logger.debug("Reading requirements.txt from %s", path)
 		dependencies = pipreqs.parse_requirements(path / "requirements.txt")
@@ -132,7 +132,7 @@ def install_dependencies(path: str, target_dir: str) -> None:
 			install_python_package(target_dir, dependency)
 
 
-def get_plugin_path(ctx: click.Context, name: str) -> str:
+def get_plugin_path(ctx: click.Context, name: str) -> Path:
 	plugin_dirs = ctx.obj["plugins"]
 	logger.info("Trying to get plugin %r", name)
 	logger.debug("Available plugins and their directories is: %s", plugin_dirs)
@@ -157,10 +157,10 @@ def export(ctx: click.Context, name: str) -> None:
 
 	with zipfile.ZipFile(f"{name}.opsiplugin", "w", zipfile.ZIP_DEFLATED) as zfile:
 		for root, _, files in os.walk(path):
-			root = Path(root)
-			base = root.relative_to(path)
+			root_path = Path(root)
+			base = root_path.relative_to(path)
 			for single_file in files:
-				zfile.write(str(root / single_file), arcname=str(Path(name) / base / single_file))
+				zfile.write(str(root_path / single_file), arcname=str(Path(name) / base / single_file))
 
 
 @cli.command(name="list", short_help='List imported plugins')

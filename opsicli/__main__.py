@@ -5,9 +5,10 @@ Main command
 """
 
 import os
-import importlib
-from typing import List, Callable
+from typing import List, Callable, Dict
+from types import ModuleType
 from pathlib import Path
+from importlib.util import spec_from_file_location, module_from_spec
 import click
 
 from opsicommon.logging import logger, logging_config, DEFAULT_COLORED_FORMAT
@@ -20,9 +21,9 @@ from opsicli.config import config
 class OpsiCLI(click.MultiCommand):
 	def __init__(self, *args, **kwargs) -> None:
 		super().__init__(*args, **kwargs)
-		self.plugin_modules = {}
+		self.plugin_modules: Dict[str, ModuleType] = {}
 
-	def register_commands(self, ctx: click.Context) -> None:
+	def register_plugins(self, ctx: click.Context) -> None:
 		prepare_cli_paths()
 		prepare_context(ctx)
 
@@ -31,9 +32,8 @@ class OpsiCLI(click.MultiCommand):
 			try:
 				self.load_plugin(ctx, dirname)
 			except ImportError as import_error:
-				logger.error("Could not load plugin from %s, skipping", dirname)
-				logger.debug(import_error, exc_info=True)
-				continue
+				logger.error("Could not load plugin from %s: %s", dirname, import_error, exc_info=True)
+				raise  # continue
 
 		self.plugin_modules["plugin"] = plugin
 
@@ -41,8 +41,12 @@ class OpsiCLI(click.MultiCommand):
 		path = config.plugin_dir / dirname / "__init__.py"
 		if not path.exists():
 			raise ImportError(f"{config.plugin_dir / dirname} does not have __init__.py")
-		spec = importlib.util.spec_from_file_location("temp", path)
-		new_plugin = importlib.util.module_from_spec(spec)
+		spec = spec_from_file_location("temp", path)
+		if not spec:
+			raise ImportError(f"{config.plugin_dir / dirname / '__init__.py'} is not a valid python module")
+		new_plugin = module_from_spec(spec)
+		if not spec.loader:
+			raise ImportError(f"{config.plugin_dir / dirname / '__init__.py'} spec does not have valid loader")
 		spec.loader.exec_module(new_plugin)
 		name = new_plugin.get_plugin_name()
 		self.plugin_modules[name] = new_plugin
@@ -53,12 +57,12 @@ class OpsiCLI(click.MultiCommand):
 
 	def list_commands(self, ctx: click.Context) -> List[str]:
 		if not self.plugin_modules:
-			self.register_commands(ctx)
+			self.register_plugins(ctx)
 		return sorted(self.plugin_modules.keys())
 
 	def get_command(self, ctx: click.Context, cmd_name: str) -> Callable:
 		if cmd_name not in self.plugin_modules:
-			self.register_commands(ctx)
+			self.register_plugins(ctx)
 			if cmd_name not in self.plugin_modules:
 				raise ValueError(f"invalid command {cmd_name}")
 		return self.plugin_modules[cmd_name].cli
@@ -74,14 +78,15 @@ class OpsiCLI(click.MultiCommand):
 def main(ctx: click.Context, log_level: int, username: str, password: str, service_url: str) -> None:
 	"""
 	opsi Command Line Interface\n
-	commands are dynamically loaded from a subfolder
+	plugins are dynamically loaded from a subfolder
 	"""
 
 	logging_config(stderr_level=log_level, stderr_format=DEFAULT_COLORED_FORMAT)
 
-	if not ctx.obj:  # stacked execution in pytest circumvents register_commands -> explicit call here
-		logger.notice("Explicitely calling register_commands")
-		ctx.command.register_commands(ctx)
+	if not ctx.obj:  # stacked execution in pytest circumvents register_plugins -> explicit call here
+		logger.notice("Explicitely calling register_plugins")
+		assert isinstance(ctx.command, OpsiCLI)  # generic command does not have register_plugins
+		ctx.command.register_plugins(ctx)
 	ctx.obj.update({
 		"username": username,
 		"password": password,

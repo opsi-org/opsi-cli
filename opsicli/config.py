@@ -13,7 +13,7 @@ from opsicommon.utils import Singleton
 from opsicommon.logging import logger
 
 
-@lru_cache
+@lru_cache(maxsize=1)
 def get_python_path() -> str:
 	for pyversion in ("python3", "python"):
 		result = shutil.which(pyversion)
