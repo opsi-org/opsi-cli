@@ -22,7 +22,7 @@ python-opsi-common = "^4.2.0"
 [tool.poetry.dev-dependencies]
 pytest = "^6.2"
 opsi-dev-tools = "^1.0.49"
-pyinstaller = "^4.1"
+pyinstaller = "4.3"	# Pinned to work with adhoc signature on macos high sierra
 pylint = "^2.6.0"
 flake8 = "^4.0.1"
 pytest-cov = "^3.0.0"
