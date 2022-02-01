@@ -85,6 +85,11 @@ def test_plugin_remove() -> None:
 
 
 def test_pluginarchive_export_import() -> None:
+	# Permission Error on windows: file unlink is impossible if handle is opened
+	# Problem: add plugin, then load plugin -> open file handle until teardown of python process
+	if platform.system().lower() == "windows":
+		pytest.skip("Must not run under windows")
+
 	with temp_context():
 		run_cli(["plugin", "add", str(TESTPLUGIN)])
 		run_cli(["plugin", "export", "dummy"])
