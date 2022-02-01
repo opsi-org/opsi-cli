@@ -9,125 +9,123 @@ import os
 import shutil
 import subprocess
 import tempfile
-import logging
 import zipfile
 from typing import Dict
+from pathlib import Path
 from packaging.version import parse
 import click
 from pipreqs import pipreqs
 
-from opsicli import COMMANDS_DIR, LIB_DIR
+from opsicommon.logging import logger
 
+from opsicli.config import get_python_path, config
 
 __version__ = "0.1.0"
-logger = logging.getLogger()
 
 
 def get_plugin_name() -> str:
 	return "plugin"
 
 
-@click.group(name="plugin", short_help="manage opsi CLI plugins")
+@click.group(name="plugin", short_help="Manage opsi CLI plugins")
 @click.version_option(__version__, message="opsi plugin, version %(version)s")
 @click.pass_context
 def cli(ctx: click.Context) -> None:  # pylint: disable=unused-argument
 	"""
-	opsi plugin subcommand.
-	This is the long help.
+	opsi plugin command.
+	This command is used to add, remove, list or export plugins to opsi cli.
 	"""
-	logger.trace("plugin subcommand")
+	logger.trace("plugin command")
 
 
-@cli.command(short_help='add new plugin (python package or .opsiplugin)')
+@cli.command(short_help='Add new plugin (python package or .opsiplugin)')
 @click.argument('path', type=click.Path(exists=True))
 def add(path: str) -> None:
 	"""
-	opsi plugin add subsubcommand.
-	This is the long help.
+	opsi plugin add subcommand.
+	Specify a path to a python package directory or .opsiplugin file to
+	install it as plugin for opsi cli
 	"""
 	with tempfile.TemporaryDirectory() as tmpdir:
-		os.makedirs(os.path.join(tmpdir, "lib"))
-		name = prepare_plugin(path, tmpdir)
+		tmpdir = Path(tmpdir)
+		os.makedirs(tmpdir / "lib")
+		name = prepare_plugin(Path(path), tmpdir)
 		install_plugin(tmpdir, name)
 
 
 # this creates the plugin command and libs in tmp
 def prepare_plugin(path: str, tmpdir: str) -> str:
-	logger.info("inspecting plugin source %s", path)
-	if os.path.exists(os.path.join(path, "__init__.py")):
-		# normpath to be resistant against trailing separators
-		name = os.path.basename(os.path.normpath(path))
-		shutil.copytree(path, os.path.join(tmpdir, name))
-	elif path.endswith(".opsiplugin"):
+	logger.info("Inspecting plugin source %s", path)
+	name = path.stem
+	if (path / "__init__.py").exists():
+		shutil.copytree(path, tmpdir / name)
+	elif path.suffix == ".opsiplugin":
 		with zipfile.ZipFile(path, "r") as zfile:
 			zfile.extractall(tmpdir)
-		name = os.path.basename(path)[:-11]  # cut the ".opsiplugin"
 	else:
 		raise ValueError(f"Invalid path given {path}")
 
-	logger.info("retrieving libraries for new plugin")
-	install_dependencies(os.path.join(tmpdir, name), os.path.join(tmpdir, "lib"))
+	logger.info("Retrieving libraries for new plugin")
+	install_dependencies(tmpdir / name, tmpdir / "lib")
 	return name
 
 
 # this copies the prepared plugin from tmp to LIB_DIR
 def install_plugin(source_dir: str, name: str) -> None:
-	logger.info("installing libraries from %s", os.path.join(source_dir, "lib"))
+	logger.info("Installing libraries from %s", source_dir / "lib")
 	# https://lukelogbook.tech/2018/01/25/merging-two-folders-in-python/
-	for src_dir, _, files in os.walk(os.path.join(source_dir, "lib")):
-		dst_dir = src_dir.replace(os.path.join(source_dir, "lib"), LIB_DIR, 1)
-		if not os.path.exists(dst_dir):
+	for src_dir, _, files in os.walk(source_dir / "lib"):
+		dst_dir = Path(src_dir.replace(str(source_dir / "lib"), str(config.lib_dir), 1))
+		if not dst_dir.exists():
 			os.makedirs(dst_dir)
 		for file_ in files:
-			if not os.path.exists(os.path.join(dst_dir, file_)):
+			if not (dst_dir / file_).exists():
 				# avoid replacing files that might be currently loaded -> segfault
-				shutil.copy2(os.path.join(src_dir, file_), os.path.join(dst_dir, file_))
+				shutil.copy2(Path(src_dir) / file_, dst_dir / file_)
 
-	logger.info("installing plugin from %s", os.path.join(source_dir, name))
-	destination = os.path.join(COMMANDS_DIR, name)
-	if os.path.exists(destination):
+	logger.info("Installing plugin from %s", source_dir / name)
+	destination = config.plugin_dir / name
+	if destination.exists():
 		shutil.rmtree(destination)
-	shutil.copytree(os.path.join(source_dir, name), destination)
+	shutil.copytree(source_dir / name, destination)
 
 
 def install_python_package(target_dir: str, package: Dict[str, str]) -> None:
-	logger.info("installing %s, version %s", package["name"], package["version"])
-	for pyversion in ["python3", "python"]:
-		try:
-			# cmd = [pyversion, '-m', 'pip', 'install', f"{package['name']}>={package['version']}", "--target", target_dir]
-			cmd = f"{pyversion} -m pip install \"{package['name']}>={package['version']}\" --target \"{target_dir}\""
-			logger.debug("executing %s", cmd)
-			result = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
-			logger.debug("success\n%s", result.decode("utf-8"))
-			return
-		except subprocess.CalledProcessError as process_error:
-			logger.warning("%s -m pip failed: %s", pyversion, process_error, exc_info=True)
-		finally:
-			logger.devel(f"content of {target_dir}: {os.listdir(target_dir)}")
+	logger.info("Installing %r, version %r", package["name"], package["version"])
+	pypath = get_python_path()
+	try:
+		# cmd = [pyversion, '-m', 'pip', 'install', f"{package['name']}>={package['version']}", "--target", target_dir]
+		cmd = f"{pypath} -m pip install \"{package['name']}>={package['version']}\" --target \"{target_dir}\""
+		logger.debug("Executing %r", cmd)
+		result = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
+		logger.debug("success, command output\n%s", result.decode("utf-8"))
+		return
+	except subprocess.CalledProcessError as process_error:
+		logger.warning("%s -m pip failed: %s", pypath, process_error, exc_info=True)
 	logger.error("Could not install %s ... aborting", package["name"])
 	raise RuntimeError(f"Could not install {package['name']} ... aborting")
 
 
 def install_dependencies(path: str, target_dir: str) -> None:
-	if os.path.exists(os.path.join(path, "requirements.txt")):
-		logger.debug("reading requirements.txt from %s", path)
-		dependencies = pipreqs.parse_requirements(os.path.join(path, "requirements.txt"))
+	if (path / "requirements.txt").exists():
+		logger.debug("Reading requirements.txt from %s", path)
+		dependencies = pipreqs.parse_requirements(path / "requirements.txt")
 	else:
-		logger.debug("generating requirements.txt from package %s", path)
+		logger.debug("Generating requirements.txt from package %s", path)
 		# candidates: python libraries (like requests, magic)
 		candidates = pipreqs.get_pkg_names(pipreqs.get_all_imports(path))
 		# dependencies: python package names (like Requests, python_magic)
 		# this failes for packages not available at pypi.python.org (like opsicommon) -> those are ignored	TODO
 		dependencies = pipreqs.get_imports_info(candidates, pypi_server="https://pypi.python.org/pypi/")  # proxy possible
-		pipreqs.generate_requirements_file(os.path.join(path, "requirements.txt"), dependencies, symbol=">=")
-	logger.debug("got dependencies: %s", dependencies)
+		pipreqs.generate_requirements_file(path / "requirements.txt", dependencies, symbol=">=")
+	logger.debug("Got dependencies: %s", dependencies)
 	for dependency in dependencies:
+		logger.debug("Checking dependency %s", dependency["name"])
 		try:
-			logger.debug("checking dependency %s", dependency["name"])
 			temp_module = importlib.import_module(dependency["name"])
 			assert parse(temp_module.__version__) >= parse(dependency["version"])
 			logger.debug(
-				"module %s present in version %s (required %s) - not installing",
+				"Module %s present in version %s (required %s) - not installing",
 				dependency["name"], temp_module.__version__, dependency["version"]
 			)
 		except (ImportError, AssertionError, AttributeError):
@@ -136,54 +134,57 @@ def install_dependencies(path: str, target_dir: str) -> None:
 
 def get_plugin_path(ctx: click.Context, name: str) -> str:
 	plugin_dirs = ctx.obj["plugins"]
-	logger.info("trying to get plugin %s", name)
-	logger.debug("list of available plugins is: %s", plugin_dirs)
+	logger.info("Trying to get plugin %r", name)
+	logger.debug("Available plugins and their directories is: %s", plugin_dirs)
 	if name not in plugin_dirs:
-		raise ValueError(f"Plugin {name} not found.")
+		raise ValueError(f"Plugin {name!r} not found.")
 	return plugin_dirs[name]
 
 
-@cli.command(short_help='export plugin as .opsiplugin')
+@cli.command(short_help='Export plugin as .opsiplugin')
 @click.argument('name', type=str)
 @click.pass_context
 def export(ctx: click.Context, name: str) -> None:
 	"""
-	opsi plugin export subsubcommand.
-	This is the long help.
+	opsi plugin export subcommand.
+	This subcommand is used to export an installed opsi cli plugin.
+	It is packaged as a .opsiplugin file which can be added to another
+	instance of opsi cli via "plugin add". Also see "plugin list".
 	"""
-	logger.notice("exporting command %s to %s", name, f"{name}.opsiplugin")
+	logger.notice("Exporting command %r to %r", name, f"{name}.opsiplugin")
 	path = get_plugin_path(ctx, name)
-	logger.debug("compressing plugin path %s", path)
+	logger.debug("Compressing plugin path %s", path)
 
-	arcname = os.path.split(path)[1]
 	with zipfile.ZipFile(f"{name}.opsiplugin", "w", zipfile.ZIP_DEFLATED) as zfile:
 		for root, _, files in os.walk(path):
-			base = os.path.relpath(root, start=path)
+			root = Path(root)
+			base = root.relative_to(path)
 			for single_file in files:
-				zfile.write(os.path.join(root, single_file), arcname=os.path.join(arcname, base, single_file))
+				zfile.write(str(root / single_file), arcname=str(Path(name) / base / single_file))
 
 
-@cli.command(name="list", short_help='list imported plugins')
+@cli.command(name="list", short_help='List imported plugins')
 @click.pass_context
 def list_command(ctx: click.Context) -> None:
 	"""
-	opsi plugin list subsubcommand.
-	This is the long help.
+	opsi plugin list subcommand.
+	This subcommand lists all installed opsi cli plugins.
 	"""
 	for plugin_name in ctx.obj["plugins"].keys():
 		print(plugin_name)  # check for validity?
 
 
-@cli.command(short_help='removes a plugin')
+@cli.command(short_help='Remove a plugin')
 @click.argument('name', type=str)
 @click.pass_context
 def remove(ctx: click.Context, name: str) -> None:
 	"""
-	opsi plugin remove subsubcommand.
-	This is the long help.
+	opsi plugin remove subcommand.
+	This subcommand removes an installed opsi cli plugin. See "plugin list".
 	"""
 	path = get_plugin_path(ctx, name)
-	assert COMMANDS_DIR in path  # to be sure...
-	logger.notice("removing plugin %s", name)
-	logger.debug("deleting %s", path)
+	if config.plugin_dir not in path.parents:
+		raise ValueError(f"Attempt to remove plugin from invalid path {path!r} - Stopping.")
+	logger.notice("Removing plugin %s", name)
+	logger.debug("Deleting %s", path)
 	shutil.rmtree(path)

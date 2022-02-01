@@ -21,16 +21,16 @@ def get_plugin_name():
 @click.version_option(__version__, message="dummy plugin test, version %(version)s")
 def cli():
 	"""
-	opsi dummy subcommand.
+	opsi dummy command.
 	This is the long help.
 	"""
-	logger.trace("dummy subcommand")
+	logger.trace("dummy command")
 
 
 @cli.command(short_help='short help for subdummy')
 def libtest():
 	"""
-	opsi dummy subdummy subsubcommand.
+	opsi dummy subdummy subcommand.
 	This is the long help.
 	"""
 	print(netifaces.gateways())

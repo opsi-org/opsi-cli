@@ -3,20 +3,24 @@ opsi-cli Basic command line interface for opsi
 """
 
 import os
-import tempfile
-import platform
+import sys
+import click
+from opsicli.config import config
 
-if platform.system().lower() == "windows":
-	# TODO: use a temporary directory to store plugins (Permission issue)
-	CLI_BASE_PATH = os.path.join(tempfile.gettempdir(), "opsicli")
-else:
-	CLI_BASE_PATH = os.path.join(os.path.expanduser("~"), ".local", "lib", "opsicli")
-COMMANDS_DIR = os.path.join(CLI_BASE_PATH, "commands")
-LIB_DIR = os.path.join(CLI_BASE_PATH, "lib")
+__version__ = "0.1.0"
 
 
-def make_cli_paths():
-	if not os.path.exists(COMMANDS_DIR):
-		os.makedirs(COMMANDS_DIR)
-	if not os.path.exists(LIB_DIR):
-		os.makedirs(LIB_DIR)
+def prepare_cli_paths() -> None:
+	if not config.plugin_dir.exists():
+		os.makedirs(config.plugin_dir)
+	if not config.lib_dir.exists():
+		os.makedirs(config.lib_dir)
+	if config.lib_dir not in sys.path:
+		sys.path.append(str(config.lib_dir))
+
+
+def prepare_context(ctx: click.Context) -> None:
+	if ctx.obj is None:
+		ctx.obj = {}
+	if "plugins" not in ctx.obj:
+		ctx.obj["plugins"] = {}

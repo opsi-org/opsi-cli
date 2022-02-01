@@ -5,58 +5,51 @@ Main command
 """
 
 import os
-import sys
 import importlib
 from typing import List, Callable
+from pathlib import Path
 import click
 
 from opsicommon.logging import logger, logging_config, DEFAULT_COLORED_FORMAT
 
-from opsicli import plugin, COMMANDS_DIR, LIB_DIR, make_cli_paths
-
-__version__ = "0.1.0"
+from opsicli import plugin, prepare_cli_paths, prepare_context, __version__
+from opsicli.config import config
 
 
 # https://click.palletsprojects.com/en/7.x/commands/#custom-multi-commands
 class OpsiCLI(click.MultiCommand):
 	def __init__(self, *args, **kwargs) -> None:
 		super().__init__(*args, **kwargs)
-		self.plugin_folders = [COMMANDS_DIR]
 		self.plugin_modules = {}
 
 	def register_commands(self, ctx: click.Context) -> None:
-		make_cli_paths()
-		logger.debug("initializing plugins from dir %s", COMMANDS_DIR)
+		prepare_cli_paths()
+		prepare_context(ctx)
 
-		if LIB_DIR not in sys.path:
-			sys.path.append(LIB_DIR)
-
-		if ctx.obj is None:
-			ctx.obj = {}
-		if not ctx.obj.get("plugins"):
-			ctx.obj["plugins"] = {}
-
-		for folder in self.plugin_folders:
-			for filename in os.listdir(folder):
-				path = os.path.join(folder, filename, "__init__.py")
-				if not os.path.exists(path):
-					continue
-				try:
-					spec = importlib.util.spec_from_file_location("temp", path)
-					new_plugin = importlib.util.module_from_spec(spec)
-					spec.loader.exec_module(new_plugin)
-				except ImportError as import_error:
-					logger.error("Could not load plugin from %s, skipping", path)
-					logger.debug(import_error, exc_info=True)
-					continue
-				name = new_plugin.get_plugin_name()
-				self.plugin_modules[name] = new_plugin
-
-				logger.debug('Adding command %s', name)
-				# add reference to plugin modules into context to access it in plugin management
-				ctx.obj["plugins"].update({name: os.path.join(folder, filename)})
+		logger.debug("Initializing plugins from dir %s", config.plugin_dir)
+		for dirname in os.listdir(config.plugin_dir):
+			try:
+				self.load_plugin(ctx, dirname)
+			except ImportError as import_error:
+				logger.error("Could not load plugin from %s, skipping", dirname)
+				logger.debug(import_error, exc_info=True)
+				continue
 
 		self.plugin_modules["plugin"] = plugin
+
+	def load_plugin(self, ctx: click.Context, dirname: Path) -> None:
+		path = config.plugin_dir / dirname / "__init__.py"
+		if not path.exists():
+			raise ImportError(f"{config.plugin_dir / dirname} does not have __init__.py")
+		spec = importlib.util.spec_from_file_location("temp", path)
+		new_plugin = importlib.util.module_from_spec(spec)
+		spec.loader.exec_module(new_plugin)
+		name = new_plugin.get_plugin_name()
+		self.plugin_modules[name] = new_plugin
+
+		logger.debug('Adding plugin %s', name)
+		# add reference to plugin modules into context to access it in plugin management
+		ctx.obj["plugins"].update({name: config.plugin_dir / dirname})
 
 	def list_commands(self, ctx: click.Context) -> List[str]:
 		if not self.plugin_modules:
@@ -75,10 +68,10 @@ class OpsiCLI(click.MultiCommand):
 @click.version_option(f"{__version__}", message="opsiCLI, version %(version)s")
 @click.option('--log-level', "-l", default=4, type=click.IntRange(min=1, max=9))
 @click.option('--service-url', envvar="OPSI_SERVICE_URL", default="https://localhost:4447/rpc", type=str)
-@click.option('--user', "-u", envvar="OPSI_USER", type=str)
+@click.option('--username', "-u", envvar="OPSI_USERNAME", type=str)
 @click.option('--password', "-p", envvar="OPSI_PASSWORD", type=str)
 @click.pass_context
-def main(ctx: click.Context, log_level: int, user: str, password: str, service_url: str) -> None:
+def main(ctx: click.Context, log_level: int, username: str, password: str, service_url: str) -> None:
 	"""
 	opsi Command Line Interface\n
 	commands are dynamically loaded from a subfolder
@@ -87,10 +80,10 @@ def main(ctx: click.Context, log_level: int, user: str, password: str, service_u
 	logging_config(stderr_level=log_level, stderr_format=DEFAULT_COLORED_FORMAT)
 
 	if not ctx.obj:  # stacked execution in pytest circumvents register_commands -> explicit call here
-		logger.notice("explicitely calling register_commands")
+		logger.notice("Explicitely calling register_commands")
 		ctx.command.register_commands(ctx)
 	ctx.obj.update({
-		"user": user,
+		"username": username,
 		"password": password,
 		"service_url": service_url
 	})
