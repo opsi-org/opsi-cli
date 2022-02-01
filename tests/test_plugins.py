@@ -44,8 +44,8 @@ def test_plugin_add() -> None:
 	# Permission Error on windows: file unlink is impossible if handle is opened
 	# Problem: add plugin, then load plugin -> open file handle until teardown of python process
 	if platform.system().lower() == "windows":
-		pytest.skip("Must run in docker")
-		return
+		pytest.skip("Must not run under windows")
+
 	with temp_context():
 		run_cli(["plugin", "add", str(TESTPLUGIN)])
 		result = run_cli(["dummy", "libtest"])
@@ -70,6 +70,11 @@ def test_plugin_fail() -> None:
 
 
 def test_plugin_remove() -> None:
+	# Permission Error on windows: file unlink is impossible if handle is opened
+	# Problem: add plugin, then load plugin -> open file handle until teardown of python process
+	if platform.system().lower() == "windows":
+		pytest.skip("Must not run under windows")
+
 	with temp_context():
 		run_cli(["plugin", "add", str(TESTPLUGIN)])
 		output = run_cli(["plugin", "list"])
