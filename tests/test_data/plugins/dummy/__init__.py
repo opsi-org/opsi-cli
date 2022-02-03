@@ -14,7 +14,7 @@ from opsicommon.logging import logger
 __version__ = "0.1.0"
 
 
-def get_plugin_info() -> Dict[str,Any]:
+def get_plugin_info() -> Dict[str, Any]:
 	return {
 		"name": "dummy",
 		"version": __version__

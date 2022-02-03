@@ -4,7 +4,6 @@ opsi-cli Basic command line interface for opsi
 Main command
 """
 
-import os
 from typing import List, Callable, Dict
 from types import ModuleType
 from pathlib import Path

@@ -23,7 +23,7 @@ from opsicli.config import get_python_path, config
 __version__ = "0.1.0"
 
 
-def get_plugin_info() -> Dict[str,Any]:
+def get_plugin_info() -> Dict[str, Any]:
 	return {
 		"name": "plugin",
 		"version": __version__
@@ -79,7 +79,7 @@ def install_plugin(source_dir: Path, name: str) -> None:
 	# https://lukelogbook.tech/2018/01/25/merging-two-folders-in-python/
 	for src_dir_string, _, files in os.walk(source_dir / "lib"):
 		src_dir = Path(src_dir_string)
-		dst_dir = config.lib_dir / src_dir.relative_to(source_dir /"lib")
+		dst_dir = config.lib_dir / src_dir.relative_to(source_dir / "lib")
 		if not dst_dir.exists():
 			dst_dir.mkdir(parents=True, exist_ok=True)
 		for file_ in files:
