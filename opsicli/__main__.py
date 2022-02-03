@@ -62,7 +62,7 @@ class OpsiCLI(click.MultiCommand):
 			self.register_plugins(ctx)
 		return sorted(self.plugin_modules.keys())
 
-	def get_command(self, ctx: click.Context, cmd_name: str) -> Callable:
+	def get_command(self, ctx: click.Context, cmd_name: str) -> click.core.Command:
 		if cmd_name not in self.plugin_modules:
 			self.register_plugins(ctx)
 			if cmd_name not in self.plugin_modules:

@@ -21,7 +21,7 @@ MISSINGPLUGIN = Path("tests") / "test_data" / "plugins" / "missing"
 
 def test_initial() -> None:
 	with temp_context():
-		for args in [[], ["--help"], ["plugin"], ["plugin", "--help"], ["plugin", "add", "--help"], ["--version"], ["plugin", "--version"]]:
+		for args in [["--help"], ["plugin"], ["plugin", "--help"], ["plugin", "add", "--help"], ["--version"], ["plugin", "--version"]]:
 			assert run_cli(args)
 
 
