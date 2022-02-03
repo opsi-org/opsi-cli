@@ -27,12 +27,12 @@ class OpsiCLI(click.MultiCommand):
 		prepare_cli_paths()
 		prepare_context(ctx)
 
-		logger.debug("Initializing plugins from dir %s", config.plugin_dir)
-		for dirname in os.listdir(config.plugin_dir):
+		logger.debug("Initializing plugins from dir %r", config.plugin_dir)
+		for dirname in config.plugin_dir.iterdir():
 			try:
 				self.load_plugin(ctx, dirname)
 			except ImportError as import_error:
-				logger.error("Could not load plugin from %s: %s", dirname, import_error, exc_info=True)
+				logger.error("Could not load plugin from %r: %s", dirname, import_error, exc_info=True)
 				raise  # continue
 
 		self.plugin_modules["plugin"] = plugin
@@ -48,12 +48,15 @@ class OpsiCLI(click.MultiCommand):
 		if not spec.loader:
 			raise ImportError(f"{config.plugin_dir / dirname / '__init__.py'} spec does not have valid loader")
 		spec.loader.exec_module(new_plugin)
-		name = new_plugin.get_plugin_name()
+		try:
+			name = new_plugin.get_plugin_info()["name"]
+		except (AttributeError, KeyError) as error:
+			raise ImportError(f"{config.plugin_dir / dirname} does not have a valid get_plugin_info method (key name required)") from error
 		self.plugin_modules[name] = new_plugin
 
-		logger.debug('Adding plugin %s', name)
+		logger.debug('Adding plugin %r', name)
 		# add reference to plugin modules into context to access it in plugin management
-		ctx.obj["plugins"].update({name: config.plugin_dir / dirname})
+		ctx.obj["plugins"][name] = config.plugin_dir / dirname
 
 	def list_commands(self, ctx: click.Context) -> List[str]:
 		if not self.plugin_modules:
@@ -64,14 +67,14 @@ class OpsiCLI(click.MultiCommand):
 		if cmd_name not in self.plugin_modules:
 			self.register_plugins(ctx)
 			if cmd_name not in self.plugin_modules:
-				raise ValueError(f"invalid command {cmd_name}")
+				raise ValueError(f"invalid command {cmd_name!r}")
 		return self.plugin_modules[cmd_name].cli
 
 
 @click.command(cls=OpsiCLI)
 @click.version_option(f"{__version__}", message="opsiCLI, version %(version)s")
 @click.option('--log-level', "-l", default=4, type=click.IntRange(min=1, max=9))
-@click.option('--service-url', envvar="OPSI_SERVICE_URL", default="https://localhost:4447/rpc", type=str)
+@click.option('--service-url', envvar="OPSI_SERVICE_URL", default="https://localhost:4447", type=str)
 @click.option('--username', "-u", envvar="OPSI_USERNAME", type=str)
 @click.option('--password', "-p", envvar="OPSI_PASSWORD", type=str)
 @click.pass_context

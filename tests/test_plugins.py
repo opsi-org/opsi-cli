@@ -40,12 +40,10 @@ def test_pip() -> None:
 		assert os.listdir(tempdir) and "netifaces" in os.listdir(tempdir)[0]
 
 
+# Permission Error on windows: file unlink is impossible if handle is opened
+# Problem: add plugin, then load plugin -> open file handle until teardown of python process
+@pytest.mark.skipif(platform.system().lower() == "windows", reason="Must not run under windows")
 def test_plugin_add() -> None:
-	# Permission Error on windows: file unlink is impossible if handle is opened
-	# Problem: add plugin, then load plugin -> open file handle until teardown of python process
-	if platform.system().lower() == "windows":
-		pytest.skip("Must not run under windows")
-
 	with temp_context():
 		run_cli(["plugin", "add", str(TESTPLUGIN)])
 		result = run_cli(["dummy", "libtest"])
@@ -64,17 +62,15 @@ def test_plugin_fail() -> None:
 
 		run_cli(["plugin", "add", str(TESTPLUGIN)])
 		# break dummy plugin
-		os.remove(config.plugin_dir / "dummy" / "__init__.py")
+		(config.plugin_dir / "dummy" / "__init__.py").unlink()
 		with pytest.raises(ImportError):
 			run_cli(["plugin", "list"])
 
 
+# Permission Error on windows: file unlink is impossible if handle is opened
+# Problem: add plugin, then load plugin -> open file handle until teardown of python process
+@pytest.mark.skipif(platform.system().lower() == "windows", reason="Must not run under windows")
 def test_plugin_remove() -> None:
-	# Permission Error on windows: file unlink is impossible if handle is opened
-	# Problem: add plugin, then load plugin -> open file handle until teardown of python process
-	if platform.system().lower() == "windows":
-		pytest.skip("Must not run under windows")
-
 	with temp_context():
 		run_cli(["plugin", "add", str(TESTPLUGIN)])
 		output = run_cli(["plugin", "list"])
@@ -84,12 +80,10 @@ def test_plugin_remove() -> None:
 		assert "dummy" not in output
 
 
+# Permission Error on windows: file unlink is impossible if handle is opened
+# Problem: add plugin, then load plugin -> open file handle until teardown of python process
+@pytest.mark.skipif(platform.system().lower() == "windows", reason="Must not run under windows")
 def test_pluginarchive_export_import() -> None:
-	# Permission Error on windows: file unlink is impossible if handle is opened
-	# Problem: add plugin, then load plugin -> open file handle until teardown of python process
-	if platform.system().lower() == "windows":
-		pytest.skip("Must not run under windows")
-
 	with temp_context():
 		run_cli(["plugin", "add", str(TESTPLUGIN)])
 		run_cli(["plugin", "export", "dummy"])

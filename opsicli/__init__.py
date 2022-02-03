@@ -2,7 +2,6 @@
 opsi-cli Basic command line interface for opsi
 """
 
-import os
 import sys
 import click
 from opsicli.config import config
@@ -12,11 +11,14 @@ __version__ = "0.1.0"
 
 def prepare_cli_paths() -> None:
 	if not config.plugin_dir.exists():
-		os.makedirs(config.plugin_dir)
+		config.plugin_dir.mkdir(parents=True)
+		print("making", config.plugin_dir)
 	if not config.lib_dir.exists():
-		os.makedirs(config.lib_dir)
-	if config.lib_dir not in sys.path:
+		config.lib_dir.mkdir(parents=True)
+		print("making", config.lib_dir)
+	if str(config.lib_dir) not in sys.path:
 		sys.path.append(str(config.lib_dir))
+	print("path:", sys.path)
 
 
 def prepare_context(ctx: click.Context) -> None:
