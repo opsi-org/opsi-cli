@@ -1,0 +1,117 @@
+image: docker.uib.gmbh/opsi/dev/pybuilder:uib-python-3.9
+
+stages:
+  - test
+  - build
+
+test:pytest-darwin:
+  stage: test
+  tags:
+    - macos
+  script:
+    - source $HOME/.poetry/env
+    - poetry install
+    - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_darwin.xml --cov-append --cov opsicli --cov-report term --cov-report xml -v tests
+    - mv .coverage coverage_darwin
+  artifacts:
+    name: 'opsi-cli_test_darwin'
+    paths:
+      - coverage.xml
+      - testreport_darwin.xml
+      - coverage_darwin
+    expire_in: 3 days
+
+test:pytest-windows:
+  stage: test
+  tags:
+    - win10
+  script:
+    - poetry install
+    - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_windows.xml --cov-append --cov opsicli --cov-report term --cov-report xml -v tests
+    - Rename-Item -Path .coverage -NewName coverage_windows
+  artifacts:
+    name: 'opsi-cli_test_windows'
+    paths:
+      - coverage.xml
+      - testreport_windows.xml
+      - coverage_windows
+    expire_in: 3 days
+
+test:pytest-linux:
+  stage: test
+  script:
+    - poetry install
+    - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_linux.xml --cov-append --cov opsicli --cov-report term --cov-report xml -v tests
+    - mv .coverage coverage_linux
+  artifacts:
+    name: 'opsi-cli_test_linux'
+    paths:
+      - coverage.xml
+      - testreport_linux.xml
+      - coverage_linux
+    expire_in: 3 days
+
+test:pylint-pytest:
+  stage: test
+  needs:
+    # We want to combine test coverage from all test jobs
+    - job: test:pytest-windows
+      artifacts: true
+    - job: test:pytest-darwin
+      artifacts: true
+    - job: test:pytest-linux
+      artifacts: true
+  script:
+    - apt-get update
+    - apt-get --yes install sqlite3
+    - poetry install
+    - poetry run pylint --disable=R,fixme opsicli tests
+    - poetry run flake8 opsicli tests
+    - for db in coverage_*; do sqlite3 $db 'update file set path=replace(substr(path,instr(path,"opsicli")),"\","/");'; done
+    - echo -e '[run]\nrelative_files = True\n' > .coveragerc
+    - poetry run coverage combine coverage_*
+    - poetry run coverage xml
+    - poetry run coverage report
+    - poetry run opsi-dev-tool -l info --testreport-merge testreport_*.xml testreport.xml
+  coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
+  artifacts:
+    name: 'opsi-cli_test'
+    paths:
+      - coverage.xml
+    expire_in: 3 days
+    reports:
+      cobertura: coverage.xml
+      junit: testreport.xml
+
+
+build:linux-pyinstaller:
+  stage: build
+  script:
+    - export LC_ALL=C.UTF-8
+    - poetry install
+    - poetry run opsi-dev-tool -l info --pyinstaller-poetry-build
+    - '[ "$CI_COMMIT_TAG" = "" ] && poetry run opsi-dev-tool -l info --binary-push dist/opsi-cli "$CI_JOB_ID"'
+    - '[ "$CI_COMMIT_TAG" = "" ] || poetry run opsi-dev-tool -l info --binary-push dist/opsi-cli'
+    - dist/opsi-cli --version
+
+build:macos-pyinstaller:
+  stage: build
+  tags:
+    - macos
+  script:
+    - poetry install
+    - poetry run opsi-dev-tool -l info --pyinstaller-poetry-build
+    - '[ "$CI_COMMIT_TAG" = "" ] && poetry run opsi-dev-tool -l info --binary-push dist/opsi-cli "$CI_JOB_ID"'
+    - '[ "$CI_COMMIT_TAG" = "" ] || poetry run opsi-dev-tool -l info --binary-push dist/opsi-cli'
+    - dist/opsi-cli --version
+
+build:windows-pyinstaller:
+  stage: build
+  tags:
+    - win10
+  script:
+    - poetry install
+    - poetry run opsi-dev-tool -l info --pyinstaller-poetry-build
+    - if (! $CI_COMMIT_TAG) {poetry run opsi-dev-tool -l info --binary-push dist\opsi-cli.exe "$CI_JOB_ID"}
+    - if ($CI_COMMIT_TAG) {poetry run opsi-dev-tool -l info --binary-push dist\opsi-cli.exe}
+    - dist\opsi-cli.exe --help

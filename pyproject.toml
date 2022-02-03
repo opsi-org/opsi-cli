@@ -1,0 +1,33 @@
+[tool.poetry]
+name = "opsi-cli"
+version = "0.1.0"
+description = "opsi command line interface"
+homepage = "https://www.opsi.org"
+license = "AGPL-3.0"
+authors = ["uib GmbH <info@uib.de>"]
+maintainers = ["uib GmbH <info@uib.de>"]
+
+
+[[tool.poetry.source]]
+name = "uib"
+url = "http://pypi.uib.gmbh:8080/simple/"
+
+[tool.poetry.dependencies]
+python = "^3.7,<3.11"
+click = "^8.0"
+python-opsi = "^4.2.0"
+pipreqs = "^0.4.10"
+python-opsi-common = "^4.2.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2"
+opsi-dev-tools = "^1.0.49"
+pyinstaller = "4.3"	# Pinned to work with adhoc signature on macos high sierra
+pylint = "^2.6.0"
+flake8 = "^4.0.1"
+pytest-cov = "^3.0.0"
+mypy = "^0.931"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
