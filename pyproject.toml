@@ -6,7 +6,9 @@ homepage = "https://www.opsi.org"
 license = "AGPL-3.0"
 authors = ["uib GmbH <info@uib.de>"]
 maintainers = ["uib GmbH <info@uib.de>"]
-
+packages = [
+	{ include = "opsicli" }
+]
 
 [[tool.poetry.source]]
 name = "uib"
@@ -28,6 +30,9 @@ flake8 = "^4.0.1"
 pytest-cov = "^3.0.0"
 mypy = "^0.931"
 tan = "^21.14"
+
+[tool.poetry.scripts]
+opsi-cli = "opsicli.__main__:main"
 
 [tool.black]
 line-length = 140
