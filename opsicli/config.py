@@ -38,10 +38,9 @@ class Config(metaclass=Singleton):
 		self.lib_dir = self.cli_base_dir / "lib"
 
 	def set_value(self, key, value):
-		if hasattr(self, key):
-			setattr(self, key, value)
-		else:
-			logger.debug("skipping key %s", key)
+		if not hasattr(self, key):
+			raise AttributeError(f"Trying to set invalid config key {key}")
+		setattr(self, key, value)
 
 
 config = Config()
