@@ -9,8 +9,7 @@ from pathlib import Path
 import tempfile
 import platform
 
-from opsicommon.utils import Singleton
-from opsicommon.logging import logger
+from opsicommon.utils import Singleton  # type: ignore[import]
 
 
 @lru_cache(maxsize=1)
