@@ -13,10 +13,10 @@ import zipfile
 from typing import Any, Dict
 from pathlib import Path
 from packaging.version import parse
-import click
-from pipreqs import pipreqs
+import rich_click as click  # type: ignore[import]
+from pipreqs import pipreqs  # type: ignore[import]
 
-from opsicommon.logging import logger
+from opsicommon.logging import logger  # type: ignore[import]
 
 from opsicli.config import get_python_path, config
 
@@ -24,30 +24,27 @@ __version__ = "0.1.0"
 
 
 def get_plugin_info() -> Dict[str, Any]:
-	return {
-		"name": "plugin",
-		"version": __version__
-	}
+	return {"name": "plugin", "version": __version__}
 
 
-@click.group(name="plugin", short_help="Manage opsi CLI plugins")
+@click.group(name="plugin", short_help="Manage opsi-cli plugins")
 @click.version_option(__version__, message="opsi plugin, version %(version)s")
 @click.pass_context
 def cli(ctx: click.Context) -> None:  # pylint: disable=unused-argument
 	"""
-	opsi plugin command.
-	This command is used to add, remove, list or export plugins to opsi cli.
+	opsi-cli plugin command.
+	This command is used to add, remove, list or export plugins to opsi-cli.
 	"""
 	logger.trace("plugin command")
 
 
-@cli.command(short_help='Add new plugin (python package or .opsiplugin)')
-@click.argument('path', type=click.Path(exists=True))
+@cli.command(short_help="Add new plugin (python package or .opsiplugin)")
+@click.argument("path", type=click.Path(exists=True))
 def add(path: str) -> None:
 	"""
-	opsi plugin add subcommand.
+	opsi-cli plugin add subcommand.
 	Specify a path to a python package directory or .opsiplugin file to
-	install it as plugin for opsi cli
+	install it as plugin for opsi-cli
 	"""
 	with tempfile.TemporaryDirectory() as tmpdir:
 		tmpdir_path = Path(tmpdir)
@@ -129,7 +126,9 @@ def install_dependencies(path: Path, target_dir: Path) -> None:
 			assert parse(temp_module.__version__) >= parse(dependency["version"])
 			logger.debug(
 				"Module %r present in version %s (required %s) - not installing",
-				dependency["name"], temp_module.__version__, dependency["version"]
+				dependency["name"],
+				temp_module.__version__,
+				dependency["version"],
 			)
 		except (ImportError, AssertionError, AttributeError):
 			install_python_package(target_dir, dependency)
@@ -144,15 +143,15 @@ def get_plugin_path(ctx: click.Context, name: str) -> Path:
 	return plugin_dirs[name]
 
 
-@cli.command(short_help='Export plugin as .opsiplugin')
-@click.argument('name', type=str)
+@cli.command(short_help="Export plugin as .opsiplugin")
+@click.argument("name", type=str)
 @click.pass_context
 def export(ctx: click.Context, name: str) -> None:
 	"""
-	opsi plugin export subcommand.
-	This subcommand is used to export an installed opsi cli plugin.
+	opsi-cli plugin export subcommand.
+	This subcommand is used to export an installed opsi-cli plugin.
 	It is packaged as a .opsiplugin file which can be added to another
-	instance of opsi cli via "plugin add". Also see "plugin list".
+	instance of opsi-cli via "plugin add". Also see "plugin list".
 	"""
 	logger.notice("Exporting command %r to %r", name, f"{name}.opsiplugin")
 	path = get_plugin_path(ctx, name)
@@ -166,24 +165,24 @@ def export(ctx: click.Context, name: str) -> None:
 				zfile.write(str(root_path / single_file), arcname=str(Path(name) / base / single_file))
 
 
-@cli.command(name="list", short_help='List imported plugins')
+@cli.command(name="list", short_help="List imported plugins")
 @click.pass_context
 def list_command(ctx: click.Context) -> None:
 	"""
-	opsi plugin list subcommand.
-	This subcommand lists all installed opsi cli plugins.
+	opsi-cli plugin list subcommand.
+	This subcommand lists all installed opsi-cli plugins.
 	"""
 	for plugin_name in ctx.obj["plugins"].keys():
 		print(plugin_name)  # check for validity?
 
 
-@cli.command(short_help='Remove a plugin')
-@click.argument('name', type=str)
+@cli.command(short_help="Remove a plugin")
+@click.argument("name", type=str)
 @click.pass_context
 def remove(ctx: click.Context, name: str) -> None:
 	"""
-	opsi plugin remove subcommand.
-	This subcommand removes an installed opsi cli plugin. See "plugin list".
+	opsi-cli plugin remove subcommand.
+	This subcommand removes an installed opsi-cli plugin. See "plugin list".
 	"""
 	path = get_plugin_path(ctx, name)
 	if config.plugin_dir not in path.parents:
