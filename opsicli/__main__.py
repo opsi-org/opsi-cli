@@ -45,19 +45,15 @@ class OpsiCLI(click.MultiCommand):
 		args: Optional[Sequence[str]] = None,
 		prog_name: Optional[str] = None,
 		complete_var: Optional[str] = None,
-		standalone_mode: bool = True,
+		standalone_mode: bool = False,
 		**extra: Any,
-	) -> None:
+	) -> Any:
 		try:
 			return super().main(args, prog_name, complete_var, standalone_mode, **extra)
 		except ClickException as err:
-			if not standalone_mode:
-				raise
 			rich_format_error(err)
 			sys.exit(err.exit_code)
 		except Abort:
-			if not standalone_mode:
-				raise
 			rich_abort_error()
 			sys.exit(1)
 
