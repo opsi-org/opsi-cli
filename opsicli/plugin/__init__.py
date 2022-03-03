@@ -1,5 +1,5 @@
 """
-opsi-cli Basic command line interface for opsi
+opsi-cli basic command line interface for opsi
 
 plugin subcommand
 """

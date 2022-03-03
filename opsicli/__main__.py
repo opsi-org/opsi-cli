@@ -5,6 +5,7 @@ Main command
 """
 
 import sys
+import pathlib
 from typing import Any, List, Dict, Optional, Sequence
 from types import ModuleType
 from pathlib import Path
@@ -13,10 +14,11 @@ from click.exceptions import ClickException, Abort
 import rich_click as click  # type: ignore[import]
 from rich_click.rich_click import rich_format_error, rich_abort_error, rich_format_help  # type: ignore[import]
 
-from opsicommon.logging import logger, logging_config, DEFAULT_COLORED_FORMAT  # type: ignore[import]
+from opsicommon.logging import logger, logging_config, DEFAULT_FORMAT, DEFAULT_COLORED_FORMAT  # type: ignore[import]
 
 from opsicli import plugin, prepare_cli_paths, prepare_context, __version__
 from opsicli.config import config
+
 
 click.rich_click.USE_RICH_MARKUP = True
 click.rich_click.MAX_WIDTH = 140
@@ -24,7 +26,7 @@ click.rich_click.OPTION_GROUPS = {
 	"opsi-cli": [
 		{
 			"name": "General options",
-			"options": ["--version", "--help", "--log-level"],
+			"options": ["--version", "--help", "--color", "--log-file", "--log-level"],
 		},
 		{
 			"name": "Opsi service options",
@@ -39,6 +41,12 @@ class OpsiCLI(click.MultiCommand):
 	def __init__(self, *args, **kwargs) -> None:
 		super().__init__(*args, **kwargs)
 		self.plugin_modules: Dict[str, ModuleType] = {}
+		self.color = True
+
+	def parse_args(self, ctx: click.Context, args: List[str]) -> List[str]:
+		if "--no-color" in args:
+			self.color = False
+		return super().parse_args(ctx, args)
 
 	def main(
 		self,
@@ -51,14 +59,20 @@ class OpsiCLI(click.MultiCommand):
 		try:
 			return super().main(args, prog_name, complete_var, standalone_mode, **extra)
 		except ClickException as err:
+			if not self.color:
+				raise
 			rich_format_error(err)
 			sys.exit(err.exit_code)
 		except Abort:
+			if not self.color:
+				raise
 			rich_abort_error()
 			sys.exit(1)
 
-	def format_help(self, ctx, formatter):
-		rich_format_help(self, ctx, formatter)
+	def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+		if not self.color:
+			return super().format_help(ctx, formatter)
+		return rich_format_help(self, ctx, formatter)
 
 	def register_plugins(self, ctx: click.Context) -> None:
 		prepare_cli_paths()
@@ -77,18 +91,20 @@ class OpsiCLI(click.MultiCommand):
 	def load_plugin(self, ctx: click.Context, dirname: Path) -> None:
 		path = config.plugin_dir / dirname / "__init__.py"
 		if not path.exists():
-			raise ImportError(f"{config.plugin_dir / dirname} does not have __init__.py")
+			raise ImportError(f"{config.plugin_dir / dirname!r} does not have __init__.py")
 		spec = spec_from_file_location("temp", path)
 		if not spec:
-			raise ImportError(f"{config.plugin_dir / dirname / '__init__.py'} is not a valid python module")
+			raise ImportError(f"{config.plugin_dir / dirname / '__init__.py'!r} is not a valid python module")
 		new_plugin = module_from_spec(spec)
 		if not spec.loader:
-			raise ImportError(f"{config.plugin_dir / dirname / '__init__.py'} spec does not have valid loader")
+			raise ImportError(f"{config.plugin_dir / dirname / '__init__.py'!r} spec does not have valid loader")
 		spec.loader.exec_module(new_plugin)
 		try:
 			name = new_plugin.get_plugin_info()["name"]
 		except (AttributeError, KeyError) as error:
-			raise ImportError(f"{config.plugin_dir / dirname} does not have a valid get_plugin_info method (key name required)") from error
+			raise ImportError(
+				f"{config.plugin_dir / dirname!r} does not have a valid get_plugin_info method (key name required)"
+			) from error
 		self.plugin_modules[name] = new_plugin
 
 		logger.debug("Adding plugin %r", name)
@@ -109,7 +125,16 @@ class OpsiCLI(click.MultiCommand):
 
 
 @click.command(cls=OpsiCLI)
+@click.pass_context
 @click.version_option(f"{__version__}", message="opsi-cli version %(version)s")
+@click.option(
+	"--log-file",
+	type=click.Path(
+		exists=False, file_okay=True, dir_okay=False, writable=True, resolve_path=True, allow_dash=True, path_type=pathlib.Path
+	),
+	metavar="LOG_FILE",
+	help="Log to LOG_FILE",
+)
 @click.option(
 	"--log-level",
 	"-l",
@@ -124,18 +149,25 @@ class OpsiCLI(click.MultiCommand):
 	),
 )
 @click.option(
+	"--color/--no-color",
+	default=True,
+	help="Enable or disable colorized output",
+)
+@click.option(
 	"--service-url", envvar="OPSI_SERVICE_URL", default="https://localhost:4447", type=str, metavar="SERVICE_URL", show_default=True
 )
 @click.option("--username", "-u", envvar="OPSI_USERNAME", metavar="USERNAME", type=str)
 @click.option("--password", "-p", envvar="OPSI_PASSWORD", metavar="PASSWORD", type=str)
-@click.pass_context
-def main(ctx: click.Context, log_level: int, username: str, password: str, service_url: str) -> None:
+def main(  # pylint: disable=too-many-arguments
+	ctx: click.Context, color: bool, log_file: pathlib.Path, log_level: int, service_url: str, username: str, password: str
+) -> None:
 	"""
 	opsi command line interface\n
 	Plugins are dynamically loaded from a subfolder
 	"""
-	logging_config(stderr_level=log_level, stderr_format=DEFAULT_COLORED_FORMAT)
-
+	logging_config(
+		log_file=log_file, file_level=log_level, stderr_level=log_level, stderr_format=DEFAULT_COLORED_FORMAT if color else DEFAULT_FORMAT
+	)
 	if not ctx.obj:  # stacked execution in pytest circumvents register_plugins -> explicit call here
 		logger.notice("Explicitely calling register_plugins")
 		assert isinstance(ctx.command, OpsiCLI)  # generic command does not have register_plugins
