@@ -9,6 +9,7 @@ import platform
 from pathlib import Path
 import pytest
 
+from opsicli import PLUGIN_EXTENSION
 from opsicli.plugin import install_python_package
 from opsicli.config import config
 
@@ -87,8 +88,8 @@ def test_pluginarchive_export_import() -> None:
 	with temp_context():
 		run_cli(["plugin", "add", str(TESTPLUGIN)])
 		run_cli(["plugin", "export", "dummy"])
-		assert os.path.exists("dummy.opsiplugin")
+		assert os.path.exists(f"dummy.{PLUGIN_EXTENSION}")
 		run_cli(["plugin", "remove", "dummy"])
-		run_cli(["plugin", "add", "dummy.opsiplugin"])
+		run_cli(["plugin", "add", f"dummy.{PLUGIN_EXTENSION}"])
 		output = run_cli(["plugin", "list"])
 		assert "dummy" in output
