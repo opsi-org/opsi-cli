@@ -18,6 +18,7 @@ from pipreqs import pipreqs  # type: ignore[import]
 
 from opsicommon.logging import logger  # type: ignore[import]
 
+from opsicli import PLUGIN_EXTENSION
 from opsicli.config import get_python_path, config
 
 __version__ = "0.1.0"
@@ -38,13 +39,13 @@ def cli(ctx: click.Context) -> None:  # pylint: disable=unused-argument
 	logger.trace("plugin command")
 
 
-@cli.command(short_help="Add new plugin (python package or .opsiplugin)")
+@cli.command(short_help=f"Add new plugin (python package or .{PLUGIN_EXTENSION})")
 @click.argument("path", type=click.Path(exists=True))
 def add(path: str) -> None:
 	"""
 	opsi-cli plugin add subcommand.
-	Specify a path to a python package directory or .opsiplugin file to
-	install it as plugin for opsi-cli
+	Specify a path to a python package directory or an opsi-cli plugin file
+	to install it as plugin for opsi-cli
 	"""
 	with tempfile.TemporaryDirectory() as tmpdir:
 		tmpdir_path = Path(tmpdir)
@@ -59,11 +60,11 @@ def prepare_plugin(path: Path, tmpdir: Path) -> str:
 	name = path.stem
 	if (path / "__init__.py").exists():
 		shutil.copytree(path, tmpdir / name)
-	elif path.suffix == ".opsiplugin":
+	elif path.suffix == f".{PLUGIN_EXTENSION}":
 		with zipfile.ZipFile(path, "r") as zfile:
 			zfile.extractall(tmpdir)
 	else:
-		raise ValueError(f"Invalid path given {path}")
+		raise ValueError(f"Invalid path given {path!r}")
 
 	logger.info("Retrieving libraries for new plugin")
 	install_dependencies(tmpdir / name, tmpdir / "lib")
@@ -143,21 +144,21 @@ def get_plugin_path(ctx: click.Context, name: str) -> Path:
 	return plugin_dirs[name]
 
 
-@cli.command(short_help="Export plugin as .opsiplugin")
+@cli.command(short_help=f"Export plugin as .{PLUGIN_EXTENSION}")
 @click.argument("name", type=str)
 @click.pass_context
 def export(ctx: click.Context, name: str) -> None:
 	"""
 	opsi-cli plugin export subcommand.
 	This subcommand is used to export an installed opsi-cli plugin.
-	It is packaged as a .opsiplugin file which can be added to another
+	It is packaged as an opsi-cli plugin file which can be added to another
 	instance of opsi-cli via "plugin add". Also see "plugin list".
 	"""
-	logger.notice("Exporting command %r to %r", name, f"{name}.opsiplugin")
+	logger.notice("Exporting command %r to %r", name, f"{name}.{PLUGIN_EXTENSION}")
 	path = get_plugin_path(ctx, name)
 	logger.debug("Compressing plugin path %s", path)
 
-	with zipfile.ZipFile(f"{name}.opsiplugin", "w", zipfile.ZIP_DEFLATED) as zfile:
+	with zipfile.ZipFile(f"{name}.{PLUGIN_EXTENSION}", "w", zipfile.ZIP_DEFLATED) as zfile:
 		for root, _, files in os.walk(path):
 			root_path = Path(root)
 			base = root_path.relative_to(path)
