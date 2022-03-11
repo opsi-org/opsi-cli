@@ -67,7 +67,7 @@ def export(plugin_id: str, destination_dir: Path) -> None:
 
 	logger.debug("Compressing plugin path %s", path)
 
-	with zipfile.ZipFile(f"{plugin_id}.{PLUGIN_EXTENSION}", "w", zipfile.ZIP_DEFLATED) as zfile:
+	with zipfile.ZipFile(destination, "w", zipfile.ZIP_DEFLATED) as zfile:
 		for root, _, files in os.walk(path):
 			root_path = Path(root)
 			if root_path.name in ("__pycache__",):
@@ -114,6 +114,7 @@ def remove(plugin_id: str) -> None:
 	if not found:
 		raise ValueError(f"Attempt to remove plugin from invalid path {path!r} - Stopping.")
 	logger.notice("Removing plugin %s", plugin_id)
+	plugin_manager.unload_plugin(plugin_id)
 	logger.debug("Deleting %s", path)
 	shutil.rmtree(path)
 	get_console().print(f"Plugin {plugin_id!r} removed")

@@ -28,26 +28,26 @@ from opsicli.config import config, get_python_path
 PLUGIN_EXTENSION = "opsicliplug"
 
 
-# this creates the plugin command and libs in tmp
 def prepare_plugin(path: Path, tmpdir: Path) -> str:
-	logger.info("Inspecting plugin source %s", path)
-	name = path.stem
-	if (path / "__init__.py").exists():
-		shutil.copytree(path, tmpdir / name)
+	"""Ccreates the plugin and libs in tmp"""
+	logger.info("Inspecting plugin source '%s'", path)
+	plugin_id = path.stem
+	if (path / "python" / "__init__.py").exists():
+		shutil.copytree(path, tmpdir / plugin_id)
 	elif path.suffix == f".{PLUGIN_EXTENSION}":
 		with zipfile.ZipFile(path, "r") as zfile:
 			zfile.extractall(tmpdir)
 	else:
-		raise ValueError(f"Invalid path given {path!r}")
+		raise ValueError(f"Invalid path given '{path}'")
 
 	logger.info("Retrieving libraries for new plugin")
-	install_dependencies(tmpdir / name, tmpdir / "lib")
-	return name
+	install_dependencies(tmpdir / plugin_id, tmpdir / "lib")
+	return plugin_id
 
 
-# this copies the prepared plugin from tmp to LIB_DIR
 def install_plugin(source_dir: Path, name: str) -> None:
-	logger.info("Installing libraries from %s", source_dir / "lib")
+	"""Copy the prepared plugin from tmp to LIB_DIR"""
+	logger.info("Installing libraries from '%s'", source_dir / "lib")
 	# https://lukelogbook.tech/2018/01/25/merging-two-folders-in-python/
 	for src_dir_string, _, files in os.walk(source_dir / "lib"):
 		src_dir = Path(src_dir_string)
@@ -59,11 +59,12 @@ def install_plugin(source_dir: Path, name: str) -> None:
 				# avoid replacing files that might be currently loaded -> segfault
 				shutil.copy2(src_dir / file_, dst_dir / file_)
 
-	logger.info("Installing plugin from %s", source_dir / name)
+	logger.info("Installing plugin from '%s'", source_dir / name)
 	destination = config.plugin_dirs[-1] / name
 	if destination.exists():
 		shutil.rmtree(destination)
 	shutil.copytree(source_dir / name, destination)
+	plugin_manager.load_plugin(destination)
 
 
 def install_python_package(target_dir: Path, package: Dict[str, str]) -> None:
@@ -74,11 +75,11 @@ def install_python_package(target_dir: Path, package: Dict[str, str]) -> None:
 		cmd = f"\"{pypath}\" -m pip install \"{package['name']}>={package['version']}\" --target \"{target_dir}\""
 		logger.debug("Executing %r", cmd)
 		result = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
-		logger.debug("success, command output\n%s", result.decode("utf-8"))
+		logger.debug("Success, command output:\n%s", result.decode("utf-8"))
 		return
 	except subprocess.CalledProcessError as process_error:
-		logger.error("Command %r failed ... aborting: %s", cmd, process_error, exc_info=True)
-		raise RuntimeError(f"Could not install {package['name']!r} ... aborting") from process_error
+		logger.error("Command %r failed, aborting: %s", cmd, process_error, exc_info=True)
+		raise RuntimeError(f"Could not install {package['name']!r}, aborting") from process_error
 
 
 def install_dependencies(path: Path, target_dir: Path) -> None:
@@ -176,7 +177,7 @@ class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-meth
 
 		for cls in module.__dict__.values():
 			if isinstance(cls, type) and issubclass(cls, OPSICLIPlugin) and cls != OPSICLIPlugin and cls.id:
-				logger.notice("Loading plugin %r (%s)", cls.id, cls.name)
+				logger.notice("Loading plugin %r (name=%s, cli=%s)", cls.id, cls.name, cls.cli)
 				self._plugins[cls.id] = cls(plugin_dir)
 				self._plugins[cls.id].on_load()
 				# Only one class per module

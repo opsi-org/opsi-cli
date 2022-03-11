@@ -12,7 +12,7 @@ import tempfile
 import platform
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, validator  # pylint: disable=no-name-in-module
 from ruamel.yaml import YAML
 import rich_click as click  # type: ignore[import]
 
@@ -143,6 +143,16 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 
 	def get_config_items(self) -> List[ConfigItem]:
 		return list(self._config.values())
+
+	def get_values(self) -> Dict[str, Any]:
+		values = {}
+		for name, item in self._config.items():
+			values[name] = item.value
+		return values
+
+	def set_values(self, values: Dict[str, Any]) -> None:
+		for name, value in values.items():
+			self._config[name].value = value
 
 	def read_config_file(self):
 		if not self.config_file:

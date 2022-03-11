@@ -49,17 +49,19 @@ class OpsiCLI(click.MultiCommand):
 		try:
 			return super().main(args, prog_name, complete_var, standalone_mode, **extra)
 		except Abort:
-			if not config.color:
-				raise
-			rich_abort_error()
+			if config.color:
+				rich_abort_error()
+			else:
+				sys.stderr.write("Aborted.\n")
 			sys.exit(1)
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
 			if not isinstance(err, ClickException):
 				err = ClickException(str(err))
-			if not config.color:
-				raise
-			rich_format_error(err)
+			if config.color:
+				rich_format_error(err)
+			else:
+				sys.stderr.write(str(err))
 			sys.exit(err.exit_code)
 
 	def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
@@ -69,7 +71,7 @@ class OpsiCLI(click.MultiCommand):
 
 	def list_commands(self, ctx: click.Context) -> List[str]:
 		plugin_manager.load_plugins()
-		return sorted([plugin.cli.name for plugin in plugin_manager.plugins if plugin.cli])  # type: ignore[attr-defined]
+		return sorted([plugin.cli.name for plugin in plugin_manager.plugins if plugin.cli])  # type: ignore[attr-defined,misc]
 
 	def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command:
 		plugin_manager.load_plugins()
