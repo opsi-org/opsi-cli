@@ -69,13 +69,14 @@ class OpsiCLI(click.MultiCommand):
 
 	def list_commands(self, ctx: click.Context) -> List[str]:
 		plugin_manager.load_plugins()
-		return sorted(plugin_manager.plugin_modules.keys())
+		return sorted([plugin.cli.name for plugin in plugin_manager.plugins if plugin.cli])  # type: ignore[attr-defined]
 
 	def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command:
 		plugin_manager.load_plugins()
-		if cmd_name not in plugin_manager.plugin_modules:
-			raise ValueError(f"Invalid command {cmd_name!r}")
-		return plugin_manager.plugin_modules[cmd_name].cli
+		for plugin in plugin_manager.plugins:
+			if plugin.cli and plugin.cli.name == cmd_name:
+				return plugin.cli
+		raise ValueError(f"Invalid command {cmd_name!r}")
 
 
 class LogLevel(click.ParamType):

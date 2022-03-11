@@ -4,6 +4,7 @@ opsi-cli basic command line interface for opsi
 config plugin
 """
 
+from pathlib import Path
 from typing import Any, Dict
 from rich.table import Table
 import rich_click as click  # type: ignore[import]
@@ -12,12 +13,9 @@ from opsicommon.logging import logger  # type: ignore[import]
 
 from opsicli import get_console
 from opsicli.config import config
+from opsicli.plugin import OPSICLIPlugin
 
 __version__ = "0.1.0"
-
-
-def get_plugin_info() -> Dict[str, Any]:
-	return {"name": "config", "description": "Manage opsi-cli configuration", "version": __version__}
 
 
 @click.group(name="config", short_help="Manage opsi-cli configuration")
@@ -47,3 +45,11 @@ def show() -> None:
 		table.add_row(item.name, item.type.__name__, item.default_repr(), item.value_repr())
 
 	get_console().print(table)
+
+
+class ConfigPlugin(OPSICLIPlugin):
+	id: str = "config"  # pylint: disable=invalid-name
+	name: str = "Config"
+	description: str = "Manage opsi-cli configuration"
+	version: str = __version__
+	cli = cli
