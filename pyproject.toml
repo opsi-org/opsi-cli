@@ -21,6 +21,8 @@ python-opsi = "^4.2.0"
 pipreqs = "^0.4.10"
 python-opsi-common = "^4.2.0"
 rich-click = "^1.2.1"
+"ruamel.yaml" = "^0.17.21"
+pydantic = "^1.9.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2"
@@ -31,6 +33,7 @@ flake8 = "^4.0.1"
 pytest-cov = "^3.0.0"
 mypy = "^0.931"
 tan = "^21.14"
+pytest-coverage = "^0.0"
 
 [tool.poetry.scripts]
 opsi-cli = "opsicli.__main__:main"

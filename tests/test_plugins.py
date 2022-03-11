@@ -1,7 +1,5 @@
 """
-opsi-cli Basic command line interface for opsi
-
-Tests
+test_plugins
 """
 
 import os
