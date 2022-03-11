@@ -148,9 +148,9 @@ class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-meth
 				raise ImportError(f"{plugin_dir!r} does not have a valid get_plugin_info method (key {key!r} with string value required)")
 
 		new_plugin.plugin_path = plugin_dir  # type: ignore[attr-defined]
-		self.plugin_modules[plugin_info["nane"]] = new_plugin
+		self.plugin_modules[plugin_info["name"]] = new_plugin
 
-		logger.info("Plugin %r loaded", plugin_info["nane"])
+		logger.info("Plugin %r loaded", plugin_info["name"])
 
 	def get_plugin_path(self, plugin_name: str) -> Path:
 		if plugin_name not in self.plugin_modules:
