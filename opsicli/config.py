@@ -19,7 +19,7 @@ import rich_click as click  # type: ignore[import]
 from opsicommon.utils import Singleton  # type: ignore[import]
 from opsicommon.logging import logging_config, DEFAULT_COLORED_FORMAT, DEFAULT_FORMAT  # type: ignore[import]
 
-from opsicli.types import LogLevel, Bool, OPSIServiceUrl, Password, File, Directory
+from opsicli.types import LogLevel, OutputFormat, Bool, OPSIServiceUrl, Password, File, Directory
 
 DEFAULT_CONFIG_FILES = ["~/.config/opsi-cli/opsi-cli.yaml", "/etc/opsi/opsi-cli.yaml"]
 
@@ -66,15 +66,25 @@ class ConfigItem(BaseModel):  # pylint: disable=too-few-public-methods
 				value = values["type"](value)
 		return value
 
-	def default_repr(self):
-		if isinstance(self.default, list):
-			return repr([repr(val) for val in self.default])  # pylint: disable=not-an-iterable
-		return repr(self.default)
+	# def default_repr(self):
+	# 	if isinstance(self.default, list):
+	# 		return repr([repr(val) for val in self.default])  # pylint: disable=not-an-iterable
+	# 	return repr(self.default)
 
-	def value_repr(self):
-		if isinstance(self.value, list):
-			return repr([repr(val) for val in self.value])  # pylint: disable=not-an-iterable
-		return repr(self.value)
+	# def default_str(self):
+	# 	if isinstance(self.default, list):
+	# 		return str([str(val) for val in self.default])  # pylint: disable=not-an-iterable
+	# 	return str(self.default)
+
+	# def value_repr(self):
+	# 	if isinstance(self.value, list):
+	# 		return repr([repr(val) for val in self.value])  # pylint: disable=not-an-iterable
+	# 	return repr(self.value)
+
+	# def value_str(self):
+	# 	if isinstance(self.value, list):
+	# 		return str([str(val) for val in self.value])  # pylint: disable=not-an-iterable
+	# 	return str(self.value)
 
 
 CONFIG_ITEMS = [
@@ -94,6 +104,13 @@ CONFIG_ITEMS = [
 		description=f"The log level for the console (stderr). Possible values are:\n\n{LogLevel.possible_values_for_description}",
 	),
 	ConfigItem(name="color", type=Bool, group="General", default=True, description="Enable or disable colorized output"),
+	ConfigItem(
+		name="output_format",
+		type=OutputFormat,
+		group="General",
+		default="auto",
+		description=f"Set output format. Possible values are: {OutputFormat.possible_values_for_description}",
+	),
 	ConfigItem(
 		name="service_url",
 		type=OPSIServiceUrl,
@@ -173,8 +190,16 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 		)
 
 	def process_option(self, ctx: click.Context, param: click.Option, value: Any):  # pylint: disable=unused-argument
-		if param.name in self._config:
+		if param.name not in self._config:
+			return
+
+		try:
 			self._config[param.name].value = value
+		except ValueError as err:
+			msg = str(err)
+			if hasattr(err, "errors"):
+				msg = err.errors()[0]["msg"]  # type: ignore[attr-defined]
+			raise click.BadParameter(msg, ctx=ctx, param=param) from err
 
 		if param.name == "config_file":
 			self.read_config_file()

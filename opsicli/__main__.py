@@ -82,28 +82,15 @@ class OpsiCLI(click.MultiCommand):
 
 
 class LogLevel(click.ParamType):
-	def convert(self, value: Any, param: Optional[click.Parameter], ctx: Optional[click.Context]) -> int:
-		try:
-			value = TypeLogLevel(value)
-		except ValueError as err:
-			self.fail(str(err), param, ctx)
-		return value
-
-	def get_metavar(self, param: click.Parameter) -> str:
-		return "LOG_LEVEL"
-
 	def shell_complete(self, ctx: click.Context, param: click.Parameter, incomplete: str) -> List[CompletionItem]:
 		completion_items = []
 		try:
 			completion_items = [CompletionItem(min(9, max(0, int(incomplete))))]
 		except ValueError:
-			for name in TypeLogLevel.possible_level_names:
+			for name in TypeLogLevel.possible_values:
 				if name.startswith(incomplete.lower()):
 					completion_items.append(name)
 		return completion_items
-
-	def __repr__(self) -> str:
-		return "LOG_LEVEL"
 
 
 @click.command(cls=OpsiCLI)
@@ -135,6 +122,7 @@ class LogLevel(click.ParamType):
 	"--log-level-file",
 	type=LogLevel(),
 	callback=config.process_option,
+	metavar="LOG_LEVEL",
 	show_default=True,
 	help=config.get_description("log_level_file"),
 	default=config.get_default("log_level_file"),
@@ -144,6 +132,7 @@ class LogLevel(click.ParamType):
 	"-l",
 	type=LogLevel(),
 	callback=config.process_option,
+	metavar="LOG_LEVEL",
 	show_default=True,
 	help=config.get_description("log_level_stderr"),
 	default=config.get_default("log_level_stderr"),
@@ -154,6 +143,15 @@ class LogLevel(click.ParamType):
 	callback=config.process_option,
 	help=config.get_description("color"),
 	default=config.get_default("color"),
+)
+@click.option(
+	"--output-format",
+	type=str,
+	callback=config.process_option,
+	metavar="FORMAT",
+	show_default=True,
+	help=config.get_description("output_format"),
+	default=config.get_default("output_format"),
 )
 @click.option(
 	"--service-url",

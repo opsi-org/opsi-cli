@@ -16,10 +16,8 @@ from opsicommon.logging import (  # type: ignore[import]
 
 
 class LogLevel(int):
-	possible_level_names = reversed([v.lower() for v in NAME_TO_LEVEL])
-	possible_values_for_description = ", ".join(
-		[f"{name}/{LEVEL_TO_OPSI_LEVEL[NAME_TO_LEVEL[name.upper()]]}" for name in possible_level_names]
-	)
+	possible_values = reversed([v.lower() for v in NAME_TO_LEVEL])
+	possible_values_for_description = ", ".join([f"{name}/{LEVEL_TO_OPSI_LEVEL[NAME_TO_LEVEL[name.upper()]]}" for name in possible_values])
 
 	def __new__(cls, value: Any):
 		try:
@@ -28,7 +26,18 @@ class LogLevel(int):
 			try:
 				value = LEVEL_TO_OPSI_LEVEL[NAME_TO_LEVEL[value.upper()]]
 			except KeyError:
-				raise ValueError(f"{value!r} is not a valid log level, choose on of: {', '.join(cls.possible_level_names)}") from None
+				raise ValueError(f"{value!r} is not a valid log level, choose on of: {cls.possible_values_for_description}") from None
+		return super().__new__(cls, value)
+
+
+class OutputFormat(str):
+	possible_values = ["auto", "json", "pretty-json", "msgpack", "table", "csv"]
+	possible_values_for_description = ", ".join(possible_values)
+
+	def __new__(cls, value: Any):
+		value = str(value)
+		if value not in cls.possible_values:
+			raise ValueError(f"{value!r} is not a valid output format, choose on of: {cls.possible_values_for_description}") from None
 		return super().__new__(cls, value)
 
 

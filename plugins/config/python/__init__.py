@@ -6,12 +6,12 @@ config plugin
 
 from pathlib import Path
 from typing import Any, Dict
-from rich.table import Table
+
 import rich_click as click  # type: ignore[import]
 
 from opsicommon.logging import logger  # type: ignore[import]
 
-from opsicli import get_console
+from opsicli import write_output
 from opsicli.config import config
 from opsicli.plugin import OPSICLIPlugin
 
@@ -33,18 +33,19 @@ def show() -> None:
 	"""
 	opsi-cli config show subcommand.
 	"""
-
-	table = Table()
-
-	table.add_column("Name", style="cyan", no_wrap=True)
-	table.add_column("Type")
-	table.add_column("Default")
-	table.add_column("Value", style="green")
-
+	meta_data = {
+		"columns": [
+			{"id": "name", "title": "Name", "identifier": True},
+			{"id": "type", "title": "Type"},
+			{"id": "default", "title": "Default"},
+			{"id": "value", "title": "Value"},
+		]
+	}
+	data = []
 	for item in sorted(config.get_config_items(), key=lambda x: x.name):
-		table.add_row(item.name, item.type.__name__, item.default_repr(), item.value_repr())
+		data.append({"name": item.name, "type": item.type, "default": item.default, "value": item.value})
 
-	get_console().print(table)
+	write_output(meta_data, data)
 
 
 class ConfigPlugin(OPSICLIPlugin):

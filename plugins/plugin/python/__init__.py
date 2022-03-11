@@ -17,7 +17,7 @@ import rich_click as click  # type: ignore[import]
 
 from opsicommon.logging import logger  # type: ignore[import]
 
-from opsicli import get_console
+from opsicli import get_console, write_output
 from opsicli.config import config
 from opsicli.plugin import OPSICLIPlugin, PLUGIN_EXTENSION, plugin_manager, install_plugin, prepare_plugin
 
@@ -85,17 +85,20 @@ def list_() -> None:
 	opsi-cli plugin list subcommand.
 	This subcommand lists all installed opsi-cli plugins.
 	"""
-	table = Table()
 
-	table.add_column("ID", style="cyan", no_wrap=True)
-	table.add_column("Name")
-	table.add_column("Description")
-	table.add_column("Version")
-
+	meta_data = {
+		"columns": [
+			{"id": "id", "title": "ID", "identifier": True},
+			{"id": "name", "title": "Name"},
+			{"id": "description", "title": "Description"},
+			{"id": "version", "title": "Version"},
+		]
+	}
+	data = []
 	for plugin in sorted(plugin_manager.plugins, key=lambda plugin: plugin.id):
-		table.add_row(plugin.id, plugin.name, plugin.description, plugin.version)
+		data.append({"id": plugin.id, "name": plugin.name, "description": plugin.description, "version": plugin.version})
 
-	get_console().print(table)
+	write_output(meta_data, data)
 
 
 @cli.command(short_help="Remove a plugin")
