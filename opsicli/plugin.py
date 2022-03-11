@@ -58,7 +58,7 @@ def install_plugin(source_dir: Path, name: str) -> None:
 				shutil.copy2(src_dir / file_, dst_dir / file_)
 
 	logger.info("Installing plugin from %s", source_dir / name)
-	destination = config.plugin_dir / name
+	destination = config.plugin_dirs[-1] / name
 	if destination.exists():
 		shutil.rmtree(destination)
 	shutil.copytree(source_dir / name, destination)
@@ -140,15 +140,17 @@ class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-meth
 		if not spec.loader:
 			raise ImportError(f"{path!r} spec does not have valid loader")
 		spec.loader.exec_module(new_plugin)
-		# TODO: Validate plugin info structure
-		try:
-			name = new_plugin.get_plugin_info()["name"]
-		except (AttributeError, KeyError) as error:
-			raise ImportError(f"{plugin_dir!r} does not have a valid get_plugin_info method (key name required)") from error
-		new_plugin.plugin_path = plugin_dir  # type: ignore[attr-defined]
-		self.plugin_modules[name] = new_plugin
 
-		logger.debug("Added plugin %r", name)
+		plugin_info = new_plugin.get_plugin_info()
+		for key in ("name", "description", "version"):
+			val = plugin_info.get(key)
+			if not val or not isinstance(val, str):
+				raise ImportError(f"{plugin_dir!r} does not have a valid get_plugin_info method (key {key!r} with string value required)")
+
+		new_plugin.plugin_path = plugin_dir  # type: ignore[attr-defined]
+		self.plugin_modules[plugin_info["nane"]] = new_plugin
+
+		logger.info("Plugin %r loaded", plugin_info["nane"])
 
 	def get_plugin_path(self, plugin_name: str) -> Path:
 		if plugin_name not in self.plugin_modules:
