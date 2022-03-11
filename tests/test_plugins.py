@@ -7,8 +7,7 @@ import platform
 from pathlib import Path
 import pytest
 
-from opsicli import PLUGIN_EXTENSION
-from opsicli.plugin import install_python_package
+from opsicli.plugin import PLUGIN_EXTENSION, install_python_package
 from opsicli.config import config
 
 from .utils import run_cli, temp_context, temp_env

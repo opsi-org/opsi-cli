@@ -1,57 +1,29 @@
+# -*- coding: utf-8 -*-
 """
-opsi-cli basic command line interface for opsi
+opsi-cli Basic command line interface for opsi
 
-plugin subcommand
+plugin handling
 """
-
-import importlib
 import os
 import shutil
-import subprocess
-import tempfile
 import zipfile
-from typing import Any, Dict
+import subprocess
+import importlib
+from typing import Dict
 from pathlib import Path
+from importlib.util import spec_from_file_location, module_from_spec
+from types import ModuleType
+
 from packaging.version import parse
-import rich_click as click  # type: ignore[import]
 from pipreqs import pipreqs  # type: ignore[import]
 
+from opsicommon.utils import Singleton  # type: ignore[import]
 from opsicommon.logging import logger  # type: ignore[import]
 
-from opsicli import PLUGIN_EXTENSION
-from opsicli.config import get_python_path, config
-
-__version__ = "0.1.0"
+from opsicli.config import config, get_python_path
 
 
-def get_plugin_info() -> Dict[str, Any]:
-	return {"name": "plugin", "version": __version__}
-
-
-@click.group(name="plugin", short_help="Manage opsi-cli plugins")
-@click.version_option(__version__, message="opsi plugin, version %(version)s")
-@click.pass_context
-def cli(ctx: click.Context) -> None:  # pylint: disable=unused-argument
-	"""
-	opsi-cli plugin command.
-	This command is used to add, remove, list or export plugins to opsi-cli.
-	"""
-	logger.trace("plugin command")
-
-
-@cli.command(short_help=f"Add new plugin (python package or .{PLUGIN_EXTENSION})")
-@click.argument("path", type=click.Path(exists=True))
-def add(path: str) -> None:
-	"""
-	opsi-cli plugin add subcommand.
-	Specify a path to a python package directory or an opsi-cli plugin file
-	to install it as plugin for opsi-cli
-	"""
-	with tempfile.TemporaryDirectory() as tmpdir:
-		tmpdir_path = Path(tmpdir)
-		(tmpdir_path / "lib").mkdir(parents=True, exist_ok=True)
-		name = prepare_plugin(Path(path), tmpdir_path)
-		install_plugin(tmpdir_path, name)
+PLUGIN_EXTENSION = "opsicliplug"
 
 
 # this creates the plugin command and libs in tmp
@@ -135,59 +107,53 @@ def install_dependencies(path: Path, target_dir: Path) -> None:
 			install_python_package(target_dir, dependency)
 
 
-def get_plugin_path(ctx: click.Context, name: str) -> Path:
-	plugin_dirs = ctx.obj["plugins"]
-	logger.info("Trying to get plugin %r", name)
-	logger.debug("Available plugins and their directories is: %s", plugin_dirs)
-	if name not in plugin_dirs:
-		raise ValueError(f"Plugin {name!r} not found.")
-	return plugin_dirs[name]
+class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-methods
+	def __init__(self) -> None:
+		self.plugin_modules: Dict[str, ModuleType] = {}
+		# prepare_context(ctx)
+
+	def load_plugins(self) -> None:
+		if self.plugin_modules:
+			# Already loaded
+			return
+
+		for plugin_base_dir in config.plugin_dirs:
+			if not plugin_base_dir.exists():
+				continue
+			logger.debug("Loading plugins from dir '%s'", plugin_base_dir)
+			for plugin_dir in plugin_base_dir.iterdir():
+				try:
+					self.load_plugin(plugin_dir)
+				except ImportError as import_error:
+					logger.error("Could not load plugin from %r: %s", plugin_dir, import_error, exc_info=True)
+					raise  # continue
+
+	def load_plugin(self, plugin_dir: Path) -> None:
+		logger.info("Loading plugin from '%s'", plugin_dir)
+		path = plugin_dir / "__init__.py"
+		if not path.exists():
+			raise ImportError(f"{plugin_dir!r} does not have __init__.py")
+		spec = spec_from_file_location("temp", path)
+		if not spec:
+			raise ImportError(f"{path!r} is not a valid python module")
+		new_plugin = module_from_spec(spec)
+		if not spec.loader:
+			raise ImportError(f"{path!r} spec does not have valid loader")
+		spec.loader.exec_module(new_plugin)
+		# TODO: Validate plugin info structure
+		try:
+			name = new_plugin.get_plugin_info()["name"]
+		except (AttributeError, KeyError) as error:
+			raise ImportError(f"{plugin_dir!r} does not have a valid get_plugin_info method (key name required)") from error
+		new_plugin.plugin_path = plugin_dir  # type: ignore[attr-defined]
+		self.plugin_modules[name] = new_plugin
+
+		logger.debug("Added plugin %r", name)
+
+	def get_plugin_path(self, plugin_name: str) -> Path:
+		if plugin_name not in self.plugin_modules:
+			raise ValueError(f"Plugin {plugin_name!r} not found")
+		return self.plugin_modules[plugin_name].plugin_dir
 
 
-@cli.command(short_help=f"Export plugin as .{PLUGIN_EXTENSION}")
-@click.argument("name", type=str)
-@click.pass_context
-def export(ctx: click.Context, name: str) -> None:
-	"""
-	opsi-cli plugin export subcommand.
-	This subcommand is used to export an installed opsi-cli plugin.
-	It is packaged as an opsi-cli plugin file which can be added to another
-	instance of opsi-cli via "plugin add". Also see "plugin list".
-	"""
-	logger.notice("Exporting command %r to %r", name, f"{name}.{PLUGIN_EXTENSION}")
-	path = get_plugin_path(ctx, name)
-	logger.debug("Compressing plugin path %s", path)
-
-	with zipfile.ZipFile(f"{name}.{PLUGIN_EXTENSION}", "w", zipfile.ZIP_DEFLATED) as zfile:
-		for root, _, files in os.walk(path):
-			root_path = Path(root)
-			base = root_path.relative_to(path)
-			for single_file in files:
-				zfile.write(str(root_path / single_file), arcname=str(Path(name) / base / single_file))
-
-
-@cli.command(name="list", short_help="List imported plugins")
-@click.pass_context
-def list_command(ctx: click.Context) -> None:
-	"""
-	opsi-cli plugin list subcommand.
-	This subcommand lists all installed opsi-cli plugins.
-	"""
-	for plugin_name in ctx.obj["plugins"].keys():
-		print(plugin_name)  # check for validity?
-
-
-@cli.command(short_help="Remove a plugin")
-@click.argument("name", type=str)
-@click.pass_context
-def remove(ctx: click.Context, name: str) -> None:
-	"""
-	opsi-cli plugin remove subcommand.
-	This subcommand removes an installed opsi-cli plugin. See "plugin list".
-	"""
-	path = get_plugin_path(ctx, name)
-	if config.plugin_dir not in path.parents:
-		raise ValueError(f"Attempt to remove plugin from invalid path {path!r} - Stopping.")
-	logger.notice("Removing plugin %s", name)
-	logger.debug("Deleting %s", path)
-	shutil.rmtree(path)
+plugin_manager = PluginManager()

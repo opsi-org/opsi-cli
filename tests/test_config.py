@@ -2,9 +2,10 @@
 test_config
 """
 
+from pathlib import Path
 import pytest
 
-from opsicli.types import TypeLogLevel, TypeBool, TypeOPSIServiceUrl, TypePassword
+from opsicli.types import LogLevel, Bool, OPSIServiceUrl, Password, Directory
 from opsicli.config import ConfigItem, Config
 
 
@@ -30,7 +31,7 @@ def test_config_item_defaults(default, value, expected):
 	),
 )
 def test_config_item_log_level(value, expected, exception):
-	item = ConfigItem(name="log_level_file", type=TypeLogLevel)
+	item = ConfigItem(name="log_level_file", type=LogLevel)
 	if exception:
 		with pytest.raises(exception):
 			item.value = value
@@ -44,7 +45,7 @@ def test_config_item_log_level(value, expected, exception):
 	((None, None), ("1", True), (True, True), (False, False), ("true", True), ("TRUE", True), ("false", False), ("FALSE", False)),
 )
 def test_config_item_bool(value, expected):
-	item = ConfigItem(name="color", type=TypeBool, value=value)
+	item = ConfigItem(name="color", type=Bool, value=value)
 	assert item.value == expected
 
 
@@ -57,14 +58,19 @@ def test_config_item_bool(value, expected):
 	),
 )
 def test_config_item_opsi_service_url(value, expected):
-	item = ConfigItem(name="service_url", type=TypeOPSIServiceUrl, value=value)
+	item = ConfigItem(name="service_url", type=OPSIServiceUrl, value=value)
 	assert item.value == expected
 
 
 def test_config_item_password():
-	item = ConfigItem(name="password", type=TypePassword, value="password123")
+	item = ConfigItem(name="password", type=Password, value="password123")
 	assert item.value == "password123"
 	assert f"{item.value!r}" == "***secret***"
+
+
+def test_config_item_plugin_dirs():
+	item = ConfigItem(name="plugin_dirs", type=Directory, multiple=True, value=["/path1", "/path/2"])
+	assert item.value == [Path("/path1"), Path("/path/2")]
 
 
 def test_config_defaults():

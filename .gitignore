@@ -1,0 +1,6 @@
+*~
+__pycache__
+/.venv
+/run-opsicli.build
+/run-opsicli.dist
+

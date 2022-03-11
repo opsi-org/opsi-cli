@@ -10,16 +10,16 @@ from functools import lru_cache
 from pathlib import Path
 import tempfile
 import platform
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, validator
 from ruamel.yaml import YAML
 import rich_click as click  # type: ignore[import]
 
 from opsicommon.utils import Singleton  # type: ignore[import]
+from opsicommon.logging import logging_config, DEFAULT_COLORED_FORMAT, DEFAULT_FORMAT  # type: ignore[import]
 
-
-from opsicli.types import TypeLogLevel, TypeBool, TypeOPSIServiceUrl, TypePassword, TypeFile, TypeDirectory
+from opsicli.types import LogLevel, Bool, OPSIServiceUrl, Password, File, Directory
 
 DEFAULT_CONFIG_FILES = ["~/.config/opsi-cli/opsi-cli.yaml", "/etc/opsi/opsi-cli.yaml"]
 
@@ -39,16 +39,20 @@ class ConfigItem(BaseModel):  # pylint: disable=too-few-public-methods
 
 	name: str
 	type: Any
-	default: Optional[Any] = None
+	multiple: bool = False
+	default: Optional[Union[List[Any], Any]] = None
 	description: Optional[str] = None
 	plugin: Optional[str] = None
 	group: Optional[str] = None
-	value: Any = None
+	value: Union[List[Any], Any] = None
 
 	@validator("default")
 	def validate_default(cls, default, values, **kwargs):  # pylint: disable=no-self-argument,no-self-use,unused-argument
 		if default is not None:
-			default = values["type"](default)
+			if values["multiple"]:
+				default = [values["type"](d) for d in default]
+			else:
+				default = values["type"](default)
 		return default
 
 	@validator("value", always=True)
@@ -56,36 +60,49 @@ class ConfigItem(BaseModel):  # pylint: disable=too-few-public-methods
 		if value is None:
 			value = values["default"]
 		if value is not None:
-			value = values["type"](value)
+			if values["multiple"]:
+				value = [values["type"](v) for v in value]
+			else:
+				value = values["type"](value)
 		return value
+
+	def default_repr(self):
+		if isinstance(self.default, list):
+			return repr([repr(val) for val in self.default])  # pylint: disable=not-an-iterable
+		return repr(self.default)
+
+	def value_repr(self):
+		if isinstance(self.value, list):
+			return repr([repr(val) for val in self.value])  # pylint: disable=not-an-iterable
+		return repr(self.value)
 
 
 CONFIG_ITEMS = [
-	ConfigItem(name="log_file", type=TypeFile, group="General", description="Log to this file"),
+	ConfigItem(name="log_file", type=File, group="General", description="Log to this file"),
 	ConfigItem(
 		name="log_level_file",
-		type=TypeLogLevel,
+		type=LogLevel,
 		group="General",
 		default="none",
-		description=f"The log level for the log file. Possible values are:\n\n{TypeLogLevel.possible_values_for_description}",
+		description=f"The log level for the log file. Possible values are:\n\n{LogLevel.possible_values_for_description}",
 	),
 	ConfigItem(
 		name="log_level_stderr",
-		type=TypeLogLevel,
+		type=LogLevel,
 		group="General",
 		default="warning",
-		description=f"The log level for the console (stderr). Possible values are:\n\n{TypeLogLevel.possible_values_for_description}",
+		description=f"The log level for the console (stderr). Possible values are:\n\n{LogLevel.possible_values_for_description}",
 	),
-	ConfigItem(name="color", type=TypeBool, group="General", default=True, description="Enable or disable colorized output"),
+	ConfigItem(name="color", type=Bool, group="General", default=True, description="Enable or disable colorized output"),
 	ConfigItem(
 		name="service_url",
-		type=TypeOPSIServiceUrl,
+		type=OPSIServiceUrl,
 		group="Opsi service",
 		default="https://localhost:4447",
 		description="URL of the opsi service to connect",
 	),
 	ConfigItem(name="username", type=str, group="Opsi service", description="Username for opsi service connection"),
-	ConfigItem(name="password", type=TypePassword, group="Opsi service", description="Password for opsi service connection"),
+	ConfigItem(name="password", type=Password, group="Opsi service", description="Password for opsi service connection"),
 ]
 
 if platform.system().lower() == "windows":
@@ -96,8 +113,8 @@ else:
 
 CONFIG_ITEMS.extend(
 	[
-		ConfigItem(name="plugin_dir", type=TypeDirectory, group="General", default=_user_lib_dir / "plugins"),
-		ConfigItem(name="lib_dir", type=TypeDirectory, group="General", default=_user_lib_dir / "lib"),
+		ConfigItem(name="plugin_dirs", type=Directory, multiple=True, group="General", default=["plugins", _user_lib_dir / "plugins"]),
+		ConfigItem(name="lib_dir", type=Directory, group="General", default=_user_lib_dir / "lib"),
 	]
 )
 
@@ -108,7 +125,7 @@ for config_file in DEFAULT_CONFIG_FILES:
 		DEFAULT_CONFIG_FILE = config_path
 		break
 CONFIG_ITEMS.append(
-	ConfigItem(name="config_file", type=TypeFile, group="General", default=DEFAULT_CONFIG_FILE, description="Config file location")
+	ConfigItem(name="config_file", type=File, group="General", default=DEFAULT_CONFIG_FILE, description="Config file location")
 )
 
 
@@ -117,16 +134,15 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 		self._config: Dict[str, ConfigItem] = {}
 		for item in CONFIG_ITEMS:
 			self.add_config_item(item)
-		# if "--no-color" in sys.argv:
-		# 	self._config["color"] = False
-		# for key, value in kwargs.items():
-		# 	self.set_value(key, value)
 
 	def add_config_item(self, config_item: ConfigItem):
 		self._config[config_item.name] = config_item
 
 	def get_config_item(self, name: str) -> Optional[ConfigItem]:
 		return self._config.get(name)
+
+	def get_config_items(self) -> List[ConfigItem]:
+		return list(self._config.values())
 
 	def read_config_file(self):
 		if not self.config_file:
@@ -138,12 +154,22 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 				if key in self._config:
 					self._config[key].value = val
 
+	def set_logging_config(self):
+		logging_config(
+			log_file=self.log_file,
+			file_level=self.log_level_file,
+			stderr_level=self.log_level_stderr,
+			stderr_format=DEFAULT_COLORED_FORMAT if self.color else DEFAULT_FORMAT,
+		)
+
 	def process_option(self, ctx: click.Context, param: click.Option, value: Any):  # pylint: disable=unused-argument
 		if param.name in self._config:
 			self._config[param.name].value = value
 
 		if param.name == "config_file":
 			self.read_config_file()
+		elif param.name in ("log_file", "file_level", "log_level_stderr", "color"):
+			self.set_logging_config()
 
 		ctx.default_map = {}
 		for key, item in self._config.items():

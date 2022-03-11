@@ -15,7 +15,7 @@ from opsicommon.logging import (  # type: ignore[import]
 )
 
 
-class TypeLogLevel(int):
+class LogLevel(int):
 	possible_level_names = reversed([v.lower() for v in NAME_TO_LEVEL])
 	possible_values_for_description = ", ".join(
 		[f"{name}/{LEVEL_TO_OPSI_LEVEL[NAME_TO_LEVEL[name.upper()]]}" for name in possible_level_names]
@@ -32,14 +32,14 @@ class TypeLogLevel(int):
 		return super().__new__(cls, value)
 
 
-class TypeBool:  # pylint: disable=too-few-public-methods
+class Bool:  # pylint: disable=too-few-public-methods
 	def __new__(cls, value: Any):
 		if isinstance(value, str):
 			value = value.lower() in ("1", "true", "yes")
 		return bool(value)
 
 
-class TypeOPSIServiceUrl(str):  # pylint: disable=too-few-public-methods
+class OPSIServiceUrl(str):  # pylint: disable=too-few-public-methods
 	def __new__(cls, value: Any):
 		value = str(value)
 		if "://" not in value:
@@ -52,7 +52,7 @@ class TypeOPSIServiceUrl(str):  # pylint: disable=too-few-public-methods
 		return super().__new__(cls, value)
 
 
-class TypePassword(str):  # pylint: disable=too-few-public-methods
+class Password(str):  # pylint: disable=too-few-public-methods
 	def __new__(cls, value: Any):
 		return super().__new__(cls, value)
 
@@ -60,7 +60,7 @@ class TypePassword(str):  # pylint: disable=too-few-public-methods
 		return "***secret***"
 
 
-class TypeFile(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public-methods
+class File(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public-methods
 	def __new__(cls, *args, **kwargs):
 		path = super().__new__(cls, *args, **kwargs)
 		path = path.expanduser().absolute()
@@ -69,7 +69,7 @@ class TypeFile(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-pu
 		return path
 
 
-class TypeDirectory(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public-methods
+class Directory(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public-methods
 	def __new__(cls, *args, **kwargs):
 		path = super().__new__(cls, *args, **kwargs)
 		path = path.expanduser().absolute()
