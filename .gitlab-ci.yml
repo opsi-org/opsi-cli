@@ -24,7 +24,7 @@ test:pytest-darwin:
 test:pytest-windows:
   stage: test
   tags:
-    - win10
+    - win10-py310
   script:
     - poetry install
     - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_windows.xml --cov-append --cov opsicli --cov-report term --cov-report xml -v tests
@@ -108,7 +108,7 @@ build:macos-pyinstaller:
 build:windows-pyinstaller:
   stage: build
   tags:
-    - win10
+    - win10-py310
   script:
     - poetry install
     - poetry run opsi-dev-tool -l info --pyinstaller-poetry-build
