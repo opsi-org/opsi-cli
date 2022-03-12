@@ -102,6 +102,8 @@ CONFIG_ITEMS = [
 		default="auto",
 		description=f"Set output format. Possible values are: {OutputFormat.possible_values_for_description}",
 	),
+	ConfigItem(name="metadata", type=Bool, group="General", default=False, description="Enable or disable output of metadata"),
+	ConfigItem(name="header", type=Bool, group="General", default=True, description="Enable or disable header output"),
 	ConfigItem(
 		name="service_url",
 		type=OPSIServiceUrl,
@@ -146,8 +148,8 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 	def add_config_item(self, config_item: ConfigItem):
 		self._config[config_item.name] = config_item
 
-	def get_config_item(self, name: str) -> Optional[ConfigItem]:
-		return self._config.get(name)
+	def get_config_item(self, name: str) -> ConfigItem:
+		return self._config[name]
 
 	def get_config_items(self) -> List[ConfigItem]:
 		return list(self._config.values())

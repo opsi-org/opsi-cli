@@ -4,9 +4,6 @@ opsi-cli basic command line interface for opsi
 config plugin
 """
 
-from pathlib import Path
-from typing import Any, Dict
-
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import logger  # type: ignore[import]
 
@@ -27,12 +24,12 @@ def cli() -> None:  # pylint: disable=unused-argument
 	logger.trace("config command")
 
 
-@cli.command(short_help="Show current configuration")
-def show() -> None:
+@cli.command(name="list", short_help="List configuration items")
+def list_() -> None:
 	"""
-	opsi-cli config show subcommand.
+	opsi-cli config list subcommand.
 	"""
-	meta_data = {
+	metadata = {
 		"columns": [
 			{"id": "name", "title": "Name", "identifier": True},
 			{"id": "type", "title": "Type"},
@@ -44,7 +41,27 @@ def show() -> None:
 	for item in sorted(config.get_config_items(), key=lambda x: x.name):
 		data.append({"name": item.name, "type": item.type, "default": item.default, "value": item.value})
 
-	write_output(meta_data, data)
+	write_output(metadata, data)
+
+
+@cli.command(short_help="Show configuration item details")
+@click.argument("name", type=str)
+def show(name: str) -> None:
+	"""
+	opsi-cli config show subcommand.
+	"""
+	metadata = {
+		"columns": [
+			{"id": "attribute", "title": "Attribute", "identifier": True},
+			{"id": "value", "title": "Value"},
+		]
+	}
+	data = []
+	item = config.get_config_item(name).dict()
+	for attribute in ("name", "type", "multiple", "default", "description", "plugin", "group", "value"):
+		data.append({"attribute": attribute, "value": item[attribute]})
+
+	write_output(metadata, data)
 
 
 class ConfigPlugin(OPSICLIPlugin):

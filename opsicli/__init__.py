@@ -11,7 +11,7 @@ from typing import IO, Any, Optional
 import msgpack  # type: ignore[import]
 import orjson
 from rich.console import Console
-from rich.table import Table
+from rich.table import Table, box
 
 from opsicli.config import config
 
@@ -22,7 +22,7 @@ def get_console(file: Optional[IO[str]] = None):
 	return Console(file=file or sys.stdout, color_system="auto" if config.color else None)
 
 
-def write_output_table(file: IO[str], meta_data, data) -> None:
+def write_output_table(file: IO[str], metadata, data) -> None:
 	def to_string(value):
 		if value is None:
 			return ""
@@ -35,9 +35,9 @@ def write_output_table(file: IO[str], meta_data, data) -> None:
 			return value.__name__
 		return str(value)
 
-	table = Table()
+	table = Table(box=box.ROUNDED, show_header=config.header)
 	row_ids = []
-	for column in meta_data["columns"]:
+	for column in metadata["columns"]:
 		style = "cyan" if column.get("identifier") else None
 		no_wrap = bool(column.get("identifier"))
 		table.add_column(header=column.get("title", column.get("id")), style=style, no_wrap=no_wrap)
@@ -49,7 +49,7 @@ def write_output_table(file: IO[str], meta_data, data) -> None:
 	get_console(file).print(table)
 
 
-def write_output_csv(file: IO[str], meta_data, data) -> None:
+def write_output_csv(file: IO[str], metadata, data) -> None:
 	def to_string(value):
 		if value is None:
 			return ""
@@ -63,16 +63,18 @@ def write_output_csv(file: IO[str], meta_data, data) -> None:
 
 	writer = csv.writer(file, delimiter=";", quotechar='"', quoting=csv.QUOTE_MINIMAL)
 	row_ids = []
+
 	header = []
-	for column in meta_data["columns"]:
+	for column in metadata["columns"]:
 		row_ids.append(column.get("id"))
 		header.append(column.get("title", column.get("id")))
-	writer.writerow(header)
+	if config.header:
+		writer.writerow(header)
 	for row in data:
 		writer.writerow([to_string(row[rid]) for rid in row_ids])
 
 
-def write_output_json(file: IO[str], meta_data, data, pretty=False) -> None:
+def write_output_json(file: IO[str], metadata, data, pretty=False) -> None:
 	def to_string(value):
 		if inspect.isclass(value):
 			return value.__name__
@@ -82,29 +84,33 @@ def write_output_json(file: IO[str], meta_data, data, pretty=False) -> None:
 	if pretty:
 		option |= orjson.OPT_APPEND_NEWLINE | orjson.OPT_INDENT_2  # pylint: disable=no-member
 	file.buffer.write(  # type: ignore[attr-defined]
-		orjson.dumps({"meta_data": meta_data, "data": data}, default=to_string, option=option)  # pylint: disable=no-member
+		orjson.dumps(  # pylint: disable=no-member
+			{"metadata": metadata, "data": data} if config.metadata else data, default=to_string, option=option
+		)
 	)
 
 
-def write_output_msgpack(file: IO[str], meta_data, data) -> None:
+def write_output_msgpack(file: IO[str], metadata, data) -> None:
 	def to_string(value):
 		if inspect.isclass(value):
 			return value.__name__
 		return str(value)
 
-	file.buffer.write(msgpack.dumps({"meta_data": meta_data, "data": data}, default=to_string))  # type: ignore[attr-defined]  # pylint: disable=no-member
+	file.buffer.write(  # type: ignore[attr-defined]  # pylint: disable=no-member
+		msgpack.dumps({"metadata": metadata, "data": data} if config.metadata else data, default=to_string)
+	)
 
 
-def write_output(meta_data, data) -> None:
+def write_output(metadata, data) -> None:
 	file = sys.stdout
 	if config.output_format in ("auto", "table"):
-		write_output_table(file, meta_data, data)
+		write_output_table(file, metadata, data)
 	elif config.output_format in ("json", "pretty-json"):
-		write_output_json(file, meta_data, data, config.output_format == "pretty-json")
+		write_output_json(file, metadata, data, config.output_format == "pretty-json")
 	elif config.output_format == "msgpack":
-		write_output_msgpack(file, meta_data, data)
+		write_output_msgpack(file, metadata, data)
 	elif config.output_format == "csv":
-		write_output_csv(file, meta_data, data)
+		write_output_csv(file, metadata, data)
 
 
 def prepare_cli_paths() -> None:

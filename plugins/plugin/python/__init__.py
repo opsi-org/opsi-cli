@@ -91,7 +91,7 @@ def list_() -> None:
 	This subcommand lists all installed opsi-cli plugins.
 	"""
 
-	meta_data = {
+	metadata = {
 		"columns": [
 			{"id": "id", "title": "ID", "identifier": True},
 			{"id": "name", "title": "Name"},
@@ -103,7 +103,7 @@ def list_() -> None:
 	for plugin in sorted(plugin_manager.plugins, key=lambda plugin: plugin.id):
 		data.append({"id": plugin.id, "name": plugin.name, "description": plugin.description, "version": plugin.version})
 
-	write_output(meta_data, data)
+	write_output(metadata, data)
 
 
 @cli.command(short_help="Remove a plugin")

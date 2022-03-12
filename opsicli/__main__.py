@@ -35,6 +35,8 @@ for group, items in config.get_items_by_group().items():
 		if item.plugin:
 			continue
 		options.append(f"--{item.name.replace('_', '-')}")
+	if group == "General":
+		options.extend(["--help", "--version"])
 	if options:
 		click.rich_click.OPTION_GROUPS["opsi-cli"].append({"name": f"{group} options", "options": options})
 
@@ -155,6 +157,18 @@ class LogLevel(click.ParamType):
 	show_default=True,
 	help=config.get_description("output_format"),
 	default=config.get_default("output_format"),
+)
+@click.option(
+	"--metadata/--no-metadata",
+	callback=config.process_option,
+	help=config.get_description("metadata"),
+	default=config.get_default("metadata"),
+)
+@click.option(
+	"--header/--no-header",
+	callback=config.process_option,
+	help=config.get_description("header"),
+	default=config.get_default("header"),
 )
 @click.option(
 	"--service-url",
