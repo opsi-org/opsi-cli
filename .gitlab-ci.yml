@@ -7,7 +7,7 @@ stages:
 test:pytest-darwin:
   stage: test
   tags:
-    - macos
+    - macos_catalina
   script:
     - source $HOME/.poetry/env
     - poetry install
@@ -97,7 +97,7 @@ build:linux-pyinstaller:
 build:macos-pyinstaller:
   stage: build
   tags:
-    - macos
+    - macos_catalina
   script:
     - poetry install
     - poetry run opsi-dev-tool -l info --pyinstaller-poetry-build
