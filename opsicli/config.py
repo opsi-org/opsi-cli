@@ -91,7 +91,7 @@ CONFIG_ITEMS = [
 		name="log_level_stderr",
 		type=LogLevel,
 		group="General",
-		default="warning",
+		default="none",
 		description=f"The log level for the console (stderr). Possible values are:\n\n{LogLevel.possible_values_for_description}",
 	),
 	ConfigItem(name="color", type=Bool, group="General", default=True, description="Enable or disable colorized output"),

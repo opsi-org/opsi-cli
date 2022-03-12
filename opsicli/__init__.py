@@ -44,7 +44,12 @@ def write_output_table(file: IO[str], metadata, data) -> None:
 		row_ids.append(column["id"])
 
 	for row in data:
-		table.add_row(*[to_string(row[rid]) for rid in row_ids])
+		if isinstance(row, dict):
+			table.add_row(*[to_string(row.get(rid)) for rid in row_ids])
+		elif isinstance(row, list):
+			table.add_row(*[to_string(el) for el in row])
+		else:
+			table.add_row(*[to_string(row)])
 
 	get_console(file).print(table)
 
@@ -54,7 +59,7 @@ def write_output_csv(file: IO[str], metadata, data) -> None:
 		if value is None:
 			return ""
 		if isinstance(value, bool):
-			return 1 if value else 0
+			return "1" if value else "0"
 		if isinstance(value, (list, tuple)):
 			return ",".join([to_string(v) for v in value])
 		if inspect.isclass(value):
@@ -72,7 +77,12 @@ def write_output_csv(file: IO[str], metadata, data) -> None:
 	if config.header:
 		writer.writerow(header)
 	for row in data:
-		writer.writerow([to_string(row[rid]) for rid in row_ids])
+		if isinstance(row, dict):
+			writer.writerow([to_string(row.get(rid)) for rid in row_ids])
+		elif isinstance(row, list):
+			writer.writerow([to_string(el) for el in row])
+		else:
+			writer.writerow([to_string(row)])
 
 
 def write_output_json(file: IO[str], metadata, data, pretty=False) -> None:
