@@ -50,6 +50,9 @@ def test_plugin_add() -> None:
 		assert "default" in result  # netifaces.gateways()
 
 
+# Permission Error on windows: file unlink is impossible if handle is opened
+# Problem: add plugin, then load plugin -> open file handle until teardown of python process
+@pytest.mark.posix
 def test_plugin_fail() -> None:
 	with temp_context():
 		exit_code, output = run_cli(["plugin", "add", str(FAULTYPLUGIN)])
