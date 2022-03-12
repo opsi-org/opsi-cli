@@ -125,9 +125,9 @@ def prepare_cli_paths() -> None:
 		if not plugin_dir.exists():
 			plugin_dir.mkdir(parents=True)
 			# print("making", plugin_dir)
-	if not config.lib_dir.exists():
-		config.lib_dir.mkdir(parents=True)
-		# print("making", lib_dir)
-	if str(config.lib_dir) not in sys.path:
-		sys.path.append(str(config.lib_dir))
+	if not config.python_lib_dir.exists():
+		config.python_lib_dir.mkdir(parents=True)
+		# print("making", python_lib_dir)
+	if str(config.python_lib_dir) not in sys.path:
+		sys.path.append(str(config.python_lib_dir))
 	# print("path:", sys.path)

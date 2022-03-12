@@ -130,8 +130,9 @@ else:
 
 CONFIG_ITEMS.extend(
 	[
+		ConfigItem(name="user_lib_dir", type=Directory, group="General", default=_user_lib_dir),
 		ConfigItem(name="plugin_dirs", type=Directory, multiple=True, group="General", default=["plugins", _user_lib_dir / "plugins"]),
-		ConfigItem(name="lib_dir", type=Directory, group="General", default=_user_lib_dir / "lib"),
+		ConfigItem(name="python_lib_dir", type=Directory, group="General", default=_user_lib_dir / "lib"),
 	]
 )
 

@@ -30,7 +30,7 @@ def temp_context() -> Generator[Path, None, None]:
 		with tempfile.TemporaryDirectory() as tempdir:
 			tempdir_path = Path(tempdir)
 			config.color = False
-			config.lib_dir = tempdir_path / "lib"
+			config.python_lib_dir = tempdir_path / "lib"
 			plugin_dirs = config.plugin_dirs
 			plugin_dirs[-1] = tempdir_path / "plugin"
 			config.plugin_dirs = plugin_dirs
