@@ -66,26 +66,6 @@ class ConfigItem(BaseModel):  # pylint: disable=too-few-public-methods
 				value = values["type"](value)
 		return value
 
-	# def default_repr(self):
-	# 	if isinstance(self.default, list):
-	# 		return repr([repr(val) for val in self.default])  # pylint: disable=not-an-iterable
-	# 	return repr(self.default)
-
-	# def default_str(self):
-	# 	if isinstance(self.default, list):
-	# 		return str([str(val) for val in self.default])  # pylint: disable=not-an-iterable
-	# 	return str(self.default)
-
-	# def value_repr(self):
-	# 	if isinstance(self.value, list):
-	# 		return repr([repr(val) for val in self.value])  # pylint: disable=not-an-iterable
-	# 	return repr(self.value)
-
-	# def value_str(self):
-	# 	if isinstance(self.value, list):
-	# 		return str([str(val) for val in self.value])  # pylint: disable=not-an-iterable
-	# 	return str(self.value)
-
 
 CONFIG_ITEMS = [
 	ConfigItem(name="log_file", type=File, group="General", description="Log to this file"),

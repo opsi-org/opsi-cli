@@ -41,7 +41,7 @@ def test_pip() -> None:
 
 # Permission Error on windows: file unlink is impossible if handle is opened
 # Problem: add plugin, then load plugin -> open file handle until teardown of python process
-@pytest.mark.skipif(platform.system().lower() == "windows", reason="Must not run under windows")
+@pytest.mark.posix
 def test_plugin_add() -> None:
 	with temp_context():
 		run_cli(["plugin", "add", str(TESTPLUGIN)])
@@ -75,7 +75,7 @@ def test_plugin_fail() -> None:
 
 # Permission Error on windows: file unlink is impossible if handle is opened
 # Problem: add plugin, then load plugin -> open file handle until teardown of python process
-@pytest.mark.skipif(platform.system().lower() == "windows", reason="Must not run under windows")
+@pytest.mark.posix
 def test_plugin_remove() -> None:
 	with temp_context():
 		run_cli(["plugin", "add", str(TESTPLUGIN)])
@@ -90,7 +90,7 @@ def test_plugin_remove() -> None:
 
 # Permission Error on windows: file unlink is impossible if handle is opened
 # Problem: add plugin, then load plugin -> open file handle until teardown of python process
-@pytest.mark.skipif(platform.system().lower() == "windows", reason="Must not run under windows")
+@pytest.mark.posix
 def test_pluginarchive_export_import(tmp_path) -> None:
 	with temp_context():
 		destination = tmp_path / f"dummy.{PLUGIN_EXTENSION}"
