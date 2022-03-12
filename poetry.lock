@@ -1181,7 +1181,7 @@ reference = "uib"
 
 [[package]]
 name = "python-opsi-common"
-version = "4.2.0.277"
+version = "4.2.0.278"
 description = "The opsi python common library"
 category = "main"
 optional = false
@@ -1731,7 +1731,7 @@ reference = "uib"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7,<3.11"
-content-hash = "6bd783d2e79ab7e794ed6791777e5579be101f471c0985f64b95382205ed03b1"
+content-hash = "d520b9fb6731514b9524228490af03831b3bf5dab5c94f3109f9d63a6badeb3c"
 
 [metadata.files]
 altgraph = [
@@ -2409,8 +2409,8 @@ python-opsi = [
     {file = "python_opsi-4.2.0.276-py3-none-any.whl", hash = "sha256:03ca5a1d5e09e8ba6a2bd42ce662bcba7495712471468e5b034cd525fd58156c"},
 ]
 python-opsi-common = [
-    {file = "python-opsi-common-4.2.0.277.tar.gz", hash = "sha256:5f2059d7b30e7269225d2ee94feb25339524a06326d1413172422826fd5a5bf4"},
-    {file = "python_opsi_common-4.2.0.277-py3-none-any.whl", hash = "sha256:3fc79463b9571333805156b13a9f7018fa6cd068014b9f76722970a140d1dc29"},
+    {file = "python-opsi-common-4.2.0.278.tar.gz", hash = "sha256:24b7fe13219a37a4eaf363031576c3813a5049595db32b0030186ab65bf7eb09"},
+    {file = "python_opsi_common-4.2.0.278-py3-none-any.whl", hash = "sha256:6fcdf0dc52799688ec7993afaf097383e5c53ffc47dcfdc43956b1bb65f10b3a"},
 ]
 python-pam = [
     {file = "python-pam-1.8.4.tar.gz", hash = "sha256:c856d9c89fedb33951dd8a95727ae57c6887b02d065bbdffd2fd9dbc0183909b"},

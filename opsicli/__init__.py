@@ -6,7 +6,7 @@ opsi-cli Basic command line interface for opsi
 import csv
 import inspect
 import sys
-from typing import IO, Any, Optional
+from typing import IO, Any, Optional, Union
 
 import msgpack  # type: ignore[import]
 import orjson
@@ -104,7 +104,7 @@ def write_output_msgpack(file: IO[str], metadata, data) -> None:
 
 def write_output(metadata, data) -> None:
 	file = sys.stdout
-	if str(config.output_file) != "-":
+	if str(config.output_file) not in ("-", ""):
 		file = open(config.output_file, "w", encoding="utf-8")  # pylint: disable=consider-using-with
 	try:
 		if config.output_format in ("auto", "table"):
@@ -118,6 +118,21 @@ def write_output(metadata, data) -> None:
 	finally:
 		if file != sys.stdout:
 			file.close()
+
+
+def write_output_raw(data: Union[bytes, str]) -> None:
+	if str(config.output_file) in ("-", ""):
+		if isinstance(data, bytes):
+			sys.stdout.buffer.write(data)
+		else:
+			sys.stdout.write(data)
+	else:
+		if isinstance(data, bytes):
+			with open(config.output_file, "wb") as file:
+				file.write(data)
+		else:
+			with open(config.output_file, "w", encoding="utf-8") as file:
+				file.write(data)
 
 
 def prepare_cli_paths() -> None:
