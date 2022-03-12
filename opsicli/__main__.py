@@ -159,6 +159,14 @@ class LogLevel(click.ParamType):
 	default=config.get_default("output_format"),
 )
 @click.option(
+	"--output-file",
+	type=click.Path(file_okay=True, dir_okay=False, writable=True, allow_dash=True, path_type=pathlib.Path),
+	callback=config.process_option,
+	metavar="OUTPUT_FILE",
+	help=config.get_description("output_file"),
+	default=config.get_default("output_file"),
+)
+@click.option(
 	"--metadata/--no-metadata",
 	callback=config.process_option,
 	help=config.get_description("metadata"),

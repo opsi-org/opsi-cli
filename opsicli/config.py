@@ -102,6 +102,13 @@ CONFIG_ITEMS = [
 		default="auto",
 		description=f"Set output format. Possible values are: {OutputFormat.possible_values_for_description}",
 	),
+	ConfigItem(
+		name="output_file",
+		type=File,
+		group="General",
+		default="-",
+		description="Write data to this file",
+	),
 	ConfigItem(name="metadata", type=Bool, group="General", default=False, description="Enable or disable output of metadata"),
 	ConfigItem(name="header", type=Bool, group="General", default=True, description="Enable or disable header output"),
 	ConfigItem(
@@ -185,7 +192,6 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 	def process_option(self, ctx: click.Context, param: click.Option, value: Any):  # pylint: disable=unused-argument
 		if param.name not in self._config:
 			return
-
 		try:
 			self._config[param.name].value = value
 		except ValueError as err:

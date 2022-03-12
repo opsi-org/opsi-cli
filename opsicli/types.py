@@ -72,9 +72,10 @@ class Password(str):  # pylint: disable=too-few-public-methods
 class File(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public-methods
 	def __new__(cls, *args, **kwargs):
 		path = super().__new__(cls, *args, **kwargs)
-		path = path.expanduser().absolute()
-		if path.exists() and not path.is_file():
-			raise ValueError("Not a file: {path!r}")
+		if str(path) != "-":
+			path = path.expanduser().absolute()
+			if path.exists() and not path.is_file():
+				raise ValueError("Not a file: {path!r}")
 		return path
 
 

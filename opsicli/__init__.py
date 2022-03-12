@@ -40,8 +40,8 @@ def write_output_table(file: IO[str], metadata, data) -> None:
 	for column in metadata["columns"]:
 		style = "cyan" if column.get("identifier") else None
 		no_wrap = bool(column.get("identifier"))
-		table.add_column(header=column.get("title", column.get("id")), style=style, no_wrap=no_wrap)
-		row_ids.append(column.get("id"))
+		table.add_column(header=column.get("title", column["id"]), style=style, no_wrap=no_wrap)
+		row_ids.append(column["id"])
 
 	for row in data:
 		table.add_row(*[to_string(row[rid]) for rid in row_ids])
@@ -66,8 +66,9 @@ def write_output_csv(file: IO[str], metadata, data) -> None:
 
 	header = []
 	for column in metadata["columns"]:
-		row_ids.append(column.get("id"))
-		header.append(column.get("title", column.get("id")))
+		row_ids.append(column["id"])
+		# header.append(column.get("title", column["id"])
+		header.append(column["id"])
 	if config.header:
 		writer.writerow(header)
 	for row in data:
@@ -103,14 +104,20 @@ def write_output_msgpack(file: IO[str], metadata, data) -> None:
 
 def write_output(metadata, data) -> None:
 	file = sys.stdout
-	if config.output_format in ("auto", "table"):
-		write_output_table(file, metadata, data)
-	elif config.output_format in ("json", "pretty-json"):
-		write_output_json(file, metadata, data, config.output_format == "pretty-json")
-	elif config.output_format == "msgpack":
-		write_output_msgpack(file, metadata, data)
-	elif config.output_format == "csv":
-		write_output_csv(file, metadata, data)
+	if str(config.output_file) != "-":
+		file = open(config.output_file, "w", encoding="utf-8")  # pylint: disable=consider-using-with
+	try:
+		if config.output_format in ("auto", "table"):
+			write_output_table(file, metadata, data)
+		elif config.output_format in ("json", "pretty-json"):
+			write_output_json(file, metadata, data, config.output_format == "pretty-json")
+		elif config.output_format == "msgpack":
+			write_output_msgpack(file, metadata, data)
+		elif config.output_format == "csv":
+			write_output_csv(file, metadata, data)
+	finally:
+		if file != sys.stdout:
+			file.close()
 
 
 def prepare_cli_paths() -> None:
