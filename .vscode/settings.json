@@ -2,6 +2,9 @@
 	"editor.insertSpaces": false,
 	"editor.renderWhitespace": "all",
 	"editor.formatOnSave": true,
+	"editor.codeActionsOnSave": {
+        "source.organizeImports": true,
+    },
 	"editor.formatOnType": true,
 	"python.formatting.provider": "black",
 	"python.formatting.blackPath": ".venv/bin/tan",

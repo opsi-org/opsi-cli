@@ -5,13 +5,13 @@ opsi-cli Basic command line interface for opsi
 types
 """
 
-from urllib.parse import urlparse
-from typing import Any
 from pathlib import Path
+from typing import Any
+from urllib.parse import urlparse
 
 from opsicommon.logging import (  # type: ignore[import]
-	NAME_TO_LEVEL,
 	LEVEL_TO_OPSI_LEVEL,
+	NAME_TO_LEVEL,
 )
 
 

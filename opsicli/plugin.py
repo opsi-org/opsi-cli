@@ -4,26 +4,24 @@ opsi-cli Basic command line interface for opsi
 
 plugin handling
 """
-import os
-import sys
-import shutil
-import zipfile
-import subprocess
 import importlib
-from typing import Dict, List, Optional
-from pathlib import Path
-from urllib.parse import quote, unquote
+import os
+import shutil
+import subprocess
+import sys
+import zipfile
 from importlib._bootstrap import BuiltinImporter  # type: ignore[import]
+from pathlib import Path
+from typing import Dict, List, Optional
+from urllib.parse import quote, unquote
 
 from click import Command
+from opsicommon.logging import logger  # type: ignore[import]
+from opsicommon.utils import Singleton  # type: ignore[import]
 from packaging.version import parse
 from pipreqs import pipreqs  # type: ignore[import]
 
-from opsicommon.utils import Singleton  # type: ignore[import]
-from opsicommon.logging import logger  # type: ignore[import]
-
 from opsicli.config import config, get_python_path
-
 
 PLUGIN_EXTENSION = "opsicliplug"
 

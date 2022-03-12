@@ -36,6 +36,7 @@ pytest-cov = "^3.0"
 mypy = "^0.931"
 tan = "^21.14"
 pytest-coverage = "^0.0"
+isort = "^5.10"
 
 [tool.poetry.scripts]
 opsi-cli = "opsicli.__main__:main"
@@ -44,6 +45,9 @@ opsi-cli = "opsicli.__main__:main"
 line-length = 140
 target-version = ['py310']
 use-tabs = true
+
+[tool.isort]
+profile = "black"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

@@ -5,21 +5,32 @@ opsi-cli Basic command line interface for opsi
 general configuration
 """
 
+import platform
 import shutil
+import tempfile
 from functools import lru_cache
 from pathlib import Path
-import tempfile
-import platform
 from typing import Any, Dict, List, Optional, Union
 
+import rich_click as click  # type: ignore[import]
+from opsicommon.logging import (  # type: ignore[import]
+	DEFAULT_COLORED_FORMAT,
+	DEFAULT_FORMAT,
+	logging_config,
+)
+from opsicommon.utils import Singleton  # type: ignore[import]
 from pydantic import BaseModel, validator  # pylint: disable=no-name-in-module
 from ruamel.yaml import YAML
-import rich_click as click  # type: ignore[import]
 
-from opsicommon.utils import Singleton  # type: ignore[import]
-from opsicommon.logging import logging_config, DEFAULT_COLORED_FORMAT, DEFAULT_FORMAT  # type: ignore[import]
-
-from opsicli.types import LogLevel, OutputFormat, Bool, OPSIServiceUrl, Password, File, Directory
+from opsicli.types import (
+	Bool,
+	Directory,
+	File,
+	LogLevel,
+	OPSIServiceUrl,
+	OutputFormat,
+	Password,
+)
 
 DEFAULT_CONFIG_FILES = ["~/.config/opsi-cli/opsi-cli.yaml", "/etc/opsi/opsi-cli.yaml"]
 

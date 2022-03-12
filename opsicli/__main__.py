@@ -5,21 +5,24 @@ opsi-cli Basic command line interface for opsi
 Main command
 """
 
-import sys
 import pathlib
+import sys
 from typing import Any, List, Optional, Sequence
 
-from click.exceptions import ClickException, Abort
-from click.shell_completion import CompletionItem
 import rich_click as click  # type: ignore[import]
-from rich_click.rich_click import rich_format_error, rich_abort_error, rich_format_help  # type: ignore[import]
-
+from click.exceptions import Abort, ClickException
+from click.shell_completion import CompletionItem
 from opsicommon.logging import logger  # type: ignore[import]
+from rich_click.rich_click import (  # type: ignore[import]
+	rich_abort_error,
+	rich_format_error,
+	rich_format_help,
+)
 
-from opsicli import prepare_cli_paths, __version__
+from opsicli import __version__, prepare_cli_paths
 from opsicli.config import config
-from opsicli.types import LogLevel as TypeLogLevel
 from opsicli.plugin import plugin_manager
+from opsicli.types import LogLevel as TypeLogLevel
 
 click.rich_click.USE_RICH_MARKUP = True
 click.rich_click.MAX_WIDTH = 140

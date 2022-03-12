@@ -9,17 +9,22 @@ import os
 import shutil
 import tempfile
 import zipfile
-from typing import Any, Dict
 from pathlib import Path
+from typing import Any, Dict
 
-from rich.table import Table
 import rich_click as click  # type: ignore[import]
-
 from opsicommon.logging import logger  # type: ignore[import]
+from rich.table import Table
 
 from opsicli import get_console, write_output
 from opsicli.config import config
-from opsicli.plugin import OPSICLIPlugin, PLUGIN_EXTENSION, plugin_manager, install_plugin, prepare_plugin
+from opsicli.plugin import (
+	PLUGIN_EXTENSION,
+	OPSICLIPlugin,
+	install_plugin,
+	plugin_manager,
+	prepare_plugin,
+)
 
 __version__ = "0.1.0"
 

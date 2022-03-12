@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any, Dict
 
 import rich_click as click  # type: ignore[import]
-
 from opsicommon.logging import logger  # type: ignore[import]
 
 from opsicli import write_output
