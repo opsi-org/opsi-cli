@@ -5,11 +5,11 @@ opsi-cli Basic command line interface for opsi
 
 import sys
 import csv
-import orjson
-import msgpack
 import inspect
 from typing import IO, Any, Optional
 
+import orjson
+import msgpack  # type: ignore[import]
 from rich.console import Console
 from rich.table import Table
 from opsicli.config import config
