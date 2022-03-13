@@ -92,7 +92,7 @@ def list_() -> None:
 	"""
 
 	metadata = {
-		"columns": [
+		"attributes": [
 			{"id": "id", "title": "ID", "identifier": True},
 			{"id": "name", "title": "Name"},
 			{"id": "description", "title": "Description"},

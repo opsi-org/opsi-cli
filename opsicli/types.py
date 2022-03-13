@@ -41,6 +41,13 @@ class OutputFormat(str):
 		return super().__new__(cls, value)
 
 
+class Attributes(list):
+	def __init__(self, value):
+		if isinstance(value, str):
+			value = [v.strip() for v in value.split(",") if v.strip()]
+		super().__init__(value)
+
+
 class Bool:  # pylint: disable=too-few-public-methods
 	def __new__(cls, value: Any):
 		if isinstance(value, str):

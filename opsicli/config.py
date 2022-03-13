@@ -23,6 +23,7 @@ from pydantic import BaseModel, validator  # pylint: disable=no-name-in-module
 from ruamel.yaml import YAML
 
 from opsicli.types import (
+	Attributes,
 	Bool,
 	Directory,
 	File,
@@ -98,26 +99,33 @@ CONFIG_ITEMS = [
 	ConfigItem(
 		name="output_format",
 		type=OutputFormat,
-		group="General",
+		group="IO",
 		default="auto",
 		description=f"Set output format. Possible values are: {OutputFormat.possible_values_for_description}",
 	),
 	ConfigItem(
 		name="output_file",
 		type=File,
-		group="General",
+		group="IO",
 		default="-",
 		description="Write data to this file",
 	),
 	ConfigItem(
 		name="input_file",
 		type=File,
-		group="General",
+		group="IO",
 		default="-",
 		description="Read data from this file",
 	),
-	ConfigItem(name="metadata", type=Bool, group="General", default=False, description="Enable or disable output of metadata"),
-	ConfigItem(name="header", type=Bool, group="General", default=True, description="Enable or disable header output"),
+	ConfigItem(name="metadata", type=Bool, group="IO", default=False, description="Enable or disable output of metadata"),
+	ConfigItem(name="header", type=Bool, group="IO", default=True, description="Enable or disable header output"),
+	ConfigItem(
+		name="attributes",
+		type=Attributes,
+		group="IO",
+		default=None,
+		description="Select data attributes ('all' selects all available attributes)",
+	),
 	ConfigItem(
 		name="service_url",
 		type=OPSIServiceUrl,

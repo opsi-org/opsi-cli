@@ -11,7 +11,7 @@ import rich_click as click  # type: ignore[import]
 from opsicommon.logging import logger  # type: ignore[import]
 
 from opsicli.config import config
-from opsicli.io import read_input, write_output, write_output_raw
+from opsicli.io import output_file_is_stdout, read_input, write_output, write_output_raw
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 
@@ -26,6 +26,27 @@ def cli() -> None:  # pylint: disable=unused-argument
 	This command is used to execute JSONRPC requests on an opsi service.
 	"""
 	logger.trace("jsonrpc command")
+
+
+@cli.command(short_help="Get JSONRPC method list")
+def methods() -> None:
+	"""
+	opsi-cli jsonrpc methods subcommand.
+	"""
+	client = get_service_connection()
+	metadata = {
+		"attributes": [
+			{"id": "name", "title": "Name", "identifier": True, "selected": True},
+			{"id": "params", "title": "Params", "selected": True},
+			{"id": "deprecated", "title": "Deprectated", "selected": True},
+			{"id": "alternative_method", "title": "Alternative method", "selected": True},
+			{"id": "args", "title": "Args", "selected": False},
+			{"id": "varargs", "title": "Varargs", "selected": False},
+			{"id": "keywords", "title": "Keywords", "selected": False},
+			{"id": "defaults", "title": "Defaults", "selected": False},
+		]
+	}
+	write_output(client.interface, metadata=metadata, default_output_format="table")
 
 
 @cli.command(short_help="Execute JSONRPC")
@@ -55,12 +76,14 @@ def execute(method: str, params: Optional[List[str]] = None) -> None:  # pylint:
 		# else:
 		params.append(inp_param)
 
+	default_output_format = "pretty-json" if output_file_is_stdout() else "json"
+
 	client = get_service_connection()
 	client.create_objects = False
 	if not result_only and config.output_format == "msgpack":
 		client.serialization = "msgpack"
 		client.raw_responses = True
-	elif not result_only and config.output_format in ("auto", "json"):
+	elif not result_only and (config.output_format == "json" or (config.output_format == "auto" and default_output_format == "json")):
 		client.serialization = "json"
 		client.raw_responses = True
 	else:
@@ -71,7 +94,7 @@ def execute(method: str, params: Optional[List[str]] = None) -> None:  # pylint:
 	if client.raw_responses:
 		write_output_raw(data)
 	else:
-		write_output(data)
+		write_output(data, default_output_format=default_output_format)
 
 
 class JSONRPCPlugin(OPSICLIPlugin):

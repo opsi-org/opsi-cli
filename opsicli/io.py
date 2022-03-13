@@ -15,6 +15,7 @@ from typing import IO, Any, Dict, List, Optional, Union
 import msgpack  # type: ignore[import]
 import orjson
 from opsicommon.logging import logger  # type: ignore[import]
+from rich import print_json
 from rich.console import Console
 from rich.table import Table, box
 
@@ -29,9 +30,11 @@ def get_attributes(data, all_elements=True) -> List[str]:
 			break
 	attributes = sorted(list(attributes_set))
 	if len(attributes) > 1:
-		idx = attributes.index("id")
-		if idx > 0:
-			attributes.insert(0, attributes.pop(idx))
+		try:
+			# Move attribute id to first position
+			attributes.insert(0, attributes.pop(attributes.index("id")))
+		except ValueError:
+			pass
 	return attributes
 
 
@@ -45,6 +48,21 @@ def get_structure_type(data):
 	if isinstance(data, dict):
 		return Dict
 	return None
+
+
+def output_file_is_stdout() -> bool:
+	return str(config.output_file) in ("-", "")
+
+
+def output_file_is_a_tty() -> bool:
+	if output_file_is_stdout():
+		if sys.stdout.isatty():
+			logger.debug("output_file stdout is a tty")
+			return True
+		logger.debug("output_file stdout is not a tty")
+		return False
+	logger.debug("output_file is not a tty")
+	return False
 
 
 @contextmanager
@@ -83,11 +101,12 @@ def write_output_table(data: Any, metadata: Dict) -> None:
 
 	table = Table(box=box.ROUNDED, show_header=config.header)
 	row_ids = []
-	for column in metadata["columns"]:
-		style = "cyan" if column.get("identifier") else None
-		no_wrap = bool(column.get("identifier"))
-		table.add_column(header=column.get("title", column["id"]), style=style, no_wrap=no_wrap)
-		row_ids.append(column["id"])
+	for column in metadata["attributes"]:
+		if config.attributes == ["all"] or column["id"] in config.attributes or (not config.attributes and column.get("selected", True)):
+			style = "cyan" if column.get("identifier") else None
+			no_wrap = bool(column.get("identifier"))
+			table.add_column(header=column.get("title", column["id"]), style=style, no_wrap=no_wrap)
+			row_ids.append(column["id"])
 
 	for row in data:
 		if isinstance(row, dict):
@@ -117,10 +136,15 @@ def write_output_csv(data: Any, metadata: Dict) -> None:
 		writer = csv.writer(file, delimiter=";", quotechar='"', quoting=csv.QUOTE_MINIMAL)
 		row_ids = []
 		header = []
-		for column in metadata["columns"]:
-			row_ids.append(column["id"])
-			# header.append(column.get("title", column["id"])
-			header.append(column["id"])
+		for column in metadata["attributes"]:
+			if (
+				config.attributes == ["all"]
+				or column["id"] in config.attributes
+				or (not config.attributes and column.get("selected", True))
+			):
+				row_ids.append(column["id"])
+				# header.append(column.get("title", column["id"])
+				header.append(column["id"])
 		if config.header:
 			writer.writerow(header)
 		for row in data:
@@ -132,25 +156,28 @@ def write_output_csv(data: Any, metadata: Dict) -> None:
 				writer.writerow([to_string(row)])
 
 
-def write_output_json(data: Any, metadata: Dict, pretty: bool = False) -> None:
+def write_output_json(data: Any, metadata: Optional[Dict] = None, pretty: bool = False) -> None:
 	def to_string(value):
 		if inspect.isclass(value):
 			return value.__name__
 		return str(value)
 
 	option = 0
-	if pretty:
+	if pretty and not output_file_is_a_tty():
 		option |= orjson.OPT_APPEND_NEWLINE | orjson.OPT_INDENT_2  # pylint: disable=no-member
 
-	with output_file(encoding="binary") as file:
-		file.write(  # type: ignore[attr-defined]
-			orjson.dumps(  # pylint: disable=no-member
-				{"metadata": metadata, "data": data} if config.metadata else data, default=to_string, option=option
-			)
-		)
+	json = orjson.dumps(  # pylint: disable=no-member
+		{"metadata": metadata, "data": data} if config.metadata and metadata else data, default=to_string, option=option
+	)
+
+	if pretty and output_file_is_a_tty():
+		print_json(json.decode("utf-8"))
+	else:
+		with output_file(encoding="binary") as file:
+			file.write(json)  # type: ignore[attr-defined]
 
 
-def write_output_msgpack(data: Any, metadata: Dict) -> None:
+def write_output_msgpack(data: Any, metadata: Optional[Dict] = None) -> None:
 	def to_string(value):
 		if inspect.isclass(value):
 			return value.__name__
@@ -158,34 +185,36 @@ def write_output_msgpack(data: Any, metadata: Dict) -> None:
 
 	with output_file(encoding="binary") as file:
 		file.write(  # type: ignore[attr-defined]  # pylint: disable=no-member
-			msgpack.dumps({"metadata": metadata, "data": data} if config.metadata else data, default=to_string)
+			msgpack.dumps({"metadata": metadata, "data": data} if config.metadata and metadata else data, default=to_string)
 		)
 
 
-def write_output(data: Any, metadata: Optional[Dict] = None) -> None:
-	if not data:
-		return
-	if not metadata:
+def write_output(data: Any, metadata: Optional[Dict] = None, default_output_format: Optional[str] = None) -> None:
+	output_format = config.output_format
+	if output_format == "auto":
+		output_format = default_output_format if default_output_format else "table"
+
+	if output_format in ("table", "csv") and not metadata:
 		stt = get_structure_type(data)
 		if stt == List:
-			metadata = {"columns": [{"id": "value0"}]}
+			metadata = {"attributes": [{"id": "value0"}]}
 		elif stt == List[List]:
-			metadata = {"columns": [{"id": f"value{idx}"} for idx in range(len(data[0]))]}
+			metadata = {"attributes": [{"id": f"value{idx}"} for idx in range(len(data[0]))]}
 		elif stt == List[Dict]:
-			metadata = {"columns": [{"id": key} for key in get_attributes(data)]}
+			metadata = {"attributes": [{"id": key} for key in get_attributes(data)]}
 		else:
 			raise RuntimeError(f"Output-format {config.output_format!r} does not support stucture {stt!r}")
 
-	if config.output_format in ("auto", "table"):
-		write_output_table(data, metadata)
-	elif config.output_format in ("json", "pretty-json"):
-		write_output_json(data, metadata, config.output_format == "pretty-json")
-	elif config.output_format == "msgpack":
+	if output_format in ("table"):
+		write_output_table(data, metadata)  # type: ignore[arg-type]
+	elif output_format == "csv":
+		write_output_csv(data, metadata)  # type: ignore[arg-type]
+	elif output_format in ("json", "pretty-json"):
+		write_output_json(data, metadata, output_format == "pretty-json")
+	elif output_format == "msgpack":
 		write_output_msgpack(data, metadata)
-	elif config.output_format == "csv":
-		write_output_csv(data, metadata)
 	else:
-		raise ValueError(f"Invalid output-format: {config.output_format}")
+		raise ValueError(f"Invalid output-format: {output_format}")
 
 
 def write_output_raw(data: Union[bytes, str]) -> None:
@@ -194,17 +223,30 @@ def write_output_raw(data: Union[bytes, str]) -> None:
 		file.write(data)
 
 
+def input_file_is_stdin() -> bool:
+	return str(config.input_file) in ("-", "")
+
+
+def input_file_is_a_tty() -> bool:
+	if input_file_is_stdin():
+		if sys.stdin.isatty():
+			logger.debug("input_file stdin is a tty")
+			return True
+		logger.debug("input_file stdin is not a tty")
+		return False
+	logger.debug("input_file is not a tty")
+	return False
+
+
 @contextmanager
 def input_file(encoding: Optional[str] = None):
 	if str(config.input_file) in ("-", ""):
-		if sys.stdin.isatty():
-			logger.debug("stdin is a tty")
+		if input_file_is_a_tty():
 			if encoding == "binary":
 				yield io.BytesIO()
 			else:
 				yield io.StringIO()
 		else:
-			logger.debug("stdin is not a tty")
 			if encoding == "binary":
 				yield sys.stdin.buffer
 			else:
@@ -222,22 +264,22 @@ def read_input_raw(encoding: Optional[str] = None) -> str:
 		return file.read()
 
 
-def read_input_msgpack(data: bytes) -> None:
+def read_input_msgpack(data: bytes) -> Any:
 	data = msgpack.loads(data)
 	if isinstance(data, dict) and "metadata" in data and "data" in data and not config.metadata:
 		return data["data"]
 	return data
 
 
-def read_input_json(data: bytes) -> None:
+def read_input_json(data: bytes) -> Any:
 	data = orjson.loads(data)  # pylint: disable=no-member
 	if isinstance(data, dict) and "metadata" in data and "data" in data and not config.metadata:
 		return data["data"]
 	return data
 
 
-def read_input_csv(data: bytes) -> None:
-	rows = []
+def read_input_csv(data: bytes) -> List[Union[Dict, List[str]]]:
+	rows: List[Union[Dict, List[str]]] = []
 	header = []
 	reader = csv.reader(data.decode("utf-8").split("\n"), delimiter=";", quotechar='"')
 	for idx, row in enumerate(reader):
@@ -246,7 +288,7 @@ def read_input_csv(data: bytes) -> None:
 			continue
 		for cidx, val in enumerate(row):
 			if val == "<null>":
-				row[cidx] = None
+				row[cidx] = None  # type: ignore[call-overload]
 		if row:
 			if header:
 				rows.append({header[i]: row[i] for i in range(len(header))})

@@ -187,6 +187,15 @@ class LogLevel(click.ParamType):
 	default=config.get_default("header"),
 )
 @click.option(
+	"--attributes",
+	type=str,
+	callback=config.process_option,
+	metavar="ATTRIBUTES",
+	help=f"{config.get_description('attributes')}. Comma separated list.",
+	show_default=False,
+	default=config.get_default("attributes"),
+)
+@click.option(
 	"--service-url",
 	type=str,
 	callback=config.process_option,

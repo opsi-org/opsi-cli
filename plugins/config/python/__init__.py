@@ -30,7 +30,7 @@ def list_() -> None:
 	opsi-cli config list subcommand.
 	"""
 	metadata = {
-		"columns": [
+		"attributes": [
 			{"id": "name", "title": "Name", "identifier": True},
 			{"id": "type", "title": "Type"},
 			{"id": "default", "title": "Default"},
@@ -51,7 +51,7 @@ def show(name: str) -> None:
 	opsi-cli config show subcommand.
 	"""
 	metadata = {
-		"columns": [
+		"attributes": [
 			{"id": "attribute", "title": "Attribute", "identifier": True},
 			{"id": "value", "title": "Value"},
 		]
