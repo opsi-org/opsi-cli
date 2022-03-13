@@ -103,7 +103,7 @@ def list_() -> None:
 	for plugin in sorted(plugin_manager.plugins, key=lambda plugin: plugin.id):
 		data.append({"id": plugin.id, "name": plugin.name, "description": plugin.description, "version": plugin.version})
 
-	write_output(metadata, data)
+	write_output(data, metadata)
 
 
 @cli.command(short_help="Remove a plugin")
