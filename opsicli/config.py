@@ -109,6 +109,13 @@ CONFIG_ITEMS = [
 		default="-",
 		description="Write data to this file",
 	),
+	ConfigItem(
+		name="input_file",
+		type=File,
+		group="General",
+		default="-",
+		description="Read data from this file",
+	),
 	ConfigItem(name="metadata", type=Bool, group="General", default=False, description="Enable or disable output of metadata"),
 	ConfigItem(name="header", type=Bool, group="General", default=True, description="Enable or disable header output"),
 	ConfigItem(
