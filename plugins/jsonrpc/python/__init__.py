@@ -11,7 +11,7 @@ import rich_click as click  # type: ignore[import]
 from opsicommon.logging import logger  # type: ignore[import]
 
 from opsicli.config import config
-from opsicli.io import read_input_raw, write_output, write_output_raw
+from opsicli.io import read_input, write_output, write_output_raw
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 
@@ -35,6 +35,8 @@ def execute(method: str, params: Optional[List[str]] = None) -> None:  # pylint:
 	"""
 	opsi-cli jsonrpc execute subcommand.
 	"""
+	# TODO:
+	result_only = True
 	if params:
 		params = list(params)
 		for idx, param in enumerate(params):
@@ -45,20 +47,20 @@ def execute(method: str, params: Optional[List[str]] = None) -> None:  # pylint:
 	else:
 		params = []
 
-	input_str = read_input_raw()
-	if input_str:
-		inp_param = orjson.loads(input_str)  # pylint: disable=no-member
-		if isinstance(inp_param, list):
-			params.extend(inp_param)
-		else:
-			params.append(inp_param)
+	inp_param = read_input()
+	if inp_param is not None:
+		# TODO: decide by method signature
+		# if isinstance(inp_param, list):
+		# 	params.extend(inp_param)
+		# else:
+		params.append(inp_param)
 
 	client = get_service_connection()
 	client.create_objects = False
-	if config.output_format == "msgpack":
+	if not result_only and config.output_format == "msgpack":
 		client.serialization = "msgpack"
 		client.raw_responses = True
-	elif config.output_format in ("auto", "json"):
+	elif not result_only and config.output_format in ("auto", "json"):
 		client.serialization = "json"
 		client.raw_responses = True
 	else:

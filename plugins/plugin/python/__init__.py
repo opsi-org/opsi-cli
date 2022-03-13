@@ -16,8 +16,8 @@ import rich_click as click  # type: ignore[import]
 from opsicommon.logging import logger  # type: ignore[import]
 from rich.table import Table
 
-from opsicli import get_console, write_output
 from opsicli.config import config
+from opsicli.io import get_console, write_output
 from opsicli.plugin import (
 	PLUGIN_EXTENSION,
 	OPSICLIPlugin,

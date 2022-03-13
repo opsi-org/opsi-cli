@@ -7,8 +7,8 @@ config plugin
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import logger  # type: ignore[import]
 
-from opsicli import write_output
 from opsicli.config import config
+from opsicli.io import write_output
 from opsicli.plugin import OPSICLIPlugin
 
 __version__ = "0.1.0"
