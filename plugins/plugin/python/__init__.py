@@ -93,10 +93,10 @@ def list_() -> None:
 
 	metadata = {
 		"attributes": [
-			{"id": "id", "title": "ID", "identifier": True},
-			{"id": "name", "title": "Name"},
-			{"id": "description", "title": "Description"},
-			{"id": "version", "title": "Version"},
+			{"id": "id", "description": "Plugin ID", "identifier": True},
+			{"id": "name", "description": "Name of the Plugin"},
+			{"id": "description", "description": "Plugin description"},
+			{"id": "version", "description": "Version of the plugin"},
 		]
 	}
 	data = []

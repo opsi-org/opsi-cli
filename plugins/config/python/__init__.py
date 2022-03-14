@@ -31,10 +31,10 @@ def list_() -> None:
 	"""
 	metadata = {
 		"attributes": [
-			{"id": "name", "title": "Name", "identifier": True},
-			{"id": "type", "title": "Type"},
-			{"id": "default", "title": "Default"},
-			{"id": "value", "title": "Value"},
+			{"id": "name", "description": "Name of configuration item", "identifier": True},
+			{"id": "type", "description": "Data type"},
+			{"id": "default", "description": "Default value"},
+			{"id": "value", "description": "Current value"},
 		]
 	}
 	data = []
@@ -52,8 +52,8 @@ def show(name: str) -> None:
 	"""
 	metadata = {
 		"attributes": [
-			{"id": "attribute", "title": "Attribute", "identifier": True},
-			{"id": "value", "title": "Value"},
+			{"id": "attribute", "description": "Name of the configuration item attribute", "identifier": True},
+			{"id": "value", "description": "Attribute value"},
 		]
 	}
 	data = []

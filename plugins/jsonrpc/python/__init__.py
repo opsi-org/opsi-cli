@@ -36,14 +36,14 @@ def methods() -> None:
 	client = get_service_connection()
 	metadata = {
 		"attributes": [
-			{"id": "name", "title": "Name", "identifier": True, "selected": True},
-			{"id": "params", "title": "Params", "selected": True},
-			{"id": "deprecated", "title": "Deprectated", "selected": True},
-			{"id": "alternative_method", "title": "Alternative method", "selected": True},
-			{"id": "args", "title": "Args", "selected": False},
-			{"id": "varargs", "title": "Varargs", "selected": False},
-			{"id": "keywords", "title": "Keywords", "selected": False},
-			{"id": "defaults", "title": "Defaults", "selected": False},
+			{"id": "name", "description": "Method name", "identifier": True, "selected": True},
+			{"id": "params", "description": "Method params", "selected": True},
+			{"id": "deprecated", "description": "If the method is deprectated", "selected": True},
+			{"id": "alternative_method", "description": "Alternative method, if deprecated", "selected": True},
+			{"id": "args", "description": "Args", "selected": False},
+			{"id": "varargs", "description": "Varargs", "selected": False},
+			{"id": "keywords", "description": "Keywords", "selected": False},
+			{"id": "defaults", "description": "Defaults", "selected": False},
 		]
 	}
 	write_output(client.interface, metadata=metadata, default_output_format="table")

@@ -106,7 +106,7 @@ def write_output_table(data: Any, metadata: Dict) -> None:
 		if attributes == ["all"] or column["id"] in attributes or (not attributes and column.get("selected", True)):
 			style = "cyan" if column.get("identifier") else None
 			no_wrap = bool(column.get("identifier"))
-			table.add_column(header=column.get("title", column["id"]), style=style, no_wrap=no_wrap)
+			table.add_column(header=column["id"], style=style, no_wrap=no_wrap)
 			row_ids.append(column["id"])
 
 	for row in data:
@@ -141,7 +141,6 @@ def write_output_csv(data: Any, metadata: Dict) -> None:
 		for column in metadata["attributes"]:
 			if attributes == ["all"] or column["id"] in attributes or (not attributes and column.get("selected", True)):
 				row_ids.append(column["id"])
-				# header.append(column.get("title", column["id"])
 				header.append(column["id"])
 		if config.header:
 			writer.writerow(header)
