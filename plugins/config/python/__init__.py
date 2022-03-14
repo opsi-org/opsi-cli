@@ -41,7 +41,7 @@ def list_() -> None:
 	for item in sorted(config.get_config_items(), key=lambda x: x.name):
 		data.append({"name": item.name, "type": item.type, "default": item.default, "value": item.value})
 
-	write_output(metadata, data)
+	write_output(data, metadata)
 
 
 @cli.command(short_help="Show configuration item details")
@@ -61,7 +61,7 @@ def show(name: str) -> None:
 	for attribute in ("name", "type", "multiple", "default", "description", "plugin", "group", "value"):
 		data.append({"attribute": attribute, "value": item[attribute]})
 
-	write_output(metadata, data)
+	write_output(data, metadata)
 
 
 class ConfigPlugin(OPSICLIPlugin):

@@ -99,10 +99,11 @@ def write_output_table(data: Any, metadata: Dict) -> None:
 			return value.__name__
 		return str(value)
 
+	attributes = config.attributes or []
 	table = Table(box=box.ROUNDED, show_header=config.header)
 	row_ids = []
 	for column in metadata["attributes"]:
-		if config.attributes == ["all"] or column["id"] in config.attributes or (not config.attributes and column.get("selected", True)):
+		if attributes == ["all"] or column["id"] in attributes or (not attributes and column.get("selected", True)):
 			style = "cyan" if column.get("identifier") else None
 			no_wrap = bool(column.get("identifier"))
 			table.add_column(header=column.get("title", column["id"]), style=style, no_wrap=no_wrap)
@@ -136,12 +137,9 @@ def write_output_csv(data: Any, metadata: Dict) -> None:
 		writer = csv.writer(file, delimiter=";", quotechar='"', quoting=csv.QUOTE_MINIMAL)
 		row_ids = []
 		header = []
+		attributes = config.attributes or []
 		for column in metadata["attributes"]:
-			if (
-				config.attributes == ["all"]
-				or column["id"] in config.attributes
-				or (not config.attributes and column.get("selected", True))
-			):
+			if attributes == ["all"] or column["id"] in attributes or (not attributes and column.get("selected", True)):
 				row_ids.append(column["id"])
 				# header.append(column.get("title", column["id"])
 				header.append(column["id"])
