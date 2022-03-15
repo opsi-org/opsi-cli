@@ -118,7 +118,7 @@ CONFIG_ITEMS = [
 		description="Read data from this file",
 	),
 	ConfigItem(name="metadata", type=Bool, group="IO", default=False, description="Enable or disable output of metadata"),
-	ConfigItem(name="header", type=Bool, group="IO", default=True, description="Enable or disable header output"),
+	ConfigItem(name="header", type=Bool, group="IO", default=True, description="Enable or disable header for data input and output"),
 	ConfigItem(
 		name="attributes",
 		type=Attributes,
