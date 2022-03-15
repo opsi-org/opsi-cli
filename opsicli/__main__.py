@@ -24,8 +24,16 @@ from opsicli.config import config
 from opsicli.plugin import plugin_manager
 from opsicli.types import LogLevel as TypeLogLevel
 
-click.rich_click.USE_RICH_MARKUP = True
+# click.rich_click.USE_RICH_MARKUP = True
 click.rich_click.MAX_WIDTH = 140
+
+# https://rich.readthedocs.io/en/stable/style.html
+# https://rich.readthedocs.io/en/stable/appendix/colors.html#appendix-colors
+click.rich_click.STYLE_USAGE = "bold cyan3"
+click.rich_click.STYLE_OPTION = "bold cyan"
+click.rich_click.STYLE_SWITCH = "bold light_sea_green"
+click.rich_click.STYLE_METAVAR = "cyan3"
+
 click.rich_click.OPTION_GROUPS = {"opsi-cli": []}
 for group, items in config.get_items_by_group().items():
 	if not group:
