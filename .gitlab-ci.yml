@@ -9,7 +9,8 @@ test:pytest-darwin:
   tags:
     - macos_catalina
   script:
-    - source $HOME/.poetry/env
+    - poetry lock --no-update
+    #- source $HOME/.poetry/env
     - poetry install
     - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_darwin.xml --cov-append --cov opsicli --cov-report term --cov-report xml -v tests
     - mv .coverage coverage_darwin
@@ -26,6 +27,7 @@ test:pytest-windows:
   tags:
     - win10-py310
   script:
+    - poetry lock --no-update
     - poetry install
     - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_windows.xml --cov-append --cov opsicli --cov-report term --cov-report xml -v tests
     - Rename-Item -Path .coverage -NewName coverage_windows
@@ -40,6 +42,7 @@ test:pytest-windows:
 test:pytest-linux:
   stage: test
   script:
+    - poetry lock --no-update
     - poetry install
     - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_linux.xml --cov-append --cov opsicli --cov-report term --cov-report xml -v tests
     - mv .coverage coverage_linux
