@@ -10,7 +10,6 @@ test:pytest-darwin:
     - macos_catalina
   script:
     - poetry lock --no-update
-    #- source $HOME/.poetry/env
     - poetry install
     - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_darwin.xml --cov-append --cov opsicli --cov-report term --cov-report xml -v tests
     - mv .coverage coverage_darwin
@@ -67,6 +66,7 @@ test:pylint-pytest:
   script:
     - apt-get update
     - apt-get --yes install sqlite3
+    - poetry lock --no-update
     - poetry install
     - poetry run pylint --disable=R,fixme opsicli tests
     - poetry run flake8 opsicli tests
