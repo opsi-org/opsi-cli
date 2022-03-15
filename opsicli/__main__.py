@@ -33,6 +33,7 @@ click.rich_click.STYLE_USAGE = "bold cyan3"
 click.rich_click.STYLE_OPTION = "bold cyan"
 click.rich_click.STYLE_SWITCH = "bold light_sea_green"
 click.rich_click.STYLE_METAVAR = "cyan3"
+click.rich_click.STYLE_ERRORS_SUGGESTION = ""
 
 click.rich_click.OPTION_GROUPS = {"opsi-cli": []}
 for group, items in config.get_items_by_group().items():
