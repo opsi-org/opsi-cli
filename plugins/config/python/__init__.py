@@ -4,7 +4,10 @@ opsi-cli basic command line interface for opsi
 config plugin
 """
 
+from typing import List
+
 import rich_click as click  # type: ignore[import]
+from click.shell_completion import CompletionItem
 from opsicommon.logging import logger  # type: ignore[import]
 
 from opsicli.config import config
@@ -44,8 +47,18 @@ def list_() -> None:
 	write_output(data, metadata)
 
 
+def complete_config_item_name(
+	ctx: click.Context, param: click.Parameter, incomplete: str  # pylint: disable=unused-argument
+) -> List[CompletionItem]:
+	items = []
+	for item in config.get_config_items():
+		if item.name.startswith(incomplete):
+			items.append(CompletionItem(item.name))
+	return items
+
+
 @cli.command(short_help="Show configuration item details")
-@click.argument("name", type=str)
+@click.argument("name", type=str, shell_complete=complete_config_item_name)
 def show(name: str) -> None:
 	"""
 	opsi-cli config show subcommand.
