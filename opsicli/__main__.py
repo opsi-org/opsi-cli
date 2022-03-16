@@ -6,6 +6,7 @@ Main command
 """
 
 import pathlib
+import re
 import sys
 from typing import Any, List, Optional, Sequence
 
@@ -73,6 +74,7 @@ class OpsiCLI(click.MultiCommand):
 			if not isinstance(err, ClickException):
 				err = ClickException(str(err))
 			if config.color:
+				err.message = re.sub(r"\[/?metavar\]", "", err.message)
 				rich_format_error(err)
 			else:
 				sys.stderr.write(str(err))
