@@ -8,6 +8,7 @@ general configuration
 import os
 import platform
 import shutil
+import sys
 import tempfile
 from functools import lru_cache
 from pathlib import Path
@@ -148,8 +149,25 @@ else:
 CONFIG_ITEMS.extend(
 	[
 		ConfigItem(name="user_lib_dir", type=Directory, group="General", default=_user_lib_dir),
-		ConfigItem(name="plugin_dirs", type=Directory, multiple=True, group="General", default=["plugins", _user_lib_dir / "plugins"]),
 		ConfigItem(name="python_lib_dir", type=Directory, group="General", default=_user_lib_dir / "lib"),
+	]
+)
+
+
+if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+	_plugin_bundle_dir = Path(sys._MEIPASS) / "plugins"  # type: ignore[attr-defined] # pylint: disable=protected-access
+else:
+	_plugin_bundle_dir = Path("plugins").resolve()
+
+_plugin_system_dir = None  # pylint: disable=invalid-name
+if platform.system().lower() == "linux":
+	_plugin_system_dir = Path("/var/lib/opsi-cli/plugins")
+
+CONFIG_ITEMS.extend(
+	[
+		ConfigItem(name="plugin_bundle_dir", type=Directory, group="General", default=_plugin_bundle_dir),
+		ConfigItem(name="plugin_system_dir", type=Directory, group="General", default=_plugin_system_dir),
+		ConfigItem(name="plugin_user_dir", type=Directory, group="General", default=_user_lib_dir / "plugins"),
 	]
 )
 

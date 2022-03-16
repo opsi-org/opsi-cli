@@ -1,10 +1,12 @@
 pyinstaller-poetry:
   one_file: yes
   hidden_imports:
-    all: []
-    windows: []
-    linux: []
-    darwin: []
+    all:
+      - orjson
+      - psutil
+      - opsicli.io
+      - opsicli.cache
+      - opsicli.opsiservice
   extra_args:
     darwin:
       - --exclude-module
@@ -18,5 +20,7 @@ pyinstaller-poetry:
       dst: pipreqs
     - src: ${VENV_SITE_PACKAGES}/pipreqs/mapping
       dst: pipreqs
+    - src: plugins/**/*
+      dst: plugins
   dirname: opsicli
   locale_install: []

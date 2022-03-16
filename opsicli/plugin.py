@@ -43,8 +43,12 @@ def prepare_plugin(path: Path, tmpdir: Path) -> str:
 	return plugin_id
 
 
-def install_plugin(source_dir: Path, name: str) -> None:
+def install_plugin(source_dir: Path, name: str, system: Optional[bool] = False) -> Path:
 	"""Copy the prepared plugin from tmp to LIB_DIR"""
+	plugin_dir = config.plugin_system_dir if system else config.plugin_user_dir
+	if not plugin_dir.is_dir():
+		raise FileNotFoundError(f"Plugin dir '{plugin_dir}' does not exist")
+
 	logger.info("Installing libraries from '%s'", source_dir / "lib")
 	# https://lukelogbook.tech/2018/01/25/merging-two-folders-in-python/
 	for src_dir_string, _, files in os.walk(source_dir / "lib"):
@@ -57,12 +61,13 @@ def install_plugin(source_dir: Path, name: str) -> None:
 				# avoid replacing files that might be currently loaded -> segfault
 				shutil.copy2(src_dir / file_, dst_dir / file_)
 
-	logger.info("Installing plugin from '%s'", source_dir / name)
-	destination = config.plugin_dirs[-1] / name
+	destination = plugin_dir / name
+	logger.info("Installing plugin from '%s' to '%s'", source_dir / name, destination)
 	if destination.exists():
 		shutil.rmtree(destination)
 	shutil.copytree(source_dir / name, destination)
 	plugin_manager.load_plugin(destination)
+	return destination
 
 
 def install_python_package(target_dir: Path, package: Dict[str, str]) -> None:
@@ -133,7 +138,7 @@ class PluginImporter(BuiltinImporter):
 	def find_spec(cls, fullname, path=None, target=None):
 		if not fullname.startswith("opsicli.addon"):
 			return None
-		plugin_path = unquote(fullname.split("_", 1)[1])
+		plugin_path = unquote(fullname.split("_", 1)[1]).replace("%2E", ".")
 		init_path = os.path.join(plugin_path, "python", "__init__.py")
 		if not os.path.exists(init_path):
 			return None
@@ -149,7 +154,7 @@ class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-meth
 
 	@classmethod
 	def module_name(cls, plugin_path: Path) -> str:
-		return f"opsicli.addon_{quote(str(plugin_path))}"
+		return f"opsicli.addon_{quote(str(plugin_path).replace('.', '%2E'))}"
 
 	@property
 	def plugins(self) -> List[OPSICLIPlugin]:
@@ -161,6 +166,7 @@ class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-meth
 	def load_plugin(self, plugin_dir: Path) -> None:
 		logger.info("Loading plugin from '%s'", plugin_dir)
 		module_name = self.module_name(plugin_dir)
+		logger.debug("Module name is %r", module_name)
 		if module_name in sys.modules:
 			reload = []
 			for sys_module in list(sys.modules):
@@ -187,7 +193,9 @@ class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-meth
 			return
 		logger.debug("Loading plugins")
 		self._plugins = {}
-		for plugin_base_dir in config.plugin_dirs:
+		for plugin_base_dir in (config.plugin_bundle_dir, config.plugin_system_dir, config.plugin_user_dir):
+			if not plugin_base_dir:
+				continue
 			if not plugin_base_dir.exists():
 				logger.debug("Plugin dir '%s' not found", plugin_base_dir)
 				continue

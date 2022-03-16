@@ -41,7 +41,13 @@ def cli() -> None:  # pylint: disable=unused-argument
 
 @cli.command(short_help=f"Add new plugin (python package or .{PLUGIN_EXTENSION})")
 @click.argument("path", type=click.Path(exists=True, file_okay=True, dir_okay=True, path_type=Path))
-def add(path: Path) -> None:
+@click.option(
+	"--system/--user",
+	help=("Install system wide or for current user."),
+	default=False,
+	show_default=True,
+)
+def add(path: Path, system: bool) -> None:
 	"""
 	opsi-cli plugin add subcommand.
 	Specify a path to a python package directory or an opsi-cli plugin file
@@ -51,8 +57,8 @@ def add(path: Path) -> None:
 		tmpdir_path = Path(tmpdir)
 		(tmpdir_path / "lib").mkdir(parents=True, exist_ok=True)
 		name = prepare_plugin(path, tmpdir_path)
-		install_plugin(tmpdir_path, name)
-	get_console().print(f"Plugin {name!r} installed")
+		path = install_plugin(tmpdir_path, name, system)
+	get_console().print(f"Plugin {name!r} installed into '{path}'")
 
 
 @cli.command(short_help=f"Export plugin as .{PLUGIN_EXTENSION}")
@@ -97,11 +103,14 @@ def list_() -> None:
 			{"id": "name", "description": "Name of the Plugin"},
 			{"id": "description", "description": "Plugin description"},
 			{"id": "version", "description": "Version of the plugin"},
+			{"id": "path", "description": "Location of the plugin"},
 		]
 	}
 	data = []
 	for plugin in sorted(plugin_manager.plugins, key=lambda plugin: plugin.id):
-		data.append({"id": plugin.id, "name": plugin.name, "description": plugin.description, "version": plugin.version})
+		data.append(
+			{"id": plugin.id, "name": plugin.name, "description": plugin.description, "version": plugin.version, "path": plugin.path}
+		)
 
 	write_output(data, metadata)
 
