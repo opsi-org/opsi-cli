@@ -32,7 +32,7 @@ def cli() -> None:  # pylint: disable=unused-argument
 
 def cache_interface(interface):
 	if cache.age("jsonrpc-interface").seconds >= 3600:
-		cache.set("jsonrpc-interface", {m["name"]: {"params": m["params"]} for m in interface}, store=True)
+		cache.set("jsonrpc-interface", {m["name"]: {"params": m["params"]} for m in interface})
 
 
 @cli.command(short_help="Get JSONRPC method list")

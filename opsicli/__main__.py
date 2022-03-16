@@ -21,6 +21,7 @@ from rich_click.rich_click import (  # type: ignore[import]
 )
 
 from opsicli import __version__, prepare_cli_paths
+from opsicli.cache import cache
 from opsicli.config import config
 from opsicli.plugin import plugin_manager
 from opsicli.types import LogLevel as TypeLogLevel
@@ -79,6 +80,8 @@ class OpsiCLI(click.MultiCommand):
 			else:
 				sys.stderr.write(str(err))
 			sys.exit(err.exit_code)
+		finally:
+			cache.exit()
 
 	def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
 		if not config.color:
@@ -244,7 +247,3 @@ def main(ctx: click.Context, *args, **kwargs) -> None:  # pylint: disable=unused
 	"""
 	logger.debug("main was called")
 	prepare_cli_paths()
-	# if not ctx.obj:  # stacked execution in pytest circumvents load_plugins -> explicit call here
-	# 	logger.notice("Explicitly calling load_plugins")
-	# 	assert isinstance(ctx.command, OpsiCLI)  # generic command does not have load_plugins
-	# 	plugin_manager.load_plugins()
