@@ -16,8 +16,10 @@ from opsicommon.logging import (  # type: ignore[import]
 
 
 class LogLevel(int):
-	possible_values = reversed([v.lower() for v in NAME_TO_LEVEL])
-	possible_values_for_description = ", ".join([f"{name}/{LEVEL_TO_OPSI_LEVEL[NAME_TO_LEVEL[name.upper()]]}" for name in possible_values])
+	possible_values = list(reversed([v.lower() for v in NAME_TO_LEVEL]))
+	possible_values_for_description = ", ".join(
+		[f"[metavar]{name}[/metavar]/[metavar]{LEVEL_TO_OPSI_LEVEL[NAME_TO_LEVEL[name.upper()]]}[/metavar]" for name in possible_values]
+	)
 
 	def __new__(cls, value: Any):
 		try:
@@ -32,7 +34,7 @@ class LogLevel(int):
 
 class OutputFormat(str):
 	possible_values = ["auto", "json", "pretty-json", "msgpack", "table", "csv"]
-	possible_values_for_description = ", ".join(possible_values)
+	possible_values_for_description = ", ".join([f"[metavar]{v}[/metavar]" for v in possible_values])
 
 	def __new__(cls, value: Any):
 		value = str(value)

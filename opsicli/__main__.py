@@ -24,7 +24,7 @@ from opsicli.config import config
 from opsicli.plugin import plugin_manager
 from opsicli.types import LogLevel as TypeLogLevel
 
-# click.rich_click.USE_RICH_MARKUP = True
+click.rich_click.USE_RICH_MARKUP = True
 click.rich_click.MAX_WIDTH = 140
 
 # https://rich.readthedocs.io/en/stable/style.html
@@ -103,7 +103,7 @@ class LogLevel(click.ParamType):
 		except ValueError:
 			for name in TypeLogLevel.possible_values:
 				if name.startswith(incomplete.lower()):
-					completion_items.append(name)
+					completion_items.append(CompletionItem(name))
 		return completion_items
 
 

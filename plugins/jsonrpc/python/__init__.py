@@ -8,8 +8,10 @@ from typing import Any, Dict, List, Optional
 
 import orjson
 import rich_click as click  # type: ignore[import]
+from click.shell_completion import CompletionItem
 from opsicommon.logging import logger  # type: ignore[import]
 
+from opsicli.cache import cache
 from opsicli.config import config
 from opsicli.io import output_file_is_stdout, read_input, write_output, write_output_raw
 from opsicli.opsiservice import get_service_connection
@@ -28,12 +30,19 @@ def cli() -> None:  # pylint: disable=unused-argument
 	logger.trace("jsonrpc command")
 
 
+def cache_interface(interface):
+	if cache.age("jsonrpc-interface").seconds >= 3600:
+		cache.set("jsonrpc-interface", {m["name"]: {"params": m["params"]} for m in interface}, store=True)
+
+
 @cli.command(short_help="Get JSONRPC method list")
 def methods() -> None:
 	"""
 	opsi-cli jsonrpc methods subcommand.
 	"""
 	client = get_service_connection()
+	cache_interface(client.interface)
+
 	metadata = {
 		"attributes": [
 			{"id": "name", "description": "Method name", "identifier": True, "selected": True},
@@ -49,9 +58,39 @@ def methods() -> None:
 	write_output(client.interface, metadata=metadata, default_output_format="table")
 
 
+def complete_methods(
+	ctx: click.Context, param: click.Parameter, incomplete: str  # pylint: disable=unused-argument
+) -> List[CompletionItem]:
+	interface = cache.get("jsonrpc-interface", None)
+	if not interface:
+		return []
+	items = []
+	for method_name in interface:
+		if method_name.startswith(incomplete):
+			items.append(CompletionItem(method_name))
+	return items
+
+
+def complete_params(ctx: click.Context, param: click.Parameter, incomplete: str) -> List[CompletionItem]:  # pylint: disable=unused-argument
+	interface = cache.get("jsonrpc-interface", None)
+	if not interface:
+		return []
+
+	method_info = interface.get(ctx.params["method"])
+	if not method_info:
+		return []
+
+	params = ctx.params["params"]
+	try:
+		param_name = method_info["params"][len(params)]
+		return [CompletionItem(param_name)]
+	except IndexError:
+		return []
+
+
 @cli.command(short_help="Execute JSONRPC")
-@click.argument("method", type=str)
-@click.argument("params", type=str, nargs=-1)
+@click.argument("method", type=str, shell_complete=complete_methods)
+@click.argument("params", type=str, nargs=-1, shell_complete=complete_params)
 def execute(method: str, params: Optional[List[str]] = None) -> None:  # pylint: disable=too-many-branches
 	"""
 	opsi-cli jsonrpc execute subcommand.
@@ -79,6 +118,8 @@ def execute(method: str, params: Optional[List[str]] = None) -> None:  # pylint:
 	default_output_format = "pretty-json" if output_file_is_stdout() else "json"
 
 	client = get_service_connection()
+	cache_interface(client.interface)
+
 	client.create_objects = False
 	if not result_only and config.output_format == "msgpack":
 		client.serialization = "msgpack"
