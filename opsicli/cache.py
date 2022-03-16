@@ -43,13 +43,19 @@ class Cache(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 		self._ensure_loaded()
 		if name not in self._data:
 			return default
+		if self.ttl_exceeded(name):
+			del self._data[name]
+			return default
 		return self._data[name]["value"]
 
-	def set(self, name: str, value: Any, store: Optional[bool] = False) -> None:
+	def set(self, name: str, value: Any, ttl: int = 0, store: Optional[bool] = False) -> None:
 		self._ensure_loaded()
-		self._data[name] = {"date": datetime.utcnow().isoformat(), "value": value}
+		self._data[name] = {"date": datetime.utcnow().isoformat(), "ttl": max(int(ttl), 0), "value": value}
 		if store:
 			self.store()
+
+	def ttl_exceeded(self, name: str) -> bool:
+		return 0 < self._data[name]["ttl"] < self.age(name).seconds
 
 	def age(self, name: str) -> timedelta:
 		self._ensure_loaded()
