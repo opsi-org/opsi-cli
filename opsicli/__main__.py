@@ -84,10 +84,12 @@ class OpsiCLI(click.MultiCommand):
 		return rich_format_help(self, ctx, formatter)
 
 	def list_commands(self, ctx: click.Context) -> List[str]:
+		logger.debug("list_commands")
 		plugin_manager.load_plugins()
 		return sorted([plugin.cli.name for plugin in plugin_manager.plugins if plugin.cli])  # type: ignore[attr-defined,misc]
 
 	def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command:
+		logger.debug("get_command %r", cmd_name)
 		plugin_manager.load_plugins()
 		for plugin in plugin_manager.plugins:
 			if plugin.cli and plugin.cli.name == cmd_name:

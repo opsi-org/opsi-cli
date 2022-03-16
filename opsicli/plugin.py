@@ -21,7 +21,7 @@ from opsicommon.utils import Singleton  # type: ignore[import]
 from packaging.version import parse
 from pipreqs import pipreqs  # type: ignore[import]
 
-from opsicli.config import config, get_python_path
+from opsicli.config import IN_COMPLETION_MODE, config, get_python_path
 
 PLUGIN_EXTENSION = "opsicliplug"
 
@@ -177,7 +177,8 @@ class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-meth
 			if isinstance(cls, type) and issubclass(cls, OPSICLIPlugin) and cls != OPSICLIPlugin and cls.id:
 				logger.notice("Loading plugin %r (name=%s, cli=%s)", cls.id, cls.name, cls.cli)
 				self._plugins[cls.id] = cls(plugin_dir)
-				self._plugins[cls.id].on_load()
+				if not IN_COMPLETION_MODE:
+					self._plugins[cls.id].on_load()
 				# Only one class per module
 				break
 

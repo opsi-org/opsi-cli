@@ -5,6 +5,7 @@ opsi-cli Basic command line interface for opsi
 general configuration
 """
 
+import os
 import platform
 import shutil
 import tempfile
@@ -33,6 +34,7 @@ from opsicli.types import (
 	Password,
 )
 
+IN_COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ
 DEFAULT_CONFIG_FILES = ["~/.config/opsi-cli/opsi-cli.yaml", "/etc/opsi/opsi-cli.yaml"]
 
 
@@ -206,6 +208,8 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 		)
 
 	def process_option(self, ctx: click.Context, param: click.Option, value: Any):  # pylint: disable=unused-argument
+		if IN_COMPLETION_MODE:
+			return
 		if param.name not in self._config:
 			return
 		try:
