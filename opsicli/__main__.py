@@ -245,5 +245,5 @@ def main(ctx: click.Context, *args, **kwargs) -> None:  # pylint: disable=unused
 	opsi command line interface\n
 	Plugins are dynamically loaded from a subfolder
 	"""
-	logger.debug("main was called")
+	logger.debug("Main called")
 	prepare_cli_paths()

@@ -20,6 +20,7 @@ from opsicommon.logging import (  # type: ignore[import]
 	DEFAULT_FORMAT,
 	LOG_NONE,
 	logging_config,
+	secret_filter,
 )
 from opsicommon.utils import Singleton  # type: ignore[import]
 from pydantic import BaseModel, validator  # pylint: disable=no-name-in-module
@@ -272,6 +273,8 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 
 	def __setattr__(self, name: str, value: Any) -> None:
 		if not name.startswith("_") and name in self._config:
+			if name == "password" and value:
+				secret_filter.add_secrets(value)
 			self._config[name].value = value
 			return
 		super().__setattr__(name, value)
