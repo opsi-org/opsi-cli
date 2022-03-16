@@ -120,11 +120,11 @@ def list_() -> None:
 def remove(plugin_id: str) -> None:
 	"""
 	opsi-cli plugin remove subcommand.
-	This subcommand removes an installed opsi-cli plugin. See "plugin list".
+	This subcommand removes an installed opsi-cli plugin. See "[bold]plugin list[/bold]".
 	"""
 	path = plugin_manager.get_plugin(plugin_id).path
 	found = False
-	for plugin_dir in config.plugin_dirs:
+	for plugin_dir in (config.plugin_user_dir, config.plugin_system_dir):
 		if plugin_dir in path.parents:
 			found = True
 			break
