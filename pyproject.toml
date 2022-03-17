@@ -15,7 +15,7 @@ name = "uib"
 url = "http://pypi.uib.gmbh:8080/simple/"
 
 [tool.poetry.dependencies]
-python = "^3.7,<3.11"
+python = "^3.10,<3.11"
 click = "^8.0"
 python-opsi = "^4.2"
 pipreqs = "^0.4"
