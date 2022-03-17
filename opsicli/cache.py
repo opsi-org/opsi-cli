@@ -5,7 +5,7 @@ opsi-cli Basic command line interface for opsi
 general configuration
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -72,7 +72,7 @@ class Cache(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 		self._ensure_loaded()
 		if name not in self._data:
 			return 500_000_000  # ~ 15 years
-		return (datetime.utcnow() - datetime.fromisoformat(self._data[name]["date"])).total_seconds()
+		return int((datetime.utcnow() - datetime.fromisoformat(self._data[name]["date"])).total_seconds())
 
 
 cache = Cache()

@@ -100,7 +100,7 @@ def write_output_table(data: Any, metadata: Dict) -> None:
 		return str(value)
 
 	attributes = config.attributes or []
-	table = Table(box=box.ROUNDED, show_header=config.header)
+	table = Table(box=box.ROUNDED, show_header=config.header, show_lines=False)
 	row_ids = []
 	for column in metadata["attributes"]:
 		if attributes == ["all"] or column["id"] in attributes or (not attributes and column.get("selected", True)):
