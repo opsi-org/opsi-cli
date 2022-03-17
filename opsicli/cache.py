@@ -66,13 +66,13 @@ class Cache(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 			self.store()
 
 	def ttl_exceeded(self, name: str) -> bool:
-		return 0 < self._data[name]["ttl"] < self.age(name).seconds
+		return 0 < self._data[name]["ttl"] < self.age(name)
 
-	def age(self, name: str) -> timedelta:
+	def age(self, name: str) -> int:
 		self._ensure_loaded()
 		if name not in self._data:
-			return timedelta(days=1000)
-		return datetime.utcnow() - datetime.fromisoformat(self._data[name]["date"])
+			return 500_000_000  # ~ 15 years
+		return (datetime.utcnow() - datetime.fromisoformat(self._data[name]["date"])).total_seconds()
 
 
 cache = Cache()

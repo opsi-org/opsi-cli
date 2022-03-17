@@ -18,6 +18,7 @@ import rich_click as click  # type: ignore[import]
 from opsicommon.logging import (  # type: ignore[import]
 	DEFAULT_COLORED_FORMAT,
 	DEFAULT_FORMAT,
+	LOG_ESSENTIAL,
 	LOG_NONE,
 	logging_config,
 	secret_filter,
@@ -40,7 +41,7 @@ from opsicli.types import (
 IN_COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ
 DEFAULT_CONFIG_FILES = ["~/.config/opsi-cli/opsi-cli.yaml", "/etc/opsi/opsi-cli.yaml"]
 
-logging_config(stderr_level=LOG_NONE, file_level=LOG_NONE)
+logging_config(stderr_level=LOG_ESSENTIAL, file_level=LOG_NONE)
 
 
 @lru_cache(maxsize=1)
