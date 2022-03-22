@@ -10,7 +10,7 @@ import platform
 import shutil
 import sys
 import tempfile
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -80,6 +80,9 @@ class ConfigItem:  # pylint: disable=too-many-instance-attributes
 				else:
 					value = self.type(value)
 		self.__dict__[name] = value
+
+	def as_dict(self):
+		return asdict(self)
 
 
 CONFIG_ITEMS = [

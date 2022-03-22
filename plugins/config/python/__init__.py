@@ -70,7 +70,7 @@ def show(name: str) -> None:
 		]
 	}
 	data = []
-	item = config.get_config_item(name).dict()
+	item = config.get_config_item(name).as_dict()
 	for attribute in ("name", "type", "multiple", "default", "description", "plugin", "group", "value"):
 		data.append({"attribute": attribute, "value": item[attribute]})
 
