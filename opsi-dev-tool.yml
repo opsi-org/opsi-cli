@@ -1,5 +1,5 @@
 pyinstaller-poetry:
-  one_file: yes
+  one_file: no
   before_script:
     - find plugins -name __pycache__ -exec rm -rf {} +
   hidden_imports:
@@ -15,6 +15,18 @@ pyinstaller-poetry:
     - cryptography
     - --exclude-module
     - tkinter
+    - --exclude-module
+    - opsidevtool
+    - --exclude-module
+    - tan
+    - --exclude-module
+    - pytest
+    - --exclude-module
+    - flake8
+    - --exclude-module
+    - isort
+    - --exclude-module
+    - mypy
   scripts:
     - script: run-opsicli
       binaries:
