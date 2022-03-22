@@ -1,5 +1,6 @@
 pyinstaller-poetry:
   one_file: yes
+  strip: yes
   before_script:
     - find plugins -name __pycache__ -exec rm -rf {} +
   hidden_imports:
@@ -10,7 +11,6 @@ pyinstaller-poetry:
       - opsicli.cache
       - opsicli.opsiservice
   extra_args:
-    - --strip
     - --exclude-module=cryptography
     - --exclude-module=tkinter
     - --exclude-module=opsidevtool
