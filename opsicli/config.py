@@ -10,6 +10,7 @@ import platform
 import shutil
 import sys
 import tempfile
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -24,7 +25,6 @@ from opsicommon.logging import (  # type: ignore[import]
 	secret_filter,
 )
 from opsicommon.utils import Singleton  # type: ignore[import]
-from pydantic import BaseModel, validator  # pylint: disable=no-name-in-module
 from ruamel.yaml import YAML
 
 from opsicli.types import (
@@ -53,10 +53,8 @@ def get_python_path() -> str:
 	raise RuntimeError("Could not find python path")
 
 
-class ConfigItem(BaseModel):  # pylint: disable=too-few-public-methods
-	class Config:  # pylint: disable=too-few-public-methods
-		validate_assignment = True
-
+@dataclass
+class ConfigItem:  # pylint: disable=too-many-instance-attributes
 	name: str
 	type: Any
 	multiple: bool = False
@@ -66,25 +64,22 @@ class ConfigItem(BaseModel):  # pylint: disable=too-few-public-methods
 	group: Optional[str] = None
 	value: Union[List[Any], Any] = None
 
-	@validator("default")
-	def validate_default(cls, default, values, **kwargs):  # pylint: disable=no-self-argument,no-self-use,unused-argument
-		if default is not None:
-			if values["multiple"]:
-				default = [values["type"](d) for d in default]
-			else:
-				default = values["type"](default)
-		return default
-
-	@validator("value", always=True)
-	def validate_value(cls, value, values, **kwargs):  # pylint: disable=no-self-argument,no-self-use,unused-argument
-		if value is None:
-			value = values["default"]
-		if value is not None:
-			if values["multiple"]:
-				value = [values["type"](v) for v in value]
-			else:
-				value = values["type"](value)
-		return value
+	def __setattr__(self, name, value):
+		if name == "default":
+			if value is not None:
+				if self.multiple:
+					value = [self.type(d) for d in value]
+				else:
+					value = self.type(value)
+		elif name == "value":
+			if value is None:
+				value = self.default
+			if value is not None:
+				if self.multiple:
+					value = [self.type(v) for v in value]
+				else:
+					value = self.type(value)
+		self.__dict__[name] = value
 
 
 CONFIG_ITEMS = [
