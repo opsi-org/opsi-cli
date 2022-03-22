@@ -11,22 +11,14 @@ pyinstaller-poetry:
       - opsicli.opsiservice
   extra_args:
     - --strip
-    - --exclude-module
-    - cryptography
-    - --exclude-module
-    - tkinter
-    - --exclude-module
-    - opsidevtool
-    - --exclude-module
-    - tan
-    - --exclude-module
-    - pytest
-    - --exclude-module
-    - flake8
-    - --exclude-module
-    - isort
-    - --exclude-module
-    - mypy
+    - --exclude-module=cryptography
+    - --exclude-module=tkinter
+    - --exclude-module=opsidevtool
+    - --exclude-module=tan
+    - --exclude-module=pytest
+    - --exclude-module=flake8
+    - --exclude-module=isort
+    - --exclude-module=mypy
   scripts:
     - script: run-opsicli
       binaries:
