@@ -27,7 +27,7 @@ PLUGIN_EXTENSION = "opsicliplug"
 
 
 def prepare_plugin(path: Path, tmpdir: Path) -> str:
-	"""Ccreates the plugin and libs in tmp"""
+	"""Creates the plugin and libs in tmp"""
 	logger.info("Inspecting plugin source '%s'", path)
 	plugin_id = path.stem
 	if (path / "python" / "__init__.py").exists():

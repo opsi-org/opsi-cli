@@ -4,10 +4,11 @@ test_plugins
 
 import os
 from pathlib import Path
+
 import pytest
 
-from opsicli.plugin import PLUGIN_EXTENSION, install_python_package, plugin_manager
 from opsicli.config import config
+from opsicli.plugin import PLUGIN_EXTENSION, install_python_package, plugin_manager
 
 from .utils import run_cli, temp_context, temp_env
 
@@ -118,3 +119,26 @@ def test_pluginarchive_export_import(tmp_path) -> None:
 		exit_code, output = run_cli(["plugin", "list"])
 		assert exit_code == 0
 		assert "dummy" in output
+
+
+# Permission Error on windows: file unlink is impossible if handle is opened
+# Problem: add plugin, then load plugin -> open file handle until teardown of python process
+@pytest.mark.posix
+def test_plugin_new(tmp_path) -> None:
+	with temp_context():
+		destination = tmp_path / "newplugin"
+
+		exit_code, output = run_cli(
+			["plugin", "new", "--name", "newplugin", "--description", "", "--version", "0.1.0", "--path", str(tmp_path)]
+		)
+		assert exit_code == 0
+		assert "Plugin 'newplugin' created" in output
+		assert (destination / "__init__.py").exists()
+
+		exit_code, output = run_cli(["plugin", "add", str(destination)])
+		assert exit_code == 0
+		assert "Plugin 'newplugin' installed" in output
+
+		exit_code, output = run_cli(["plugin", "list"])
+		assert exit_code == 0
+		assert "newplugin" in output
