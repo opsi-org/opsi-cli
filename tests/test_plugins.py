@@ -133,7 +133,7 @@ def test_plugin_new(tmp_path) -> None:
 		)
 		assert exit_code == 0
 		assert "Plugin 'newplugin' created" in output
-		assert (destination / "__init__.py").exists()
+		assert (destination / "python" / "__init__.py").exists()
 
 		exit_code, output = run_cli(["plugin", "add", str(destination)])
 		assert exit_code == 0

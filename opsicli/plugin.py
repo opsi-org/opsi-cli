@@ -24,6 +24,17 @@ from pipreqs import pipreqs  # type: ignore[import]
 from opsicli.config import config, get_python_path
 
 PLUGIN_EXTENSION = "opsicliplug"
+# These dependencies are not in python standard library
+# but they are part of opsi-cli core, so in sys.modules.
+# Installing them in libs dir would not make a difference
+# as sys.modules takes precedence.
+SKIP_DEPENDENCY_LIST = ["click", "opsicommon", "rich_click", "pydantic", "ruamel", "msgpack", "orjson"]
+
+
+def replace_data(string: str, replacements: Dict[str, str]) -> str:
+	for key, value in replacements.items():
+		string = string.replace(key, value)
+	return string
 
 
 def prepare_plugin(path: Path, tmpdir: Path) -> str:
@@ -95,8 +106,12 @@ def install_dependencies(path: Path, target_dir: Path) -> None:
 	logger.debug("Got dependencies: %s", dependencies)
 	for dependency in dependencies:
 		logger.debug("Checking dependency %s", dependency["name"])
+		if dependency["name"] in SKIP_DEPENDENCY_LIST:
+			logger.debug("Not installing %s, as it is part of opsi-cli core", dependency["name"])
+			continue
 		try:
 			temp_module = importlib.import_module(dependency["name"])
+			logger.trace("found present %s, version %s", dependency["name"], temp_module.__version__)
 			assert parse(temp_module.__version__) >= parse(dependency["version"])
 			logger.debug(
 				"Module %r present in version %s (required %s) - not installing",
@@ -133,8 +148,9 @@ class PluginImporter(BuiltinImporter):
 	def find_spec(cls, fullname, path=None, target=None):
 		if not fullname.startswith("opsicli.addon"):
 			return None
-		plugin_path = unquote(fullname.split("_", 1)[1])
+		plugin_path = unquote(fullname.split("_", 1)[1].replace("_DOT_", "."))
 		init_path = os.path.join(plugin_path, "python", "__init__.py")
+		logger.debug("Searching spec for %s", init_path)
 		if not os.path.exists(init_path):
 			return None
 		return importlib.util.spec_from_file_location(fullname, init_path)
@@ -149,7 +165,7 @@ class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-meth
 
 	@classmethod
 	def module_name(cls, plugin_path: Path) -> str:
-		return f"opsicli.addon_{quote(str(plugin_path))}"
+		return f"opsicli.addon_{quote(str(plugin_path)).replace('.','_DOT_')}"
 
 	@property
 	def plugins(self) -> List[OPSICLIPlugin]:
@@ -161,6 +177,7 @@ class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-meth
 	def load_plugin(self, plugin_dir: Path) -> None:
 		logger.info("Loading plugin from '%s'", plugin_dir)
 		module_name = self.module_name(plugin_dir)
+		logger.debug("Assembled module name as %s", module_name)
 		if module_name in sys.modules:
 			reload = []
 			for sys_module in list(sys.modules):

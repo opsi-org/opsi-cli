@@ -21,14 +21,16 @@ def cli() -> None:  # The docstring is used in opsi-cli ##ID## --help
 
 
 @cli.command(short_help="Some example subcommand")
-@click.argument("--exampleargument", "-a", help="example for an argument", default="defaultvalue")
-@click.option("--exampleoption", help="example for an option option", is_flag=True)
+@click.argument("exampleargument", nargs=1, default="defaultvalue", type=str)
+@click.option("--exampleoption", "-o", help="example for an option", is_flag=True, default=False)
 def subcommand(exampleargument, exampleoption) -> None:  # The name of the function is used as name for the subcommand
 	"""
 	This is a subcommand example to the ##ID## command
 	"""
 	logger.trace("##ID## 'subcommand' subcommand")
-	print(f"##ID## subcommand is called with values exampleargument={exampleargument} and exampleoption={exampleoption}")
+	print(f"##ID## subcommand is called with values exampleargument={exampleargument}")
+	if exampleoption:
+		print("exampleoption was used.")
 
 
 # This class keeps track of the plugins meta-information

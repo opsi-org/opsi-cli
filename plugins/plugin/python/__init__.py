@@ -22,6 +22,7 @@ from opsicli.plugin import (
 	install_plugin,
 	plugin_manager,
 	prepare_plugin,
+	replace_data,
 )
 
 __version__ = "0.1.0"
@@ -126,6 +127,7 @@ def remove(plugin_id: str) -> None:
 	get_console().print(f"Plugin {plugin_id!r} removed")
 
 
+# --name as option with prompt or as mandatory argument?
 @cli.command(short_help="Create a new plugin")
 @click.option("--name", help="Name of the new plugin (default: same as id)", type=str, prompt=True)
 @click.option("--version", help="Version number of the new plugin", type=str, prompt=True, default="0.1.0")
@@ -144,20 +146,27 @@ def new(name: str, version: str, description: str, path: Path) -> None:
 	logger.debug("name='%s', version='%s', description='%s'", name, version, description)
 	result_path = path / plugin_id
 	assert not result_path.exists(), f"Path {result_path} already exists. Aborting."
-	result_path.mkdir()
+	(result_path / "python").mkdir(parents=True)
+	(result_path / "data").mkdir()
 
-	template_file_path = None
-	for plugin_dir in config.plugin_dirs:
-		if (plugin_dir / "plugin" / "data" / "template.py").exists():
-			template_file_path = plugin_dir / "plugin" / "data" / "template.py"  # TODO: Configurable?
-	assert template_file_path, "No template file for new plugins found!"
+	template_file_path = plugin_manager.get_plugin("plugin").path / "data" / "template.py"  # Configurable?
+	assert template_file_path.exists(), "No template file for new plugins found!"
+	replacements = {
+		"##VERSION##": version,
+		"##NAME##": name,
+		"##ID##": plugin_id,
+		"##DESCRIPTION##": description,
+	}
 
-	with open(result_path / "__init__.py", "w", encoding="utf-8") as initfile:
+	with open(result_path / "python" / "__init__.py", "w", encoding="utf-8") as initfile:
 		with open(template_file_path, "r", encoding="utf-8") as templatefile:
 			for line in templatefile.readlines():
-				# TODO: replace placeholders in template
-				initfile.write(line)
-	get_console().print(f"Plugin {plugin_id!r} created at path {path}. Add it to this instance by using 'opsi-cli add {path}'")
+				initfile.write(replace_data(line, replacements))
+	get_console().print(
+		f"Plugin {plugin_id!r} created at path {path}.\n"
+		f"Add code to {path / 'python'} and optional data to {path / 'data'}\n"
+		f"Use 'opsi-cli plugin add {result_path}' to register the command at the current opsi-cli instance and to apply changes."
+	)
 
 
 class PluginPlugin(OPSICLIPlugin):
