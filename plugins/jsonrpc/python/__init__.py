@@ -31,8 +31,8 @@ def cli() -> None:  # pylint: disable=unused-argument
 
 
 def cache_interface(interface):
-	if cache.age("jsonrpc-interface").seconds >= 3600:
-		cache.set("jsonrpc-interface", {m["name"]: {"params": m["params"]} for m in interface}, store=True)
+	if cache.age("jsonrpc-interface") >= 3600:
+		cache.set("jsonrpc-interface", {m["name"]: {"params": m["params"]} for m in interface})
 
 
 @cli.command(short_help="Get JSONRPC method list")
@@ -61,7 +61,7 @@ def methods() -> None:
 def complete_methods(
 	ctx: click.Context, param: click.Parameter, incomplete: str  # pylint: disable=unused-argument
 ) -> List[CompletionItem]:
-	interface = cache.get("jsonrpc-interface", None)
+	interface = cache.get("jsonrpc-interface")
 	if not interface:
 		return []
 	items = []
@@ -72,7 +72,7 @@ def complete_methods(
 
 
 def complete_params(ctx: click.Context, param: click.Parameter, incomplete: str) -> List[CompletionItem]:  # pylint: disable=unused-argument
-	interface = cache.get("jsonrpc-interface", None)
+	interface = cache.get("jsonrpc-interface")
 	if not interface:
 		return []
 

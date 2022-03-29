@@ -5,10 +5,11 @@ Test utilities
 """
 
 import os
-from contextlib import contextmanager
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Sequence, Generator, Tuple
+from typing import Generator, Sequence, Tuple
+
 from click.testing import CliRunner
 
 from opsicli.__main__ import main
@@ -31,9 +32,8 @@ def temp_context() -> Generator[Path, None, None]:
 			tempdir_path = Path(tempdir)
 			config.color = False
 			config.python_lib_dir = tempdir_path / "lib"
-			plugin_dirs = config.plugin_dirs
-			plugin_dirs[-1] = tempdir_path / "plugin"
-			config.plugin_dirs = plugin_dirs
+			config.plugin_user_dir = tempdir_path / "user_plugins"
+			config.plugin_system_dir = tempdir_path / "system_plugins"
 			yield tempdir_path
 	finally:
 		plugin_manager.unload_plugins()

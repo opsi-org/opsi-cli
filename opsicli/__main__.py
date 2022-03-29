@@ -6,6 +6,7 @@ Main command
 """
 
 import pathlib
+import re
 import sys
 from typing import Any, List, Optional, Sequence
 
@@ -20,6 +21,7 @@ from rich_click.rich_click import (  # type: ignore[import]
 )
 
 from opsicli import __version__, prepare_cli_paths
+from opsicli.cache import cache
 from opsicli.config import config
 from opsicli.plugin import plugin_manager
 from opsicli.types import LogLevel as TypeLogLevel
@@ -73,10 +75,13 @@ class OpsiCLI(click.MultiCommand):
 			if not isinstance(err, ClickException):
 				err = ClickException(str(err))
 			if config.color:
+				err.message = re.sub(r"\[/?metavar\]", "", err.message)
 				rich_format_error(err)
 			else:
 				sys.stderr.write(str(err))
 			sys.exit(err.exit_code)
+		finally:
+			cache.exit()
 
 	def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
 		if not config.color:
@@ -84,10 +89,12 @@ class OpsiCLI(click.MultiCommand):
 		return rich_format_help(self, ctx, formatter)
 
 	def list_commands(self, ctx: click.Context) -> List[str]:
+		logger.debug("list_commands")
 		plugin_manager.load_plugins()
 		return sorted([plugin.cli.name for plugin in plugin_manager.plugins if plugin.cli])  # type: ignore[attr-defined,misc]
 
 	def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command:
+		logger.debug("get_command %r", cmd_name)
 		plugin_manager.load_plugins()
 		for plugin in plugin_manager.plugins:
 			if plugin.cli and plugin.cli.name == cmd_name:
@@ -238,9 +245,5 @@ def main(ctx: click.Context, *args, **kwargs) -> None:  # pylint: disable=unused
 	opsi command line interface\n
 	Plugins are dynamically loaded from a subfolder
 	"""
-	logger.debug("main was called")
+	logger.debug("Main called")
 	prepare_cli_paths()
-	# if not ctx.obj:  # stacked execution in pytest circumvents load_plugins -> explicit call here
-	# 	logger.notice("Explicitly calling load_plugins")
-	# 	assert isinstance(ctx.command, OpsiCLI)  # generic command does not have load_plugins
-	# 	plugin_manager.load_plugins()

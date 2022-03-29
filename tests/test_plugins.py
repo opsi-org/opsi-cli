@@ -70,7 +70,7 @@ def test_plugin_fail() -> None:
 		plugin_manager.unload_plugins()
 
 		# Break dummy plugin
-		(config.plugin_dirs[-1] / "dummy" / "python" / "__init__.py").unlink()
+		(config.plugin_user_dir / "dummy" / "python" / "__init__.py").unlink()
 		exit_code, output = run_cli(["dummy", "libtest"])
 		assert exit_code == 1
 		assert "Invalid command" in output

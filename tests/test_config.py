@@ -3,10 +3,11 @@ test_config
 """
 
 from pathlib import Path
+
 import pytest
 
-from opsicli.types import LogLevel, Bool, OPSIServiceUrl, Password, Directory
-from opsicli.config import ConfigItem, Config
+from opsicli.config import Config, ConfigItem
+from opsicli.types import Bool, Directory, LogLevel, OPSIServiceUrl, Password
 
 
 @pytest.mark.parametrize(
@@ -69,15 +70,15 @@ def test_config_item_password():
 
 
 @pytest.mark.posix
-def test_config_item_plugin_dirs_posix():
-	item = ConfigItem(name="plugin_dirs", type=Directory, multiple=True, value=["/path1", "/path/2"])
-	assert item.value == [Path("/path1"), Path("/path/2")]
+def test_config_item_plugin_user_dir_posix():
+	item = ConfigItem(name="plugin_user_dir", type=Directory, value="/path1")
+	assert item.value == Path("/path1")
 
 
 @pytest.mark.windows
-def test_config_item_plugin_dirs_windows():
-	item = ConfigItem(name="plugin_dirs", type=Directory, multiple=True, value=[r"C:\path1", r"C:\path\2"])
-	assert item.value == [Path(r"C:\path1"), Path(r"C:\path\2")]
+def test_config_item_plugin_user_dir_windows():
+	item = ConfigItem(name="plugin_user_dir", type=Directory, value=r"C:\path1")
+	assert item.value == Path(r"C:\path1")
 
 
 def test_config_defaults():
