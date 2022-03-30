@@ -477,7 +477,7 @@ reference = "uib"
 
 [[package]]
 name = "opsi-dev-tools"
-version = "1.1.5"
+version = "1.1.6"
 description = "opsi development tools"
 category = "dev"
 optional = false
@@ -1567,8 +1567,8 @@ mypy-extensions = [
     {file = "mypy_extensions-0.4.3.tar.gz", hash = "sha256:2d82818f5bb3e369420cb3c4060a7970edba416647068eb4c5343488a6c604a8"},
 ]
 opsi-dev-tools = [
-    {file = "opsi-dev-tools-1.1.5.tar.gz", hash = "sha256:dbcfed747f0d365c42b01a27a7fea53370c9e37ebf3cb363c0f9aa8c61975c67"},
-    {file = "opsi_dev_tools-1.1.5-py3-none-any.whl", hash = "sha256:dd7920b9fe4f3874a4159a17a30f0f711048edc6dc5b0d666ff47d0b956cf20b"},
+    {file = "opsi-dev-tools-1.1.6.tar.gz", hash = "sha256:742848dd7a8a95a88a467fdd758e56105a8b2cfab869c2d1c24654fec84c21cf"},
+    {file = "opsi_dev_tools-1.1.6-py3-none-any.whl", hash = "sha256:daea7c0d06d2cf8f12abe5fa99e96143a21c675943cebba53dd8c9771ffae5d0"},
 ]
 orjson = [
     {file = "orjson-3.6.7-cp310-cp310-macosx_10_7_x86_64.whl", hash = "sha256:93188a9d6eb566419ad48befa202dfe7cd7a161756444b99c4ec77faea9352a4"},

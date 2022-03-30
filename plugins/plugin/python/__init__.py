@@ -149,22 +149,25 @@ def new(name: str, version: str, description: str, path: Path) -> None:
 	opsi-cli plugin new subcommand.
 	This subcommand creates a new plugin.
 	"""
-	assert name, "Plugin name must not be empty"
+	if not name:
+		raise ValueError("Plugin name must not be empty")
 	plugin_id = name.lower()
 	logger.notice("Creating new plugin '%s'", plugin_id)
 	logger.debug("name='%s', version='%s', description='%s'", name, version, description)
 	result_path = path / plugin_id
-	assert not result_path.exists(), f"Path {result_path} already exists. Aborting."
+	if result_path.exists():
+		raise FileExistsError(f"Path {result_path} already exists. Aborting.")
 	(result_path / "python").mkdir(parents=True)
 	(result_path / "data").mkdir()
 
 	template_file_path = plugin_manager.get_plugin("plugin").path / "data" / "template.py"  # Configurable?
-	assert template_file_path.exists(), "No template file for new plugins found!"
+	if not template_file_path.exists():
+		raise FileNotFoundError("No template file for new plugins found!")
 	replacements = {
-		"##VERSION##": version,
-		"##NAME##": name,
-		"##ID##": plugin_id,
-		"##DESCRIPTION##": description,
+		"{{VERSION}}": version,
+		"{{NAME}}": name,
+		"{{ID}}": plugin_id,
+		"{{DESCRIPTION}}": description,
 	}
 
 	with open(result_path / "python" / "__init__.py", "w", encoding="utf-8") as initfile:
