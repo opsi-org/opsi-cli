@@ -28,7 +28,7 @@ def cli() -> None:  # pylint: disable=unused-argument
 
 
 @cli.command(name="list", short_help="List configuration items")
-def list_() -> None:
+def config_list() -> None:
 	"""
 	opsi-cli config list subcommand.
 	"""
@@ -57,9 +57,9 @@ def complete_config_item_name(
 	return items
 
 
-@cli.command(short_help="Show configuration item details")
+@cli.command(name="show", short_help="Show configuration item details")
 @click.argument("name", type=str, shell_complete=complete_config_item_name)
-def show(name: str) -> None:
+def config_show(name: str) -> None:
 	"""
 	opsi-cli config show subcommand.
 	"""
@@ -75,6 +75,27 @@ def show(name: str) -> None:
 		data.append({"attribute": attribute, "value": item[attribute]})
 
 	write_output(data, metadata)
+
+
+@cli.group(short_help="Configuration of opsi services")
+def service() -> None:
+	"""
+	opsi-cli config service subcommand.
+	"""
+
+
+@service.command(name="list", short_help="List configured opsi services")
+def service_list() -> None:
+	"""
+	opsi-cli config service list subcommand.
+	"""
+
+
+@service.command(name="add", short_help="Add an opsi service")
+def service_add() -> None:
+	"""
+	opsi-cli config service add subcommand.
+	"""
 
 
 class ConfigPlugin(OPSICLIPlugin):
