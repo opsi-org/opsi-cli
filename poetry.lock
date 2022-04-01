@@ -477,7 +477,7 @@ reference = "uib"
 
 [[package]]
 name = "opsi-dev-tools"
-version = "1.1.5"
+version = "1.1.6"
 description = "opsi development tools"
 category = "dev"
 optional = false
@@ -1567,8 +1567,8 @@ mypy-extensions = [
     {file = "mypy_extensions-0.4.3.tar.gz", hash = "sha256:2d82818f5bb3e369420cb3c4060a7970edba416647068eb4c5343488a6c604a8"},
 ]
 opsi-dev-tools = [
-    {file = "opsi-dev-tools-1.1.5.tar.gz", hash = "sha256:dbcfed747f0d365c42b01a27a7fea53370c9e37ebf3cb363c0f9aa8c61975c67"},
-    {file = "opsi_dev_tools-1.1.5-py3-none-any.whl", hash = "sha256:dd7920b9fe4f3874a4159a17a30f0f711048edc6dc5b0d666ff47d0b956cf20b"},
+    {file = "opsi-dev-tools-1.1.6.tar.gz", hash = "sha256:742848dd7a8a95a88a467fdd758e56105a8b2cfab869c2d1c24654fec84c21cf"},
+    {file = "opsi_dev_tools-1.1.6-py3-none-any.whl", hash = "sha256:daea7c0d06d2cf8f12abe5fa99e96143a21c675943cebba53dd8c9771ffae5d0"},
 ]
 orjson = [
     {file = "orjson-3.6.7-cp310-cp310-macosx_10_7_x86_64.whl", hash = "sha256:93188a9d6eb566419ad48befa202dfe7cd7a161756444b99c4ec77faea9352a4"},
@@ -1770,8 +1770,8 @@ python-gettext = [
     {file = "python-gettext-4.0.tar.gz", hash = "sha256:626b501a51ac892fc3460cf550e60dca121f544eaa46eb69c90ce4682fc7ec02"},
 ]
 python-opsi-common = [
-    {file = "python-opsi-common-4.2.0.278.tar.gz", hash = "sha256:24b7fe13219a37a4eaf363031576c3813a5049595db32b0030186ab65bf7eb09"},
-    {file = "python_opsi_common-4.2.0.278-py3-none-any.whl", hash = "sha256:6fcdf0dc52799688ec7993afaf097383e5c53ffc47dcfdc43956b1bb65f10b3a"},
+    {file = "python-opsi-common-4.2.0.278.tar.gz", hash = "sha256:e013054e1bed824f292c308bcdc5df74e48a2fbd474f219655e57014b4e7d2aa"},
+    {file = "python_opsi_common-4.2.0.278-py3-none-any.whl", hash = "sha256:8faee408a7b98bbd6d60d0fb4dc9fd0b1e4bf076a6cfdd3ff2bb0910a5d6bdd9"},
 ]
 pywin32 = [
     {file = "pywin32-303-cp310-cp310-win32.whl", hash = "sha256:6fed4af057039f309263fd3285d7b8042d41507343cd5fa781d98fcc5b90e8bb"},
