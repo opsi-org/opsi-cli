@@ -4,7 +4,8 @@ opsi-cli basic command line interface for opsi
 config plugin
 """
 
-from typing import List
+from typing import List, Optional
+from urllib.parse import urlparse
 
 import rich_click as click  # type: ignore[import]
 from click.shell_completion import CompletionItem
@@ -13,6 +14,7 @@ from opsicommon.logging import logger  # type: ignore[import]
 from opsicli.config import config
 from opsicli.io import write_output
 from opsicli.plugin import OPSICLIPlugin
+from opsicli.types import OPSIService
 
 __version__ = "0.1.0"
 
@@ -89,13 +91,27 @@ def service_list() -> None:
 	"""
 	opsi-cli config service list subcommand.
 	"""
+	print(config.services)
 
 
 @service.command(name="add", short_help="Add an opsi service")
-def service_add() -> None:
+@click.argument("url", type=str, required=False)
+@click.argument("name", type=str, required=False)
+def service_add(url: Optional[str] = None, name: Optional[str] = None) -> None:
 	"""
 	opsi-cli config service add subcommand.
 	"""
+	if not url:
+		if not config.interactive:
+			raise ValueError("No url specified")
+		url = click.prompt("Please enter the base url of the opsi service", type=str, default="https://localhost:4447")
+	ourl = urlparse(url)
+	if not name:
+		name = ourl.hostname
+		if config.interactive:
+			name = click.prompt("Please enter a name for the service", type=str, default=name)
+
+	config.get_config_item("services").add_value(OPSIService(name, url))
 
 
 class ConfigPlugin(OPSICLIPlugin):

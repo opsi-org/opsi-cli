@@ -5,8 +5,9 @@ opsi-cli Basic command line interface for opsi
 types
 """
 
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 from urllib.parse import urlparse
 
 from opsicommon.logging import (  # type: ignore[import]
@@ -68,6 +69,14 @@ class OPSIServiceUrl(str):  # pylint: disable=too-few-public-methods
 			hostname = f"[{hostname}]"
 		value = f"{url.scheme}://{hostname}:{url.port or 4447}{url.path}"
 		return super().__new__(cls, value)
+
+
+@dataclass
+class OPSIService:
+	name: str
+	url: str
+	username: Optional[str] = None
+	password: Optional[str] = None
 
 
 class Password(str):  # pylint: disable=too-few-public-methods
