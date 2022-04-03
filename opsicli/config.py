@@ -11,7 +11,8 @@ import shutil
 import sys
 import tempfile
 from copy import deepcopy
-from dataclasses import asdict, dataclass
+from dataclasses import InitVar, asdict, dataclass
+from enum import Enum
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Union
@@ -42,7 +43,17 @@ from opsicli.types import (
 
 IN_COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ
 
+
+class ConfigValueSource(Enum):
+	DEFAULT = "default"
+	CMDLINE = "cmdline"
+	ENVIRONMENT = "environment"
+	CONFIG_FILE_SYSTEM = "config_file_system"
+	CONFIG_FILE_USER = "config_file_user"
+
+
 logging_config(stderr_level=LOG_ESSENTIAL, file_level=LOG_NONE)
+logging_config(stderr_level=9)
 
 
 @lru_cache(maxsize=1)
@@ -55,61 +66,103 @@ def get_python_path() -> str:
 
 
 @dataclass
+class ConfigValue:  # pylint: disable=too-many-instance-attributes
+	type: Any
+	value: Any
+	source: Optional[ConfigValueSource] = None
+
+	def __setattr__(self, name, value):
+		if name == "value" and value is not None:
+			if not isinstance(value, self.type):
+				if isinstance(value, dict):
+					value = self.type(**value)
+				else:
+					value = self.type(value)
+		self.__dict__[name] = value
+
+
+@dataclass
 class ConfigItem:  # pylint: disable=too-many-instance-attributes
 	name: str
 	type: Any
 	multiple: bool = False
 	key: Optional[str] = None
-	default: Optional[Union[List[Any], Any]] = None
 	description: Optional[str] = None
 	plugin: Optional[str] = None
 	group: Optional[str] = None
-	value: Union[List[Any], Any] = None
+	default: InitVar[Any] = None
+	value: InitVar[Any] = None
+	_default: Optional[Union[List[ConfigValue], ConfigValue]] = None
+	_value: Optional[Union[List[ConfigValue], ConfigValue]] = None
 
-	def __setattr__(self, name, value):
-		# if hasattr(self, "name") and self.name == "services":
-		# 	print("===", self.name, value)
-		if name == "default":
-			if value is not None:
-				if self.multiple:
-					for val in value:
-						self._add_value("default", val)
-					return
-				value = self.type(value)
-			elif self.multiple:
-				value = []
-		elif name == "value":
+	def __post_init__(self, default: Any, value: Any):
+		self.set_default(default)
+		self.set_value(value)
+
+	def __setattr__(self, name: str, value: Any, source: Optional[ConfigValueSource] = None):
+		if name in ("default", "value"):
+			if name == "default":
+				source = ConfigValueSource.DEFAULT
+			attribute = f"_{name}"
+
 			if value is None:
-				value = deepcopy(self.default)
+				if attribute == "_value":
+					self.__dict__[attribute] = deepcopy(self.__dict__["_default"])
+				elif self.multiple:
+					self.__dict__[attribute] = []
+				else:
+					self.__dict__[attribute] = None
 			else:
 				if self.multiple:
 					for val in value:
-						self._add_value("value", val)
-					return
-				value = self.type(value)
-		self.__dict__[name] = value
+						self._add_value(name, val, source)
+				else:
+					self.__dict__[attribute] = ConfigValue(self.type, value, source)
+		else:
+			self.__dict__[name] = value
 
-	def _add_value(self, attribute, value):
+	def __getattribute__(self, name: str) -> Any:
+		if name in ("default", "value"):
+			attribute = f"_{name}"
+			if self.multiple:
+				return [config_value.value for config_value in getattr(self, attribute) or []]
+			if getattr(self, attribute) is None:
+				return None
+			return getattr(self, attribute).value
+		return super().__getattribute__(name)
+
+	def set_value(self, value, source: Optional[ConfigValueSource] = None):
+		return self.__setattr__("value", value, source)
+
+	def set_default(self, value):
+		return self.__setattr__("default", value, ConfigValueSource.DEFAULT)
+
+	def _add_value(self, attribute: str, value: Any, source: Optional[ConfigValueSource] = None):
+		if attribute not in ("default", "value"):
+			raise ValueError(f"Invalid attribute '{attribute}'")
 		if not self.multiple:
 			raise ValueError("Only one value allowed")
+		attribute = f"_{attribute}"
 		if not self.__dict__.get(attribute):
 			self.__dict__[attribute] = []
-		if not isinstance(value, self.type):
-			if isinstance(value, dict):
-				value = self.type(**value)
-			else:
-				value = self.type(value)
+		config_value = ConfigValue(self.type, value, source)
 		if self.key:
-			key_val = getattr(value, self.key)
-			for val in self.__dict__[attribute]:
-				if getattr(val, self.key) == key_val:
+			key_val = getattr(config_value.value, self.key)
+			for config_val in self.__dict__[attribute]:
+				if getattr(config_val.value, self.key) == key_val:
 					# Replace
-					val = value
+					config_val = config_value
 					return
-		self.__dict__[attribute].append(value)
+		self.__dict__[attribute].append(config_value)
 
-	def add_value(self, value):
-		return self._add_value("value", value)
+	def add_value(self, value, source: Optional[ConfigValueSource] = None):
+		return self._add_value("value", value, source)
+
+	def get_value(self) -> Any:
+		return getattr(self, "value")
+
+	def get_default(self) -> Any:
+		return self.default
 
 	def as_dict(self):
 		return asdict(self)
@@ -242,18 +295,19 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 	def get_config_items(self) -> List[ConfigItem]:
 		return list(self._config.values())
 
-	def get_values(self) -> Dict[str, Any]:
-		values = {}
-		for name, item in self._config.items():
-			values[name] = item.value
-		return values
+	# def get_values(self) -> Dict[str, Any]:
+	# 	values = {}
+	# 	for name, item in self._config.items():
+	# 		values[name] = item.value
+	# 	return values
 
-	def set_values(self, values: Dict[str, Any]) -> None:
-		for name, value in values.items():
-			self._config[name].value = value
+	# def set_values(self, values: Dict[str, Any]) -> None:
+	# 	for name, value in values.items():
+	# 		self._config[name].value = value
 
 	def read_config_files(self):
-		for config_file in (self.config_file_system, self.config_file_user):
+		for source in ("config_file_system", "config_file_user"):
+			config_file = getattr(self, source, None)
 			if not config_file or not config_file.exists():
 				continue
 			with open(config_file, "r", encoding="utf-8") as file:
@@ -265,9 +319,9 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 					if config_item.key:
 						for c_key, kwargs in val.items():
 							kwargs[config_item.key] = c_key
-							config_item.add_value(kwargs)
+							config_item.add_value(kwargs, source)
 					else:
-						config_item.value = val
+						config_item.set_value(val, source)
 
 	def set_logging_config(self):
 		logging_config(
@@ -305,7 +359,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 			self.set_logging_config()
 
 	def get_default(self, name: str) -> Any:
-		return self._config[name].default
+		return self._config[name].get_default()
 
 	def get_description(self, name: str) -> Optional[str]:
 		return self._config[name].description
@@ -321,14 +375,14 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 
 	def __getattr__(self, name: str) -> Any:
 		if not name.startswith("_") and name in self._config:
-			return self._config[name].value
+			return self._config[name].get_value()
 		raise AttributeError(name)
 
 	def __setattr__(self, name: str, value: Any) -> None:
 		if not name.startswith("_") and name in self._config:
 			if name == "password" and value:
 				secret_filter.add_secrets(value)
-			self._config[name].value = value
+			self._config[name].set_value(value)
 			return
 		super().__setattr__(name, value)
 
