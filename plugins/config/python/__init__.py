@@ -45,7 +45,7 @@ def config_list() -> None:
 	}
 	data = []
 	for item in sorted(config.get_config_items(), key=lambda x: x.name):
-		data.append({"name": item.name, "type": item.type, "default": item.default, "value": item.value})
+		data.append({"name": item.name, "type": item.type, "default": item.default, "value": item.get_value(value_only=False)})
 
 	write_output(data, metadata)
 

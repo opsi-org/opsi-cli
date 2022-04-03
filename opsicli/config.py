@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Union
 
 import rich_click as click  # type: ignore[import]
+from click.core import ParameterSource
 from opsicommon.logging import (  # type: ignore[import]
 	DEFAULT_COLORED_FORMAT,
 	DEFAULT_FORMAT,
@@ -46,14 +47,14 @@ IN_COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ
 
 class ConfigValueSource(Enum):
 	DEFAULT = "default"
-	CMDLINE = "cmdline"
+	COMMANDLINE = "commandline"
 	ENVIRONMENT = "environment"
 	CONFIG_FILE_SYSTEM = "config_file_system"
 	CONFIG_FILE_USER = "config_file_user"
 
 
 logging_config(stderr_level=LOG_ESSENTIAL, file_level=LOG_NONE)
-logging_config(stderr_level=9)
+# logging_config(stderr_level=9)
 
 
 @lru_cache(maxsize=1)
@@ -71,7 +72,7 @@ class ConfigValue:  # pylint: disable=too-many-instance-attributes
 	value: Any
 	source: Optional[ConfigValueSource] = None
 
-	def __setattr__(self, name, value):
+	def __setattr__(self, name: str, value: Any):
 		if name == "value" and value is not None:
 			if not isinstance(value, self.type):
 				if isinstance(value, dict):
@@ -79,6 +80,14 @@ class ConfigValue:  # pylint: disable=too-many-instance-attributes
 				else:
 					value = self.type(value)
 		self.__dict__[name] = value
+
+	def __repr__(self):
+		return f"<ConfigValue value={self.value!r}, source={self.source}>"
+
+	def __str__(self):
+		if self.source:
+			return f"{self.value} ({ConfigValueSource(self.source).value})"
+		return f"{self.value}"
 
 
 @dataclass
@@ -158,14 +167,24 @@ class ConfigItem:  # pylint: disable=too-many-instance-attributes
 	def add_value(self, value, source: Optional[ConfigValueSource] = None):
 		return self._add_value("value", value, source)
 
-	def get_value(self) -> Any:
-		return getattr(self, "value")
+	def get_value(self, value_only: bool = True) -> Any:
+		if value_only:
+			return self.value
+		return self._value
 
-	def get_default(self) -> Any:
-		return self.default
+	def get_default(self, value_only: bool = True) -> Any:
+		if value_only:
+			return self.default
+		return self._default
 
 	def as_dict(self):
-		return asdict(self)
+		dict_ = asdict(self)
+		dict_["value"] = dict_.pop("_value")
+		dict_["default"] = dict_.pop("_default")
+		return dict_
+
+	def __repr__(self):
+		return f"<ConfigItem name={self.name!r}, default={self.default}, value={repr(self.value)}>"
 
 
 CONFIG_ITEMS = [
@@ -265,14 +284,14 @@ CONFIG_ITEMS.extend(
 			name="config_file_system",
 			type=File,
 			group="General",
-			default="~/.config/opsi-cli/opsi-cli.yaml",
+			default="/etc/opsi/opsi-cli.yaml",
 			description="System wide config file location",
 		),
 		ConfigItem(
 			name="config_file_user",
 			type=File,
 			group="General",
-			default="/etc/opsi/opsi-cli.yaml",
+			default="~/.config/opsi-cli/opsi-cli.yaml",
 			description="User specific config file",
 		),
 	]
@@ -332,12 +351,19 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 		)
 
 	def process_option(self, ctx: click.Context, param: click.Option, value: Any):  # pylint: disable=unused-argument
+		param_source = ctx.get_parameter_source(param.name)
 		if IN_COMPLETION_MODE:
 			return
 		if param.name not in self._config:
 			return
 		try:
-			self._config[param.name].value = value
+			source = None
+			if param_source == ParameterSource.COMMANDLINE:
+				source = ConfigValueSource.COMMANDLINE
+			elif param_source == ParameterSource.ENVIRONMENT:
+				source = ConfigValueSource.ENVIRONMENT
+			if source:
+				self._config[param.name].set_value(value, source)
 		except ValueError as err:
 			msg = str(err)
 			if hasattr(err, "errors"):
