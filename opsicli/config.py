@@ -335,6 +335,16 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 	) -> List[ConfigItem]:
 		return list(self._config.values())
 
+	def get_values(self) -> Dict[str, Any]:
+		values = {}
+		for name, item in self._config.items():
+			values[name] = item.value
+		return values
+
+	def set_values(self, values: Dict[str, Any]) -> None:
+		for name, value in values.items():
+			self._config[name].value = value
+
 	def read_config_files(self):
 		for file_type in ("config_file_system", "config_file_user"):
 			config_file = getattr(self, file_type, None)
