@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-opsi-cli Basic command line interface for opsi
+opsi-cli - command line interface for opsi
 
 types
 """
@@ -14,6 +14,8 @@ from opsicommon.logging import (  # type: ignore[import]
 	LEVEL_TO_OPSI_LEVEL,
 	NAME_TO_LEVEL,
 )
+
+from opsicli.utils import decrypt, encrypt
 
 
 class LogLevel(int):
@@ -32,7 +34,7 @@ class LogLevel(int):
 				raise ValueError(f"{value!r} is not a valid log level, choose one of: {cls.possible_values_for_description}") from None
 		return super().__new__(cls, value)
 
-	def as_yaml(self):
+	def to_yaml(self):
 		return int(self)
 
 
@@ -76,13 +78,21 @@ class OPSIServiceUrl(str):  # pylint: disable=too-few-public-methods
 
 class Password(str):  # pylint: disable=too-few-public-methods
 	def __new__(cls, value: Any):
+		if value is None:
+			return None
 		return super().__new__(cls, value)
 
 	def __repr__(self):
 		return "***secret***"
 
-	def as_yaml(self):
-		return str(self)
+	def to_yaml(self):
+		if not self:
+			return self
+		return encrypt(str(self))
+
+	@classmethod
+	def from_yaml(cls, value):
+		return cls(decrypt(value))
 
 
 class File(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public-methods
@@ -94,7 +104,7 @@ class File(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public
 				raise ValueError("Not a file: {path!r}")
 		return path
 
-	def as_yaml(self):
+	def to_yaml(self):
 		return str(self)
 
 
@@ -106,7 +116,7 @@ class Directory(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-p
 			raise ValueError("Not a directory: {path!r}")
 		return path
 
-	def as_yaml(self):
+	def to_yaml(self):
 		return str(self)
 
 
@@ -117,5 +127,16 @@ class OPSIService:
 	username: Optional[str] = None
 	password: Optional[Password] = None
 
-	def as_yaml(self):
-		return vars(self)
+	def __setattr__(self, name: str, value: Any) -> None:
+		if name == "password" and not isinstance(value, Password):
+			value = Password(value)
+		self.__dict__[name] = value
+
+	def to_yaml(self):
+		return {key: val.to_yaml() if hasattr(val, "to_yaml") else val for key, val in vars(self).items()}
+
+	@classmethod
+	def from_yaml(cls, value):
+		if value.get("password"):
+			value["password"] = Password.from_yaml(value["password"])
+		return cls(**value)

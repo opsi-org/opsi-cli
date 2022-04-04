@@ -149,7 +149,37 @@ def service_add(
 	config.get_config_item("services").add_value(new_service, source)
 	config.write_config_files(sources=[source])
 
-	# print(config.services)
+
+@service.command(name="remove", short_help="Remove an opsi service")
+@click.argument("name", type=str, required=False)
+@click.option("--system", type=bool, required=False, default=False)
+def service_remove(
+	name: Optional[str] = None,
+	system: bool = False,
+) -> None:
+	"""
+	opsi-cli config service remove subcommand.
+	"""
+	source = ConfigValueSource.CONFIG_FILE_SYSTEM if system else ConfigValueSource.CONFIG_FILE_USER
+	config_item = config.get_config_item("services")
+	values = config_item.get_values(value_only=False, sources=[source])
+	names = sorted([val.value.name for val in values])
+
+	if not name:
+		if not config.interactive:
+			raise ValueError("No name specified")
+		if not names:
+			raise ValueError("No services specified")
+		name = prompt("Please enter a name for the service", choices=names)
+
+	if name not in names:
+		raise ValueError(f"Service {name} not found in {'system' if system else 'user'} configuration")
+
+	for val in values:
+		if val.value.name == name:
+			config_item.remove_value(val)
+			config.write_config_files(sources=[source])
+			break
 
 
 class ConfigPlugin(OPSICLIPlugin):
