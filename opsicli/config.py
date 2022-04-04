@@ -37,7 +37,7 @@ from opsicli.types import (
 	File,
 	LogLevel,
 	OPSIService,
-	OPSIServiceUrl,
+	OPSIServiceUrlOrServiceName,
 	OutputFormat,
 	Password,
 )
@@ -255,11 +255,11 @@ CONFIG_ITEMS = [
 		description="Select data attributes ([metavar]all[/metavar] selects all available attributes).",
 	),
 	ConfigItem(
-		name="service_url",
-		type=OPSIServiceUrl,
+		name="service",
+		type=OPSIServiceUrlOrServiceName,
 		group="Opsi service",
 		default="https://localhost:4447",
-		description="URL of the opsi service to connect.",
+		description="URL or name of a configured service to connect.",
 	),
 	ConfigItem(name="username", type=str, group="Opsi service", description="Username for opsi service connection."),
 	ConfigItem(name="password", type=Password, group="Opsi service", description="Password for opsi service connection."),
@@ -348,6 +348,10 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 					if not config_item:
 						continue
 
+					if not config_item.multiple and config_item.get_values(value_only=False, sources=[ConfigValueSource.COMMANDLINE]):
+						# Do not override cmdline arguments
+						continue
+
 					if config_item.key:
 						new_value = []
 						for akey, adict in value.items():
@@ -413,6 +417,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 			return
 		if param.name not in self._config:
 			return
+
 		try:
 			source = None
 			if param_source == ParameterSource.COMMANDLINE:

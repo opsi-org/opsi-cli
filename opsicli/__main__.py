@@ -78,7 +78,7 @@ class OpsiCLI(click.MultiCommand):
 				err.message = re.sub(r"\[/?metavar\]", "", err.message)
 				rich_format_error(err)
 			else:
-				sys.stderr.write(str(err))
+				sys.stderr.write(f"Error: {err}\n")
 			sys.exit(err.exit_code)
 		finally:
 			cache.exit()
@@ -228,13 +228,13 @@ class LogLevel(click.ParamType):
 	default=config.get_default("attributes"),
 )
 @click.option(
-	"--service-url",
+	"--service",
 	type=str,
 	callback=config.process_option,
-	metavar="SERVICE_URL",
-	help=config.get_description("service_url"),
+	metavar="SERVICE",
+	help=config.get_description("service"),
 	show_default=True,
-	default=config.get_default("service_url"),
+	default=config.get_default("service"),
 )
 @click.option(
 	"--username",

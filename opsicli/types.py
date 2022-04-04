@@ -76,6 +76,13 @@ class OPSIServiceUrl(str):  # pylint: disable=too-few-public-methods
 		return super().__new__(cls, value)
 
 
+class OPSIServiceUrlOrServiceName(str):  # pylint: disable=too-few-public-methods
+	def __new__(cls, value: Any):
+		if value.startswith("http://") or value.startswith("https://"):
+			return OPSIServiceUrl(value)
+		return value
+
+
 class Password(str):  # pylint: disable=too-few-public-methods
 	def __new__(cls, value: Any):
 		if value is None:
