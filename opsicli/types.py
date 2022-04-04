@@ -32,6 +32,9 @@ class LogLevel(int):
 				raise ValueError(f"{value!r} is not a valid log level, choose one of: {cls.possible_values_for_description}") from None
 		return super().__new__(cls, value)
 
+	def as_yaml(self):
+		return int(self)
+
 
 class OutputFormat(str):
 	possible_values = ["auto", "json", "pretty-json", "msgpack", "table", "csv"]
@@ -71,20 +74,15 @@ class OPSIServiceUrl(str):  # pylint: disable=too-few-public-methods
 		return super().__new__(cls, value)
 
 
-@dataclass
-class OPSIService:
-	name: str
-	url: str
-	username: Optional[str] = None
-	password: Optional[str] = None
-
-
 class Password(str):  # pylint: disable=too-few-public-methods
 	def __new__(cls, value: Any):
 		return super().__new__(cls, value)
 
 	def __repr__(self):
 		return "***secret***"
+
+	def as_yaml(self):
+		return str(self)
 
 
 class File(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public-methods
@@ -96,6 +94,9 @@ class File(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public
 				raise ValueError("Not a file: {path!r}")
 		return path
 
+	def as_yaml(self):
+		return str(self)
+
 
 class Directory(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public-methods
 	def __new__(cls, *args, **kwargs):
@@ -104,3 +105,17 @@ class Directory(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-p
 		if path.exists() and not path.is_dir():
 			raise ValueError("Not a directory: {path!r}")
 		return path
+
+	def as_yaml(self):
+		return str(self)
+
+
+@dataclass
+class OPSIService:
+	name: str
+	url: str
+	username: Optional[str] = None
+	password: Optional[Password] = None
+
+	def as_yaml(self):
+		return vars(self)

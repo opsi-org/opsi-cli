@@ -157,10 +157,10 @@ class ConfigItem:  # pylint: disable=too-many-instance-attributes
 		config_value = ConfigValue(self.type, value, source)
 		if self.key:
 			key_val = getattr(config_value.value, self.key)
-			for config_val in self.__dict__[attribute]:
+			for idx, config_val in enumerate(self.__dict__[attribute]):
 				if getattr(config_val.value, self.key) == key_val:
 					# Replace
-					config_val = config_value
+					self.__dict__[attribute][idx] = config_value
 					return
 		self.__dict__[attribute].append(config_value)
 
@@ -171,6 +171,12 @@ class ConfigItem:  # pylint: disable=too-many-instance-attributes
 		if value_only:
 			return self.value
 		return self._value
+
+	def get_values(self, value_only: bool = True) -> List[Any]:
+		value = self.get_value(value_only)
+		if self.multiple:
+			return value
+		return [value]
 
 	def get_default(self, value_only: bool = True) -> Any:
 		if value_only:
@@ -311,7 +317,9 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 	def get_config_item(self, name: str) -> ConfigItem:
 		return self._config[name]
 
-	def get_config_items(self) -> List[ConfigItem]:
+	def get_config_items(
+		self,
+	) -> List[ConfigItem]:
 		return list(self._config.values())
 
 	# def get_values(self) -> Dict[str, Any]:
@@ -325,10 +333,11 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 	# 		self._config[name].value = value
 
 	def read_config_files(self):
-		for source in ("config_file_system", "config_file_user"):
-			config_file = getattr(self, source, None)
+		for file_type in ("config_file_system", "config_file_user"):
+			config_file = getattr(self, file_type, None)
 			if not config_file or not config_file.exists():
 				continue
+			source = ConfigValueSource.CONFIG_FILE_SYSTEM if file_type == "config_file_system" else ConfigValueSource.CONFIG_FILE_USER
 			with open(config_file, "r", encoding="utf-8") as file:
 				data = YAML().load(file.read())
 				for key, val in data.items():
@@ -341,6 +350,41 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 							config_item.add_value(kwargs, source)
 					else:
 						config_item.set_value(val, source)
+
+	def write_config_files(self, sources: Optional[List[ConfigValueSource]] = None):
+		for file_type in ("config_file_system", "config_file_user"):
+			config_file = getattr(self, file_type, None)
+			source = ConfigValueSource.CONFIG_FILE_SYSTEM if file_type == "config_file_system" else ConfigValueSource.CONFIG_FILE_USER
+			if sources and source not in sources:
+				continue
+			if not config_file:
+				continue
+
+			data = {}
+			if config_file.exists():
+				with open(config_file, "r", encoding="utf-8") as file:
+					data = YAML().load(file)
+
+			for config_item in self._config.values():
+				values = [val for val in config_item.get_values(value_only=False) if val and val.source == source]
+				if not values:
+					continue
+				yaml_values = [val.value.as_yaml() if hasattr(val.value, "as_yaml") else val.value for val in values if val]
+
+				if config_item.multiple:
+					if config_item.key:
+						if config_item.name not in data:
+							data[config_item.name] = {}
+						for yaml_val in yaml_values:
+							key = yaml_val.pop(config_item.key)
+							data[config_item.name][key] = yaml_val
+					else:
+						data[config_item.name] = yaml_values
+				else:
+					data[config_item.name] = yaml_values[0]
+
+			with open(config_file, "w", encoding="utf-8") as file:
+				YAML().dump(data, file)
 
 	def set_logging_config(self):
 		logging_config(

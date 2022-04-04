@@ -12,7 +12,7 @@ from click.shell_completion import CompletionItem
 from opsicommon.logging import logger  # type: ignore[import]
 from ruamel.yaml import YAML
 
-from opsicli.config import config
+from opsicli.config import ConfigValueSource, config
 from opsicli.io import prompt, write_output
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.types import OPSIService
@@ -45,7 +45,7 @@ def config_list() -> None:
 	}
 	data = []
 	for item in sorted(config.get_config_items(), key=lambda x: x.name):
-		data.append({"name": item.name, "type": item.type, "default": item.default, "value": item.get_value(value_only=False)})
+		data.append({"name": item.name, "type": item.type, "default": item.default, "value": item.value})
 
 	write_output(data, metadata)
 
@@ -145,16 +145,11 @@ def service_add(
 
 	new_service = OPSIService(name=name, url=url, username=username, password=password)
 
-	data = {}
-	config_file = config.config_file_system if system else config.config_file_user
-	if config_file.exists():
-		with open(config_file, "r", encoding="utf-8") as file:
-			data = YAML().load(file)
-	if "services" not in data:
-		data["services"] = {}
-	data["services"][new_service.name] = {"url": new_service.url}
-	with open(config_file, "w", encoding="utf-8") as file:
-		YAML().dump(data, file)
+	source = ConfigValueSource.CONFIG_FILE_SYSTEM if system else ConfigValueSource.CONFIG_FILE_USER
+	config.get_config_item("services").add_value(new_service, source)
+	config.write_config_files(sources=[source])
+
+	# print(config.services)
 
 
 class ConfigPlugin(OPSICLIPlugin):
