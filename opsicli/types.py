@@ -1,18 +1,21 @@
 # -*- coding: utf-8 -*-
 """
-opsi-cli Basic command line interface for opsi
+opsi-cli - command line interface for opsi
 
 types
 """
 
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 from urllib.parse import urlparse
 
 from opsicommon.logging import (  # type: ignore[import]
 	LEVEL_TO_OPSI_LEVEL,
 	NAME_TO_LEVEL,
 )
+
+from opsicli.utils import decrypt, encrypt
 
 
 class LogLevel(int):
@@ -30,6 +33,9 @@ class LogLevel(int):
 			except KeyError:
 				raise ValueError(f"{value!r} is not a valid log level, choose one of: {cls.possible_values_for_description}") from None
 		return super().__new__(cls, value)
+
+	def to_yaml(self):
+		return int(self)
 
 
 class OutputFormat(str):
@@ -70,12 +76,30 @@ class OPSIServiceUrl(str):  # pylint: disable=too-few-public-methods
 		return super().__new__(cls, value)
 
 
+class OPSIServiceUrlOrServiceName(str):  # pylint: disable=too-few-public-methods
+	def __new__(cls, value: Any):
+		if value.startswith("http://") or value.startswith("https://"):
+			return OPSIServiceUrl(value)
+		return value
+
+
 class Password(str):  # pylint: disable=too-few-public-methods
 	def __new__(cls, value: Any):
+		if value is None:
+			return None
 		return super().__new__(cls, value)
 
 	def __repr__(self):
 		return "***secret***"
+
+	def to_yaml(self):
+		if not self:
+			return self
+		return encrypt(str(self))
+
+	@classmethod
+	def from_yaml(cls, value):
+		return cls(decrypt(value))
 
 
 class File(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public-methods
@@ -87,6 +111,9 @@ class File(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public
 				raise ValueError("Not a file: {path!r}")
 		return path
 
+	def to_yaml(self):
+		return str(self)
+
 
 class Directory(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public-methods
 	def __new__(cls, *args, **kwargs):
@@ -95,3 +122,28 @@ class Directory(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-p
 		if path.exists() and not path.is_dir():
 			raise ValueError("Not a directory: {path!r}")
 		return path
+
+	def to_yaml(self):
+		return str(self)
+
+
+@dataclass
+class OPSIService:
+	name: str
+	url: str
+	username: Optional[str] = None
+	password: Optional[Password] = None
+
+	def __setattr__(self, name: str, value: Any) -> None:
+		if name == "password" and not isinstance(value, Password):
+			value = Password(value)
+		self.__dict__[name] = value
+
+	def to_yaml(self):
+		return {key: val.to_yaml() if hasattr(val, "to_yaml") else val for key, val in vars(self).items()}
+
+	@classmethod
+	def from_yaml(cls, value):
+		if value.get("password"):
+			value["password"] = Password.from_yaml(value["password"])
+		return cls(**value)

@@ -58,8 +58,8 @@ def test_config_item_bool(value, expected):
 		("https://[2a02:810b:f3f:fa4b:7170:26c0:c849:6e33]", "https://[2a02:810b:f3f:fa4b:7170:26c0:c849:6e33]:4447"),
 	),
 )
-def test_config_item_opsi_service_url(value, expected):
-	item = ConfigItem(name="service_url", type=OPSIServiceUrl, value=value)
+def test_config_item_opsi_service(value, expected):
+	item = ConfigItem(name="service", type=OPSIServiceUrl, value=value)
 	assert item.value == expected
 
 
@@ -84,7 +84,7 @@ def test_config_item_plugin_user_dir_windows():
 def test_config_defaults():
 	config = Config()
 	assert config.color is True
-	assert config.service_url == "https://localhost:4447"
+	assert config.service == "https://localhost:4447"
 
 
 def test_set_config():

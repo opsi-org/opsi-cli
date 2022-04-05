@@ -10,12 +10,15 @@ import platform
 import shutil
 import sys
 import tempfile
-from dataclasses import asdict, dataclass
+from copy import deepcopy
+from dataclasses import InitVar, asdict, dataclass
+from enum import Enum
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Set, Union
 
 import rich_click as click  # type: ignore[import]
+from click.core import ParameterSource
 from opsicommon.logging import (  # type: ignore[import]
 	DEFAULT_COLORED_FORMAT,
 	DEFAULT_FORMAT,
@@ -33,15 +36,25 @@ from opsicli.types import (
 	Directory,
 	File,
 	LogLevel,
-	OPSIServiceUrl,
+	OPSIService,
+	OPSIServiceUrlOrServiceName,
 	OutputFormat,
 	Password,
 )
 
 IN_COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ
-DEFAULT_CONFIG_FILES = ["~/.config/opsi-cli/opsi-cli.yaml", "/etc/opsi/opsi-cli.yaml"]
+
+
+class ConfigValueSource(Enum):
+	DEFAULT = "default"
+	COMMANDLINE = "commandline"
+	ENVIRONMENT = "environment"
+	CONFIG_FILE_SYSTEM = "config_file_system"
+	CONFIG_FILE_USER = "config_file_user"
+
 
 logging_config(stderr_level=LOG_ESSENTIAL, file_level=LOG_NONE)
+# logging_config(stderr_level=9)
 
 
 @lru_cache(maxsize=1)
@@ -54,35 +67,143 @@ def get_python_path() -> str:
 
 
 @dataclass
-class ConfigItem:  # pylint: disable=too-many-instance-attributes
-	name: str
+class ConfigValue:  # pylint: disable=too-many-instance-attributes
 	type: Any
-	multiple: bool = False
-	default: Optional[Union[List[Any], Any]] = None
-	description: Optional[str] = None
-	plugin: Optional[str] = None
-	group: Optional[str] = None
-	value: Union[List[Any], Any] = None
+	value: Any
+	source: Optional[ConfigValueSource] = None
 
-	def __setattr__(self, name, value):
-		if name == "default":
-			if value is not None:
-				if self.multiple:
-					value = [self.type(d) for d in value]
-				else:
-					value = self.type(value)
-		elif name == "value":
-			if value is None:
-				value = self.default
-			if value is not None:
-				if self.multiple:
-					value = [self.type(v) for v in value]
+	def __setattr__(self, name: str, value: Any):
+		if name == "value" and value is not None:
+			if not isinstance(value, self.type):
+				if isinstance(value, dict):
+					value = self.type(**value)
 				else:
 					value = self.type(value)
 		self.__dict__[name] = value
 
+	def __repr__(self):
+		return f"<ConfigValue value={self.value!r}, source={self.source}>"
+
+	def __str__(self):
+		if self.source:
+			return f"{self.value} ({ConfigValueSource(self.source).value})"
+		return f"{self.value}"
+
+
+@dataclass
+class ConfigItem:  # pylint: disable=too-many-instance-attributes
+	name: str
+	type: Any
+	multiple: bool = False
+	key: Optional[str] = None
+	description: Optional[str] = None
+	plugin: Optional[str] = None
+	group: Optional[str] = None
+	default: InitVar[Any] = None
+	value: InitVar[Any] = None
+	_default: Optional[Union[List[ConfigValue], ConfigValue]] = None
+	_value: Optional[Union[List[ConfigValue], ConfigValue]] = None
+
+	def __post_init__(self, default: Any, value: Any):
+		self.set_default(default)
+		self.set_value(value)
+
+	def __setattr__(self, name: str, value: Any, source: Optional[ConfigValueSource] = None):
+		if name in ("default", "value"):
+			if name == "default":
+				source = ConfigValueSource.DEFAULT
+			attribute = f"_{name}"
+
+			if value is None:
+				if attribute == "_value":
+					self.__dict__[attribute] = deepcopy(self.__dict__["_default"])
+				elif self.multiple:
+					self.__dict__[attribute] = []
+				else:
+					self.__dict__[attribute] = None
+			else:
+				if self.multiple:
+					for val in value:
+						self._add_value(name, val, source)
+				else:
+					self.__dict__[attribute] = ConfigValue(self.type, value, source)
+		else:
+			self.__dict__[name] = value
+
+	def __getattribute__(self, name: str) -> Any:
+		if name in ("default", "value"):
+			attribute = f"_{name}"
+			if self.multiple:
+				return [config_value.value for config_value in getattr(self, attribute) or []]
+			if getattr(self, attribute) is None:
+				return None
+			return getattr(self, attribute).value
+		return super().__getattribute__(name)
+
+	def set_value(self, value, source: Optional[ConfigValueSource] = None):
+		return self.__setattr__("value", value, source)
+
+	def set_default(self, value):
+		return self.__setattr__("default", value, ConfigValueSource.DEFAULT)
+
+	def _add_value(self, attribute: str, value: Any, source: Optional[ConfigValueSource] = None):
+		if attribute not in ("default", "value"):
+			raise ValueError(f"Invalid attribute '{attribute}'")
+		if not self.multiple:
+			raise ValueError("Only one value allowed")
+		attribute = f"_{attribute}"
+		if not self.__dict__.get(attribute):
+			self.__dict__[attribute] = []
+		config_value = ConfigValue(self.type, value, source)
+		if self.key:
+			key_val = getattr(config_value.value, self.key)
+			for idx, config_val in enumerate(self.__dict__[attribute]):
+				if getattr(config_val.value, self.key) == key_val:
+					# Replace
+					self.__dict__[attribute][idx] = config_value
+					return
+		self.__dict__[attribute].append(config_value)
+
+	def add_value(self, value, source: Optional[ConfigValueSource] = None):
+		return self._add_value("value", value, source)
+
+	def _remove_value(self, attribute: str, value: Any):
+		if attribute not in ("default", "value"):
+			raise ValueError(f"Invalid attribute '{attribute}'")
+		if not self.multiple:
+			raise ValueError("Only one value allowed")
+		attribute = f"_{attribute}"
+		self.__dict__[attribute].remove(value)
+
+	def remove_value(self, value):
+		return self._remove_value("value", value)
+
+	def get_value(self, value_only: bool = True) -> Any:
+		if value_only:
+			return self.value
+		return self._value
+
+	def get_values(self, value_only: bool = True, sources: Optional[List[ConfigValueSource]] = None) -> List[Any]:
+		values = [
+			val.value if value_only else val
+			for val in (self._value if self.multiple else [self._value])
+			if val and (not sources or val.source in sources)
+		]
+		return values
+
+	def get_default(self, value_only: bool = True) -> Any:
+		if value_only:
+			return self.default
+		return self._default
+
 	def as_dict(self):
-		return asdict(self)
+		dict_ = asdict(self)
+		dict_["value"] = dict_.pop("_value")
+		dict_["default"] = dict_.pop("_default")
+		return dict_
+
+	def __repr__(self):
+		return f"<ConfigItem name={self.name!r}, default={self.default}, value={repr(self.value)}>"
 
 
 CONFIG_ITEMS = [
@@ -123,6 +244,7 @@ CONFIG_ITEMS = [
 		default="-",
 		description="Read data from the given file.",
 	),
+	ConfigItem(name="interactive", type=Bool, group="IO", default=sys.stdin.isatty(), description="Enable or disable interactive mode."),
 	ConfigItem(name="metadata", type=Bool, group="IO", default=False, description="Enable or disable output of metadata."),
 	ConfigItem(name="header", type=Bool, group="IO", default=True, description="Enable or disable header for data input and output."),
 	ConfigItem(
@@ -133,14 +255,15 @@ CONFIG_ITEMS = [
 		description="Select data attributes ([metavar]all[/metavar] selects all available attributes).",
 	),
 	ConfigItem(
-		name="service_url",
-		type=OPSIServiceUrl,
+		name="service",
+		type=OPSIServiceUrlOrServiceName,
 		group="Opsi service",
 		default="https://localhost:4447",
-		description="URL of the opsi service to connect.",
+		description="URL or name of a configured service to connect.",
 	),
 	ConfigItem(name="username", type=str, group="Opsi service", description="Username for opsi service connection."),
 	ConfigItem(name="password", type=Password, group="Opsi service", description="Password for opsi service connection."),
+	ConfigItem(name="services", type=OPSIService, description="Configured opsi services.", multiple=True, key="name"),
 ]
 
 if platform.system().lower() == "windows":
@@ -174,19 +297,29 @@ CONFIG_ITEMS.extend(
 	]
 )
 
-DEFAULT_CONFIG_FILE = None
-for config_file in DEFAULT_CONFIG_FILES:
-	config_path = Path(config_file).expanduser().absolute()
-	if config_path.exists():
-		DEFAULT_CONFIG_FILE = config_path
-		break
-CONFIG_ITEMS.append(
-	ConfigItem(name="config_file", type=File, group="General", default=DEFAULT_CONFIG_FILE, description="Config file location")
+CONFIG_ITEMS.extend(
+	[
+		ConfigItem(
+			name="config_file_system",
+			type=File,
+			group="General",
+			default="/etc/opsi/opsi-cli.yaml",
+			description="System wide config file location",
+		),
+		ConfigItem(
+			name="config_file_user",
+			type=File,
+			group="General",
+			default="~/.config/opsi-cli/opsi-cli.yaml",
+			description="User specific config file",
+		),
+	]
 )
 
 
 class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 	def __init__(self) -> None:
+		self._options_processed: Set[str] = set()
 		self._config: Dict[str, ConfigItem] = {}
 		for item in CONFIG_ITEMS:
 			self.add_config_item(item)
@@ -197,7 +330,9 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 	def get_config_item(self, name: str) -> ConfigItem:
 		return self._config[name]
 
-	def get_config_items(self) -> List[ConfigItem]:
+	def get_config_items(
+		self,
+	) -> List[ConfigItem]:
 		return list(self._config.values())
 
 	def get_values(self) -> Dict[str, Any]:
@@ -210,15 +345,73 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 		for name, value in values.items():
 			self._config[name].value = value
 
-	def read_config_file(self):
-		if not self.config_file:
-			return
-		yaml = YAML()
-		with open(self.config_file, "r", encoding="utf-8") as file:
-			data = yaml.load(file.read())
-			for key, val in data.items():
-				if key in self._config:
-					self._config[key].value = val
+	def read_config_files(self):
+		for file_type in ("config_file_system", "config_file_user"):
+			config_file = getattr(self, file_type, None)
+			if not config_file or not config_file.exists():
+				continue
+			source = ConfigValueSource.CONFIG_FILE_SYSTEM if file_type == "config_file_system" else ConfigValueSource.CONFIG_FILE_USER
+			with open(config_file, "r", encoding="utf-8") as file:
+				data = YAML().load(file.read())
+				for key, value in data.items():
+					config_item = self._config.get(key)
+					if not config_item:
+						continue
+
+					if not config_item.multiple and config_item.get_values(value_only=False, sources=[ConfigValueSource.COMMANDLINE]):
+						# Do not override cmdline arguments
+						continue
+
+					if config_item.key:
+						new_value = []
+						for akey, adict in value.items():
+							adict[config_item.key] = akey
+							new_value.append(adict)
+						value = new_value
+
+					if config_item.multiple:
+						for val in value:
+							if hasattr(config_item.type, "from_yaml"):
+								val = config_item.type.from_yaml(val)
+							config_item.add_value(val, source)
+					else:
+						if hasattr(config_item.type, "from_yaml"):
+							value = config_item.type.from_yaml(value)
+						config_item.set_value(value, source)
+
+	def write_config_files(self, sources: Optional[List[ConfigValueSource]] = None):
+		for file_type in ("config_file_system", "config_file_user"):
+			config_file = getattr(self, file_type, None)
+			source = ConfigValueSource.CONFIG_FILE_SYSTEM if file_type == "config_file_system" else ConfigValueSource.CONFIG_FILE_USER
+			if sources and source not in sources:
+				continue
+			if not config_file:
+				continue
+
+			data = {}
+			if config_file.exists():
+				with open(config_file, "r", encoding="utf-8") as file:
+					data = YAML().load(file)
+
+			for config_item in self._config.values():
+				values = [val for val in config_item.get_values(value_only=False) if val and val.source == source]
+				if not values:
+					continue
+				yaml_values = [val.value.to_yaml() if hasattr(val.value, "to_yaml") else val.value for val in values if val]
+
+				if config_item.multiple:
+					if config_item.key:
+						data[config_item.name] = {}
+						for yaml_val in yaml_values:
+							key = yaml_val.pop(config_item.key)
+							data[config_item.name][key] = yaml_val
+					else:
+						data[config_item.name] = yaml_values
+				else:
+					data[config_item.name] = yaml_values[0]
+
+			with open(config_file, "w", encoding="utf-8") as file:
+				YAML().dump(data, file)
 
 	def set_logging_config(self):
 		logging_config(
@@ -229,29 +422,42 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 		)
 
 	def process_option(self, ctx: click.Context, param: click.Option, value: Any):  # pylint: disable=unused-argument
+		param_source = ctx.get_parameter_source(param.name)
 		if IN_COMPLETION_MODE:
 			return
 		if param.name not in self._config:
 			return
+
 		try:
-			self._config[param.name].value = value
+			source = None
+			if param_source == ParameterSource.COMMANDLINE:
+				source = ConfigValueSource.COMMANDLINE
+			elif param_source == ParameterSource.ENVIRONMENT:
+				source = ConfigValueSource.ENVIRONMENT
+			if source:
+				self._config[param.name].set_value(value, source)
 		except ValueError as err:
 			msg = str(err)
 			if hasattr(err, "errors"):
 				msg = err.errors()[0]["msg"]  # type: ignore[attr-defined]
 			raise click.BadParameter(msg, ctx=ctx, param=param) from err
 
-		if param.name == "config_file":
-			self.read_config_file()
-		elif param.name in ("log_file", "file_level", "log_level_stderr", "color"):
-			self.set_logging_config()
-
 		ctx.default_map = {}
 		for key, item in self._config.items():
 			ctx.default_map[key] = item.value
 
+		self._options_processed.add(param.name)
+
+		test_params = ("config_file_system", "config_file_user")
+		if param.name in test_params:
+			if all(param in self._options_processed for param in test_params):
+				self.read_config_files()
+
+		if param.name in ("log_file", "file_level", "log_level_stderr", "color"):
+			self.set_logging_config()
+
 	def get_default(self, name: str) -> Any:
-		return self._config[name].default
+		return self._config[name].get_default()
 
 	def get_description(self, name: str) -> Optional[str]:
 		return self._config[name].description
@@ -267,14 +473,14 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 
 	def __getattr__(self, name: str) -> Any:
 		if not name.startswith("_") and name in self._config:
-			return self._config[name].value
+			return self._config[name].get_value()
 		raise AttributeError(name)
 
 	def __setattr__(self, name: str, value: Any) -> None:
 		if not name.startswith("_") and name in self._config:
 			if name == "password" and value:
 				secret_filter.add_secrets(value)
-			self._config[name].value = value
+			self._config[name].set_value(value)
 			return
 		super().__setattr__(name, value)
 

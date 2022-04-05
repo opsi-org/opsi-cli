@@ -78,7 +78,7 @@ class OpsiCLI(click.MultiCommand):
 				err.message = re.sub(r"\[/?metavar\]", "", err.message)
 				rich_format_error(err)
 			else:
-				sys.stderr.write(str(err))
+				sys.stderr.write(f"Error: {err}\n")
 			sys.exit(err.exit_code)
 		finally:
 			cache.exit()
@@ -118,15 +118,25 @@ class LogLevel(click.ParamType):
 @click.pass_context
 @click.version_option(f"{__version__}", message="opsi-cli version %(version)s")
 @click.option(
-	"--config-file",
-	"-c",
+	"--config-file-system",
 	type=click.Path(dir_okay=False),
 	callback=config.process_option,
 	metavar="CONFIG_FILE",
 	is_eager=True,
 	expose_value=False,
-	help=config.get_description("config_file"),
-	default=config.get_default("config_file"),
+	help=config.get_description("config_file_system"),
+	default=config.get_default("config_file_system"),
+	show_default=True,
+)
+@click.option(
+	"--config-file-user",
+	type=click.Path(dir_okay=False),
+	callback=config.process_option,
+	metavar="CONFIG_FILE",
+	is_eager=True,
+	expose_value=False,
+	help=config.get_description("config_file_user"),
+	default=config.get_default("config_file_user"),
 	show_default=True,
 )
 @click.option(
@@ -164,6 +174,12 @@ class LogLevel(click.ParamType):
 	callback=config.process_option,
 	help=config.get_description("color"),
 	default=config.get_default("color"),
+)
+@click.option(
+	"--interactive/--non-interactive",
+	callback=config.process_option,
+	help=config.get_description("interactive"),
+	default=config.get_default("interactive"),
 )
 @click.option(
 	"--output-format",
@@ -212,13 +228,13 @@ class LogLevel(click.ParamType):
 	default=config.get_default("attributes"),
 )
 @click.option(
-	"--service-url",
+	"--service",
 	type=str,
 	callback=config.process_option,
-	metavar="SERVICE_URL",
-	help=config.get_description("service_url"),
+	metavar="SERVICE",
+	help=config.get_description("service"),
 	show_default=True,
-	default=config.get_default("service_url"),
+	default=config.get_default("service"),
 )
 @click.option(
 	"--username",

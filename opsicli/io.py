@@ -17,6 +17,7 @@ import orjson
 from opsicommon.logging import logger  # type: ignore[import]
 from rich import print_json
 from rich.console import Console
+from rich.prompt import FloatPrompt, IntPrompt, Prompt
 from rich.table import Table, box
 
 from opsicli.config import config
@@ -84,6 +85,31 @@ def output_file(encoding: Optional[str] = "utf-8"):
 
 def get_console(file: IO[str] = None):
 	return Console(file=file, color_system="auto" if config.color else None)
+
+
+def prompt(  # pylint: disable=too-many-arguments
+	text: str,
+	return_type: Optional[type] = str,
+	password: bool = False,
+	default: Any = ...,
+	choices: Optional[List[str]] = None,
+	show_default: bool = True,
+	show_choices: bool = True,
+) -> Union[str, int, float]:
+	cls = Prompt
+	if return_type == int:
+		cls = IntPrompt
+	elif return_type == float:
+		cls = FloatPrompt
+	return cls.ask(
+		prompt=text,
+		console=get_console(),
+		default=default,
+		password=password,
+		choices=choices,
+		show_default=show_default,
+		show_choices=show_choices,
+	)
 
 
 def write_output_table(data: Any, metadata: Dict) -> None:

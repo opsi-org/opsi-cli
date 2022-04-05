@@ -18,16 +18,27 @@ jsonrpc_client = None  # pylint: disable=invalid-name
 def get_service_connection() -> JSONRPCClient:
 	global jsonrpc_client  # pylint: disable=invalid-name,global-statement
 	if not jsonrpc_client:
+		address = config.service
+		username = config.username
+		password = config.password
+		for service in config.services:
+			if service.name == config.service:
+				address = service.url
+				if service.username:
+					username = service.username
+				if service.password:
+					password = service.password
+
 		session_lifetime = 15
-		cache_key = f"jsonrpc-session-{config.service_url}-{config.username}"
+		cache_key = f"jsonrpc-session-{address}-{username}"
 		session_id = cache.get(cache_key)
 		if session_id:
 			secret_filter.add_secrets(session_id.split("=", 1)[1])
 			logger.debug("Reusing session %s", session_id)
 		jsonrpc_client = JSONRPCClient(
-			address=config.service_url,
-			username=config.username,
-			password=config.password,
+			address=address,
+			username=username,
+			password=password,
 			application=f"opsi-cli/{__version__}",
 			session_lifetime=session_lifetime,
 			session_id=session_id,
