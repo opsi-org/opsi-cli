@@ -17,7 +17,7 @@ import orjson
 from opsicommon.logging import logger  # type: ignore[import]
 from rich import print_json
 from rich.console import Console
-from rich.prompt import DefaultType, FloatPrompt, IntPrompt, Prompt
+from rich.prompt import FloatPrompt, IntPrompt, Prompt
 from rich.table import Table, box
 
 from opsicli.config import config
