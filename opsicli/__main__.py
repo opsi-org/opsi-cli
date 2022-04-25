@@ -171,6 +171,7 @@ class LogLevel(click.ParamType):
 @click.option(
 	"--color/--no-color",
 	is_eager=True,
+	envvar="NO_COLOR",
 	callback=config.process_option,
 	help=config.get_description("color"),
 	default=config.get_default("color"),
