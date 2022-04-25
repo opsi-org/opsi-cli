@@ -27,7 +27,7 @@ msgpack = "^1.0"
 [tool.poetry.dev-dependencies]
 pytest = "^6.2"
 opsi-dev-tools = "^1.1"
-pyinstaller = "^4.10"
+pyinstaller = "^5.0"
 pylint = "^2.6"
 flake8 = "^4.0"
 pytest-cov = "^3.0"
