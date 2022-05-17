@@ -409,7 +409,8 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 						data[config_item.name] = yaml_values
 				else:
 					data[config_item.name] = yaml_values[0]
-
+			if not config_file.parent.exists():
+				config_file.parent.mkdir(parents=True)
 			with open(config_file, "w", encoding="utf-8") as file:
 				YAML().dump(data, file)
 
