@@ -8,14 +8,13 @@ from typing import List, Optional
 from urllib.parse import urlparse
 
 import rich_click as click  # type: ignore[import]
-from click.shell_completion import CompletionItem
+from click.shell_completion import CompletionItem  # type: ignore[import]
 from opsicommon.logging import logger  # type: ignore[import]
-from ruamel.yaml import YAML
 
 from opsicli.config import ConfigValueSource, config
 from opsicli.io import prompt, write_output
 from opsicli.plugin import OPSICLIPlugin
-from opsicli.types import OPSIService
+from opsicli.types import OPSIService, Password
 
 __version__ = "0.1.0"
 
@@ -129,21 +128,21 @@ def service_add(
 		if not config.interactive:
 			raise ValueError("No url specified")
 		interactive = True
-		url = prompt("Please enter the base url of the opsi service", default="https://localhost:4447")
+		url = str(prompt("Please enter the base url of the opsi service", default="https://localhost:4447"))
 
 	ourl = urlparse(url)
 	if not name:
-		name = ourl.hostname
+		name = str(ourl.hostname)
 		if interactive:
-			name = prompt("Please enter a name for the service", default=name)
+			name = str(prompt("Please enter a name for the service", default=name))
 
 	if not username and interactive:
-		username = prompt("Enter the username to use for authentication (optional)") or None
+		username = str(prompt("Enter the username to use for authentication (optional)")) or None
 
 	if not password and interactive:
-		password = prompt("Enter the password to use for authentication (optional)", password=True) or None
+		password = str(prompt("Enter the password to use for authentication (optional)", password=True)) or None
 
-	new_service = OPSIService(name=name, url=url, username=username, password=password)
+	new_service = OPSIService(name=name, url=url, username=username, password=Password(password))
 
 	source = ConfigValueSource.CONFIG_FILE_SYSTEM if system else ConfigValueSource.CONFIG_FILE_USER
 	config.get_config_item("services").add_value(new_service, source)
@@ -170,7 +169,7 @@ def service_remove(
 			raise ValueError("No name specified")
 		if not names:
 			raise ValueError("No services specified")
-		name = prompt("Please enter a name for the service", choices=names)
+		name = str(prompt("Please enter a name for the service", choices=names))
 
 	if name not in names:
 		raise ValueError(f"Service {name} not found in {'system' if system else 'user'} configuration")

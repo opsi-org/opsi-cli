@@ -9,14 +9,12 @@ import re
 import shutil
 import subprocess
 from pathlib import Path
-from typing import List
 
 import psutil  # type: ignore[import]
 import rich_click as click  # type: ignore[import]
-from click.shell_completion import get_completion_class
+from click.shell_completion import get_completion_class  # type: ignore[import]
 from opsicommon.logging import logger  # type: ignore[import]
 
-from opsicli.config import config
 from opsicli.io import get_console
 from opsicli.plugin import OPSICLIPlugin
 
@@ -65,8 +63,8 @@ SUPPORTED_SHELLS = ["zsh", "bash", "fish"]
 	default="auto",
 	show_default=True,
 )
-@click.pass_context  # pylint: disable=too-many-branches
-def setup_shell_completion(ctx: click.Context, shell: str) -> None:
+@click.pass_context
+def setup_shell_completion(ctx: click.Context, shell: str) -> None:  # pylint: disable=too-many-branches
 	"""
 	opsi-cli config list subcommand.
 	"""

@@ -68,8 +68,10 @@ test:pylint-pytest:
     - apt-get --yes install sqlite3
     - poetry lock --no-update
     - poetry install
-    - poetry run pylint --disable=R,fixme opsicli tests
-    - poetry run flake8 opsicli tests
+    - poetry run pylint --disable=R,fixme opsicli plugins tests
+    - poetry run flake8 opsicli plugins tests
+    - poetry run mypy opsicli tests
+    - for plugin in plugins/*; do echo $plugin; poetry run mypy $plugin; done
     - for db in coverage_*; do sqlite3 $db 'update file set path=replace(substr(path,instr(path,"opsicli")),"\","/");'; done
     - echo -e '[run]\nrelative_files = True\n' > .coveragerc
     - poetry run coverage combine coverage_*
