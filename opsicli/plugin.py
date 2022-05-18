@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from urllib.parse import quote, unquote
 
-from click import Command
+from click import Command  # type: ignore[import]
 from opsicommon.logging import logger  # type: ignore[import]
 from opsicommon.utils import Singleton  # type: ignore[import]
 from packaging.version import parse

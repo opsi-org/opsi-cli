@@ -4,11 +4,11 @@ opsi-cli basic command line interface for opsi
 jsonrpc plugin
 """
 
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 import orjson
 import rich_click as click  # type: ignore[import]
-from click.shell_completion import CompletionItem
+from click.shell_completion import CompletionItem  # type: ignore[import]
 from opsicommon.logging import logger  # type: ignore[import]
 
 from opsicli.cache import cache

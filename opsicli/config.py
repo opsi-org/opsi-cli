@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Union
 
 import rich_click as click  # type: ignore[import]
-from click.core import ParameterSource
+from click.core import ParameterSource  # type: ignore[import]
 from opsicommon.logging import (  # type: ignore[import]
 	DEFAULT_COLORED_FORMAT,
 	DEFAULT_FORMAT,
@@ -28,7 +28,7 @@ from opsicommon.logging import (  # type: ignore[import]
 	secret_filter,
 )
 from opsicommon.utils import Singleton  # type: ignore[import]
-from ruamel.yaml import YAML
+from ruamel.yaml import YAML  # type: ignore[import]
 
 from opsicli.types import (
 	Attributes,
@@ -186,7 +186,7 @@ class ConfigItem:  # pylint: disable=too-many-instance-attributes
 	def get_values(self, value_only: bool = True, sources: Optional[List[ConfigValueSource]] = None) -> List[Any]:
 		values = [
 			val.value if value_only else val
-			for val in (self._value if self.multiple else [self._value])
+			for val in (self._value if self.multiple else [self._value])  # type: ignore[union-attr,list-item] # _value can be List or Scalar
 			if val and (not sources or val.source in sources)
 		]
 		return values
@@ -297,20 +297,29 @@ CONFIG_ITEMS.extend(
 	]
 )
 
+_config_file_system = None  # pylint: disable=invalid-name
+_config_file_user = None  # pylint: disable=invalid-name
+if platform.system().lower() == "windows":
+	# APPDATA points to ...\AppData\Roaming
+	_config_file_user = Path(os.getenv("APPDATA") or ".") / "opsi-cli" / "opsi-cli.yaml"
+else:
+	_config_file_system = Path("/etc/opsi/opsi-cli.yaml")
+	_config_file_user = Path("~/.config/opsi-cli/opsi-cli.yaml")
+
 CONFIG_ITEMS.extend(
 	[
 		ConfigItem(
 			name="config_file_system",
 			type=File,
 			group="General",
-			default="/etc/opsi/opsi-cli.yaml",
+			default=_config_file_system,
 			description="System wide config file location",
 		),
 		ConfigItem(
 			name="config_file_user",
 			type=File,
 			group="General",
-			default="~/.config/opsi-cli/opsi-cli.yaml",
+			default=_config_file_user,
 			description="User specific config file",
 		),
 	]
@@ -409,7 +418,8 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 						data[config_item.name] = yaml_values
 				else:
 					data[config_item.name] = yaml_values[0]
-
+			if not config_file.parent.exists():
+				config_file.parent.mkdir(parents=True)
 			with open(config_file, "w", encoding="utf-8") as file:
 				YAML().dump(data, file)
 

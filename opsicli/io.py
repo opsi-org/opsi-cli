@@ -10,15 +10,15 @@ import inspect
 import io
 import sys
 from contextlib import contextmanager
-from typing import IO, Any, Dict, List, Optional, Union
+from typing import IO, Any, Dict, List, Optional, Type, Union
 
 import msgpack  # type: ignore[import]
 import orjson
 from opsicommon.logging import logger  # type: ignore[import]
-from rich import print_json
-from rich.console import Console
-from rich.prompt import FloatPrompt, IntPrompt, Prompt
-from rich.table import Table, box
+from rich import print_json  # type: ignore[import]
+from rich.console import Console  # type: ignore[import]
+from rich.prompt import FloatPrompt, IntPrompt, Prompt  # type: ignore[import]
+from rich.table import Table, box  # type: ignore[import]
 
 from opsicli.config import config
 
@@ -96,7 +96,7 @@ def prompt(  # pylint: disable=too-many-arguments
 	show_default: bool = True,
 	show_choices: bool = True,
 ) -> Union[str, int, float]:
-	cls = Prompt
+	cls: Union[Type[Prompt], Type[IntPrompt], Type[FloatPrompt]] = Prompt
 	if return_type == int:
 		cls = IntPrompt
 	elif return_type == float:

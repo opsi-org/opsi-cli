@@ -11,8 +11,8 @@ import sys
 from typing import Any, List, Optional, Sequence
 
 import rich_click as click  # type: ignore[import]
-from click.exceptions import Abort, ClickException
-from click.shell_completion import CompletionItem
+from click.exceptions import Abort, ClickException  # type: ignore[import]
+from click.shell_completion import CompletionItem  # type: ignore[import]
 from opsicommon.logging import logger  # type: ignore[import]
 from rich_click.rich_click import (  # type: ignore[import]
 	rich_abort_error,

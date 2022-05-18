@@ -2,7 +2,7 @@
 template for opsi-cli plugins
 """
 
-import click
+import click  # type: ignore[import]
 from opsicommon.logging import logger  # type: ignore[import]
 
 from opsicli.plugin import OPSICLIPlugin
@@ -25,7 +25,7 @@ def cli() -> None:  # The docstring is used in opsi-cli {{ID}} --help
 @click.option("--exampleoption", "-o", help="example for an option", is_flag=True, default=False)
 def subcommand(exampleargument, exampleoption) -> None:  # The name of the function is used as name for the subcommand
 	"""
-	This is a subcommand example to the{{ID}} command
+	This is a subcommand example to the {{ID}} command
 	"""
 	logger.trace("{{ID}} 'subcommand' subcommand")
 	print(f"{{ID}} subcommand is called with values exampleargument={exampleargument}")
