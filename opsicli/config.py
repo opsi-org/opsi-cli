@@ -301,7 +301,7 @@ _config_file_system = None  # pylint: disable=invalid-name
 _config_file_user = None  # pylint: disable=invalid-name
 if platform.system().lower() == "windows":
 	# APPDATA points to ...\AppData\Roaming
-	_config_file_user = Path(os.getenv("APPDATA") or ".") / "opsi-cli.yaml"
+	_config_file_user = Path(os.getenv("APPDATA") or ".") / "opsi-cli" / "opsi-cli.yaml"
 else:
 	_config_file_system = Path("/etc/opsi/opsi-cli.yaml")
 	_config_file_user = Path("~/.config/opsi-cli/opsi-cli.yaml")
