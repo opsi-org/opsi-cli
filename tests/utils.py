@@ -10,7 +10,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator, Sequence, Tuple
 
-from click.testing import CliRunner
+from click.testing import CliRunner  # type: ignore[import]
 
 from opsicli.__main__ import main
 from opsicli.config import config
