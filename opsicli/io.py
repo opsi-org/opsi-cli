@@ -145,8 +145,7 @@ def write_output_table(data: Any, metadata: Dict) -> None:
 
 	with output_file() as file:
 		console = get_console(file)
-		with console.pager():
-			console.print(table)
+		console.print(table)
 
 
 def write_output_csv(data: Any, metadata: Dict) -> None:
