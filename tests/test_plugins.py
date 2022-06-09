@@ -128,9 +128,11 @@ def test_plugin_new(tmp_path) -> None:
 	with temp_context():
 		destination = tmp_path / "newplugin"
 
+		print(f'Calling opsicli with ["plugin", "new", "--description", "", "--version", "0.1.0", "--path", {str(tmp_path)}, "newplugin"]')
 		exit_code, output = run_cli(
-			["plugin", "new", "--name", "newplugin", "--description", "", "--version", "0.1.0", "--path", str(tmp_path)]
+			["plugin", "new", "--description", "", "--version", "0.1.0", "--path", str(tmp_path), "newplugin"]
 		)
+		print(output)
 		assert exit_code == 0
 		assert "Plugin 'newplugin' created" in output
 		assert (destination / "python" / "__init__.py").exists()
@@ -142,3 +144,17 @@ def test_plugin_new(tmp_path) -> None:
 		exit_code, output = run_cli(["plugin", "list"])
 		assert exit_code == 0
 		assert "newplugin" in output
+
+
+def test_pluginarchive_extract_compress(tmp_path) -> None:
+	with temp_context():
+		exit_code, output = run_cli(["plugin", "compress", str(TESTPLUGIN), str(tmp_path)])
+		assert exit_code == 0
+		assert "compressed to" in output
+		assert (tmp_path / "dummy.opsicliplug").exists()
+
+		exit_code, output = run_cli(["plugin", "extract", str(tmp_path / "dummy.opsicliplug"), str(tmp_path)])
+		assert exit_code == 0
+		assert "extracted to" in output
+		assert (tmp_path / "dummy").is_dir()
+		assert (tmp_path / "dummy" / "python" / "__init__.py").read_text("utf-8") == (TESTPLUGIN / "python" / "__init__.py").read_text("utf-8")

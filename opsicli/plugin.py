@@ -180,6 +180,10 @@ class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-meth
 		return self._plugins[plugin_id]
 
 	def load_plugin(self, plugin_dir: Path) -> None:
+		if str(config.user_lib_dir) not in sys.path:
+			sys.path.append(str(config.user_lib_dir))
+		if str(config.python_lib_dir) not in sys.path:
+			sys.path.append(str(config.python_lib_dir))
 		logger.info("Loading plugin from '%s'", plugin_dir)
 		module_name = self.module_name(plugin_dir)
 		logger.debug("Module name is %r", module_name)

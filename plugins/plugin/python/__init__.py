@@ -10,12 +10,13 @@ import shutil
 import tempfile
 import zipfile
 from pathlib import Path
+from typing import List
 
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import logger  # type: ignore[import]
 
 from opsicli.config import config
-from opsicli.io import get_console, write_output
+from opsicli.io import get_console, prompt, write_output
 from opsicli.plugin import (
 	PLUGIN_EXTENSION,
 	OPSICLIPlugin,
@@ -39,31 +40,39 @@ def cli() -> None:  # pylint: disable=unused-argument
 
 
 @cli.command(short_help=f"Add new plugin (python package or .{PLUGIN_EXTENSION})")
-@click.argument("path", type=click.Path(exists=True, file_okay=True, dir_okay=True, path_type=Path))
+@click.argument("paths", type=click.Path(exists=True, file_okay=True, dir_okay=True, path_type=Path), nargs=-1)
 @click.option(
 	"--system/--user",
 	help=("Install system wide or for current user."),
 	default=False,
 	show_default=True,
 )
-def add(path: Path, system: bool) -> None:
+def add(paths: List[Path], system: bool) -> None:
 	"""
 	opsi-cli plugin add subcommand.
 	Specify a path to a python package directory or an opsi-cli plugin file
 	to install it as plugin for opsi-cli
 	"""
-	with tempfile.TemporaryDirectory() as tmpdir:
-		tmpdir_path = Path(tmpdir)
-		(tmpdir_path / "lib").mkdir(parents=True, exist_ok=True)
-		name = prepare_plugin(path, tmpdir_path)
-		path = install_plugin(tmpdir_path, name, system)
-	get_console().print(f"Plugin {name!r} installed into '{path}'")
+	for path in paths:
+		with tempfile.TemporaryDirectory() as tmpdir:
+			tmpdir_path = Path(tmpdir)
+			(tmpdir_path / "lib").mkdir(parents=True, exist_ok=True)
+			name = prepare_plugin(path, tmpdir_path)
+			path = install_plugin(tmpdir_path, name, system)
+		get_console().print(f"Plugin {name!r} installed into '{path}'")
 
 
 @cli.command(short_help=f"Export plugin as .{PLUGIN_EXTENSION}")
 @click.argument("plugin_id", type=str)
 @click.argument("destination_dir", type=click.Path(file_okay=False, dir_okay=True, path_type=Path), default=Path("."))
-def export(plugin_id: str, destination_dir: Path) -> None:
+@click.option(
+	"--raw",
+	help="Extract as directory instead of .opsicliplug",
+	is_flag=True,
+	show_default=True,
+	default=False
+)
+def export(plugin_id: str, destination_dir: Path, raw: bool) -> None:
 	"""
 	opsi-cli plugin export subcommand.
 	This subcommand is used to export an installed opsi-cli plugin.
@@ -71,12 +80,19 @@ def export(plugin_id: str, destination_dir: Path) -> None:
 	instance of opsi-cli via "plugin add". Also see "plugin list".
 	"""
 	destination_dir.mkdir(parents=True, exist_ok=True)
+	path = plugin_manager.get_plugin(plugin_id).path
+	logger.debug("Getting plugin from path %s", path)
+
+	if raw:
+		destination = destination_dir / plugin_id
+		if (destination).exists():
+			raise FileExistsError(f"Directory {destination} exists! Remove it before exporting {plugin_id} in 'raw' mode.")
+		logger.notice("Exporting plugin %r to %r", plugin_id, destination)
+		shutil.copytree(path, destination)
+		return
+
 	destination = destination_dir / f"{plugin_id}.{PLUGIN_EXTENSION}"
 	logger.notice("Exporting plugin %r to %r", plugin_id, destination)
-	path = plugin_manager.get_plugin(plugin_id).path
-
-	logger.debug("Compressing plugin path %s", path)
-
 	with zipfile.ZipFile(destination, "w", zipfile.ZIP_DEFLATED) as zfile:
 		for root, _, files in os.walk(path):
 			root_path = Path(root)
@@ -87,6 +103,52 @@ def export(plugin_id: str, destination_dir: Path) -> None:
 				logger.debug("Adding file '%s'", root_path / single_file)
 				zfile.write(str(root_path / single_file), arcname=str(Path(plugin_id) / base / single_file))
 	get_console().print(f"Plugin {plugin_id!r} exported to '{destination!s}'")
+
+
+@cli.command(short_help=f"Extract .{PLUGIN_EXTENSION} to raw plugin from")
+@click.argument("archive", type=click.Path(file_okay=True, dir_okay=False, path_type=Path))
+@click.argument("destination_dir", type=click.Path(file_okay=False, dir_okay=True, path_type=Path), default=Path("."))
+def extract(archive: Path, destination_dir: Path) -> None:
+	"""
+	opsi-cli plugin extract subcommand.
+	This subcommand is used to extract an archive to its raw plugin state.
+	The operation is performed without importing the plugin.
+	The running opsi-cli instance is unaffected.
+	"""
+	plugin_id = archive.stem
+	if (destination_dir / plugin_id).exists():
+		raise FileExistsError(f"Directory {destination_dir / plugin_id} exists! Remove it before extracting {archive} to {destination_dir}")
+	logger.notice("Extracting plugin archive %s to path %s", archive, destination_dir)
+	with zipfile.ZipFile(archive, "r", zipfile.ZIP_DEFLATED) as zfile:
+		zfile.extractall(path=str(destination_dir))
+	get_console().print(f"Plugin archive {archive!s} extracted to '{destination_dir!s}'")
+
+
+@cli.command(short_help=f"Compress raw plugin directory to .{PLUGIN_EXTENSION} archive")
+@click.argument("source_dir", type=click.Path(file_okay=False, dir_okay=True, path_type=Path))
+@click.argument("destination_dir", type=click.Path(file_okay=False, dir_okay=True, path_type=Path), default=Path("."))
+def compress(source_dir: Path, destination_dir: Path) -> None:
+	"""
+	opsi-cli plugin compress subcommand.
+	This subcommand is used to compress a raw plugin directory to an archive.
+	The operation is performed without importing the plugin.
+	The running opsi-cli instance is unaffected.
+	"""
+	plugin_id = source_dir.stem
+	archive = destination_dir / f"{plugin_id}.{PLUGIN_EXTENSION}"
+	if (archive).exists():
+		raise FileExistsError(f"Archive {archive} exists! Remove it before compressing {source_dir} to {destination_dir}")
+	logger.notice("Compressing plugin directory %s to archive %s", source_dir, archive)
+	with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as zfile:
+		for root, _, files in os.walk(source_dir):
+			root_path = Path(root)
+			if root_path.name in ("__pycache__",):
+				continue
+			base = root_path.relative_to(source_dir)
+			for single_file in files:
+				logger.debug("Adding file '%s'", root_path / single_file)
+				zfile.write(str(root_path / single_file), arcname=str(Path(plugin_id) / base / single_file))
+	get_console().print(f"Plugin source {source_dir!s} compressed to '{archive!s}'")
 
 
 @cli.command(name="list", short_help="List imported plugins")
@@ -136,11 +198,10 @@ def remove(plugin_id: str) -> None:
 	get_console().print(f"Plugin {plugin_id!r} removed")
 
 
-# --name as option with prompt or as mandatory argument?
 @cli.command(short_help="Create a new plugin")
-@click.option("--name", help="Name of the new plugin (default: same as id)", type=str, prompt=True)
-@click.option("--version", help="Version number of the new plugin", type=str, prompt=True, default="0.1.0")
-@click.option("--description", help="Version number of the new plugin", type=str, prompt=True, default="")
+@click.argument("name", type=str, required=False)
+@click.option("--version", help="Version number of the new plugin", type=str)
+@click.option("--description", help="Version number of the new plugin", type=str)
 @click.option(
 	"--path", help="Path to put plugin template", type=click.Path(file_okay=False, dir_okay=True, path_type=Path), default=Path(".")
 )
@@ -150,7 +211,20 @@ def new(name: str, version: str, description: str, path: Path) -> None:
 	This subcommand creates a new plugin.
 	"""
 	if not name:
-		raise ValueError("Plugin name must not be empty")
+		if not config.interactive:
+			raise ValueError("No name specified")
+		name = str(prompt("Please enter a name for the new plugin"))
+		if not name:
+			raise ValueError("Plugin name must not be empty")
+	if not version:
+		if not config.interactive:
+			raise ValueError("No version specified")
+		version = str(prompt("Please enter version number", default="0.1.0"))
+	if description is None:
+		if not config.interactive:
+			description = ""
+		else:
+			description = str(prompt("Please enter description", default="")).replace('"', '\\"')
 	plugin_id = name.lower()
 	logger.notice("Creating new plugin '%s'", plugin_id)
 	logger.debug("name='%s', version='%s', description='%s'", name, version, description)
