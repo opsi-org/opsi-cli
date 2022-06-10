@@ -102,21 +102,21 @@ def test_pluginarchive_export_import(tmp_path) -> None:
 
 		exit_code, output = run_cli(["plugin", "add", str(TESTPLUGIN)])
 		assert exit_code == 0
-		assert "Plugin 'dummy' installed" in output
+		assert "'dummy' installed" in output
 
 		exit_code, output = run_cli(["plugin", "export", "dummy", str(tmp_path)])
 		assert exit_code == 0
-		assert "Plugin 'dummy' exported to" in output
+		assert "'dummy' exported to" in output
 
 		assert destination.exists()
 
 		exit_code, output = run_cli(["plugin", "remove", "dummy"])
 		assert exit_code == 0
-		assert "Plugin 'dummy' removed" in output
+		assert "'dummy' removed" in output
 
 		exit_code, output = run_cli(["plugin", "add", str(destination)])
 		assert exit_code == 0
-		assert "Plugin 'dummy' installed" in output
+		assert "'dummy' installed" in output
 
 		exit_code, output = run_cli(["plugin", "list"])
 		assert exit_code == 0
@@ -152,12 +152,12 @@ def test_pluginarchive_extract_compress(tmp_path) -> None:
 	with temp_context():
 		exit_code, output = run_cli(["plugin", "compress", str(TESTPLUGIN), str(tmp_path)])
 		assert exit_code == 0
-		assert "compressed to" in output
+		assert "compressed" in output
 		assert (tmp_path / "dummy.opsicliplug").exists()
 
 		exit_code, output = run_cli(["plugin", "extract", str(tmp_path / "dummy.opsicliplug"), str(tmp_path)])
 		assert exit_code == 0
-		assert "extracted to" in output
+		assert "extracted" in output
 		assert (tmp_path / "dummy").is_dir()
 		assert (tmp_path / "dummy" / "python" / "__init__.py").read_text("utf-8") == (TESTPLUGIN / "python" / "__init__.py").read_text("utf-8")
 
