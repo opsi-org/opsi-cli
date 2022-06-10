@@ -39,7 +39,10 @@ def test_pip() -> None:
 		assert os.listdir(tempdir) and "netifaces" in os.listdir(tempdir)[0]
 
 
-def test_plugin_add_remove() -> None:
+# Permission Error on windows: file unlink is impossible if handle is opened
+# Problem: add plugin, then load plugin -> open file handle until teardown of python process
+@pytest.mark.posix
+def test_plugin_add() -> None:
 	with temp_context():
 		exit_code, _ = run_cli(["plugin", "add", str(TESTPLUGIN)])
 		assert exit_code == 0
@@ -47,14 +50,6 @@ def test_plugin_add_remove() -> None:
 		assert exit_code == 0
 		assert "Response" in result  # requests.get("https://opsi.org")
 		assert "default" in result  # netifaces.gateways()
-
-		exit_code, output = run_cli(["plugin", "list"])
-		assert exit_code == 0
-		assert "dummy" in output
-		run_cli(["plugin", "remove", "dummy"])
-		exit_code, output = run_cli(["plugin", "list"])
-		assert exit_code == 0
-		assert "dummy" not in output
 
 
 def test_plugin_fail() -> None:
@@ -83,6 +78,13 @@ def test_plugin_fail() -> None:
 def test_plugin_remove() -> None:
 	with temp_context():
 		run_cli(["plugin", "add", str(TESTPLUGIN)])
+		exit_code, output = run_cli(["plugin", "list"])
+		assert exit_code == 0
+		assert "dummy" in output
+		run_cli(["plugin", "remove", "dummy"])
+		exit_code, output = run_cli(["plugin", "list"])
+		assert exit_code == 0
+		assert "dummy" not in output
 
 
 def test_pluginarchive_export_import(tmp_path) -> None:
