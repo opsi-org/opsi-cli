@@ -116,3 +116,4 @@ class SelfPlugin(OPSICLIPlugin):
 	description: str = "Manage opsi-cli"
 	version: str = __version__
 	cli = cli
+	flags: list[str] = ["protected"]

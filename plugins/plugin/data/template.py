@@ -40,3 +40,4 @@ class CustomPlugin(OPSICLIPlugin):
 	description: str = __description__
 	version: str = __version__
 	cli = cli
+	flags: list[str] = []
