@@ -48,6 +48,8 @@ def test_plugin_add() -> None:
 		assert "Response" in result  # requests.get("https://opsi.org")
 		assert "default" in result  # netifaces.gateways()
 
+		plugin_manager.unload_plugins()
+
 
 def test_plugin_fail() -> None:
 	with temp_context():
@@ -72,9 +74,6 @@ def test_plugin_fail() -> None:
 		assert "Invalid command" in output
 
 
-# Permission Error on windows: file unlink is impossible if handle is opened
-# Problem: add plugin, then load plugin -> open file handle until teardown of python process
-@pytest.mark.posix
 def test_plugin_remove() -> None:
 	with temp_context():
 		run_cli(["plugin", "add", str(TESTPLUGIN)])
@@ -87,9 +86,6 @@ def test_plugin_remove() -> None:
 		assert "dummy" not in output
 
 
-# Permission Error on windows: file unlink is impossible if handle is opened
-# Problem: add plugin, then load plugin -> open file handle until teardown of python process
-@pytest.mark.posix
 def test_pluginarchive_export_import(tmp_path) -> None:
 	with temp_context():
 		destination = tmp_path / f"dummy.{PLUGIN_EXTENSION}"
