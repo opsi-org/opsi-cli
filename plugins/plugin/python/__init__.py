@@ -70,13 +70,13 @@ def add(paths: List[Path], system: bool) -> None:
 @click.argument("plugin_id", type=str)
 @click.argument("destination_dir", type=click.Path(file_okay=False, dir_okay=True, path_type=Path), default=Path("."))
 @click.option(
-	"--raw",
+	"--src",
 	help="Extract as directory instead of .opsicliplug",
 	is_flag=True,
 	show_default=True,
 	default=False
 )
-def export(plugin_id: str, destination_dir: Path, raw: bool) -> None:
+def export(plugin_id: str, destination_dir: Path, src: bool) -> None:
 	"""
 	opsi-cli plugin export subcommand.
 	This subcommand is used to export an installed opsi-cli plugin.
@@ -87,10 +87,10 @@ def export(plugin_id: str, destination_dir: Path, raw: bool) -> None:
 	path = plugin_manager.get_plugin(plugin_id).path
 	logger.debug("Getting plugin from path %s", path)
 
-	if raw:
+	if src:
 		destination = destination_dir / plugin_id
 		if (destination).exists():
-			raise FileExistsError(f"Directory {destination} exists! Remove it before exporting {plugin_id} in 'raw' mode.")
+			raise FileExistsError(f"Directory {destination} exists! Remove it before exporting {plugin_id} in 'src' mode.")
 		logger.notice("Exporting plugin %r to %r", plugin_id, destination)
 		shutil.copytree(path, destination)
 		return
@@ -109,13 +109,13 @@ def export(plugin_id: str, destination_dir: Path, raw: bool) -> None:
 	get_console().print(f"Plugin {plugin_id!r} exported to '{destination!s}'")
 
 
-@cli.command(short_help=f"Extract .{PLUGIN_EXTENSION} to raw plugin from")
+@cli.command(short_help=f"Extract source from .{PLUGIN_EXTENSION}")
 @click.argument("archive", type=click.Path(file_okay=True, dir_okay=False, path_type=Path))
 @click.argument("destination_dir", type=click.Path(file_okay=False, dir_okay=True, path_type=Path), default=Path("."))
 def extract(archive: Path, destination_dir: Path) -> None:
 	"""
 	opsi-cli plugin extract subcommand.
-	This subcommand is used to extract an archive to its raw plugin state.
+	This subcommand is used to extract an archive to its source plugin state.
 	The operation is performed without importing the plugin.
 	The running opsi-cli instance is unaffected.
 	"""
@@ -128,13 +128,13 @@ def extract(archive: Path, destination_dir: Path) -> None:
 	get_console().print(f"Plugin archive {archive!s} extracted to '{destination_dir!s}'")
 
 
-@cli.command(short_help=f"Compress raw plugin directory to .{PLUGIN_EXTENSION} archive")
+@cli.command(short_help=f"Compress plugin source directory to .{PLUGIN_EXTENSION} archive")
 @click.argument("source_dir", type=click.Path(file_okay=False, dir_okay=True, path_type=Path))
 @click.argument("destination_dir", type=click.Path(file_okay=False, dir_okay=True, path_type=Path), default=Path("."))
 def compress(source_dir: Path, destination_dir: Path) -> None:
 	"""
 	opsi-cli plugin compress subcommand.
-	This subcommand is used to compress a raw plugin directory to an archive.
+	This subcommand is used to compress a plugin source directory to an archive.
 	The operation is performed without importing the plugin.
 	The running opsi-cli instance is unaffected.
 	"""

@@ -215,9 +215,8 @@ def install_plugin(source_dir: Path, name: str, system: Optional[bool] = False) 
 				shutil.copy2(src_dir / file_, dst_dir / file_)
 
 	plugin_object = plugin_manager.extract_plugin_object(source_dir / name)
-	print(plugin_object)
 	if "protected" in plugin_object.flags:
-		raise PermissionError(f"Failed to add plugin {plugin_object.id}. It is marked as 'restricted'.")
+		raise PermissionError(f"Failed to add plugin {plugin_object.id}. It is marked as 'protected'.")
 
 	destination = plugin_dir / name
 	logger.info("Installing plugin from '%s' to '%s'", source_dir / name, destination)
