@@ -39,7 +39,7 @@ def test_pip() -> None:
 		assert os.listdir(tempdir) and "netifaces" in os.listdir(tempdir)[0]
 
 
-def test_plugin_add() -> None:
+def test_plugin_add_remove() -> None:
 	with temp_context():
 		exit_code, _ = run_cli(["plugin", "add", str(TESTPLUGIN)])
 		assert exit_code == 0
@@ -48,7 +48,13 @@ def test_plugin_add() -> None:
 		assert "Response" in result  # requests.get("https://opsi.org")
 		assert "default" in result  # netifaces.gateways()
 
-		plugin_manager.unload_plugins()
+		exit_code, output = run_cli(["plugin", "list"])
+		assert exit_code == 0
+		assert "dummy" in output
+		run_cli(["plugin", "remove", "dummy"])
+		exit_code, output = run_cli(["plugin", "list"])
+		assert exit_code == 0
+		assert "dummy" not in output
 
 
 def test_plugin_fail() -> None:
@@ -77,13 +83,6 @@ def test_plugin_fail() -> None:
 def test_plugin_remove() -> None:
 	with temp_context():
 		run_cli(["plugin", "add", str(TESTPLUGIN)])
-		exit_code, output = run_cli(["plugin", "list"])
-		assert exit_code == 0
-		assert "dummy" in output
-		run_cli(["plugin", "remove", "dummy"])
-		exit_code, output = run_cli(["plugin", "list"])
-		assert exit_code == 0
-		assert "dummy" not in output
 
 
 def test_pluginarchive_export_import(tmp_path) -> None:
