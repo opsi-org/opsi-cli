@@ -144,4 +144,4 @@ class JSONRPCPlugin(OPSICLIPlugin):
 	description: str = "Opsi JSONRPC API client"
 	version: str = __version__
 	cli = cli
-	flags = ["protected"]
+	flags: list[str] = ["protected"]

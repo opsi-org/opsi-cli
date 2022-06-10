@@ -179,7 +179,7 @@ def replace_data(string: str, replacements: Dict[str, str]) -> str:
 	return string
 
 
-def prepare_plugin(path: Path, tmpdir: Path) -> OPSICLIPlugin:
+def prepare_plugin(path: Path, tmpdir: Path) -> str:
 	"""Creates the plugin and libs in tmp"""
 	logger.info("Inspecting plugin source '%s'", path)
 	plugin_id = path.stem
@@ -193,7 +193,7 @@ def prepare_plugin(path: Path, tmpdir: Path) -> OPSICLIPlugin:
 
 	logger.info("Retrieving libraries for new plugin")
 	install_dependencies(tmpdir / plugin_id, tmpdir / "lib")
-	return plugin_manager.extract_plugin_object(tmpdir / plugin_id)
+	return plugin_id
 
 
 def install_plugin(source_dir: Path, name: str, system: Optional[bool] = False) -> Path:
@@ -213,6 +213,11 @@ def install_plugin(source_dir: Path, name: str, system: Optional[bool] = False) 
 			if not (dst_dir / file_).exists():
 				# avoid replacing files that might be currently loaded -> segfault
 				shutil.copy2(src_dir / file_, dst_dir / file_)
+
+	plugin_object = plugin_manager.extract_plugin_object(source_dir / name)
+	print(plugin_object)
+	if "protected" in plugin_object.flags:
+		raise PermissionError(f"Failed to add plugin {plugin_object.id}. It is marked as 'restricted'.")
 
 	destination = plugin_dir / name
 	logger.info("Installing plugin from '%s' to '%s'", source_dir / name, destination)

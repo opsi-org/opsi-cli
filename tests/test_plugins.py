@@ -44,8 +44,10 @@ def test_pip() -> None:
 @pytest.mark.posix
 def test_plugin_add() -> None:
 	with temp_context():
-		run_cli(["plugin", "add", str(TESTPLUGIN)])
-		_exit_code, result = run_cli(["dummy", "libtest"])
+		exit_code, _ = run_cli(["plugin", "add", str(TESTPLUGIN)])
+		assert exit_code == 0
+		exit_code, result = run_cli(["dummy", "libtest"])
+		assert exit_code == 0
 		assert "Response" in result  # requests.get("https://opsi.org")
 		assert "default" in result  # netifaces.gateways()
 
@@ -158,3 +160,21 @@ def test_pluginarchive_extract_compress(tmp_path) -> None:
 		assert "extracted to" in output
 		assert (tmp_path / "dummy").is_dir()
 		assert (tmp_path / "dummy" / "python" / "__init__.py").read_text("utf-8") == (TESTPLUGIN / "python" / "__init__.py").read_text("utf-8")
+
+
+def test_flag_protected(tmp_path) -> None:
+	with temp_context():
+		run_cli(["plugin", "new", "--description", "", "--version", "0.1.0", "--path", str(tmp_path), "newplugin"])
+		with open(tmp_path / "newplugin" / "python" / "__init__.py", "r", encoding="utf-8") as entrypoint:
+			template = entrypoint.read()
+		template = template.replace("flags: list[str] = []", 'flags: list[str] = ["protected"]')
+		with open(tmp_path / "newplugin" / "python" / "__init__.py", "w", encoding="utf-8") as entrypoint:
+			entrypoint.write(template)
+
+		exit_code, _ = run_cli(["plugin", "add", str(tmp_path / "newplugin")])
+		assert exit_code == 0  # plugin is not added, exitcode is still 0 (could be used for many plugins at once)
+		exit_code, output = run_cli(["plugin", "list"])
+		assert "newplugin" not in output
+
+		exit_code, _ = run_cli(["plugin", "remove", "config"])
+		assert exit_code == 1  # not allowed to remove "config" as it is a protected plugin

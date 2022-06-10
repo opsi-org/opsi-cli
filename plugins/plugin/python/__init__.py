@@ -57,13 +57,13 @@ def add(paths: List[Path], system: bool) -> None:
 		with tempfile.TemporaryDirectory() as tmpdir:
 			tmpdir_path = Path(tmpdir)
 			(tmpdir_path / "lib").mkdir(parents=True, exist_ok=True)
-			new_plugin = prepare_plugin(path, tmpdir_path)
-			print(new_plugin)
-			if "restricted" in new_plugin.flags:
-				logger.error("Failed to add plugin %s. It is marked as 'restricted'.", new_plugin.id)
+			plugin_id = prepare_plugin(path, tmpdir_path)
+			try:
+				path = install_plugin(tmpdir_path, plugin_id, system)
+			except PermissionError as p_error:
+				logger.error(p_error, exc_info=True)
 				continue
-			path = install_plugin(tmpdir_path, new_plugin.id, system)
-		get_console().print(f"Plugin {new_plugin.id!r} installed into '{path}'.")
+		get_console().print(f"Plugin {plugin_id!r} installed into '{path}'.")
 
 
 @cli.command(short_help=f"Export plugin as .{PLUGIN_EXTENSION}")
@@ -268,4 +268,4 @@ class PluginPlugin(OPSICLIPlugin):
 	description: str = "Manage opsi-cli plugins"
 	version: str = __version__
 	cli = cli
-	flags = ["protected"]
+	flags: list[str] = ["protected"]
