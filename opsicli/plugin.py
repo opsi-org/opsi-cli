@@ -12,6 +12,7 @@ import sys
 import zipfile
 from importlib._bootstrap import BuiltinImporter  # type: ignore[import]
 from pathlib import Path
+from types import ModuleType
 from typing import Dict, List, Optional
 from urllib.parse import quote, unquote
 
@@ -31,13 +32,154 @@ PLUGIN_EXTENSION = "opsicliplug"
 SKIP_DEPENDENCY_LIST = ["click", "opsicommon", "rich_click", "pydantic", "ruamel", "msgpack", "orjson"]
 
 
+class OPSICLIPlugin:
+	id: str = ""  # pylint: disable=invalid-name
+	name: str = ""
+	description: str = ""
+	version: str = ""
+	cli: Optional[Command] = None
+	flags: List[str] = []
+
+	def __init__(self, path: Path) -> None:  # pylint: disable=redefined-builtin
+		self.path = path
+		self.data_path = self.path / "data"
+
+	def on_load(self) -> None:  # pylint: disable=no-self-use,unused-argument
+		"""Called after loading the plugin"""
+		return
+
+	def on_unload(self) -> None:  # pylint: disable=no-self-use,unused-argument
+		"""Called before unloading the plugin"""
+		return
+
+	def __str__(self) -> str:
+		"""Return information in string form"""
+		return f"{self.id}_{self.version}({self.flags})"
+
+
+class PluginImporter(BuiltinImporter):
+	@classmethod
+	def find_spec(cls, fullname, path=None, target=None):
+		if not fullname.startswith("opsicli.addon"):
+			return None
+		plugin_path = unquote(fullname.split("_", 1)[1]).replace("%2E", ".")
+		init_path = os.path.join(plugin_path, "python", "__init__.py")
+		logger.debug("Searching spec for %s", init_path)
+		if not os.path.exists(init_path):
+			return None
+		return importlib.util.spec_from_file_location(fullname, init_path)
+
+
+sys.meta_path.append(PluginImporter)  # type: ignore[arg-type]
+
+
+class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-methods
+	def __init__(self) -> None:
+		self._plugins: Dict[str, OPSICLIPlugin] = {}
+
+	@classmethod
+	def module_name(cls, plugin_path: Path) -> str:
+		return f"opsicli.addon_{quote(str(plugin_path).replace('.', '%2E'))}"
+
+	@property
+	def plugins(self) -> List[OPSICLIPlugin]:
+		return list(self._plugins.values())
+
+	def get_plugin(self, plugin_id: str) -> OPSICLIPlugin:
+		return self._plugins[plugin_id]
+
+	def get_plugin_module(self, plugin_dir: Path) -> ModuleType:
+		if str(config.user_lib_dir) not in sys.path:
+			sys.path.append(str(config.user_lib_dir))
+		if str(config.python_lib_dir) not in sys.path:
+			sys.path.append(str(config.python_lib_dir))
+		logger.info("Extracting plugin object from '%s'", plugin_dir)
+		module_name = self.module_name(plugin_dir)
+		logger.debug("Module name is %r", module_name)
+		if module_name in sys.modules:
+			reload = []
+			for sys_module in list(sys.modules):
+				if sys_module.startswith(module_name):
+					reload.append(sys_module)
+			reload.sort(reverse=True)
+			for sys_module in reload:
+				importlib.reload(sys.modules[sys_module])
+			return sys.modules[module_name]
+		return importlib.import_module(module_name)
+
+	def load_plugin(self, plugin_dir: Path) -> None:
+		module = self.get_plugin_module(plugin_dir)
+		for cls in module.__dict__.values():
+			if isinstance(cls, type) and issubclass(cls, OPSICLIPlugin) and cls != OPSICLIPlugin and cls.id:
+				logger.notice("Loading plugin %r (name=%s, cli=%s)", cls.id, cls.name, cls.cli)
+				self._plugins[cls.id] = cls(plugin_dir)
+				if not IN_COMPLETION_MODE:
+					self._plugins[cls.id].on_load()
+				# Only one class per module
+				break
+
+	def extract_plugin_object(self, plugin_dir: Path) -> OPSICLIPlugin:
+		module = self.get_plugin_module(plugin_dir)
+		for cls in module.__dict__.values():
+			if isinstance(cls, type) and issubclass(cls, OPSICLIPlugin) and cls != OPSICLIPlugin and cls.id:
+				logger.notice("Loading plugin %r (name=%s, cli=%s)", cls.id, cls.name, cls.cli)
+				return cls(plugin_dir)
+		raise ImportError(f"Could not load plugin from {plugin_dir}.")
+
+	def load_plugins(self) -> None:
+		if self._plugins:
+			return
+		logger.debug("Loading plugins")
+		self._plugins = {}
+		for plugin_base_dir in (config.plugin_bundle_dir, config.plugin_system_dir, config.plugin_user_dir):
+			if not plugin_base_dir:
+				continue
+			if not plugin_base_dir.exists():
+				logger.debug("Plugin dir '%s' not found", plugin_base_dir)
+				continue
+			logger.info("Loading plugins from dir '%s'", plugin_base_dir)
+			for plugin_dir in plugin_base_dir.iterdir():
+				init_path = plugin_dir / "python" / "__init__.py"
+				if not init_path.exists():
+					continue
+				try:
+					self.load_plugin(plugin_dir=plugin_dir)
+				except Exception as err:  # pylint: disable=broad-except
+					logger.error("Failed to load plugin from '%s': %s", plugin_dir, err, exc_info=True)
+
+	def unload_plugin(self, plugin_id: str) -> None:
+		if plugin_id not in self._plugins:
+			raise ValueError(f"Plugin '{plugin_id} not loaded")
+		self._plugins[plugin_id].on_unload()
+		del self._plugins[plugin_id]
+
+	def unload_plugins(self) -> None:
+		for plugin in list(self._plugins.values()):
+			self.unload_plugin(plugin.id)
+
+	def reload_plugin(self, plugin_id: str) -> None:
+		if plugin_id not in self._plugins:
+			raise ValueError(f"Plugin '{plugin_id} not loaded")
+		addon = self._plugins[plugin_id]
+		path = addon.path
+		self.unload_plugin(plugin_id)
+		self.load_plugin(path)
+
+	def reload_plugins(self):
+		self.unload_plugins()
+		self.load_plugins()
+
+
+plugin_manager = PluginManager()
+
+
 def replace_data(string: str, replacements: Dict[str, str]) -> str:
 	for key, value in replacements.items():
 		string = string.replace(key, value)
 	return string
 
 
-def prepare_plugin(path: Path, tmpdir: Path) -> str:
+def prepare_plugin(path: Path, tmpdir: Path) -> OPSICLIPlugin:
 	"""Creates the plugin and libs in tmp"""
 	logger.info("Inspecting plugin source '%s'", path)
 	plugin_id = path.stem
@@ -51,7 +193,7 @@ def prepare_plugin(path: Path, tmpdir: Path) -> str:
 
 	logger.info("Retrieving libraries for new plugin")
 	install_dependencies(tmpdir / plugin_id, tmpdir / "lib")
-	return plugin_id
+	return plugin_manager.extract_plugin_object(tmpdir / plugin_id)
 
 
 def install_plugin(source_dir: Path, name: str, system: Optional[bool] = False) -> Path:
@@ -126,130 +268,3 @@ def install_dependencies(path: Path, target_dir: Path) -> None:
 			)
 		except (ImportError, AssertionError, AttributeError):
 			install_python_package(target_dir, dependency)
-
-
-class OPSICLIPlugin:
-	id: str = ""  # pylint: disable=invalid-name
-	name: str = ""
-	description: str = ""
-	version: str = ""
-	cli: Optional[Command] = None
-
-	def __init__(self, path: Path) -> None:  # pylint: disable=redefined-builtin
-		self.path = path
-		self.data_path = self.path / "data"
-
-	def on_load(self) -> None:  # pylint: disable=no-self-use,unused-argument
-		"""Called after loading the plugin"""
-		return
-
-	def on_unload(self) -> None:  # pylint: disable=no-self-use,unused-argument
-		"""Called before unloading the plugin"""
-		return
-
-
-class PluginImporter(BuiltinImporter):
-	@classmethod
-	def find_spec(cls, fullname, path=None, target=None):
-		if not fullname.startswith("opsicli.addon"):
-			return None
-		plugin_path = unquote(fullname.split("_", 1)[1]).replace("%2E", ".")
-		init_path = os.path.join(plugin_path, "python", "__init__.py")
-		logger.debug("Searching spec for %s", init_path)
-		if not os.path.exists(init_path):
-			return None
-		return importlib.util.spec_from_file_location(fullname, init_path)
-
-
-sys.meta_path.append(PluginImporter)  # type: ignore[arg-type]
-
-
-class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-methods
-	def __init__(self) -> None:
-		self._plugins: Dict[str, OPSICLIPlugin] = {}
-
-	@classmethod
-	def module_name(cls, plugin_path: Path) -> str:
-		return f"opsicli.addon_{quote(str(plugin_path).replace('.', '%2E'))}"
-
-	@property
-	def plugins(self) -> List[OPSICLIPlugin]:
-		return list(self._plugins.values())
-
-	def get_plugin(self, plugin_id: str) -> OPSICLIPlugin:
-		return self._plugins[plugin_id]
-
-	def load_plugin(self, plugin_dir: Path) -> None:
-		if str(config.user_lib_dir) not in sys.path:
-			sys.path.append(str(config.user_lib_dir))
-		if str(config.python_lib_dir) not in sys.path:
-			sys.path.append(str(config.python_lib_dir))
-		logger.info("Loading plugin from '%s'", plugin_dir)
-		module_name = self.module_name(plugin_dir)
-		logger.debug("Module name is %r", module_name)
-		if module_name in sys.modules:
-			reload = []
-			for sys_module in list(sys.modules):
-				if sys_module.startswith(module_name):
-					reload.append(sys_module)
-			reload.sort(reverse=True)
-			for sys_module in reload:
-				importlib.reload(sys.modules[sys_module])
-			module = sys.modules[module_name]
-		else:
-			module = importlib.import_module(module_name)
-
-		for cls in module.__dict__.values():
-			if isinstance(cls, type) and issubclass(cls, OPSICLIPlugin) and cls != OPSICLIPlugin and cls.id:
-				logger.notice("Loading plugin %r (name=%s, cli=%s)", cls.id, cls.name, cls.cli)
-				self._plugins[cls.id] = cls(plugin_dir)
-				if not IN_COMPLETION_MODE:
-					self._plugins[cls.id].on_load()
-				# Only one class per module
-				break
-
-	def load_plugins(self) -> None:
-		if self._plugins:
-			return
-		logger.debug("Loading plugins")
-		self._plugins = {}
-		for plugin_base_dir in (config.plugin_bundle_dir, config.plugin_system_dir, config.plugin_user_dir):
-			if not plugin_base_dir:
-				continue
-			if not plugin_base_dir.exists():
-				logger.debug("Plugin dir '%s' not found", plugin_base_dir)
-				continue
-			logger.info("Loading plugins from dir '%s'", plugin_base_dir)
-			for plugin_dir in plugin_base_dir.iterdir():
-				init_path = plugin_dir / "python" / "__init__.py"
-				if not init_path.exists():
-					continue
-				try:
-					self.load_plugin(plugin_dir=plugin_dir)
-				except Exception as err:  # pylint: disable=broad-except
-					logger.error("Failed to load plugin from '%s': %s", plugin_dir, err, exc_info=True)
-
-	def unload_plugin(self, plugin_id: str) -> None:
-		if plugin_id not in self._plugins:
-			raise ValueError(f"Plugin '{plugin_id} not loaded")
-		self._plugins[plugin_id].on_unload()
-		del self._plugins[plugin_id]
-
-	def unload_plugins(self) -> None:
-		for plugin in list(self._plugins.values()):
-			self.unload_plugin(plugin.id)
-
-	def reload_plugin(self, plugin_id: str) -> None:
-		if plugin_id not in self._plugins:
-			raise ValueError(f"Plugin '{plugin_id} not loaded")
-		addon = self._plugins[plugin_id]
-		path = addon.path
-		self.unload_plugin(plugin_id)
-		self.load_plugin(path)
-
-	def reload_plugins(self):
-		self.unload_plugins()
-		self.load_plugins()
-
-
-plugin_manager = PluginManager()

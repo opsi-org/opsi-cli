@@ -57,9 +57,13 @@ def add(paths: List[Path], system: bool) -> None:
 		with tempfile.TemporaryDirectory() as tmpdir:
 			tmpdir_path = Path(tmpdir)
 			(tmpdir_path / "lib").mkdir(parents=True, exist_ok=True)
-			name = prepare_plugin(path, tmpdir_path)
-			path = install_plugin(tmpdir_path, name, system)
-		get_console().print(f"Plugin {name!r} installed into '{path}'")
+			new_plugin = prepare_plugin(path, tmpdir_path)
+			print(new_plugin)
+			if "restricted" in new_plugin.flags:
+				logger.error("Failed to add plugin %s. It is marked as 'restricted'.", new_plugin.id)
+				continue
+			path = install_plugin(tmpdir_path, new_plugin.id, system)
+		get_console().print(f"Plugin {new_plugin.id!r} installed into '{path}'.")
 
 
 @cli.command(short_help=f"Export plugin as .{PLUGIN_EXTENSION}")
@@ -183,7 +187,10 @@ def remove(plugin_id: str) -> None:
 	opsi-cli plugin remove subcommand.
 	This subcommand removes an installed opsi-cli plugin. See "[bold]plugin list[/bold]".
 	"""
-	path = plugin_manager.get_plugin(plugin_id).path
+	plugin_object = plugin_manager.get_plugin(plugin_id)
+	if "protected" in plugin_object.flags:
+		raise PermissionError(f"Plugin {plugin_id} has flag 'protected', cannot remove!")
+	path = plugin_object.path
 	found = False
 	for plugin_dir in (config.plugin_user_dir, config.plugin_system_dir):
 		if plugin_dir in path.parents:
@@ -261,3 +268,4 @@ class PluginPlugin(OPSICLIPlugin):
 	description: str = "Manage opsi-cli plugins"
 	version: str = __version__
 	cli = cli
+	flags = ["protected"]

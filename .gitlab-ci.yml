@@ -84,7 +84,6 @@ test:pylint-pytest:
       - coverage.xml
     expire_in: 3 days
     reports:
-      cobertura: coverage.xml
       junit: testreport.xml
 
 
