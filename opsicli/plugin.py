@@ -231,10 +231,9 @@ def install_python_package(target_dir: Path, package: Dict[str, str]) -> None:
 	logger.info("Installing %r, version %r", package["name"], package["version"])
 	pypath = get_python_path()
 	try:
-		# cmd = [pyversion, '-m', 'pip', 'install', f"{package['name']}>={package['version']}", "--target", target_dir]
-		cmd = f"\"{pypath}\" -m pip install \"{package['name']}>={package['version']}\" --target \"{target_dir}\""
+		cmd = [pypath, "-m", "pip", "install", f"{package['name']}>={package['version']}", "--target", str(target_dir)]
 		logger.debug("Executing %r", cmd)
-		result = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
+		result = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=False)
 		logger.debug("Success, command output:\n%s", result.decode("utf-8"))
 		return
 	except subprocess.CalledProcessError as process_error:
