@@ -463,7 +463,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 			if all(param in self._options_processed for param in test_params):
 				self.read_config_files()
 
-		if param.name in ("log_file", "file_level", "log_level_stderr", "color"):
+		if param.name in ("log_file", "log_level_file", "log_level_stderr", "color"):
 			self.set_logging_config()
 
 	def get_default(self, name: str) -> Any:
