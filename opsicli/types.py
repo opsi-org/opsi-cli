@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import urlparse
 
+import rich_click as click  # type: ignore[import]
 from opsicommon.logging import (  # type: ignore[import]
 	LEVEL_TO_OPSI_LEVEL,
 	NAME_TO_LEVEL,
@@ -57,6 +58,8 @@ class Attributes(list):
 
 
 class Bool:  # pylint: disable=too-few-public-methods
+	click_type = bool
+
 	def __new__(cls, value: Any):
 		if isinstance(value, str):
 			value = value.lower() in ("1", "true", "yes")
@@ -103,6 +106,8 @@ class Password(str):  # pylint: disable=too-few-public-methods
 
 
 class File(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public-methods
+	click_type = click.Path(dir_okay=False)
+
 	def __new__(cls, *args, **kwargs):
 		path = super().__new__(cls, *args, **kwargs)
 		if str(path) != "-":
@@ -116,6 +121,8 @@ class File(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public
 
 
 class Directory(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public-methods
+	click_type = click.Path(file_okay=False)
+
 	def __new__(cls, *args, **kwargs):
 		path = super().__new__(cls, *args, **kwargs)
 		path = path.expanduser().absolute()

@@ -431,6 +431,27 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 			stderr_format=DEFAULT_COLORED_FORMAT if self.color else DEFAULT_FORMAT,
 		)
 
+	def get_click_option(self, name: str, **kwargs):
+		config_item = self._config[name]
+		long_option = kwargs.pop("long_option", None)
+		if not long_option:
+			long_option = f"--{name.replace('_', '-')}"
+			if isinstance(config_item.type, Bool):
+				long_option = f"{long_option}/--no-{long_option.lstrip('--')}"
+		_kwargs = {
+			"type": getattr(config_item.type, "click_type", config_item.type),
+			"callback": self.process_option,
+			"metavar": name.upper(),
+			"envvar": f"OPSICLI_{name.upper()}",
+			"help": config_item.description,
+			"default": config_item.get_default(),
+			"show_default": True
+		}
+		_args = [long_option] + ([kwargs.pop("short_option")] if "short_option" in kwargs else [])
+		_kwargs.update(kwargs)
+		print(_args, _kwargs)
+		return click.option(*_args, **_kwargs)
+
 	def process_option(self, ctx: click.Context, param: click.Option, value: Any):  # pylint: disable=unused-argument
 		param_source = ctx.get_parameter_source(param.name)
 		if IN_COMPLETION_MODE:
