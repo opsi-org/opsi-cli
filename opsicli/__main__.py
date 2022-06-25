@@ -5,7 +5,6 @@ opsi-cli Basic command line interface for opsi
 Main command
 """
 
-import pathlib
 import re
 import sys
 from typing import Any, List, Optional, Sequence
@@ -115,34 +114,24 @@ class LogLevel(click.ParamType):
 
 
 @click.command(cls=OpsiCLI)
-@click.pass_context
 @click.version_option(f"{__version__}", message="opsi-cli version %(version)s")
 @config.get_click_option("config_file_system", is_eager=True, expose_value=False)
 @config.get_click_option("config_file_user", is_eager=True, expose_value=False)
-@config.get_click_option(
-	"log_file",
-	type=click.Path(exists=False, file_okay=True, dir_okay=False, writable=True, resolve_path=True, allow_dash=True, path_type=pathlib.Path)
-)
+@config.get_click_option("log_file")
 @config.get_click_option("log_level_file")
 @config.get_click_option("log_level_stderr", short_option="-l")
 @config.get_click_option("color", is_eager=True, envvar="NO_COLOR")
 @config.get_click_option("interactive", long_option="--interactive/--non-interactive")
 @config.get_click_option("output_format")
-@config.get_click_option(
-	"output_file",
-	type=click.Path(file_okay=True, dir_okay=False, writable=True, allow_dash=True, path_type=pathlib.Path)
-)
-@config.get_click_option(
-	"input_file",
-	type=click.Path(file_okay=True, dir_okay=False, readable=True, allow_dash=True, path_type=pathlib.Path)
-)
+@config.get_click_option("output_file")
+@config.get_click_option("input_file")
 @config.get_click_option("metadata")
 @config.get_click_option("header")
 @config.get_click_option("attributes", show_default=False, help=f"{config.get_description('attributes')}. Comma separated list.")
 @config.get_click_option("service")
 @config.get_click_option("username", short_option="-u")
 @config.get_click_option("password", short_option="-p")
-def main(ctx: click.Context, *args, **kwargs) -> None:  # pylint: disable=unused-argument
+def main() -> None:  # pylint: disable=unused-argument
 	"""
 	opsi command line interface\n
 	Plugins are dynamically loaded from a subfolder

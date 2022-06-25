@@ -431,10 +431,10 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 			stderr_format=DEFAULT_COLORED_FORMAT if self.color else DEFAULT_FORMAT,
 		)
 
-	def get_click_option(self, name: str, **kwargs):
+	def get_click_option(self, name: str, **kwargs: Union[str, bool]):
 		config_item = self._config[name]
 		long_option = kwargs.pop("long_option", None)
-		if not long_option:
+		if long_option is None:
 			long_option = f"--{name.replace('_', '-')}"
 			if isinstance(config_item.type, Bool):
 				long_option = f"{long_option}/--no-{long_option.lstrip('--')}"
@@ -449,7 +449,6 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 		}
 		_args = [long_option] + ([kwargs.pop("short_option")] if "short_option" in kwargs else [])
 		_kwargs.update(kwargs)
-		print(_args, _kwargs)
 		return click.option(*_args, **_kwargs)
 
 	def process_option(self, ctx: click.Context, param: click.Option, value: Any):  # pylint: disable=unused-argument
