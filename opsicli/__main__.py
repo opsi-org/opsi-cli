@@ -131,7 +131,7 @@ class LogLevel(click.ParamType):
 @config.get_click_option("service")
 @config.get_click_option("username", short_option="-u")
 @config.get_click_option("password", short_option="-p")
-def main() -> None:  # pylint: disable=unused-argument
+def main(*args, **kwargs) -> None:  # pylint: disable=unused-argument
 	"""
 	opsi command line interface\n
 	Plugins are dynamically loaded from a subfolder
