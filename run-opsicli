@@ -1,4 +1,22 @@
-from opsicli.__main__ import main
+#!/usr/bin/env python3
+# pylint: disable=invalid-name
+"""
+Main script to use with pyinstaller
+"""
+import sys
+import traceback
 
-if __name__ == "__main__":
-	main(obj={})
+try:
+	from opsicli.__main__ import main
+
+	main()
+except SystemExit as err:
+	sys.exit(err.code)
+except KeyboardInterrupt:
+	print("Interrupted", file=sys.stderr)
+	sys.exit(1)
+except Exception:  # pylint: disable=broad-except
+	# Do not let pyinstaller handle exceptions and print:
+	# "Failed to execute script run-opsiconfd"
+	traceback.print_exc()
+	sys.exit(1)

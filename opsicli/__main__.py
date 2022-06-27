@@ -5,7 +5,6 @@ opsi-cli Basic command line interface for opsi
 Main command
 """
 
-import pathlib
 import re
 import sys
 from typing import Any, List, Optional, Sequence
@@ -115,149 +114,24 @@ class LogLevel(click.ParamType):
 
 
 @click.command(cls=OpsiCLI)
-@click.pass_context
 @click.version_option(f"{__version__}", message="opsi-cli version %(version)s")
-@click.option(
-	"--config-file-system",
-	type=click.Path(dir_okay=False),
-	callback=config.process_option,
-	metavar="CONFIG_FILE",
-	is_eager=True,
-	expose_value=False,
-	help=config.get_description("config_file_system"),
-	default=config.get_default("config_file_system"),
-	show_default=True,
-)
-@click.option(
-	"--config-file-user",
-	type=click.Path(dir_okay=False),
-	callback=config.process_option,
-	metavar="CONFIG_FILE",
-	is_eager=True,
-	expose_value=False,
-	help=config.get_description("config_file_user"),
-	default=config.get_default("config_file_user"),
-	show_default=True,
-)
-@click.option(
-	"--log-file",
-	type=click.Path(
-		exists=False, file_okay=True, dir_okay=False, writable=True, resolve_path=True, allow_dash=True, path_type=pathlib.Path
-	),
-	callback=config.process_option,
-	metavar="LOG_FILE",
-	help=config.get_description("log_file"),
-	default=config.get_default("log_file"),
-)
-@click.option(
-	"--log-level-file",
-	type=LogLevel(),
-	callback=config.process_option,
-	metavar="LOG_LEVEL",
-	show_default=True,
-	help=config.get_description("log_level_file"),
-	default=config.get_default("log_level_file"),
-)
-@click.option(
-	"--log-level-stderr",
-	"-l",
-	type=LogLevel(),
-	callback=config.process_option,
-	metavar="LOG_LEVEL",
-	show_default=True,
-	help=config.get_description("log_level_stderr"),
-	default=config.get_default("log_level_stderr"),
-)
-@click.option(
-	"--color/--no-color",
-	is_eager=True,
-	envvar="NO_COLOR",
-	callback=config.process_option,
-	help=config.get_description("color"),
-	default=config.get_default("color"),
-)
-@click.option(
-	"--interactive/--non-interactive",
-	callback=config.process_option,
-	help=config.get_description("interactive"),
-	default=config.get_default("interactive"),
-)
-@click.option(
-	"--output-format",
-	type=str,
-	callback=config.process_option,
-	metavar="FORMAT",
-	show_default=True,
-	help=config.get_description("output_format"),
-	default=config.get_default("output_format"),
-)
-@click.option(
-	"--output-file",
-	type=click.Path(file_okay=True, dir_okay=False, writable=True, allow_dash=True, path_type=pathlib.Path),
-	callback=config.process_option,
-	metavar="OUTPUT_FILE",
-	help=config.get_description("output_file"),
-	default=config.get_default("output_file"),
-)
-@click.option(
-	"--input-file",
-	type=click.Path(file_okay=True, dir_okay=False, readable=True, allow_dash=True, path_type=pathlib.Path),
-	callback=config.process_option,
-	metavar="INPUT_FILE",
-	help=config.get_description("input_file"),
-	default=config.get_default("input_file"),
-)
-@click.option(
-	"--metadata/--no-metadata",
-	callback=config.process_option,
-	help=config.get_description("metadata"),
-	default=config.get_default("metadata"),
-)
-@click.option(
-	"--header/--no-header",
-	callback=config.process_option,
-	help=config.get_description("header"),
-	default=config.get_default("header"),
-)
-@click.option(
-	"--attributes",
-	type=str,
-	callback=config.process_option,
-	metavar="ATTRIBUTES",
-	help=f"{config.get_description('attributes')}. Comma separated list.",
-	show_default=False,
-	default=config.get_default("attributes"),
-)
-@click.option(
-	"--service",
-	type=str,
-	callback=config.process_option,
-	metavar="SERVICE",
-	help=config.get_description("service"),
-	show_default=True,
-	default=config.get_default("service"),
-)
-@click.option(
-	"--username",
-	"-u",
-	envvar="OPSI_USERNAME",
-	metavar="USERNAME",
-	type=str,
-	callback=config.process_option,
-	default=config.get_default("username"),
-	help=config.get_description("username"),
-)
-@click.option(
-	"--password",
-	"-p",
-	envvar="OPSI_PASSWORD",
-	metavar="PASSWORD",
-	type=str,
-	callback=config.process_option,
-	default=config.get_default("password"),
-	help=config.get_description("password"),
-)
-def main(ctx: click.Context, *args, **kwargs) -> None:  # pylint: disable=unused-argument
+@config.get_click_option("config_file_system", is_eager=True, expose_value=False)
+@config.get_click_option("config_file_user", is_eager=True, expose_value=False)
+@config.get_click_option("log_file")
+@config.get_click_option("log_level_file")
+@config.get_click_option("log_level_stderr", short_option="-l")
+@config.get_click_option("color", is_eager=True, envvar="NO_COLOR")
+@config.get_click_option("interactive", long_option="--interactive/--non-interactive")
+@config.get_click_option("output_format")
+@config.get_click_option("output_file")
+@config.get_click_option("input_file")
+@config.get_click_option("metadata")
+@config.get_click_option("header")
+@config.get_click_option("attributes", show_default=False, help=f"{config.get_description('attributes')}. Comma separated list.")
+@config.get_click_option("service")
+@config.get_click_option("username", short_option="-u")
+@config.get_click_option("password", short_option="-p")
+def main(*args, **kwargs) -> None:  # pylint: disable=unused-argument
 	"""
 	opsi command line interface\n
 	Plugins are dynamically loaded from a subfolder
