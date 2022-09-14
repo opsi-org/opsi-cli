@@ -39,9 +39,7 @@ def test_pip() -> None:
 		assert os.listdir(tempdir) and "netifaces" in os.listdir(tempdir)[0]
 
 
-# Permission Error on windows: file unlink is impossible if handle is opened
-# Problem: add plugin, then load plugin -> open file handle until teardown of python process
-@pytest.mark.posix
+# @pytest.mark.posix
 def test_plugin_add() -> None:
 	with temp_context():
 		exit_code, _ = run_cli(["plugin", "add", str(TESTPLUGIN)])
@@ -52,9 +50,7 @@ def test_plugin_add() -> None:
 		assert "default" in result  # netifaces.gateways()
 
 
-# Permission Error on windows: file unlink is impossible if handle is opened
-# Problem: add plugin, then load plugin -> open file handle until teardown of python process
-@pytest.mark.posix
+# @pytest.mark.posix
 def test_plugin_fail() -> None:
 	with temp_context():
 		exit_code, output = run_cli(["plugin", "add", str(FAULTYPLUGIN)])

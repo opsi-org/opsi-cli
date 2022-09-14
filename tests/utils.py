@@ -28,7 +28,10 @@ def run_cli(args: Sequence[str]) -> Tuple[int, str]:
 def temp_context() -> Generator[Path, None, None]:
 	values = config.get_values()
 	try:
-		with tempfile.TemporaryDirectory() as tempdir:
+		# ignore_cleanup_errors because:
+		# Permission Error on windows: file unlink is impossible if handle is opened
+		# Problem: add plugin, then load plugin -> open file handle until teardown of python process
+		with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tempdir:
 			tempdir_path = Path(tempdir)
 			config.color = False
 			config.python_lib_dir = tempdir_path / "lib"
