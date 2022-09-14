@@ -15,7 +15,7 @@ from dataclasses import InitVar, asdict, dataclass
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Union
 
 import rich_click as click  # type: ignore[import]
 from click.core import ParameterSource  # type: ignore[import]
@@ -354,7 +354,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 		for name, value in values.items():
 			self._config[name].value = value
 
-	def read_config_files(self):
+	def read_config_files(self) -> None:
 		for file_type in ("config_file_system", "config_file_user"):
 			config_file = getattr(self, file_type, None)
 			if not config_file or not config_file.exists():
@@ -388,7 +388,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 							value = config_item.type.from_yaml(value)
 						config_item.set_value(value, source)
 
-	def write_config_files(self, sources: Optional[List[ConfigValueSource]] = None):
+	def write_config_files(self, sources: Optional[List[ConfigValueSource]] = None) -> None:
 		for file_type in ("config_file_system", "config_file_user"):
 			config_file = getattr(self, file_type, None)
 			source = ConfigValueSource.CONFIG_FILE_SYSTEM if file_type == "config_file_system" else ConfigValueSource.CONFIG_FILE_USER
@@ -423,7 +423,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 			with open(config_file, "w", encoding="utf-8") as file:
 				YAML().dump(data, file)
 
-	def set_logging_config(self):
+	def set_logging_config(self) -> None:
 		logging_config(
 			log_file=self.log_file,
 			file_level=self.log_level_file,
@@ -431,7 +431,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 			stderr_format=DEFAULT_COLORED_FORMAT if self.color else DEFAULT_FORMAT,
 		)
 
-	def get_click_option(self, name: str, **kwargs: Union[str, bool]):
+	def get_click_option(self, name: str, **kwargs: Union[str, bool]) -> Callable:
 		config_item = self._config[name]
 		long_option = kwargs.pop("long_option", None)
 		if long_option is None:
@@ -451,7 +451,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 		_kwargs.update(kwargs)
 		return click.option(*_args, **_kwargs)
 
-	def process_option(self, ctx: click.Context, param: click.Option, value: Any):  # pylint: disable=unused-argument
+	def process_option(self, ctx: click.Context, param: click.Option, value: Any) -> None:  # pylint: disable=unused-argument
 		param_source = ctx.get_parameter_source(param.name)
 		if IN_COMPLETION_MODE:
 			return
