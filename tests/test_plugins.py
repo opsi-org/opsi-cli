@@ -5,8 +5,6 @@ test_plugins
 import os
 from pathlib import Path
 
-import pytest
-
 from opsicli.config import config
 from opsicli.plugin import PLUGIN_EXTENSION, install_python_package, plugin_manager
 
@@ -39,7 +37,6 @@ def test_pip() -> None:
 		assert os.listdir(tempdir) and "netifaces" in os.listdir(tempdir)[0]
 
 
-# @pytest.mark.posix
 def test_plugin_add() -> None:
 	with temp_context():
 		exit_code, _ = run_cli(["plugin", "add", str(TESTPLUGIN)])
@@ -50,7 +47,6 @@ def test_plugin_add() -> None:
 		assert "default" in result  # netifaces.gateways()
 
 
-# @pytest.mark.posix
 def test_plugin_fail() -> None:
 	with temp_context():
 		exit_code, output = run_cli(["plugin", "add", str(FAULTYPLUGIN)])

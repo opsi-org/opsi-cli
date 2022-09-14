@@ -141,10 +141,10 @@ class ConfigItem:  # pylint: disable=too-many-instance-attributes
 		return super().__getattribute__(name)
 
 	def set_value(self, value, source: Optional[ConfigValueSource] = None):
-		return self.__setattr__("value", value, source)
+		return self.__setattr__("value", value, source)  # pylint: disable=unnecessary-dunder-call
 
 	def set_default(self, value):
-		return self.__setattr__("default", value, ConfigValueSource.DEFAULT)
+		return self.__setattr__("default", value, ConfigValueSource.DEFAULT)  # pylint: disable=unnecessary-dunder-call
 
 	def _add_value(self, attribute: str, value: Any, source: Optional[ConfigValueSource] = None):
 		if attribute not in ("default", "value"):
