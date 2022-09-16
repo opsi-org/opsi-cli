@@ -447,11 +447,13 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 			"default": config_item.get_default(),
 			"show_default": True
 		}
-		_args = [long_option] + ([kwargs.pop("short_option")] if "short_option" in kwargs else [])
+		_args = [str(long_option)] + ([str(kwargs.pop("short_option"))] if "short_option" in kwargs else [])
 		_kwargs.update(kwargs)
 		return click.option(*_args, **_kwargs)
 
 	def process_option(self, ctx: click.Context, param: click.Option, value: Any) -> None:  # pylint: disable=unused-argument
+		if param.name is None:
+			return
 		param_source = ctx.get_parameter_source(param.name)
 		if IN_COMPLETION_MODE:
 			return
