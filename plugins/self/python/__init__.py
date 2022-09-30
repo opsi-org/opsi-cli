@@ -21,6 +21,7 @@ from opsicli.config import ConfigValueSource, config
 from opsicli.io import get_console
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.types import File
+from opsicli.utils import add_to_env_variable
 
 __version__ = "0.1.0"
 
@@ -128,7 +129,14 @@ def setup_shell_completion(ctx: click.Context, shell: str) -> None:  # pylint: d
 	type=File,
 	help="File path to store binary at.",
 )
-def install(system: bool, binary_path: Path = None) -> None:
+@click.option(
+	"--ignore-environment",
+	is_flag=True,
+	help="Do not set PATH environment.",
+	default=False,
+	show_default=True,
+)
+def install(system: bool, binary_path: Path = None, ignore_environment: bool = False) -> None:
 	"""
 	opsi-cli self install subcommand.
 
@@ -146,18 +154,17 @@ def install(system: bool, binary_path: Path = None) -> None:
 			binary_path = Path.home() / "AppData" / "Local" / "Programs" / "opsi-cli" / "opsi-cli.exe"
 		else:
 			raise RuntimeError(f"Invalid platform {platform.system()}")
+	logger.notice("Copying %s to %s", sys.executable, binary_path)
+	if not binary_path.parent.exists():
+		binary_path.parent.mkdir(parents=True)
 	try:
-		logger.notice("Copying %s to %s", sys.executable, binary_path)
-		if not binary_path.parent.exists():
-			binary_path.parent.mkdir(parents=True)
-		try:
-			shutil.copy(sys.executable, binary_path)
-		except shutil.SameFileError:
-			logger.warning("'%s' and '%s' are the same file", sys.executable, binary_path)
-		source = ConfigValueSource.CONFIG_FILE_SYSTEM if system else ConfigValueSource.CONFIG_FILE_USER
-		config.write_config_files(sources=[source])
-	except PermissionError as error:
-		logger.error(error, exc_info=False)
+		shutil.copy(sys.executable, binary_path)
+	except shutil.SameFileError:
+		logger.warning("'%s' and '%s' are the same file", sys.executable, binary_path)
+	source = ConfigValueSource.CONFIG_FILE_SYSTEM if system else ConfigValueSource.CONFIG_FILE_USER
+	config.write_config_files(sources=[source])
+	if not ignore_environment and str(binary_path.parent) not in os.environ.get("PATH", ""):
+		add_to_env_variable("PATH", binary_path.parent)
 
 
 class SelfPlugin(OPSICLIPlugin):
