@@ -148,6 +148,8 @@ def install(system: bool, binary_path: Path = None) -> None:
 			raise RuntimeError(f"Invalid platform {platform.system()}")
 	try:
 		logger.notice("Copying %s to %s", sys.executable, binary_path)
+		if not binary_path.parent.exists():
+			binary_path.parent.mkdir(parents=True)
 		try:
 			shutil.copy(sys.executable, binary_path)
 		except shutil.SameFileError:
