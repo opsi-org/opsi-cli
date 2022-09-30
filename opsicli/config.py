@@ -9,7 +9,6 @@ import os
 import platform
 import shutil
 import sys
-import tempfile
 from copy import deepcopy
 from dataclasses import InitVar, asdict, dataclass
 from enum import Enum
@@ -24,6 +23,7 @@ from opsicommon.logging import (  # type: ignore[import]
 	DEFAULT_FORMAT,
 	LOG_ESSENTIAL,
 	LOG_NONE,
+	logger,
 	logging_config,
 	secret_filter,
 )
@@ -267,10 +267,9 @@ CONFIG_ITEMS = [
 ]
 
 if platform.system().lower() == "windows":
-	# TODO: use a temporary directory to store plugins (Permission issue)
-	_user_lib_dir = Path(tempfile.gettempdir()) / "opsicli"
+	_user_lib_dir = Path(os.getenv("APPDATA") or ".") / "opsi-cli" / "Local" / "Lib"
 else:
-	_user_lib_dir = Path.home() / ".local" / "lib" / "opsicli"
+	_user_lib_dir = Path.home() / ".local" / "lib" / "opsi-cli"
 
 CONFIG_ITEMS.extend(
 	[
@@ -278,7 +277,6 @@ CONFIG_ITEMS.extend(
 		ConfigItem(name="python_lib_dir", type=Directory, group="General", default=_user_lib_dir / "lib"),
 	]
 )
-
 
 if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
 	_plugin_bundle_dir = Path(sys._MEIPASS) / "plugins"  # type: ignore[attr-defined] # pylint: disable=protected-access
@@ -389,6 +387,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 						config_item.set_value(value, source)
 
 	def write_config_files(self, sources: Optional[List[ConfigValueSource]] = None) -> None:
+		logger.info("Writing config files")
 		for file_type in ("config_file_system", "config_file_user"):
 			config_file = getattr(self, file_type, None)
 			source = ConfigValueSource.CONFIG_FILE_SYSTEM if file_type == "config_file_system" else ConfigValueSource.CONFIG_FILE_USER
@@ -419,8 +418,10 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 				else:
 					data[config_item.name] = yaml_values[0]
 			if not config_file.parent.exists():
+				logger.debug("Creating directory %s", config_file.parent)
 				config_file.parent.mkdir(parents=True)
 			with open(config_file, "w", encoding="utf-8") as file:
+				logger.debug("Writing file %s", config_file)
 				YAML().dump(data, file)
 
 	def set_logging_config(self) -> None:

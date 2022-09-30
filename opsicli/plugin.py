@@ -44,11 +44,11 @@ class OPSICLIPlugin:
 		self.path = path
 		self.data_path = self.path / "data"
 
-	def on_load(self) -> None:  # pylint: disable=no-self-use,unused-argument
+	def on_load(self) -> None:  # pylint: disable=unused-argument
 		"""Called after loading the plugin"""
 		return
 
-	def on_unload(self) -> None:  # pylint: disable=no-self-use,unused-argument
+	def on_unload(self) -> None:  # pylint: disable=unused-argument
 		"""Called before unloading the plugin"""
 		return
 
@@ -111,7 +111,7 @@ class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-meth
 		module = self.get_plugin_module(plugin_dir)
 		for cls in module.__dict__.values():
 			if isinstance(cls, type) and issubclass(cls, OPSICLIPlugin) and cls != OPSICLIPlugin and cls.id:
-				logger.notice("Loading plugin %r (name=%s, cli=%s)", cls.id, cls.name, cls.cli)
+				logger.info("Loading plugin %r (name=%s, cli=%s)", cls.id, cls.name, cls.cli)
 				self._plugins[cls.id] = cls(plugin_dir)
 				if not IN_COMPLETION_MODE:
 					self._plugins[cls.id].on_load()
@@ -122,14 +122,13 @@ class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-meth
 		module = self.get_plugin_module(plugin_dir)
 		for cls in module.__dict__.values():
 			if isinstance(cls, type) and issubclass(cls, OPSICLIPlugin) and cls != OPSICLIPlugin and cls.id:
-				logger.notice("Loading plugin %r (name=%s, cli=%s)", cls.id, cls.name, cls.cli)
+				logger.info("Loading plugin %r (name=%s, cli=%s)", cls.id, cls.name, cls.cli)
 				return cls(plugin_dir)
 		raise ImportError(f"Could not load plugin from {plugin_dir}.")
 
 	def load_plugins(self) -> None:
 		if self._plugins:
 			return
-		logger.debug("Loading plugins")
 		self._plugins = {}
 		for plugin_base_dir in (config.plugin_bundle_dir, config.plugin_system_dir, config.plugin_user_dir):
 			if not plugin_base_dir:
