@@ -107,7 +107,7 @@ def setup_shell_completion(ctx: click.Context, shell: str) -> None:  # pylint: d
 		if not comp_cls:
 			raise RuntimeError(f"Failed to get completion class for shell {shell_!r}")
 		if not ctx or not ctx.parent or not ctx.parent.command:
-			raise RuntimeError("Invalid context for parent command")  # TODO: test
+			raise RuntimeError("Invalid context for parent command")
 		comp = comp_cls(cli=ctx.parent.command, ctx_args={}, prog_name="opsi-cli", complete_var="_OPSI_CLI_COMPLETE")
 		conf_file.write_text(data + f"{START_MARKER}\n{comp.source()}\n{END_MARKER}\n", encoding="utf-8")
 	if running_shell in shells:
