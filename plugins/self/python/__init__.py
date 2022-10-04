@@ -130,13 +130,13 @@ def setup_shell_completion(ctx: click.Context, shell: str) -> None:  # pylint: d
 	help="File path to store binary at.",
 )
 @click.option(
-	"--ignore-environment",
+	"--no-add-to-path",
 	is_flag=True,
-	help="Do not set PATH environment.",
+	help="Do not add binary location to PATH.",
 	default=False,
 	show_default=True,
 )
-def install(system: bool, binary_path: Path = None, ignore_environment: bool = False) -> None:
+def install(system: bool, binary_path: Path = None, no_add_to_path: bool = False) -> None:
 	"""
 	opsi-cli self install subcommand.
 
@@ -145,13 +145,13 @@ def install(system: bool, binary_path: Path = None, ignore_environment: bool = F
 	if not binary_path:
 		if platform.system().lower() in ("linux", "darwin"):
 			if system:
-				binary_path = Path("/") / "usr" / "local" / "bin" / "opsi-cli"
+				binary_path = Path("/usr/local/bin/opsi-cli")
 			else:
-				binary_path = Path.home() / ".local" / "bin" / "opsi-cli"
+				binary_path = Path.home() / ".local/bin/opsi-cli"
 		elif platform.system().lower() == "windows":
 			if system:
 				raise RuntimeError("System-wide installation disabled for windows (for now at least).")
-			binary_path = Path.home() / "AppData" / "Local" / "Programs" / "opsi-cli" / "opsi-cli.exe"
+			binary_path = Path(r"~\AppData\Local\Programs\opsi-cli\opsi-cli.exe").expanduser()
 		else:
 			raise RuntimeError(f"Invalid platform {platform.system()}")
 	logger.notice("Copying %s to %s", sys.executable, binary_path)
@@ -163,7 +163,7 @@ def install(system: bool, binary_path: Path = None, ignore_environment: bool = F
 		logger.warning("'%s' and '%s' are the same file", sys.executable, binary_path)
 	source = ConfigValueSource.CONFIG_FILE_SYSTEM if system else ConfigValueSource.CONFIG_FILE_USER
 	config.write_config_files(sources=[source])
-	if not ignore_environment and str(binary_path.parent) not in os.environ.get("PATH", ""):
+	if not no_add_to_path and str(binary_path.parent) not in os.environ.get("PATH", ""):
 		add_to_env_variable("PATH", binary_path.parent)
 
 
