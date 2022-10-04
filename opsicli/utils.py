@@ -6,8 +6,10 @@ utils
 """
 
 import base64
+import platform
 import random
 import string
+import subprocess
 
 
 def random_string(length):
@@ -39,3 +41,9 @@ def decrypt(cipher: str):
 		key_c = key[num % len(key)]
 		cleartext += chr((ord(char) - ord(key_c) + 256) % 256)
 	return cleartext
+
+
+def add_to_env_variable(key, value):
+	if platform.system().lower() != "windows":
+		raise NotImplementedError("add_to_env_variable is currently only implemented for windows")
+	subprocess.check_call(f'setx {key} "%{key}%;{value}"', shell=True)

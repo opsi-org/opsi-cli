@@ -5,9 +5,11 @@ self plugin
 """
 
 import os
+import platform
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import psutil  # type: ignore[import]
@@ -15,8 +17,11 @@ import rich_click as click  # type: ignore[import]
 from click.shell_completion import get_completion_class  # type: ignore[import]
 from opsicommon.logging import logger  # type: ignore[import]
 
+from opsicli.config import ConfigValueSource, config
 from opsicli.io import get_console
 from opsicli.plugin import OPSICLIPlugin
+from opsicli.types import File
+from opsicli.utils import add_to_env_variable
 
 __version__ = "0.1.0"
 
@@ -66,7 +71,7 @@ SUPPORTED_SHELLS = ["zsh", "bash", "fish"]
 @click.pass_context
 def setup_shell_completion(ctx: click.Context, shell: str) -> None:  # pylint: disable=too-many-branches
 	"""
-	opsi-cli config list subcommand.
+	opsi-cli self setup_shell_completion subcommand.
 	"""
 	shells = []
 	running_shell = psutil.Process(os.getpid()).parent().name()
@@ -102,12 +107,64 @@ def setup_shell_completion(ctx: click.Context, shell: str) -> None:  # pylint: d
 		comp_cls = get_completion_class(shell_)
 		if not comp_cls:
 			raise RuntimeError(f"Failed to get completion class for shell {shell_!r}")
-		comp = comp_cls(cli=ctx.parent, ctx_args={}, prog_name="opsi-cli", complete_var="_OPSI_CLI_COMPLETE")
+		if not ctx or not ctx.parent or not ctx.parent.command:
+			raise RuntimeError("Invalid context for parent command")
+		comp = comp_cls(cli=ctx.parent.command, ctx_args={}, prog_name="opsi-cli", complete_var="_OPSI_CLI_COMPLETE")
 		conf_file.write_text(data + f"{START_MARKER}\n{comp.source()}\n{END_MARKER}\n", encoding="utf-8")
-
 	if running_shell in shells:
 		# os.execvp(running_shell, [running_shell])
 		console.print("Please restart your running shell for changes to take effect.")
+
+
+@cli.command(short_help="Install opsi-cli locally")
+@click.option(
+	"--system",
+	is_flag=True,
+	help="Install system-wide.",
+	default=False,
+	show_default=True,
+)
+@click.option(
+	"--binary-path",
+	type=File,
+	help="File path to store binary at.",
+)
+@click.option(
+	"--no-add-to-path",
+	is_flag=True,
+	help="Do not add binary location to PATH.",
+	default=False,
+	show_default=True,
+)
+def install(system: bool, binary_path: Path = None, no_add_to_path: bool = False) -> None:
+	"""
+	opsi-cli self install subcommand.
+
+	Installs opsi-cli binary and configuration files to the system.
+	"""
+	if not binary_path:
+		if platform.system().lower() in ("linux", "darwin"):
+			if system:
+				binary_path = Path("/usr/local/bin/opsi-cli")
+			else:
+				binary_path = Path.home() / ".local/bin/opsi-cli"
+		elif platform.system().lower() == "windows":
+			if system:
+				raise RuntimeError("System-wide installation disabled for windows (for now at least).")
+			binary_path = Path(r"~\AppData\Local\Programs\opsi-cli\opsi-cli.exe").expanduser()
+		else:
+			raise RuntimeError(f"Invalid platform {platform.system()}")
+	logger.notice("Copying %s to %s", sys.executable, binary_path)
+	if not binary_path.parent.exists():
+		binary_path.parent.mkdir(parents=True)
+	try:
+		shutil.copy(sys.executable, binary_path)
+	except shutil.SameFileError:
+		logger.warning("'%s' and '%s' are the same file", sys.executable, binary_path)
+	source = ConfigValueSource.CONFIG_FILE_SYSTEM if system else ConfigValueSource.CONFIG_FILE_USER
+	config.write_config_files(sources=[source])
+	if not no_add_to_path and str(binary_path.parent) not in os.environ.get("PATH", ""):
+		add_to_env_variable("PATH", binary_path.parent)
 
 
 class SelfPlugin(OPSICLIPlugin):
