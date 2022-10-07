@@ -15,10 +15,10 @@ from tests.utils import run_cli
 @pytest.mark.parametrize(
 	("output_format", "startstrings"),
 	(
-		("auto", ["╭────", "\u256d\u2500\u2500\u2500\u2500"]),
+		("auto", ["╭────", "\u250c\u2500\u2500\u2500\u2500"]),
 		("json", ['[{"name":']),
 		("pretty-json", ['[\n  {\n    "name":']),
-		("table", ["╭────", "\u256d\u2500\u2500\u2500\u2500"]),
+		("table", ["╭────", "\u250c\u2500\u2500\u2500\u2500"]),
 		("csv", ["name;"]),
 	),
 )
