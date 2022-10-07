@@ -7,8 +7,8 @@ plugin handling
 import importlib
 import os
 import shutil
-import subprocess
 import sys
+import warnings
 import zipfile
 from importlib._bootstrap import BuiltinImporter  # type: ignore[import]
 from pathlib import Path
@@ -20,9 +20,20 @@ from click import Command  # type: ignore[import]
 from opsicommon.logging import logger  # type: ignore[import]
 from opsicommon.utils import Singleton  # type: ignore[import]
 from packaging.version import parse
+from pip._internal.commands.install import InstallCommand
+from pip._vendor.distlib.scripts import ScriptMaker
 from pipreqs import pipreqs  # type: ignore[import]
 
-from opsicli.config import IN_COMPLETION_MODE, config, get_python_path
+from opsicli.config import IN_COMPLETION_MODE, config
+
+
+def monkeypatched_make_multiple(self, specifications, options=None):  # pylint: disable=unused-argument
+	return []
+
+
+# ScriptMaker is called by pip to create executable python scripts from libraries (i.e. .../bin)
+# Monkeypatch here to avoid trying to create this (nasty in frozen context)
+ScriptMaker.make_multiple = monkeypatched_make_multiple  # type: ignore
 
 PLUGIN_EXTENSION = "opsicliplug"
 # These dependencies are not in python standard library
@@ -228,16 +239,23 @@ def install_plugin(source_dir: Path, name: str, system: Optional[bool] = False) 
 
 def install_python_package(target_dir: Path, package: Dict[str, str]) -> None:
 	logger.info("Installing %r, version %r", package["name"], package["version"])
-	pypath = get_python_path()
-	try:
-		cmd = [pypath, "-m", "pip", "install", f"{package['name']}>={package['version']}", "--target", str(target_dir)]
-		logger.debug("Executing %r", cmd)
-		result = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=False)
-		logger.debug("Success, command output:\n%s", result.decode("utf-8"))
-		return
-	except subprocess.CalledProcessError as process_error:
-		logger.error("Command %r failed, aborting: %s", cmd, process_error, exc_info=True)
-		raise RuntimeError(f"Could not install {package['name']!r}, aborting") from process_error
+	# packaging version bundled in pip uses legacy format (see pip/__main__.py)
+	with warnings.catch_warnings():
+		warnings.filterwarnings("ignore", category=DeprecationWarning, module=".*packaging\\.version")
+		try:
+			install_args = [
+				f"{package['name']}>={package['version']}",
+				"--target",
+				str(target_dir),
+			]
+			result = InstallCommand("install", "Install packages.").main(install_args)
+			if result != 0:
+				raise RuntimeError("Failed to install dependencies (pip call).")
+		except Exception as error:
+			logger.error("Could not install %r, aborting: %s", package["name"], error, exc_info=True)
+			raise RuntimeError(f"Could not install {package['name']!r}, aborting") from error
+		finally:
+			config.set_logging_config()  # pip messes up logging config
 
 
 def install_dependencies(path: Path, target_dir: Path) -> None:

@@ -10,10 +10,14 @@ pyinstaller-poetry:
       - opsicli.io
       - opsicli.cache
       - opsicli.opsiservice
+      - pip._internal.commands.install
+    windows:
+      - pip._vendor.platformdirs.windows
+    darwin:
+      - pip._vendor.platformdirs.macos
   extra_args:
     - --exclude-module=cryptography
     - --exclude-module=tkinter
-    - --exclude-module=opsidevtool
     - --exclude-module=tan
     - --exclude-module=pytest
     - --exclude-module=flake8
@@ -24,6 +28,8 @@ pyinstaller-poetry:
       binaries:
         - opsi-cli
   data_files:
+    - src: ${VENV_SITE_PACKAGES}/pip/_vendor/certifi/cacert.pem
+      dst: pip/_vendor/certifi
     - src: ${VENV_SITE_PACKAGES}/pipreqs/stdlib
       dst: pipreqs
     - src: ${VENV_SITE_PACKAGES}/pipreqs/mapping
