@@ -69,13 +69,7 @@ def add(paths: List[Path], system: bool) -> None:
 @cli.command(short_help=f"Export plugin as .{PLUGIN_EXTENSION}")
 @click.argument("plugin_id", type=str)
 @click.argument("destination_dir", type=click.Path(file_okay=False, dir_okay=True, path_type=Path), default=Path("."))
-@click.option(
-	"--src",
-	help="Extract as directory instead of .opsicliplug",
-	is_flag=True,
-	show_default=True,
-	default=False
-)
+@click.option("--src", help="Extract as directory instead of .opsicliplug", is_flag=True, show_default=True, default=False)
 def export(plugin_id: str, destination_dir: Path, src: bool) -> None:
 	"""
 	opsi-cli plugin export subcommand.

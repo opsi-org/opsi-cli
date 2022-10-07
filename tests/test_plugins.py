@@ -8,7 +8,7 @@ from pathlib import Path
 from opsicli.config import config
 from opsicli.plugin import PLUGIN_EXTENSION, install_python_package, plugin_manager
 
-from .utils import run_cli, temp_context, temp_env
+from .utils import run_cli, temp_context
 
 TESTPLUGIN = Path("tests") / "test_data" / "plugins" / "dummy"
 FAULTYPLUGIN = Path("tests") / "test_data" / "plugins" / "faulty"
@@ -21,16 +21,7 @@ def test_initial() -> None:
 			assert run_cli(args)
 
 
-def test_no_python_path() -> None:
-	with temp_context():
-		with temp_env(PATH=""):
-			# no python found in PATH (check this before any plugin add since lru_cache otherwise uses cached value)
-			(exit_code, output) = run_cli(["plugin", "add", str(TESTPLUGIN)])
-			assert exit_code == 1
-			assert "Could not find python path" in output
-
-
-def test_pip() -> None:
+def test_install() -> None:
 	package = {"name": "netifaces", "version": "0.11.0"}
 	with temp_context() as tempdir:
 		install_python_package(tempdir, package)
@@ -114,9 +105,7 @@ def test_plugin_new(tmp_path) -> None:
 		destination = tmp_path / "newplugin"
 
 		print(f'Calling opsicli with ["plugin", "new", "--description", "", "--version", "0.1.0", "--path", {str(tmp_path)}, "newplugin"]')
-		exit_code, output = run_cli(
-			["plugin", "new", "--description", "", "--version", "0.1.0", "--path", str(tmp_path), "newplugin"]
-		)
+		exit_code, output = run_cli(["plugin", "new", "--description", "", "--version", "0.1.0", "--path", str(tmp_path), "newplugin"])
 		print(output)
 		assert exit_code == 0
 		assert "Plugin 'newplugin' created" in output
@@ -142,7 +131,9 @@ def test_pluginarchive_extract_compress(tmp_path) -> None:
 		assert exit_code == 0
 		assert "extracted" in output
 		assert (tmp_path / "dummy").is_dir()
-		assert (tmp_path / "dummy" / "python" / "__init__.py").read_text("utf-8") == (TESTPLUGIN / "python" / "__init__.py").read_text("utf-8")
+		assert (tmp_path / "dummy" / "python" / "__init__.py").read_text("utf-8") == (TESTPLUGIN / "python" / "__init__.py").read_text(
+			"utf-8"
+		)
 
 
 def test_flag_protected(tmp_path) -> None:
