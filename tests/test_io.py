@@ -13,14 +13,20 @@ from tests.utils import run_cli
 
 # msgpack output is not encoded to be read in terminal -> not tested here!
 @pytest.mark.parametrize(
-	("output_format", "start"),
-	(("auto", "╭────"), ("json", '[{"name":'), ("pretty-json", '[\n  {\n    "name":'), ("table", "╭────"), ("csv", "name;")),
+	("output_format", "startstrings"),
+	(
+		("auto", ["╭────", "\u256d\u2500\u2500\u2500\u2500"]),
+		("json", ['[{"name":']),
+		("pretty-json", ['[\n  {\n    "name":']),
+		("table", ["╭────", "\u256d\u2500\u2500\u2500\u2500"]),
+		("csv", ["name;"]),
+	),
 )
-def test_output(output_format, start):
+def test_output(output_format, startstrings):
 	exit_code, output = run_cli(["--output-format", output_format, "config", "list"])
 	print(output)
 	assert exit_code == 0
-	assert output.startswith(start)
+	assert any(output.startswith(startstring) for startstring in startstrings)
 	print("\n\n")
 
 
