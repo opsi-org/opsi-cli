@@ -6,8 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from opsicli.config import Config, ConfigItem
+from opsicli.config import Config, ConfigItem, ConfigValueSource
 from opsicli.types import Bool, Directory, LogLevel, OPSIServiceUrl, Password
+
+from .utils import run_cli, temp_context
 
 
 @pytest.mark.parametrize(
@@ -60,6 +62,8 @@ def test_config_item_bool(value, expected):
 )
 def test_config_item_opsi_service(value, expected):
 	item = ConfigItem(name="service", type=OPSIServiceUrl, value=value)
+	# as_dict produces Dict containing Dict of values being Dicts with the actual value
+	assert item.as_dict()["value"].get("value") == expected
 	assert item.value == expected
 
 
@@ -94,3 +98,34 @@ def test_set_config():
 	assert config.color is False
 	assert config.get_config_item("color").default is True
 	assert config.get_config_item("color").value is False
+
+
+def test_read_write_config():
+	config = Config()
+	with temp_context() as tempdir:
+		conffile = Path(tempdir) / "conffile.conf"
+		config.config_file_user = conffile
+		# Write any config value and save
+		config.set_values({"output_format": "pretty-json"})
+		config.write_config_files([ConfigValueSource.CONFIG_FILE_USER])
+		assert conffile.exists()
+
+		# Load config from file and check if value is set
+		config = Config()
+		config.config_file_user = conffile
+		config.read_config_files()
+		print(config.get_values().get("output_format"))
+		assert config.get_values().get("output_format") == "pretty-json"
+		assert config.output_format == "pretty-json"
+
+
+def test_service_config():
+	config = Config()
+	(exit_code, _) = run_cli(
+		["config", "service", "add", "--name=test", "--username=testuser", "--password=testpassword", "https://testurl:4447"]
+	)
+	assert exit_code == 0
+	assert any(service.name == "test" for service in config.get_values().get("services", []))
+	(exit_code, _) = run_cli(["config", "service", "remove", "test"])
+	assert exit_code == 0
+	assert not any(service.name == "test" for service in config.get_values().get("services", []))

@@ -19,8 +19,8 @@ from opsicli.plugin import plugin_manager
 runner = CliRunner()
 
 
-def run_cli(args: Sequence[str]) -> Tuple[int, str]:
-	result = runner.invoke(main, args, obj={}, catch_exceptions=False)
+def run_cli(args: Sequence[str], stdin=None) -> Tuple[int, str]:
+	result = runner.invoke(main, args, obj={}, catch_exceptions=False, input=stdin)
 	return (result.exit_code, result.output)
 
 

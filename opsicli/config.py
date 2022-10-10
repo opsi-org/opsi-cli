@@ -7,12 +7,10 @@ general configuration
 
 import os
 import platform
-import shutil
 import sys
 from copy import deepcopy
 from dataclasses import InitVar, asdict, dataclass
 from enum import Enum
-from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Union
 
@@ -55,15 +53,6 @@ class ConfigValueSource(Enum):
 
 logging_config(stderr_level=LOG_ESSENTIAL, file_level=LOG_NONE)
 # logging_config(stderr_level=9)
-
-
-@lru_cache(maxsize=1)
-def get_python_path() -> str:
-	for pyversion in ("python3", "python"):
-		result = shutil.which(pyversion)
-		if result:
-			return result
-	raise RuntimeError("Could not find python path")
 
 
 @dataclass
