@@ -6,8 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from opsicli.config import Config, ConfigItem
+from opsicli.config import Config, ConfigItem, ConfigValueSource
 from opsicli.types import Bool, Directory, LogLevel, OPSIServiceUrl, Password
+
+from .utils import temp_context
 
 
 @pytest.mark.parametrize(
@@ -94,3 +96,24 @@ def test_set_config():
 	assert config.color is False
 	assert config.get_config_item("color").default is True
 	assert config.get_config_item("color").value is False
+
+
+def test_read_write_config():
+	config = Config()
+	config.read_config_files()
+	print(config.get_values())
+	with temp_context() as tempdir:
+		conffile = Path(tempdir) / "conffile.conf"
+		config.config_file_user = conffile
+		# Write any config value and save
+		config.set_values({"output_format": "pretty-json"})
+		config.write_config_files([ConfigValueSource.CONFIG_FILE_USER])
+		assert conffile.exists()
+
+		# Load config from file and check if value is set
+		config = Config()
+		config.config_file_user = conffile
+		config.read_config_files()
+		print(config.get_values())
+		assert config.get_values().get("output_format")
+		assert config.output_format == "pretty-json"

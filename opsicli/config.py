@@ -57,15 +57,6 @@ logging_config(stderr_level=LOG_ESSENTIAL, file_level=LOG_NONE)
 # logging_config(stderr_level=9)
 
 
-@lru_cache(maxsize=1)
-def get_python_path() -> str:
-	for pyversion in ("python3", "python"):
-		result = shutil.which(pyversion)
-		if result:
-			return result
-	raise RuntimeError("Could not find python path")
-
-
 @dataclass
 class ConfigValue:  # pylint: disable=too-many-instance-attributes
 	type: Any
