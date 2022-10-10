@@ -8,10 +8,15 @@ from io import BufferedReader, BytesIO, TextIOWrapper
 import pytest
 
 from opsicli.config import config
-from opsicli.io import read_input, write_output
-from tests.utils import run_cli
+from opsicli.io import input_file, output_file, read_input, write_output
+from tests.utils import run_cli, temp_context
 
 input_output_testdata = (
+	(
+		"json",
+		'{"somekey":"foo","someotherkey":"bar","somethirdkey":"baz"}',
+		{"somekey": "foo", "someotherkey": "bar", "somethirdkey": "baz"},
+	),
 	(
 		"json",
 		'[{"somekey":"foo","someotherkey":"bar"},{"somekey":"bar"},{"someotherkey":"baz"},{}]',
@@ -62,3 +67,23 @@ def test_input(input_format, string, data):  # pylint: disable=unused-argument #
 		result = read_input()
 		sys.stdin = old_stdin
 		assert result == data
+
+
+@pytest.mark.parametrize("encoding", ("utf-8", "binary"))
+def test_input_output_file(encoding):
+	teststring = "teststring"
+	with temp_context() as tempdir:
+		testfile = tempdir / "output.txt"
+		config.output_file = testfile
+		config.input_file = testfile
+		with output_file(encoding=encoding) as file_handle:
+			if encoding == "binary":
+				file_handle.write(teststring.encode("utf-8"))
+			else:
+				file_handle.write(teststring)
+		with input_file(encoding=encoding) as file_handle:
+			result = file_handle.read()
+			if encoding == "binary":
+				assert result == teststring.encode("utf-8")
+			else:
+				assert result == teststring

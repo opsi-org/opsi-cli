@@ -9,7 +9,7 @@ import pytest
 from opsicli.config import Config, ConfigItem, ConfigValueSource
 from opsicli.types import Bool, Directory, LogLevel, OPSIServiceUrl, Password
 
-from .utils import temp_context
+from .utils import run_cli, temp_context
 
 
 @pytest.mark.parametrize(
@@ -100,8 +100,6 @@ def test_set_config():
 
 def test_read_write_config():
 	config = Config()
-	config.read_config_files()
-	print(config.get_values())
 	with temp_context() as tempdir:
 		conffile = Path(tempdir) / "conffile.conf"
 		config.config_file_user = conffile
@@ -114,6 +112,17 @@ def test_read_write_config():
 		config = Config()
 		config.config_file_user = conffile
 		config.read_config_files()
-		print(config.get_values())
-		assert config.get_values().get("output_format")
+		assert config.get_values().get("output_format") == "pretty-json"
 		assert config.output_format == "pretty-json"
+
+
+def test_service_config():
+	config = Config()
+	(exit_code, _) = run_cli(
+		["config", "service", "add", "--name=test", "--username=testuser", "--password=testpassword", "https://testurl:4447"]
+	)
+	assert exit_code == 0
+	assert any(service.name == "test" for service in config.get_values().get("services", []))
+	(exit_code, _) = run_cli(["config", "service", "remove", "test"])
+	assert exit_code == 0
+	assert not any(service.name == "test" for service in config.get_values().get("services", []))
