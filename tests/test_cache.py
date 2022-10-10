@@ -1,3 +1,7 @@
+"""
+test_cache
+"""
+
 import time
 
 from opsicli.cache import cache
