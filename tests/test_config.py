@@ -62,6 +62,8 @@ def test_config_item_bool(value, expected):
 )
 def test_config_item_opsi_service(value, expected):
 	item = ConfigItem(name="service", type=OPSIServiceUrl, value=value)
+	# as_dict produces Dict containing Dict of values being Dicts with the actual value
+	assert item.as_dict()["value"].get("value") == expected
 	assert item.value == expected
 
 
@@ -112,6 +114,7 @@ def test_read_write_config():
 		config = Config()
 		config.config_file_user = conffile
 		config.read_config_files()
+		print(config.get_values().get("output_format"))
 		assert config.get_values().get("output_format") == "pretty-json"
 		assert config.output_format == "pretty-json"
 
