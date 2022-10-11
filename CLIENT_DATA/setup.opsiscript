@@ -31,3 +31,4 @@ Switch GetOS
 		install_macos()
 	EndCase
 EndSwitch
+ShellCall("opsi-cli --version")

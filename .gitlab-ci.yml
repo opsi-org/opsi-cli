@@ -4,6 +4,7 @@ stages:
   - test
   - build
   - package
+  - test
 
 pytest-darwin:
   stage: test
@@ -133,16 +134,26 @@ windows-pyinstaller:
   tags:
     - win10-py310
   script:
+    # build python environment
     - poetry lock --no-update
     - poetry install
+    # get opsi-dev-tool
     - Invoke-WebRequest -UseBasicParsing -Uri "$OPSIDEVTOOLS_URL_WINDOWS_X86" -OutFile opsi-dev-tools.zip
     - Expand-Archive opsi-dev-tools.zip -DestinationPath .
     - .\opsi-dev-tool.exe --self-install
+    # build opsi-cli binary
     - poetry run .\opsi-dev-cli.exe -l info pyinstaller build
+    # test opsi-cli binary
     - dist\opsi-cli.exe --version
     - dist\opsi-cli.exe --non-interactive plugin new cicdtest --version=1.0
     - (get-content cicdtest\python\__init__.py) | %{$_ -replace "import click","import click; import flask"} | Out-File -encoding ascii cicdtest\python\__init__.py
     - dist\opsi-cli.exe -l 7 plugin add cicdtest
+    - .\opsi-dev-cli.exe -l info --output-format simple virustotal check dist\opsi-cli.exe --allow-detections=5  # TODO: remove
+    # sign opsi-cli binary
+    - .\opsi-dev-tool.exe -l info --signserver-sign dist\opsi-cli.exe
+    # virus check of opsi-cli binary
+    - .\opsi-dev-cli.exe -l info --output-format simple virustotal check dist\opsi-cli.exe --allow-detections=5
+    # upload and archive opsi-cli binary
     - if (! $CI_COMMIT_TAG) {.\opsi-dev-cli.exe -l info binary push dist\opsi-cli.exe --prerelease="$CI_JOB_ID"}
     - if ($CI_COMMIT_TAG) {.\opsi-dev-cli.exe -l info binary push dist\opsi-cli.exe}
     - move dist\opsi-cli.exe CLIENT_DATA\opsi-cli-windows.exe
@@ -162,3 +173,17 @@ makeopsipackage:
     - 'sed -i "/Product/,/version:/s/version: .*\$/version: $version/" OPSI/control'
     - opsi-makepackage --no-set-rights -l 6
     - upload-package opsi-cli*.opsi
+
+
+test_all_systems:
+  stage: test
+  script:
+    - opsi-dev-cli -l info jenkins test
+  only:
+    - tags
+
+test_all_systems_manual:
+  stage: test
+  script:
+    - opsi-dev-cli -l info jenkins test
+  when: manual
