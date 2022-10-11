@@ -6,10 +6,13 @@ utils
 """
 
 import base64
+import os
 import platform
 import random
 import string
 import subprocess
+
+from opsicommon.logging import logger  # type: ignore[import]
 
 
 def random_string(length):
@@ -48,5 +51,9 @@ def add_to_env_variable(key: str, value: str, system: bool = False) -> None:
 		raise NotImplementedError(
 			f"add_to_env_variable is currently only implemented for windows - If necessary, manually add {value} to {key}"
 		)
+	if value in os.environ.get(key, ""):
+		logger.info("%s already in Environment Variable %s", value, key)
+		return
 	call = f'setx {key} "%{key}%;{value}" /M' if system else f'setx {key} "%{key}%;{value}"'
+	logger.notice("Adding %s to Environment Variable %s", value, key)
 	subprocess.check_call(call, shell=True)
