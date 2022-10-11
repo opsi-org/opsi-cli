@@ -58,11 +58,11 @@ pylint-pytest:
   stage: test
   needs:
     # We want to combine test coverage from all test jobs
-    - job: test:pytest-windows
+    - job: pytest-windows
       artifacts: true
-    - job: test:pytest-darwin
+    - job: pytest-darwin
       artifacts: true
-    - job: test:pytest-linux
+    - job: pytest-linux
       artifacts: true
   script:
     - apt-get update
