@@ -140,6 +140,7 @@ windows-pyinstaller:
     # get opsi-dev-tool
     - Invoke-WebRequest -UseBasicParsing -Uri "$OPSIDEVTOOLS_URL_WINDOWS_X86" -OutFile opsi-dev-tools.zip
     - Expand-Archive opsi-dev-tools.zip -DestinationPath .
+    - .\opsi-dev-tool.exe --self-upgrade
     - .\opsi-dev-tool.exe --self-install
     # build opsi-cli binary
     - poetry run .\opsi-dev-cli.exe -l info pyinstaller build
@@ -151,7 +152,7 @@ windows-pyinstaller:
     # sign opsi-cli binary
     - .\opsi-dev-tool.exe -l info --signserver-sign dist\opsi-cli.exe
     # virus check of opsi-cli binary
-    - .\opsi-dev-cli.exe -l info --output-format simple virustotal check dist\opsi-cli.exe --allow-detections=5
+    - .\opsi-dev-cli.exe -l info --output-format summary virustotal check dist\opsi-cli.exe --allow-detections=10
     # upload and archive opsi-cli binary
     - if (! $CI_COMMIT_TAG) {.\opsi-dev-cli.exe -l info binary push dist\opsi-cli.exe --prerelease="$CI_JOB_ID"}
     - if ($CI_COMMIT_TAG) {.\opsi-dev-cli.exe -l info binary push dist\opsi-cli.exe}
