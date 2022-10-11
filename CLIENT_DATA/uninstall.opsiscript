@@ -5,23 +5,29 @@ encoding = "UTF-8"
 
 
 DefFunc uninstall_windows() : void
-	Message "uninstalling opsi-cli on windows"
+	Message "installing opsi-cli on windows"
+	ShellCall('"%ScriptPath%\opsi-cli-windows.exe" -l 7 self uninstall --system')
 EndFunc
 
 DefFunc uninstall_linux() : void
-	Message "uninstalling opsi-cli on linux"
+	Message "installing opsi-cli on linux"
+	ShellCall('"%ScriptPath%\opsi-cli-linux" -l 7 self uninstall --system')
 EndFunc
 
 DefFunc uninstall_macos() : void
-	Message "uninstalling opsi-cli on macos"
+	Message "installing opsi-cli on macos"
+	ShellCall('"%ScriptPath%\opsi-cli-macos" -l 7 self uninstall --system')
 EndFunc
 
 
 Switch GetOS
 	Case "Windows_NT"
 		uninstall_windows()
+	EndCase
 	Case "Linux"
 		uninstall_linux()
+	EndCase
 	Case "macOS"
 		uninstall_macos()
-endif
+	EndCase
+EndSwitch

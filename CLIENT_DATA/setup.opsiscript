@@ -6,25 +6,28 @@ encoding = "UTF-8"
 
 DefFunc install_windows() : void
 	Message "installing opsi-cli on windows"
-	ShellCall('"%ScriptPath%\opsi-cli-windows.exe" -l 7 self install')
+	ShellCall('"%ScriptPath%\opsi-cli-windows.exe" -l 7 self install --system')
 EndFunc
 
 DefFunc install_linux() : void
 	Message "installing opsi-cli on linux"
-	ShellCall('"%ScriptPath%\opsi-cli-linux" -l 7 self install')
+	ShellCall('"%ScriptPath%\opsi-cli-linux" -l 7 self install --system')
 EndFunc
 
 DefFunc install_macos() : void
 	Message "installing opsi-cli on macos"
-	ShellCall('"%ScriptPath%\opsi-cli-macos" -l 7 self install')
+	ShellCall('"%ScriptPath%\opsi-cli-macos" -l 7 self install --system')
 EndFunc
 
 
 Switch GetOS
 	Case "Windows_NT"
 		install_windows()
+	EndCase
 	Case "Linux"
 		install_linux()
+	EndCase
 	Case "macOS"
 		install_macos()
-endif
+	EndCase
+EndSwitch

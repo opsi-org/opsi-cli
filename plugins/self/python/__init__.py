@@ -41,6 +41,18 @@ def get_completion_config_path(shell: str):
 	raise ValueError("Shell {shell!r} is not supported.")
 
 
+def get_binary_path(system: bool = False) -> Path:
+	if platform.system().lower() in ("linux", "darwin"):
+		if system:
+			return Path("/usr/local/bin/opsi-cli")
+		return Path.home() / ".local/bin/opsi-cli"
+	if platform.system().lower() == "windows":
+		if system:
+			return Path(r"c:\opsi.org\opsi-cli\opsi-cli.exe")
+		return Path(r"~\AppData\Local\Programs\opsi-cli\opsi-cli.exe").expanduser()
+	raise RuntimeError(f"Invalid platform {platform.system()}")
+
+
 @click.group(name="self", short_help="Manage opsi-cli")
 @click.version_option(__version__, message="self plugin, version %(version)s")
 def cli() -> None:  # pylint: disable=unused-argument
@@ -142,18 +154,7 @@ def install(system: bool, binary_path: Path = None, no_add_to_path: bool = False
 
 	Installs opsi-cli binary and configuration files to the system.
 	"""
-	if not binary_path:
-		if platform.system().lower() in ("linux", "darwin"):
-			if system:
-				binary_path = Path("/usr/local/bin/opsi-cli")
-			else:
-				binary_path = Path.home() / ".local/bin/opsi-cli"
-		elif platform.system().lower() == "windows":
-			if system:
-				raise RuntimeError("System-wide installation disabled for windows (for now at least).")
-			binary_path = Path(r"~\AppData\Local\Programs\opsi-cli\opsi-cli.exe").expanduser()
-		else:
-			raise RuntimeError(f"Invalid platform {platform.system()}")
+	binary_path = binary_path or get_binary_path(system=system)
 	logger.notice("Copying %s to %s", sys.executable, binary_path)
 	if not binary_path.parent.exists():
 		binary_path.parent.mkdir(parents=True)
@@ -164,7 +165,37 @@ def install(system: bool, binary_path: Path = None, no_add_to_path: bool = False
 	source = ConfigValueSource.CONFIG_FILE_SYSTEM if system else ConfigValueSource.CONFIG_FILE_USER
 	config.write_config_files(sources=[source])
 	if not no_add_to_path and str(binary_path.parent) not in os.environ.get("PATH", ""):
-		add_to_env_variable("PATH", binary_path.parent)
+		add_to_env_variable("PATH", str(binary_path.parent), system=system)
+
+
+@cli.command(short_help="Uninstall opsi-cli locally")
+@click.option(
+	"--system",
+	is_flag=True,
+	help="Uninstall system-wide.",
+	default=False,
+	show_default=True,
+)
+@click.option(
+	"--binary-path",
+	type=File,
+	help="File path to find binary at.",
+)
+def uninstall(system: bool, binary_path: Path = None) -> None:
+	"""
+	opsi-cli self uninstall subcommand.
+
+	Uninstalls opsi-cli binary and configuration files from the system.
+	"""
+	binary_path = binary_path or get_binary_path(system=system)
+	logger.notice("Removing binary from %s", binary_path)
+	try:
+		binary_path.unlink()
+	except FileNotFoundError:
+		logger.warning("'%s' not found!", binary_path)
+	config_file = config.config_file_system if system else config.config_file_user
+	if config_file and config_file.exists():
+		config_file.unlink()
 
 
 class SelfPlugin(OPSICLIPlugin):

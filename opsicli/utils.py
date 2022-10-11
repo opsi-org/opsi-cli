@@ -43,7 +43,10 @@ def decrypt(cipher: str):
 	return cleartext
 
 
-def add_to_env_variable(key, value):
+def add_to_env_variable(key: str, value: str, system: bool = False) -> None:
 	if platform.system().lower() != "windows":
-		raise NotImplementedError("add_to_env_variable is currently only implemented for windows")
-	subprocess.check_call(f'setx {key} "%{key}%;{value}"', shell=True)
+		raise NotImplementedError(
+			f"add_to_env_variable is currently only implemented for windows - If necessary, manually add {value} to {key}"
+		)
+	call = f'setx {key} "%{key}%;{value}" /M' if system else f'setx {key} "%{key}%;{value}"'
+	subprocess.check_call(call, shell=True)
