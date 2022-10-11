@@ -148,7 +148,6 @@ windows-pyinstaller:
     - dist\opsi-cli.exe --non-interactive plugin new cicdtest --version=1.0
     - (get-content cicdtest\python\__init__.py) | %{$_ -replace "import click","import click; import flask"} | Out-File -encoding ascii cicdtest\python\__init__.py
     - dist\opsi-cli.exe -l 7 plugin add cicdtest
-    - .\opsi-dev-cli.exe -l info --output-format simple virustotal check dist\opsi-cli.exe --allow-detections=5  # TODO: remove
     # sign opsi-cli binary
     - .\opsi-dev-tool.exe -l info --signserver-sign dist\opsi-cli.exe
     # virus check of opsi-cli binary
