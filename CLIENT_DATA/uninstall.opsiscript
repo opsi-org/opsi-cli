@@ -1,0 +1,27 @@
+[Actions]
+
+requiredWinstVersion >= "4.12.4.35"
+encoding = "UTF-8"
+
+
+DefFunc uninstall_windows() : void
+	Message "uninstalling opsi-cli on windows"
+EndFunc
+
+DefFunc uninstall_linux() : void
+	Message "uninstalling opsi-cli on linux"
+EndFunc
+
+DefFunc uninstall_macos() : void
+	Message "uninstalling opsi-cli on macos"
+EndFunc
+
+
+Switch GetOS
+	Case "Windows_NT"
+		uninstall_windows()
+	Case "Linux"
+		uninstall_linux()
+	Case "macOS"
+		uninstall_macos()
+endif
