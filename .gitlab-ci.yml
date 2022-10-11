@@ -140,7 +140,6 @@ windows-pyinstaller:
     # get opsi-dev-tool
     - Invoke-WebRequest -UseBasicParsing -Uri "$OPSIDEVTOOLS_URL_WINDOWS_X86" -OutFile opsi-dev-tools.zip
     - Expand-Archive opsi-dev-tools.zip -DestinationPath .
-    - .\opsi-dev-tool.exe --self-upgrade
     - .\opsi-dev-tool.exe --self-install
     # build opsi-cli binary
     - poetry run .\opsi-dev-cli.exe -l info pyinstaller build
