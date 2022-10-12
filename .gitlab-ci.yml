@@ -172,17 +172,27 @@ makeopsipackage:
     - 'sed -i "/Product/,/version:/s/version: .*\$/version: $version/" OPSI/control'
     - opsi-makepackage --no-set-rights -l 6
     - upload-package opsi-cli*.opsi
+  artifacts:
+    name: controlfile
+    paths:
+      - OPSI/control
 
+
+.runtest: &runtest |
+  version=$(grep OPSI/control -A 10 -e "\[Product\]" | grep "version:" | tr -d "^a-zA-Z :")
+  package=$(grep OPSI/control -A 5 -e "\[Package\]" | grep "version:" | tr -d "^a-zA-Z :")
+  version="$version-$(echo $package | tr '.' '~')"
+  opsi-dev-cli -l info jenkins test --versions="$version,$version,$version,$version,$version"
 
 test_all_systems:
   stage: test_package
   script:
-    - opsi-dev-cli -l info jenkins test
+    - *runtest
   only:
     - tags
 
 test_all_systems_manual:
   stage: test_package
   script:
-    - opsi-dev-cli -l info jenkins test
+    - *runtest
   when: manual
