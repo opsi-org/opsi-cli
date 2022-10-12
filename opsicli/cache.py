@@ -44,7 +44,7 @@ class Cache(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 
 	def store(self):
 		self._ensure_loaded()
-		if not self._cache_file.exists():
+		if not self._cache_file.parent.exists():
 			self._cache_file.parent.mkdir(parents=True)
 		with open(self._cache_file, "wb") as file:
 			self._cache_file.chmod(0o600)

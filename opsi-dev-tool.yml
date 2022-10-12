@@ -38,3 +38,11 @@ pyinstaller-poetry:
       dst: plugins
   dirname: opsicli
   locale_install: []
+
+
+jenkins-test:
+  ACTIONREQUEST: setup,setup,uninstall,uninstall,setup
+  PRODUCTS: opsi-cli,opsi-cli,opsi-cli,opsi-cli,opsi-cli
+  SNAPSHOT: patched
+  PROPERTIES: {}
+  SYSTEMS: win7,win7-x64,win10-21h2,win10-x64-21h2,win11-x64,debian11,sle15-4,macos-12-1

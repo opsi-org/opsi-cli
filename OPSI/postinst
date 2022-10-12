@@ -1,0 +1,12 @@
+#!/bin/bash
+#
+# postinst script
+# This script executes after unpacking files from that archive and registering the product at the depot.
+#
+# The following environment variables can be used to obtain information about the current installation:
+#   PRODUCT_ID: id of the current product
+#   PRODUCT_TYPE: type of the current product
+#   PRODUCT_VERSION: product version
+#   PACKAGE_VERSION: package version
+#   CLIENT_DATA_DIR: directory where client data will be installed
+#

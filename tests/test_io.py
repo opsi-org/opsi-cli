@@ -78,15 +78,15 @@ def test_input(input_format, string, data):  # pylint: disable=unused-argument #
 
 
 @pytest.mark.parametrize(
-	("string", "input_type", "result"), (("teststring", str, "teststring"), ("3.14159", float, 3.14159), ("42", int, 42))
+	("string", "input_type", "expected_result"), (("teststring", str, "teststring"), ("3.14159", float, 3.14159), ("42", int, 42))
 )
-def test_prompt(string, input_type, result):
+def test_prompt(string, input_type, expected_result):
 	with TextIOWrapper(BufferedReader(BytesIO(string.encode("utf-8")))) as inputfile:
 		old_stdin = sys.stdin
 		sys.stdin = inputfile
 		result = prompt("input some value", return_type=input_type)
 		sys.stdin = old_stdin
-		assert result == result
+		assert result == expected_result
 
 
 @pytest.mark.parametrize("encoding", ("utf-8", "binary"))
