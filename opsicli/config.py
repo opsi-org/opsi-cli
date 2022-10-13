@@ -253,6 +253,13 @@ CONFIG_ITEMS = [
 	ConfigItem(name="username", type=str, group="Opsi service", description="Username for opsi service connection."),
 	ConfigItem(name="password", type=Password, group="Opsi service", description="Password for opsi service connection."),
 	ConfigItem(name="services", type=OPSIService, description="Configured opsi services.", multiple=True, key="name"),
+	ConfigItem(
+		name="dry_run",
+		type=Bool,
+		group="General",
+		default=False,
+		description="Simulation only. Does not perform actions.",
+	),
 ]
 
 if platform.system().lower() == "windows":
@@ -392,6 +399,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 
 			for config_item in self._config.values():
 				values = [val for val in config_item.get_values(value_only=False) if val and val.source == source]
+				logger.devel(values)
 				if not values:
 					continue
 				yaml_values = [val.value.to_yaml() if hasattr(val.value, "to_yaml") else val.value for val in values if val]

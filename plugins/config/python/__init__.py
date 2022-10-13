@@ -79,6 +79,20 @@ def config_show(name: str) -> None:
 	write_output(data, metadata)
 
 
+@cli.command(name="set", short_help="Set configuration value")
+@click.argument("key", type=str, shell_complete=complete_config_item_name)
+@click.argument("value", type=str)
+@click.option("--system", is_flag=True, default=False, help="If this is set, store new configuration value system-wide.")
+def config_set(key: str, value: str, system: bool) -> None:
+	"""
+	opsi-cli config set subcommand.
+	"""
+	logger.notice("Setting config %s to %s", key, value)
+	source = ConfigValueSource.CONFIG_FILE_SYSTEM if system else ConfigValueSource.CONFIG_FILE_USER
+	config.get_config_item(key).set_value(value, source)
+	config.write_config_files(sources=[source])
+
+
 @cli.group(short_help="Configuration of opsi services")
 def service() -> None:
 	"""
