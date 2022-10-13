@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from opsicli.config import Config, ConfigItem, ConfigValueSource
+from opsicli.config import Config, ConfigItem
 from opsicli.types import Bool, Directory, LogLevel, OPSIServiceUrl, Password
 
 from .utils import run_cli, temp_context
