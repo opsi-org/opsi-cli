@@ -93,6 +93,19 @@ def config_set(key: str, value: str, system: bool) -> None:
 	config.write_config_files(sources=[source])
 
 
+@cli.command(name="unset", short_help="Restore default of configuration value")
+@click.argument("key", type=str, shell_complete=complete_config_item_name)
+@click.option("--system", is_flag=True, default=False, help="If this is set, restore configuration value if set system-wide.")
+def config_unset(key: str, system: bool) -> None:
+	"""
+	opsi-cli config unset subcommand.
+	"""
+	logger.notice("Unsetting config %s ", key)
+	source = ConfigValueSource.CONFIG_FILE_SYSTEM if system else ConfigValueSource.CONFIG_FILE_USER
+	config.get_config_item(key).set_value(config.get_config_item(key).get_default())
+	config.write_config_files(sources=[source])
+
+
 @cli.group(short_help="Configuration of opsi services")
 def service() -> None:
 	"""

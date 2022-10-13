@@ -49,6 +49,9 @@ class OutputFormat(str):
 			raise ValueError(f"{value!r} is not a valid output format, choose one of: {cls.possible_values_for_description}") from None
 		return super().__new__(cls, value)
 
+	def to_yaml(self):
+		return str(self)
+
 
 class Attributes(list):
 	def __init__(self, value):

@@ -106,17 +106,19 @@ def test_read_write_config():
 		conffile = Path(tempdir) / "conffile.conf"
 		config.config_file_user = conffile
 		# Write any config value and save
-		config.set_values({"output_format": "pretty-json"})
-		config.write_config_files([ConfigValueSource.CONFIG_FILE_USER])
+		exit_code, output = run_cli(["config", "set", "output_format", "csv"])
+		print(output)
+		assert exit_code == 0
 		assert conffile.exists()
-
+		config.set_values({"output_format": "msgpack"})
 		# Load config from file and check if value is set
-		config = Config()
-		config.config_file_user = conffile
 		config.read_config_files()
 		print(config.get_values().get("output_format"))
-		assert config.get_values().get("output_format") == "pretty-json"
-		assert config.output_format == "pretty-json"
+		assert config.get_values().get("output_format") == "csv"
+		assert config.output_format == "csv"
+		exit_code, _ = run_cli(["config", "unset", "output_format"])
+		assert exit_code == 0
+		assert config.get_values().get("output_format") == "auto"
 
 
 def test_service_config():

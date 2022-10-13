@@ -399,7 +399,6 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 
 			for config_item in self._config.values():
 				values = [val for val in config_item.get_values(value_only=False) if val and val.source == source]
-				logger.devel(values)
 				if not values:
 					continue
 				yaml_values = [val.value.to_yaml() if hasattr(val.value, "to_yaml") else val.value for val in values if val]
@@ -417,7 +416,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 			if not config_file.parent.exists():
 				logger.debug("Creating directory %s", config_file.parent)
 				config_file.parent.mkdir(parents=True)
-			with open(config_file, "w", encoding="utf-8") as file:
+			with open(config_file, "w", encoding="utf-8") as file:  # IDEA: save file and restore on error
 				logger.debug("Writing file %s", config_file)
 				YAML().dump(data, file)
 
