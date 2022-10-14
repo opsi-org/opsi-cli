@@ -29,7 +29,15 @@ def get_service_credentials_from_backend() -> Tuple[str, str]:
 		if match:
 			backend = match.group(1).replace(",", "").strip()
 
-	if backend == "mysql":
+	if backend == "file":
+		for file in Path("/var/lib/opsi/config/depots").glob("*.ini"):
+			depot_id = file.stem.lower()
+			for line in Path("/etc/opsi/pckeys").read_text(encoding="utf-8").splitlines():
+				if line and line.strip() and ":" in line:
+					host_id, host_key = line.strip().split(":")
+					if host_id.lower() == depot_id:
+						return depot_id, host_key.strip()
+	else:
 		mysql_conf = Path("/etc/opsi/backends/mysql.conf")
 		loc: Dict[str, Any] = {}
 		exec(compile(mysql_conf.read_bytes(), "<string>", "exec"), None, loc)  # pylint: disable=exec-used
@@ -57,14 +65,6 @@ def get_service_credentials_from_backend() -> Tuple[str, str]:
 			if res:
 				host_id, host_key = res.split()
 				return host_id, host_key
-	else:
-		for file in Path("/var/lib/opsi/config/depots").glob("*.ini"):
-			depot_id = file.stem.lower()
-			for line in Path("/etc/opsi/pckeys").read_text(encoding="utf-8").splitlines():
-				if line and line.strip() and ":" in line:
-					host_id, host_key = line.strip().split(":")
-					if host_id.lower() == depot_id:
-						return depot_id, host_key.strip()
 
 	raise RuntimeError("Failed to get service credentials")
 
