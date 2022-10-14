@@ -79,6 +79,38 @@ def config_show(name: str) -> None:
 	write_output(data, metadata)
 
 
+@cli.command(name="set", short_help="Set configuration value")
+@click.argument("key", type=str, shell_complete=complete_config_item_name)
+@click.argument("value", type=str)
+@click.option("--system", is_flag=True, default=False, help="If this is set, store new configuration value system-wide.")
+def config_set(key: str, value: str, system: bool) -> None:
+	"""
+	Set a value for an configuration item.
+	A system-wide setting overwrites the default value of the configuration object.
+	A user-specific configuration has priority over a system-wide setting.
+	"""
+	logger.notice("Setting config %s to %s", key, value)
+	source = ConfigValueSource.CONFIG_FILE_SYSTEM if system else ConfigValueSource.CONFIG_FILE_USER
+	config.get_config_item(key).set_value(value, source)
+	config.write_config_files(sources=[source])
+
+
+@cli.command(name="unset", short_help="Unset configuration value")
+@click.argument("key", type=str, shell_complete=complete_config_item_name)
+@click.option("--system", is_flag=True, default=False, help="If this is set, remove value from system-wide configuration.")
+def config_unset(key: str, system: bool) -> None:
+	"""
+	Remove configured value for an configuration item.
+	If a user-specific value is deleted, the system-wide setting applies again.
+	If no system-wide setting exists, the default value of the configuration item applies.
+	"""
+
+	logger.notice("Unsetting config %s ", key)
+	source = ConfigValueSource.CONFIG_FILE_SYSTEM if system else ConfigValueSource.CONFIG_FILE_USER
+	config.get_config_item(key).set_value(config.get_config_item(key).get_default())
+	config.write_config_files(sources=[source])
+
+
 @cli.group(short_help="Configuration of opsi services")
 def service() -> None:
 	"""

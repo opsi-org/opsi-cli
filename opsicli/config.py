@@ -253,6 +253,13 @@ CONFIG_ITEMS = [
 	ConfigItem(name="username", type=str, group="Opsi service", description="Username for opsi service connection."),
 	ConfigItem(name="password", type=Password, group="Opsi service", description="Password for opsi service connection."),
 	ConfigItem(name="services", type=OPSIService, description="Configured opsi services.", multiple=True, key="name"),
+	ConfigItem(
+		name="dry_run",
+		type=Bool,
+		group="General",
+		default=False,
+		description="Simulation only. Does not perform actions.",
+	),
 ]
 
 if platform.system().lower() == "windows":
@@ -409,7 +416,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 			if not config_file.parent.exists():
 				logger.debug("Creating directory %s", config_file.parent)
 				config_file.parent.mkdir(parents=True)
-			with open(config_file, "w", encoding="utf-8") as file:
+			with open(config_file, "w", encoding="utf-8") as file:  # IDEA: save file and restore on error
 				logger.debug("Writing file %s", config_file)
 				YAML().dump(data, file)
 
