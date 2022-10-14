@@ -39,6 +39,8 @@ def get_service_credentials_from_backend() -> Tuple[str, str]:
 				"mysql",
 				"--defaults-file=/dev/stdin",
 				"--skip-column-names",
+				"-h",
+				urlparse(cfg["address"]).hostname or cfg["address"],
 				"-D",
 				cfg["database"],
 				"-e",
