@@ -21,12 +21,18 @@ __description__ = "This command can be used to manage opsi client actions."
 @click.option("--clients", help="Comma-separated list of clients or 'all'")
 @click.option("--client-groups", help="Comma-separated list of host groups")
 @click.option("--exclude-clients", help="Do not perform actions for these clients")
-def cli(ctx, clients, client_groups, exclude_clients) -> None:
+@click.option("--exclude-client-groups", help="Do not perform actions for these client groups")
+def cli(ctx, clients, client_groups, exclude_clients, exclude_client_groups) -> None:
 	"""
 	This command can be used to manage opsi client actions.
 	"""
 	logger.trace("client-action command group")
-	ctx.obj = {"clients": clients, "client_groups": client_groups, "exclude_clients": exclude_clients}
+	ctx.obj = {
+		"clients": clients,
+		"client_groups": client_groups,
+		"exclude_clients": exclude_clients,
+		"exclude_client_groups": exclude_client_groups
+	}
 
 
 @cli.command(name="set-action-request", short_help="Set action requests for opsi clients")
@@ -42,13 +48,14 @@ def cli(ctx, clients, client_groups, exclude_clients) -> None:
 @click.option("--exclude-products", help="Do not set actionRequests for these products")
 @click.option("--products", help="Set actionRequests for these products")
 @click.option("--product-groups", help="Set actionRequests for the products of these product groups")
+@click.option("--exclude-product-groups", help="Do not set actionRequests for these product groups")
 @click.option("--request-type", help="The type of action request to set", show_default=True, default="setup")
+@click.option("--setup-on-action", help="After actionRequest was set for a client, set these products to setup")
 def set_action_request(ctx, **kwargs) -> None:
 	"""
 	opsi-cli client-action set-action-request command
 	"""
-	kwargs.update(ctx.obj)
-	worker = SetActionRequestWorker(**kwargs)
+	worker = SetActionRequestWorker(**ctx.obj)
 	worker.set_action_request(**kwargs)
 
 
