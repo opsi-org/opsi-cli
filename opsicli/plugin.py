@@ -104,9 +104,9 @@ class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-meth
 			sys.path.append(str(config.user_lib_dir))
 		if str(config.python_lib_dir) not in sys.path:
 			sys.path.append(str(config.python_lib_dir))
-		logger.info("Extracting plugin object from '%s'", plugin_dir)
+		logger.debug("Extracting plugin object from '%s'", plugin_dir)
 		module_name = self.module_name(plugin_dir)
-		logger.debug("Module name is %r", module_name)
+		logger.trace("Module name is %r", module_name)
 		if module_name in sys.modules:
 			reload = []
 			for sys_module in list(sys.modules):
@@ -147,7 +147,7 @@ class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-meth
 			if not plugin_base_dir.exists():
 				logger.debug("Plugin dir '%s' not found", plugin_base_dir)
 				continue
-			logger.info("Loading plugins from dir '%s'", plugin_base_dir)
+			logger.debug("Loading plugins from dir '%s'", plugin_base_dir)
 			for plugin_dir in plugin_base_dir.iterdir():
 				init_path = plugin_dir / "python" / "__init__.py"
 				if not init_path.exists():

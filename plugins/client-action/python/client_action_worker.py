@@ -29,13 +29,13 @@ class ClientActionWorker:  # pylint: disable=too-many-instance-attributes
 		self, clients: str = None, client_groups: str = None, exclude_clients: str = None, exclude_client_groups: str = None
 	) -> None:
 		self.clients = []
-		if not clients and not client_groups:  # select all clients
-			self.clients = [entry.id for entry in self.service.execute_rpc("host_getObjects", [[], {"type": "OpsiClient"}])]
 		if clients:
 			self.clients.extend([entry.strip() for entry in clients.split(",")])
 		if client_groups:
 			for group in [entry.strip() for entry in client_groups.split(",")]:
 				self.clients.extend(self.client_ids_from_group(group))
+		if not clients and not client_groups or "all" in self.clients:  # select all clients
+			self.clients = [entry.id for entry in self.service.execute_rpc("host_getObjects", [[], {"type": "OpsiClient"}])]
 		exclude_clients_list = []
 		if exclude_clients:
 			exclude_clients_list = [exclude.strip() for exclude in exclude_clients.split(",")]

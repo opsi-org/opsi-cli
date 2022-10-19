@@ -104,9 +104,13 @@ class SetActionRequestWorker(ClientActionWorker):
 		]
 		logger.notice("Handling products %s", self.products)
 
-	def set_single_action_request(self, product_on_client: ProductOnClient, request_type: str = None) -> List[ProductOnClient]:
-		if product_on_client.actionRequest not in (None, "none"):  # Could introduce --force to ignore/overwrite existing action Requests
-			logger.debug(
+	def set_single_action_request(
+		self, product_on_client: ProductOnClient,
+		request_type: str = None,
+		force: bool = False
+	) -> List[ProductOnClient]:
+		if not force and product_on_client.actionRequest not in (None, "none"):
+			logger.info(
 				"Skipping %s %s as an actionRequest is set: %s",
 				product_on_client.productId,
 				product_on_client.clientId,
@@ -115,7 +119,7 @@ class SetActionRequestWorker(ClientActionWorker):
 			return []  # existing actionRequests are left untouched
 
 		if product_on_client.productId in self.depending_products:
-			logger.info(
+			logger.notice(
 				"Setting '%s' ProductActionRequest with Dependencies: %s -> %s",
 				request_type or self.request_type,
 				product_on_client.productId,
@@ -127,7 +131,7 @@ class SetActionRequestWorker(ClientActionWorker):
 					[product_on_client.productId, product_on_client.clientId, request_type or self.request_type]
 				)
 			return []  # no need to update the POC
-		logger.info(
+		logger.notice(
 			"Setting '%s' ProductActionRequest: %s -> %s",
 			request_type or self.request_type,
 			product_on_client.productId,
@@ -137,7 +141,12 @@ class SetActionRequestWorker(ClientActionWorker):
 			product_on_client.setActionRequest(request_type or self.request_type)
 		return [product_on_client]
 
-	def set_action_requests_for_all(self, clients: List[str], products: List[str], request_type: str = None) -> List[ProductOnClient]:
+	def set_action_requests_for_all(
+		self,
+		clients: List[str], products: List[str],
+		request_type: str = None,
+		force: bool = False
+	) -> List[ProductOnClient]:
 		new_pocs = []
 		existing_pocs: Dict[str, Dict[str, ProductOnClient]] = {}
 		for poc in self.service.execute_rpc(
@@ -156,7 +165,7 @@ class SetActionRequestWorker(ClientActionWorker):
 					installationStatus='not_installed',
 					actionRequest=None
 				)
-				new_pocs.extend(self.set_single_action_request(poc, request_type or self.request_type))
+				new_pocs.extend(self.set_single_action_request(poc, request_type or self.request_type, force=force))
 		return new_pocs
 
 	def set_action_request(self, **kwargs) -> None:
@@ -202,7 +211,7 @@ class SetActionRequestWorker(ClientActionWorker):
 				new_pocs.extend(self.set_action_requests_for_all(list(modified_clients), setup_on_action_products, "setup"))
 		# if neither where_failed nor where_outdated nor uninstall_where_only_uninstall is set, set action request for every selected client
 		else:
-			new_pocs.extend(self.set_action_requests_for_all(self.clients, self.products))
+			new_pocs.extend(self.set_action_requests_for_all(self.clients, self.products, force=True))
 
 		if not config.dry_run:
 			logger.debug("Updating ProductOnClient")
