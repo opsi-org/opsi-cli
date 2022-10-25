@@ -4,7 +4,7 @@ opsi-cli basic command line interface for opsi
 client-action plugin
 """
 
-import click  # type: ignore[import]
+import rich_click as click  # type: ignore[import]
 from opsicommon.logging import logger  # type: ignore[import]
 
 from opsicli.plugin import OPSICLIPlugin

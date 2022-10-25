@@ -211,6 +211,8 @@ class SetActionRequestWorker(ClientActionWorker):
 				new_pocs.extend(self.set_action_requests_for_all(list(modified_clients), setup_on_action_products, "setup"))
 		# if neither where_failed nor where_outdated nor uninstall_where_only_uninstall is set, set action request for every selected client
 		else:
+			if not kwargs.get("products") and not kwargs.get("product_groups"):
+				raise ValueError("When unconditionally setting actionRequests, you must supply --products or --product-groups.")
 			new_pocs.extend(self.set_action_requests_for_all(self.clients, self.products, force=True))
 
 		if not config.dry_run:

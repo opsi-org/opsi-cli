@@ -2,7 +2,7 @@
 template for opsi-cli plugins
 """
 
-import click  # type: ignore[import]
+import rich_click as click  # type: ignore[import]
 from opsicommon.logging import logger  # type: ignore[import]
 
 from opsicli.plugin import OPSICLIPlugin
