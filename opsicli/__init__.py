@@ -7,7 +7,7 @@ import sys
 
 from opsicli.config import config
 
-__version__ = "0.1.5"
+__version__ = "4.2.0.0"
 
 
 def prepare_cli_paths() -> None:
