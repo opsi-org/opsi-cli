@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "opsi-cli"
-version = "4.2.0.0"
+version = "4.2.0.1"
 description = "opsi command line interface"
 homepage = "https://www.opsi.org"
 license = "AGPL-3.0"
