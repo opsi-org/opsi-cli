@@ -83,7 +83,7 @@ def output_file(encoding: Optional[str] = "utf-8"):
 			file.flush()
 
 
-def get_console(file: IO[str] = None):
+def get_console(file: Optional[IO[str]] = None) -> Console:
 	return Console(file=file, color_system="auto" if config.color else None)
 
 
