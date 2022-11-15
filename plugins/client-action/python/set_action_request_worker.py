@@ -30,6 +30,14 @@ STATIC_EXCLUDE_PRODUCTS = [
 	"windomain",
 ]
 
+ACTION_REQUEST_SCRIPTS = [
+	"setupScript",
+	"uninstallScript",
+	"updateScript",
+	"alwaysScript",
+	"onceScript",
+	"customScript",
+]
 
 class SetActionRequestWorker(ClientActionWorker):
 	def __init__(self, **kwargs):
@@ -41,7 +49,8 @@ class SetActionRequestWorker(ClientActionWorker):
 		)
 		self.products: List[str] = []
 		self.products_with_only_uninstall: List[str] = []
-		self.depot_versions: Dict[str, str] = {}
+		self.depot_versions: Dict[str, Dict[str, str]] = {}
+		self.product_action_scripts: Dict[str, List[str]] = {}
 		self.client_to_depot: Dict[str, str] = {}
 		self.depending_products: Set[str] = set()
 		self.request_type = "setup"
@@ -55,6 +64,9 @@ class SetActionRequestWorker(ClientActionWorker):
 		logger.trace("Product versions on depots: %s", self.depot_versions)
 		for pdep in self.service.execute_rpc("productDependency_getObjects"):
 			self.depending_products.add(pdep.productId)
+		for product in self.service.execute_rpc("product_getObjects"):
+			# store the available action request scripts (strip "Script" at the end of the property)
+			self.product_action_scripts[product.id] = [key[:-6] for key in ACTION_REQUEST_SCRIPTS if getattr(product, key, "")]
 		logger.trace("Products with dependencies: %s", self.depending_products)
 
 	def product_ids_from_group(self, group: str) -> List[str]:
@@ -117,6 +129,14 @@ class SetActionRequestWorker(ClientActionWorker):
 				product_on_client.actionRequest
 			)
 			return []  # existing actionRequests are left untouched
+		if request_type not in self.product_action_scripts[product_on_client.productId]:
+			logger.warning(
+				"Skipping %s %s as the package does not have a script for: %s",
+				product_on_client.productId,
+				product_on_client.clientId,
+				request_type
+			)
+			return []
 
 		if product_on_client.productId in self.depending_products:
 			logger.notice(
@@ -168,7 +188,7 @@ class SetActionRequestWorker(ClientActionWorker):
 				new_pocs.extend(self.set_single_action_request(poc, request_type or self.request_type, force=force))
 		return new_pocs
 
-	def set_action_request(self, **kwargs) -> None:
+	def set_action_request(self, **kwargs) -> None:  # pylint: disable=too-many-branches
 		if config.dry_run:
 			logger.notice("Operating in dry-run mode - not performing any actions")
 
