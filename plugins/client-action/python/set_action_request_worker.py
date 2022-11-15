@@ -180,6 +180,8 @@ class SetActionRequestWorker(ClientActionWorker):
 			kwargs.get("exclude_product_groups"),
 			use_default_excludes=kwargs.get("where_outdated", False) or kwargs.get("where_failed", False)
 		)
+		if not self.products:
+			raise ValueError("No products selected")
 		if kwargs.get("uninstall_where_only_uninstall"):
 			logger.notice("Uninstalling products (where installed): %s", self.products_with_only_uninstall)
 
