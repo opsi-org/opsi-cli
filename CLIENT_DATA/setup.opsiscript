@@ -11,12 +11,12 @@ EndFunc
 
 DefFunc install_linux() : void
 	Message "installing opsi-cli on linux"
-	ShellCall('"%ScriptPath%/opsi-cli-linux" -l 7 self install --system')
+	ShellCall('"%ScriptPath%/opsi-cli-linux" -l 7 self install --system --no-add-to-path')
 EndFunc
 
 DefFunc install_macos() : void
 	Message "installing opsi-cli on macos"
-	ShellCall('"%ScriptPath%/opsi-cli-macos" -l 7 self install --system')
+	ShellCall('"%ScriptPath%/opsi-cli-macos" -l 7 self install --system --no-add-to-path')
 EndFunc
 
 
@@ -30,13 +30,9 @@ Switch GetOS
 	Case "macOS"
 		install_macos()
 	EndCase
-	if not(GetLastExitcode = "0")
-		LogError "opsi-cli self install failed"
-		IsFatalError "opsi-cli self install failed"
-	endif
 EndSwitch
-ShellCall("opsi-cli --version")
 if not(GetLastExitcode = "0")
-		LogError "opsi-cli not properly installed"
-		IsFatalError "opsi-cli not properly installed"
+	LogError "opsi-cli self install failed"
+	IsFatalError "opsi-cli self install failed"
 endif
+ShellCall("opsi-cli --version")

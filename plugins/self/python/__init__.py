@@ -164,6 +164,7 @@ def install(system: bool, binary_path: Path = None, no_add_to_path: bool = False
 		logger.warning("'%s' and '%s' are the same file", sys.executable, binary_path)
 	source = ConfigValueSource.CONFIG_FILE_SYSTEM if system else ConfigValueSource.CONFIG_FILE_USER
 	config.write_config_files(sources=[source])
+	logger.debug("PATH is '%s'", os.environ.get("PATH", ""))
 	if not no_add_to_path and str(binary_path.parent) not in os.environ.get("PATH", ""):
 		add_to_env_variable("PATH", str(binary_path.parent), system=system)
 
