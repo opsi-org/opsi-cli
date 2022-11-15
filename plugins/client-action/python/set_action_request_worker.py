@@ -39,6 +39,7 @@ ACTION_REQUEST_SCRIPTS = [
 	"customScript",
 ]
 
+
 class SetActionRequestWorker(ClientActionWorker):
 	def __init__(self, **kwargs):
 		super().__init__(
