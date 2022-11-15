@@ -45,4 +45,4 @@ jenkins-test:
   PRODUCTS: opsi-cli,opsi-cli,opsi-cli,opsi-cli,opsi-cli
   SNAPSHOT: patched
   PROPERTIES: {}
-  SYSTEMS: win10-2009,win10-x64-21h2,win11-x64,debian11,sle15-4,macos-12-1
+  SYSTEMS: win10-2004,win10-x64-21h2,win11-x64,debian11,sle15-4,macos-12-1
