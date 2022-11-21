@@ -12,11 +12,13 @@ EndFunc
 DefFunc install_linux() : void
 	Message "installing opsi-cli on linux"
 	ShellCall('"%ScriptPath%/opsi-cli-linux" -l 7 self install --system --no-add-to-path')
+        ShellCall('chmod 755 /usr/local/bin/opsi-cli')
 EndFunc
 
 DefFunc install_macos() : void
 	Message "installing opsi-cli on macos"
 	ShellCall('"%ScriptPath%/opsi-cli-macos" -l 7 self install --system --no-add-to-path')
+        ShellCall('chmod 755 /usr/local/bin/opsi-cli')
 EndFunc
 
 
