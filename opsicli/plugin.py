@@ -85,7 +85,12 @@ sys.meta_path.append(PluginImporter)  # type: ignore[arg-type]
 
 
 class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-methods
+	_initialized = False
+
 	def __init__(self) -> None:
+		if self._initialized:
+			return
+		self._initialized = True
 		self._plugins: Dict[str, OPSICLIPlugin] = {}
 
 	@classmethod
