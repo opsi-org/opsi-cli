@@ -2,12 +2,9 @@
 websocket functions
 """
 
-import asyncio
+import platform
 import shutil
 import sys
-import termios
-import time
-import tty
 from contextlib import contextmanager
 from threading import Event
 from typing import Optional
@@ -31,27 +28,36 @@ from opsicommon.messagebus import (
 
 from opsicli.io import prompt
 
+if platform.system().lower() == "windows":
+	import msvcrt  # pylint: disable=import-error
+else:
+	import termios
+	import tty
+
 CHANNEL_SUBSCRIPTION_TIMEOUT = 5
 
 
 @contextmanager
 def stream_wrap():
 	logging_config(stderr_level=0)  # Restore?
-	attrs = termios.tcgetattr(sys.stdin.fileno())
-	try:
-		tty.setraw(sys.stdin.fileno())
+	if platform.system().lower() == "windows":
 		yield
-	except Exception as err:  # pylint: disable=broad-except
-		termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, attrs)
-		print(err, file=sys.stderr)
 	else:
-		termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, attrs)
+		attrs = termios.tcgetattr(sys.stdin.fileno())
+		try:
+			tty.setraw(sys.stdin.fileno())  # Set raw mode to access char by char
+			yield
+		except Exception as err:  # pylint: disable=broad-except
+			termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, attrs)
+			print(err, file=sys.stderr)
+		else:
+			termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, attrs)
 
 
 def log_message(message: Message) -> None:
-	logger.devel("Got message of type %s", message.type)
+	logger.info("Got message of type %s", message.type)
 	for key, value in message.to_dict().items():
-		logger.info("\t%s: %s", key, value)
+		logger.debug("\t%s: %s", key, value)
 
 
 class MessagebusTerminal(MessagebusListener):
@@ -80,27 +86,28 @@ class MessagebusTerminal(MessagebusListener):
 			logger.error(err, exc_info=True)
 
 	def _process_message(self, message: Message) -> None:
-		# Get responsible service_worker
 		if not self.service_worker_channel and isinstance(message, ChannelSubscriptionEventMessage):
 			logger.notice("Got channel subscription event")
+			# Get responsible service_worker
 			self.service_worker_channel = message.sender
 			self.channel_subscription_event.set()
-		elif isinstance(message, (TerminalDataRead, TerminalDataWrite)):
+		elif isinstance(message, (TerminalDataRead)):
 			print(message.data.decode("utf-8"), end="")
+			sys.stdout.flush()  # This actually pops the buffer to terminal (without waiting for '\n')
 		elif isinstance(message, TerminalCloseEvent):
 			logger.notice("received terminal close event - shutting down")
 			self.should_close = True
 
-	async def transmit_input(self, term_write_channel, term_id):
-		# max_size = 1024
-		# my_stdin = asyncio.StreamReader()
+	def transmit_input(self, term_write_channel, term_id):
 		while not self.should_close:
-			# data = await my_stdin.read(max_size)
-			data = sys.stdin.read(1)
-			# data = "ls\n".encode("utf-8")
-			if not data:
+			if platform.system().lower() == "windows":
+				data = msvcrt.getch()
+			else:
+				data = sys.stdin.read(1)
+			if not data:  # or data == "\x03":  # Ctrl+C
 				self.should_close = True
-			tdw = TerminalDataWrite(sender="@", channel=term_write_channel, terminal_id=term_id, data=data)
+				break
+			tdw = TerminalDataWrite(sender="@", channel=term_write_channel, terminal_id=term_id, data=data.encode("utf-8"))
 			log_message(tdw)
 			self.service_client.messagebus.send_message(tdw)
 
@@ -138,12 +145,5 @@ class MessagebusTerminal(MessagebusListener):
 			log_message(csr)
 			self.service_client.messagebus.send_message(csr)
 
-			# time.sleep(1)
-			# self.service_client.messagebus.send_message(
-			# 	TerminalDataWrite(sender="@", channel=term_write_channel, terminal_id=term_id, data="ls\n".encode("utf-8"))
-			# )
-			# while True:
-			# 	time.sleep(1)
-
 			with stream_wrap():
-				asyncio.run(self.transmit_input(term_write_channel, term_id))
+				self.transmit_input(term_write_channel, term_id)
