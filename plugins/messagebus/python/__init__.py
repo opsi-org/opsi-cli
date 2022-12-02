@@ -2,7 +2,6 @@
 opsi-cli messagebus plugin
 """
 
-import asyncio
 from typing import Optional
 
 import rich_click as click  # type: ignore[import]
@@ -10,7 +9,7 @@ from opsicommon.logging import logger  # type: ignore[import]
 
 from opsicli.plugin import OPSICLIPlugin
 
-from .websocket import Messagebus
+from .websocket import MessagebusTerminal
 
 __version__ = "0.1.0"  # Use this field to track the current version number
 __description__ = "This plugin interacts with the opsi message bus."
@@ -34,8 +33,8 @@ def terminal(username: str, password: Optional[str], url: str) -> None:
 	This subcommand uses the opsi messagebus for an interactive console session.
 	"""
 	logger.trace("messagebus 'terminal' subcommand")
-	messagebus = Messagebus(url, username, password=password)
-	asyncio.run(messagebus.run_terminal())
+	messagebus_terminal = MessagebusTerminal(url, username, password=password)
+	messagebus_terminal.run_terminal()
 
 
 # This class keeps track of the plugins meta-information
