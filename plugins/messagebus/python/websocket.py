@@ -10,13 +10,13 @@ from threading import Event
 from typing import Optional
 from uuid import uuid4
 
-from opsicommon.client.opsiservice import (
+from opsicommon.client.opsiservice import (  # type: ignore[import]
 	MessagebusListener,
 	ServiceClient,
 	ServiceVerificationModes,
 )
-from opsicommon.logging import logger, logging_config
-from opsicommon.messagebus import (
+from opsicommon.logging import logger, logging_config  # type: ignore[import]
+from opsicommon.messagebus import (  # type: ignore[import]
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
 	Message,
@@ -60,7 +60,7 @@ def log_message(message: Message) -> None:
 		logger.debug("\t%s: %s", key, value)
 
 
-class MessagebusTerminal(MessagebusListener):
+class MessagebusConnection(MessagebusListener):
 	def __init__(self, url: str, username: str, password: Optional[str] = None) -> None:
 		from . import __version__  # pylint: disable=import-outside-toplevel
 
@@ -111,35 +111,34 @@ class MessagebusTerminal(MessagebusListener):
 			log_message(tdw)
 			self.service_client.messagebus.send_message(tdw)
 
-	def run_terminal(self):
+	def run_terminal(self, term_id: Optional[str] = None):
 		if not self.service_client.connected:
 			self.service_client.connect()
 		self.service_client.connect_messagebus()
-
-		term_id = str(uuid4())
-		term_read_channel = f"session:{term_id}"
 		with self.register(self.service_client.messagebus):
 			if not (self.channel_subscription_event.wait(CHANNEL_SUBSCRIPTION_TIMEOUT) and self.service_worker_channel):
-				logger.error("Failed to subscribe for terminal session channel.")
+				logger.error("Failed to subscribe to channel.")
 				return
 			term_write_channel = f"{self.service_worker_channel}:terminal"
-			size = shutil.get_terminal_size()
-			logger.notice(
-				"Requesting to open terminal with id %s (channel=%s, back_channel=%s)",
-				term_id,
-				term_write_channel,
-				term_read_channel,
-			)
-			tor = TerminalOpenRequest(
-				sender="@",
-				channel=term_write_channel,
-				terminal_id=term_id,
-				back_channel=term_read_channel,
-				rows=size.lines,
-				cols=size.columns,
-			)
-			log_message(tor)
-			self.service_client.messagebus.send_message(tor)
+			term_read_channel = f"session:{term_id}"
+
+			if not term_id:
+				term_id = str(uuid4())
+				term_read_channel = f"session:{term_id}"
+				size = shutil.get_terminal_size()
+				logger.notice("Requesting to open new terminal with id %s ", term_id)
+				tor = TerminalOpenRequest(
+					sender="@",
+					channel=term_write_channel,
+					terminal_id=term_id,
+					back_channel=term_read_channel,
+					rows=size.lines,
+					cols=size.columns,
+				)
+				log_message(tor)
+				self.service_client.messagebus.send_message(tor)
+			else:
+				logger.notice("Requesting access to existing terminal with id %s ", term_id)
 
 			csr = ChannelSubscriptionRequestMessage(sender="@", operation="add", channels=[term_read_channel], channel="service:messagebus")
 			log_message(csr)
