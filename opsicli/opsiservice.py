@@ -26,6 +26,7 @@ jsonrpc_client = None  # pylint: disable=invalid-name
 
 # TODO: credentials from opsi.conf for configserver and depot
 def get_service_credentials_from_backend() -> Tuple[str, str]:
+	logger.info("Fetching credentials from backend")
 	dispatch_conf = Path("/etc/opsi/backendManager/dispatch.conf")
 	backend = "mysql"
 	for line in dispatch_conf.read_text(encoding="utf-8").splitlines():
@@ -89,6 +90,7 @@ def get_service_connection() -> ServiceClient:
 
 		opsiconf = Path("/etc/opsi/opsi.conf")
 		if not username or not password and opsiconf.exists():
+			logger.info("Fetching credentials from /etc/opsi/opsi.conf")
 			content = tomlkit.loads(opsiconf.read_text("utf-8"))
 			username = content.get("host", {}).get("id")
 			password = content.get("host", {}).get("key")
