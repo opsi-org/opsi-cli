@@ -30,7 +30,7 @@ else:
 	import termios
 	import tty
 
-CHANNEL_SUBSCRIPTION_TIMEOUT = 15
+CHANNEL_SUBSCRIPTION_TIMEOUT = 5
 
 
 @contextmanager
@@ -101,7 +101,8 @@ class MessagebusConnection(MessagebusListener):
 			self.service_client.connect()
 		self.service_client.connect_messagebus()
 		with self.register(self.service_client.messagebus):
-			if not (self.channel_subscription_event.wait(CHANNEL_SUBSCRIPTION_TIMEOUT) and self.service_worker_channel):
+			# If service_worker_channel is not set, wait for channel_subscription_event
+			if not self.service_worker_channel and not self.channel_subscription_event.wait(CHANNEL_SUBSCRIPTION_TIMEOUT):
 				logger.error("Failed to subscribe to channel.")
 				return
 			term_write_channel = f"{self.service_worker_channel}:terminal"
