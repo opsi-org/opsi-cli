@@ -89,7 +89,7 @@ def get_service_connection() -> ServiceClient:
 					password = service.password
 
 		opsiconf = Path("/etc/opsi/opsi.conf")
-		if not username or not password and opsiconf.exists():
+		if (not username or not password) and opsiconf.exists():
 			logger.info("Fetching credentials from /etc/opsi/opsi.conf")
 			content = tomlkit.loads(opsiconf.read_text("utf-8"))
 			username = content.get("host", {}).get("id")
