@@ -11,16 +11,20 @@ from pathlib import Path
 from typing import Any, Dict, Tuple
 from urllib.parse import urlparse
 
-from opsicommon.client.jsonrpc import JSONRPCClient  # type: ignore[import]
-from opsicommon.logging import logger, secret_filter  # type: ignore[import]
+import tomlkit
+from opsicommon.client.opsiservice import (  # type: ignore[import]
+	ServiceClient,
+	ServiceVerificationModes,
+)
+from opsicommon.logging import logger  # type: ignore[import]
 
 from opsicli import __version__
-from opsicli.cache import cache
 from opsicli.config import config
 
 jsonrpc_client = None  # pylint: disable=invalid-name
 
 
+# TODO: credentials from opsi.conf for configserver and depot
 def get_service_credentials_from_backend() -> Tuple[str, str]:
 	dispatch_conf = Path("/etc/opsi/backendManager/dispatch.conf")
 	backend = "mysql"
@@ -69,7 +73,7 @@ def get_service_credentials_from_backend() -> Tuple[str, str]:
 	raise RuntimeError("Failed to get service credentials")
 
 
-def get_service_connection() -> JSONRPCClient:
+def get_service_connection() -> ServiceClient:
 	global jsonrpc_client  # pylint: disable=invalid-name,global-statement
 	if not jsonrpc_client:
 		address = config.service
@@ -83,6 +87,11 @@ def get_service_connection() -> JSONRPCClient:
 				if service.password:
 					password = service.password
 
+		opsiconf = Path("/etc/opsi/opsi.conf")
+		if not username or not password and opsiconf.exists():
+			content = tomlkit.loads(opsiconf.read_text("utf-8"))
+			username = content.get("host", {}).get("id")
+			password = content.get("host", {}).get("key")
 		if not username or not password and urlparse(address).hostname in ("localhost", "::1", "127.0.0.1"):
 			try:
 				username, password = get_service_credentials_from_backend()
@@ -90,18 +99,12 @@ def get_service_connection() -> JSONRPCClient:
 				logger.warning(err)
 
 		session_lifetime = 15
-		cache_key = f"jsonrpc-session-{address}-{username}"
-		session_id = cache.get(cache_key)
-		if session_id:
-			secret_filter.add_secrets(session_id.split("=", 1)[1])
-			logger.debug("Reusing session %s", session_id)
-		jsonrpc_client = JSONRPCClient(
+		jsonrpc_client = ServiceClient(
 			address=address,
 			username=username,
 			password=password,
-			application=f"opsi-cli/{__version__}",
+			user_agent=f"opsi-cli/{__version__}",
 			session_lifetime=session_lifetime,
-			session_id=session_id,
+			verify=ServiceVerificationModes.ACCEPT_ALL,
 		)
-		cache.set(cache_key, jsonrpc_client.session_id, ttl=session_lifetime)
 	return jsonrpc_client

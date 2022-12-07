@@ -18,27 +18,25 @@ __description__ = "This plugin interacts with the opsi message bus."
 @click.group(name="messagebus", short_help="Custom plugin messagebus")
 @click.pass_context
 @click.version_option(__version__, message="opsi-cli plugin messagebus, version %(version)s")
-@click.option("--username", default="adminuser", help="username for authentication (websocket)")
-@click.option("--password", help="password for authentication (websocket)")
-@click.option("--url", default="https://localhost:4447", help="url to connect to")  # TODO: default from service? how for client:4441?
-def cli(ctx: click.Context, username: str, password: Optional[str], url: str) -> None:
+def cli(ctx: click.Context) -> None:
 	"""
 	This plugin interacts with the opsi message bus.
 	"""
 	logger.trace("messagebus command")
-	ctx.obj = MessagebusConnection(url, username, password=password)
+	ctx.obj = MessagebusConnection()
 
 
 @cli.command(short_help="Start terminal session via messagebus")
 @click.pass_context
 @click.option("--terminal-id", help="Connect to existing terminal session with this id.")
-# TODO: default from service? how for client:4441?
-def terminal(ctx: click.Context, terminal_id: Optional[str]) -> None:
+@click.argument("target", type=str, required=False)
+def terminal(ctx: click.Context, terminal_id: Optional[str], target: Optional[str]) -> None:
 	"""
 	This subcommand uses the opsi messagebus for an interactive console session.
+	It connects to the specified target host-id (or if omitted the config server)
 	"""
 	logger.trace("messagebus 'terminal' subcommand")
-	ctx.obj.run_terminal(term_id=terminal_id)
+	ctx.obj.run_terminal(term_id=terminal_id, target=target)
 
 
 # This class keeps track of the plugins meta-information

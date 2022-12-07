@@ -12,12 +12,18 @@ from click.shell_completion import CompletionItem  # type: ignore[import]
 from opsicommon.logging import logger  # type: ignore[import]
 
 from opsicli.cache import cache
-from opsicli.config import config
 from opsicli.io import output_file_is_stdout, read_input, write_output, write_output_raw
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 
 __version__ = "0.1.0"
+
+
+def cache_interface(interface):
+	if cache.age("jsonrpc-interface") >= 3600:
+		cache.set("jsonrpc-interface", {m["name"]: {"params": m["params"]} for m in interface})
+	if cache.age("jsonrpc-interface-raw") >= 3600:
+		cache.set("jsonrpc-interface-raw", interface)
 
 
 @click.group(name="jsonrpc", short_help="opsi JSONRPC client")
@@ -28,11 +34,10 @@ def cli() -> None:  # pylint: disable=unused-argument
 	This command is used to execute JSONRPC requests on an opsi service.
 	"""
 	logger.trace("jsonrpc command")
-
-
-def cache_interface(interface):
-	if cache.age("jsonrpc-interface") >= 3600:
-		cache.set("jsonrpc-interface", {m["name"]: {"params": m["params"]} for m in interface})
+	# Cache interface for later
+	client = get_service_connection()
+	interface = client.jsonrpc("backend_getInterface")
+	cache_interface(interface)
 
 
 @cli.command(short_help="Get JSONRPC method list")
@@ -40,9 +45,6 @@ def methods() -> None:
 	"""
 	opsi-cli jsonrpc methods subcommand.
 	"""
-	client = get_service_connection()
-	cache_interface(client.interface)
-
 	metadata = {
 		"attributes": [
 			{"id": "name", "description": "Method name", "identifier": True, "selected": True},
@@ -55,7 +57,7 @@ def methods() -> None:
 			{"id": "defaults", "description": "Defaults", "selected": False},
 		]
 	}
-	write_output(client.interface, metadata=metadata, default_output_format="table")
+	write_output(cache.get("jsonrpc-interface-raw"), metadata=metadata, default_output_format="table")
 
 
 def complete_methods(
@@ -95,8 +97,6 @@ def execute(method: str, params: Optional[List[str]] = None) -> None:  # pylint:
 	"""
 	opsi-cli jsonrpc execute subcommand.
 	"""
-	# TODO:
-	result_only = True
 	if params:
 		params = list(params)
 		for idx, param in enumerate(params):
@@ -118,24 +118,8 @@ def execute(method: str, params: Optional[List[str]] = None) -> None:  # pylint:
 	default_output_format = "pretty-json" if output_file_is_stdout() else "json"
 
 	client = get_service_connection()
-	cache_interface(client.interface)
-
-	client.create_objects = False
-	if not result_only and config.output_format == "msgpack":
-		client.serialization = "msgpack"
-		client.raw_responses = True
-	elif not result_only and (config.output_format == "json" or (config.output_format == "auto" and default_output_format == "json")):
-		client.serialization = "json"
-		client.raw_responses = True
-	else:
-		client.serialization = "auto"
-		client.raw_responses = False
-
-	data = client.execute_rpc(method, params)
-	if client.raw_responses:
-		write_output_raw(data)
-	else:
-		write_output(data, default_output_format=default_output_format)
+	data = client.jsonrpc(method, params)
+	write_output(data, default_output_format=default_output_format)
 
 
 class JSONRPCPlugin(OPSICLIPlugin):

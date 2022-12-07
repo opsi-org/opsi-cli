@@ -10,11 +10,7 @@ from threading import Event
 from typing import Optional
 from uuid import uuid4
 
-from opsicommon.client.opsiservice import (  # type: ignore[import]
-	MessagebusListener,
-	ServiceClient,
-	ServiceVerificationModes,
-)
+from opsicommon.client.opsiservice import MessagebusListener  # type: ignore[import]
 from opsicommon.logging import logger, logging_config  # type: ignore[import]
 from opsicommon.messagebus import (  # type: ignore[import]
 	ChannelSubscriptionEventMessage,
@@ -26,7 +22,7 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	TerminalOpenRequest,
 )
 
-from opsicli.io import prompt
+from opsicli.opsiservice import get_service_connection
 
 if platform.system().lower() == "windows":
 	import msvcrt  # pylint: disable=import-error
@@ -61,22 +57,12 @@ def log_message(message: Message) -> None:
 
 
 class MessagebusConnection(MessagebusListener):
-	def __init__(self, url: str, username: str, password: Optional[str] = None) -> None:
-		from . import __version__  # pylint: disable=import-outside-toplevel
-
+	def __init__(self) -> None:
 		MessagebusListener.__init__(self)
-		verify = ServiceVerificationModes.ACCEPT_ALL
-
 		self.should_close = False
 		self.service_worker_channel = None
 		self.channel_subscription_event = Event()
-		self.service_client = ServiceClient(
-			address=url,
-			username=username,
-			password=password or prompt("password", password=True),
-			verify=verify,
-			user_agent=f"opsi-cli-messagebus/{__version__}",
-		)
+		self.service_client = get_service_connection()
 
 	def message_received(self, message: Message) -> None:
 		log_message(message)
@@ -87,7 +73,6 @@ class MessagebusConnection(MessagebusListener):
 
 	def _process_message(self, message: Message) -> None:
 		if not self.service_worker_channel and isinstance(message, ChannelSubscriptionEventMessage):
-			logger.notice("Got channel subscription event")
 			# Get responsible service_worker
 			self.service_worker_channel = message.sender
 			self.channel_subscription_event.set()
@@ -98,10 +83,10 @@ class MessagebusConnection(MessagebusListener):
 			logger.notice("received terminal close event - shutting down")
 			self.should_close = True
 
-	def transmit_input(self, term_write_channel, term_id):
+	def transmit_input(self, term_write_channel: str, term_id: str) -> None:
 		while not self.should_close:
 			if platform.system().lower() == "windows":
-				data = msvcrt.getch()
+				data = msvcrt.getch()  # type: ignore
 			else:
 				data = sys.stdin.read(1)
 			if not data:  # or data == "\x03":  # Ctrl+C
@@ -111,7 +96,7 @@ class MessagebusConnection(MessagebusListener):
 			log_message(tdw)
 			self.service_client.messagebus.send_message(tdw)
 
-	def run_terminal(self, term_id: Optional[str] = None):
+	def run_terminal(self, term_id: Optional[str] = None, target: Optional[str] = None) -> None:
 		if not self.service_client.connected:
 			self.service_client.connect()
 		self.service_client.connect_messagebus()
@@ -121,6 +106,8 @@ class MessagebusConnection(MessagebusListener):
 				return
 			term_write_channel = f"{self.service_worker_channel}:terminal"
 			term_read_channel = f"session:{term_id}"
+			if target:
+				term_write_channel = f"host:{target}"
 
 			if not term_id:
 				term_id = str(uuid4())

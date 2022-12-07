@@ -16,7 +16,6 @@ pyinstaller-poetry:
     darwin:
       - pip._vendor.platformdirs.macos
   extra_args:
-    - --exclude-module=cryptography
     - --exclude-module=tkinter
     - --exclude-module=tan
     - --exclude-module=pytest
