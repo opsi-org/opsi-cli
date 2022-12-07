@@ -30,7 +30,7 @@ else:
 	import termios
 	import tty
 
-CHANNEL_SUBSCRIPTION_TIMEOUT = 5
+CHANNEL_SUBSCRIPTION_TIMEOUT = 15
 
 
 @contextmanager
@@ -88,11 +88,11 @@ class MessagebusConnection(MessagebusListener):
 			if platform.system().lower() == "windows":
 				data = msvcrt.getch()  # type: ignore
 			else:
-				data = sys.stdin.read(1)
-			if not data:  # or data == "\x03":  # Ctrl+C
+				data = sys.stdin.read(1).encode("utf-8")
+			if not data:  # or data == b"\x03":  # Ctrl+C
 				self.should_close = True
 				break
-			tdw = TerminalDataWrite(sender="@", channel=term_write_channel, terminal_id=term_id, data=data.encode("utf-8"))
+			tdw = TerminalDataWrite(sender="@", channel=term_write_channel, terminal_id=term_id, data=data)
 			log_message(tdw)
 			self.service_client.messagebus.send_message(tdw)
 

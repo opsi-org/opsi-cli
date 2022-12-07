@@ -24,7 +24,6 @@ from opsicli.config import config
 jsonrpc_client = None  # pylint: disable=invalid-name
 
 
-# TODO: credentials from opsi.conf for configserver and depot
 def get_service_credentials_from_backend() -> Tuple[str, str]:
 	logger.info("Fetching credentials from backend")
 	dispatch_conf = Path("/etc/opsi/backendManager/dispatch.conf")
