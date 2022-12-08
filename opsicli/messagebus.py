@@ -76,7 +76,7 @@ class MessagebusConnection(MessagebusListener):
 			log_message(tdw)
 			self.service_client.messagebus.send_message(tdw)
 
-	def run_terminal(self, term_id: Optional[str] = None, target: Optional[str] = None) -> None:
+	def run_terminal(self, target: str, term_id: Optional[str] = None) -> None:
 		if not self.service_client.connected:
 			self.service_client.connect()
 		self.service_client.connect_messagebus()
@@ -84,9 +84,10 @@ class MessagebusConnection(MessagebusListener):
 			# If service_worker_channel is not set, wait for channel_subscription_event
 			if not self.service_worker_channel and not self.channel_subscription_event_event.wait(CHANNEL_SUBSCRIPTION_TIMEOUT):
 				raise ConnectionError("Failed to subscribe to session channel.")
-			term_write_channel = f"{self.service_worker_channel}:terminal"
 			term_read_channel = f"session:{term_id}"
-			if target:
+			if target.lower() == "configserver":
+				term_write_channel = f"{self.service_worker_channel}:terminal"
+			else:
 				term_write_channel = f"host:{target}"
 
 			if not term_id:

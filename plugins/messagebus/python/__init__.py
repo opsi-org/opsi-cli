@@ -16,16 +16,16 @@ __description__ = "This plugin interacts with the opsi message bus."
 
 @click.command(name="terminal", short_help="Start remote terminal session")
 @click.version_option(__version__, message="opsi-cli plugin messagebus, version %(version)s")
+@click.argument("target", type=str, required=True)
 @click.option("--terminal-id", help="Connect to existing terminal session with this id.")
-@click.argument("target", type=str, required=False)
-def cli(terminal_id: Optional[str], target: Optional[str]) -> None:
+def cli(target: str, terminal_id: Optional[str]) -> None:
 	"""
 	This command starts an interactive console session.
 	It connects to the specified target host-id (or the config server if omitted).
 	"""
 	logger.trace("terminal command")
 	messagebus = MessagebusConnection()
-	messagebus.run_terminal(term_id=terminal_id, target=target)
+	messagebus.run_terminal(target, term_id=terminal_id)
 
 
 class TerminalPlugin(OPSICLIPlugin):
