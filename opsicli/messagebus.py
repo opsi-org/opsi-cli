@@ -5,13 +5,12 @@ websocket functions
 import platform
 import shutil
 import sys
-from contextlib import contextmanager
 from threading import Event
 from typing import Optional
 from uuid import uuid4
 
 from opsicommon.client.opsiservice import MessagebusListener  # type: ignore[import]
-from opsicommon.logging import logger, logging_config  # type: ignore[import]
+from opsicommon.logging import logger  # type: ignore[import]
 from opsicommon.messagebus import (  # type: ignore[import]
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
@@ -23,31 +22,12 @@ from opsicommon.messagebus import (  # type: ignore[import]
 )
 
 from opsicli.opsiservice import get_service_connection
+from opsicli.utils import stream_wrap
 
 if platform.system().lower() == "windows":
 	import msvcrt  # pylint: disable=import-error
-else:
-	import termios
-	import tty
 
 CHANNEL_SUBSCRIPTION_TIMEOUT = 5
-
-
-@contextmanager
-def stream_wrap():
-	logging_config(stderr_level=0)  # Restore?
-	if platform.system().lower() == "windows":
-		yield
-	else:
-		attrs = termios.tcgetattr(sys.stdin.fileno())
-		try:
-			tty.setraw(sys.stdin.fileno())  # Set raw mode to access char by char
-			yield
-		except Exception as err:  # pylint: disable=broad-except
-			termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, attrs)
-			print(err, file=sys.stderr)
-		else:
-			termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, attrs)
 
 
 def log_message(message: Message) -> None:
@@ -61,7 +41,7 @@ class MessagebusConnection(MessagebusListener):
 		MessagebusListener.__init__(self)
 		self.should_close = False
 		self.service_worker_channel = None
-		self.channel_subscription_event = Event()
+		self.channel_subscription_event_event = Event()
 		self.service_client = get_service_connection()
 
 	def message_received(self, message: Message) -> None:
@@ -72,10 +52,10 @@ class MessagebusConnection(MessagebusListener):
 			logger.error(err, exc_info=True)
 
 	def _process_message(self, message: Message) -> None:
-		if not self.service_worker_channel and isinstance(message, ChannelSubscriptionEventMessage):
+		if isinstance(message, ChannelSubscriptionEventMessage):
 			# Get responsible service_worker
 			self.service_worker_channel = message.sender
-			self.channel_subscription_event.set()
+			self.channel_subscription_event_event.set()
 		elif isinstance(message, (TerminalDataRead)):
 			print(message.data.decode("utf-8"), end="")
 			sys.stdout.flush()  # This actually pops the buffer to terminal (without waiting for '\n')
@@ -102,9 +82,8 @@ class MessagebusConnection(MessagebusListener):
 		self.service_client.connect_messagebus()
 		with self.register(self.service_client.messagebus):
 			# If service_worker_channel is not set, wait for channel_subscription_event
-			if not self.service_worker_channel and not self.channel_subscription_event.wait(CHANNEL_SUBSCRIPTION_TIMEOUT):
-				logger.error("Failed to subscribe to channel.")
-				return
+			if not self.service_worker_channel and not self.channel_subscription_event_event.wait(CHANNEL_SUBSCRIPTION_TIMEOUT):
+				raise ConnectionError("Failed to subscribe to session channel.")
 			term_write_channel = f"{self.service_worker_channel}:terminal"
 			term_read_channel = f"session:{term_id}"
 			if target:
@@ -128,9 +107,12 @@ class MessagebusConnection(MessagebusListener):
 			else:
 				logger.notice("Requesting access to existing terminal with id %s ", term_id)
 
+			self.channel_subscription_event_event.clear()
 			csr = ChannelSubscriptionRequestMessage(sender="@", operation="add", channels=[term_read_channel], channel="service:messagebus")
 			log_message(csr)
 			self.service_client.messagebus.send_message(csr)
 
+			if not self.channel_subscription_event_event.wait(CHANNEL_SUBSCRIPTION_TIMEOUT):
+				raise ConnectionError("Could not subscribe to terminal session channel")
 			with stream_wrap():
 				self.transmit_input(term_write_channel, term_id)
