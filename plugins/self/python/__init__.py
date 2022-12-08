@@ -203,10 +203,10 @@ def uninstall(system: bool, binary_path: Optional[Path] = None) -> None:
 		config_file.unlink()
 
 
-@cli.command(name="show-structure", short_help="Print structure of opsi-cli commands")
-def show_structure() -> None:
+@cli.command(name="command-structure", short_help="Print structure of opsi-cli commands")
+def command_structure() -> None:
 	"""
-	opsi-cli self show-structure subcommand.
+	opsi-cli self command-structure subcommand.
 
 	Prints the command structure of this opsi-cli instance.
 	"""
