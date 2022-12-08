@@ -11,19 +11,23 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import Optional
 
 import psutil  # type: ignore[import]
 import rich_click as click  # type: ignore[import]
 from click.shell_completion import get_completion_class  # type: ignore[import]
 from opsicommon.logging import logger  # type: ignore[import]
+from rich import print as rich_print
+from rich.tree import Tree
 
+from opsicli import __version__ as opsi_cli_version
 from opsicli.config import ConfigValueSource, config
 from opsicli.io import get_console
-from opsicli.plugin import OPSICLIPlugin
+from opsicli.plugin import OPSICLIPlugin, plugin_manager
 from opsicli.types import File
 from opsicli.utils import add_to_env_variable
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 START_MARKER = "### Added by opsi-cli ###"
 END_MARKER = "### /Added by opsi-cli ###"
@@ -148,7 +152,7 @@ def setup_shell_completion(ctx: click.Context, shell: str) -> None:  # pylint: d
 	default=False,
 	show_default=True,
 )
-def install(system: bool, binary_path: Path = None, no_add_to_path: bool = False) -> None:
+def install(system: bool, binary_path: Optional[Path] = None, no_add_to_path: bool = False) -> None:
 	"""
 	opsi-cli self install subcommand.
 
@@ -182,7 +186,7 @@ def install(system: bool, binary_path: Path = None, no_add_to_path: bool = False
 	type=File,
 	help="File path to find binary at.",
 )
-def uninstall(system: bool, binary_path: Path = None) -> None:
+def uninstall(system: bool, binary_path: Optional[Path] = None) -> None:
 	"""
 	opsi-cli self uninstall subcommand.
 
@@ -197,6 +201,33 @@ def uninstall(system: bool, binary_path: Path = None) -> None:
 	config_file = config.config_file_system if system else config.config_file_user
 	if config_file and config_file.exists():
 		config_file.unlink()
+
+
+@cli.command(name="show-structure", short_help="Print structure of opsi-cli commands")
+def show_structure() -> None:
+	"""
+	opsi-cli self show-structure subcommand.
+
+	Prints the command structure of this opsi-cli instance.
+	"""
+
+	def add_sub_structure(item: click.Command | OPSICLIPlugin, tree: Tree):
+		if isinstance(item, OPSICLIPlugin):
+			branch = tree.add(f"{item.cli.name} [grey53]({item.version})[/grey53]", guide_style="green")
+			if isinstance(item.cli, click.Group):
+				for sub_item in item.cli.commands.values():
+					add_sub_structure(sub_item, branch)
+		elif isinstance(item, click.Group):
+			branch = tree.add(item.name, guide_style="yellow")
+			for sub_item in item.commands.values():
+				add_sub_structure(sub_item, branch)
+		elif isinstance(item, click.Command):
+			tree.add(item.name)
+
+	tree = Tree(f"opsi-cli [grey53]({opsi_cli_version})[/grey53]", guide_style="bold bright_blue")
+	for cmd in sorted([plugin for plugin in plugin_manager.plugins if plugin.cli], key=lambda plugin: plugin.cli.name):
+		add_sub_structure(cmd, tree)
+	rich_print(tree)
 
 
 class SelfPlugin(OPSICLIPlugin):
