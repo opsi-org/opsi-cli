@@ -10,6 +10,7 @@ pyinstaller-poetry:
       - opsicli.io
       - opsicli.cache
       - opsicli.opsiservice
+      - opsicli.messagebus
       - pip._internal.commands.install
     windows:
       - pip._vendor.platformdirs.windows
