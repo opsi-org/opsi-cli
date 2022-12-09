@@ -37,6 +37,8 @@ pyinstaller-poetry:
       dst: plugins
   dirname: opsicli
   locale_install: []
+  packages:
+    - opsicli
 
 
 jenkins-test:

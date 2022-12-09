@@ -11,17 +11,18 @@ from pathlib import Path
 from typing import Any, Dict, Tuple
 from urllib.parse import urlparse
 
-import tomlkit
 from opsicommon.client.opsiservice import (  # type: ignore[import]
 	ServiceClient,
 	ServiceVerificationModes,
 )
+from opsicommon.config import OpsiConfig
 from opsicommon.logging import logger  # type: ignore[import]
 
 from opsicli import __version__
 from opsicli.config import config
 
 jsonrpc_client = None  # pylint: disable=invalid-name
+SESSION_LIFETIME = 15  # seconds
 
 
 def get_service_credentials_from_backend() -> Tuple[str, str]:
@@ -87,25 +88,23 @@ def get_service_connection() -> ServiceClient:
 				if service.password:
 					password = service.password
 
-		opsiconf = Path("/etc/opsi/opsi.conf")
-		if (not username or not password) and opsiconf.exists():
-			logger.info("Fetching credentials from /etc/opsi/opsi.conf")
-			content = tomlkit.loads(opsiconf.read_text("utf-8"))
-			username = content.get("host", {}).get("id")
-			password = content.get("host", {}).get("key")
+		opsiconf = OpsiConfig()
+		if not username or not password:
+			logger.info("Fetching credentials from opsi config file")
+			username = opsiconf.get("host", "id")
+			password = opsiconf.get("host", "key")
 		if not username or not password and urlparse(address).hostname in ("localhost", "::1", "127.0.0.1"):
 			try:
 				username, password = get_service_credentials_from_backend()
 			except Exception as err:  # pylint: disable=broad-except
 				logger.warning(err)
 
-		session_lifetime = 15
 		jsonrpc_client = ServiceClient(
 			address=address,
 			username=username,
 			password=password,
 			user_agent=f"opsi-cli/{__version__}",
-			session_lifetime=session_lifetime,
+			session_lifetime=SESSION_LIFETIME,
 			verify=ServiceVerificationModes.ACCEPT_ALL,
 		)
 	return jsonrpc_client

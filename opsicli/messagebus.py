@@ -32,8 +32,10 @@ CHANNEL_SUBSCRIPTION_TIMEOUT = 5
 
 def log_message(message: Message) -> None:
 	logger.info("Got message of type %s", message.type)
+	debug_string = ""
 	for key, value in message.to_dict().items():
-		logger.debug("\t%s: %s", key, value)
+		debug_string += f"\t{key}: {value}\n"
+	logger.debug(debug_string)
 
 
 class MessagebusConnection(MessagebusListener):
@@ -57,7 +59,7 @@ class MessagebusConnection(MessagebusListener):
 			self.service_worker_channel = message.sender
 			self.channel_subscription_event_event.set()
 		elif isinstance(message, (TerminalDataRead)):
-			print(message.data.decode("utf-8"), end="")
+			sys.stdout.buffer.write(message.data)
 			sys.stdout.flush()  # This actually pops the buffer to terminal (without waiting for '\n')
 		elif isinstance(message, TerminalCloseEvent):
 			logger.notice("received terminal close event - shutting down")
