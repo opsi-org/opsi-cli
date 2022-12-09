@@ -15,7 +15,7 @@ from opsicommon.client.opsiservice import (  # type: ignore[import]
 	ServiceClient,
 	ServiceVerificationModes,
 )
-from opsicommon.config import OpsiConfig
+from opsicommon.config import OpsiConfig  # type: ignore[import]
 from opsicommon.logging import logger  # type: ignore[import]
 
 from opsicli import __version__
