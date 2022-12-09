@@ -11,6 +11,8 @@ from .utils import run_cli, temp_context
 
 def test_self_install() -> None:
 	with temp_context() as tempdir:
+		conffile = Path(tempdir) / "conffile.conf"
+		config.config_file_user = conffile
 		binary_path = Path(tempdir) / "out_binary"
 		(exit_code, output) = run_cli(["self", "install", f"--binary-path={binary_path}", "--no-add-to-path"])
 		print(output)
@@ -21,6 +23,8 @@ def test_self_install() -> None:
 
 def test_self_uninstall() -> None:
 	with temp_context() as tempdir:
+		conffile = Path(tempdir) / "conffile.conf"
+		config.config_file_user = conffile
 		binary_path = Path(tempdir) / "out_binary"
 		(exit_code, _) = run_cli(["self", "install", f"--binary-path={binary_path}", "--no-add-to-path"])
 		(exit_code, output) = run_cli(["self", "uninstall", f"--binary-path={binary_path}"])

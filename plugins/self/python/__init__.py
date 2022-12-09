@@ -212,16 +212,16 @@ def command_structure() -> None:
 	"""
 
 	def add_sub_structure(item: click.Command | OPSICLIPlugin, tree: Tree):
-		if isinstance(item, OPSICLIPlugin):
+		if isinstance(item, OPSICLIPlugin) and item.cli:
 			branch = tree.add(f"{item.cli.name} [grey53]({item.version})[/grey53]", guide_style="green")
 			if isinstance(item.cli, click.Group):
 				for sub_item in item.cli.commands.values():
 					add_sub_structure(sub_item, branch)
-		elif isinstance(item, click.Group):
+		elif isinstance(item, click.Group) and item.name:
 			branch = tree.add(item.name, guide_style="yellow")
 			for sub_item in item.commands.values():
 				add_sub_structure(sub_item, branch)
-		elif isinstance(item, click.Command):
+		elif isinstance(item, click.Command) and item.name:
 			tree.add(item.name)
 
 	tree = Tree(f"opsi-cli [grey53]({opsi_cli_version})[/grey53]", guide_style="bold bright_blue")
