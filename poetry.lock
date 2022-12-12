@@ -869,6 +869,7 @@ pycryptodome = ">=3.10,<4.0"
 pyopenssl = ">=22.0,<23.0"
 pywin32 = {version = ">=303,<304", markers = "sys_platform == \"win32\""}
 requests = ">=2.26,<3.0"
+rich = ">=12.6.0,<13.0.0"
 websocket-client = ">=1.4.0,<2.0.0"
 
 [package.source]
@@ -1779,8 +1780,8 @@ pytest-coverage = [
     {file = "pytest_coverage-0.0-py2.py3-none-any.whl", hash = "sha256:dedd084c5e74d8e669355325916dc011539b190355021b037242514dee546368"},
 ]
 python-opsi-common = [
-    {file = "python_opsi_common-4.3.0.1-py3-none-any.whl", hash = "sha256:63b65524357eeefe4e902c866f9f315d7ddbcacca92eb0383af3884336660943"},
-    {file = "python_opsi_common-4.3.0.1.tar.gz", hash = "sha256:c357962fe93ec9c887c3b8a890a8782c2887f78ba0dbf97ce907670670713a4c"},
+    {file = "python_opsi_common-4.3.0.1-py3-none-any.whl", hash = "sha256:97eaa190260c1e3b96537f3079039fcf339250750a4352aa199e58402f25de2d"},
+    {file = "python_opsi_common-4.3.0.1.tar.gz", hash = "sha256:8375fa152e44c18575e3679ba8174ca9c2c44bc29dbbda84990eb8433665d29e"},
 ]
 pywin32 = [
     {file = "pywin32-303-cp310-cp310-win32.whl", hash = "sha256:6fed4af057039f309263fd3285d7b8042d41507343cd5fa781d98fcc5b90e8bb"},

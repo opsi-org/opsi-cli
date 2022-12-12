@@ -88,7 +88,7 @@ def get_service_connection() -> ServiceClient:
 				if service.password:
 					password = service.password
 
-		opsiconf = OpsiConfig()
+		opsiconf = OpsiConfig(upgrade_config=False)
 		if not username or not password:
 			logger.info("Fetching credentials from opsi config file")
 			username = opsiconf.get("host", "id")
