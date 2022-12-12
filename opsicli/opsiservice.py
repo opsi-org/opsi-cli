@@ -91,8 +91,11 @@ def get_service_connection() -> ServiceClient:
 		opsiconf = OpsiConfig(upgrade_config=False)
 		if not username or not password:
 			logger.info("Fetching credentials from opsi config file")
-			username = opsiconf.get("host", "id")
-			password = opsiconf.get("host", "key")
+			try:
+				username = opsiconf.get("host", "id")
+				password = opsiconf.get("host", "key")
+			except Exception as error:  # pylint: disable=broad-except
+				logger.info("Failed to get credentials from opsi config file: %s", error)
 		if not username or not password and urlparse(address).hostname in ("localhost", "::1", "127.0.0.1"):
 			try:
 				username, password = get_service_credentials_from_backend()
