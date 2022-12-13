@@ -29,8 +29,10 @@ def get_service_credentials_from_backend() -> Tuple[str, str]:
 	logger.info("Fetching credentials from backend")
 	dispatch_conf = Path("/etc/opsi/backendManager/dispatch.conf")
 	backend = "mysql"
+	backend_pattern = re.compile(r"backend_.*:\s*(\S+)")
 	for line in dispatch_conf.read_text(encoding="utf-8").splitlines():
 		match = re.search(r"backend_.*:\s*(\S+)", line)
+		match = re.search(backend_pattern, line)
 		if match:
 			backend = match.group(1).replace(",", "").strip()
 
