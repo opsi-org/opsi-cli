@@ -224,7 +224,7 @@ class SetActionRequestWorker(ClientActionWorker):
 					logger.error("Skipping check of %s %s (product not available on depot)", entry["clientId"], entry["productId"])
 					continue
 				if kwargs.get("uninstall_where_only_uninstall") and entry["productId"] in self.products_with_only_uninstall:
-					new_pocs.append(self.set_single_action_request(entry, "uninstall"))
+					new_pocs.extend(self.set_single_action_request(entry, "uninstall"))
 					modified_clients.add(entry["clientId"])
 				elif kwargs.get("where_failed") and entry["actionResult"] == "failed":
 					new_pocs.extend(self.set_single_action_request(entry))
@@ -245,6 +245,8 @@ class SetActionRequestWorker(ClientActionWorker):
 				raise ValueError("When unconditionally setting actionRequests, you must supply --products or --product-groups.")
 			new_pocs.extend(self.set_action_requests_for_all(self.clients, self.products, force=True))
 
-		if not config.dry_run:
+		if not new_pocs:
+			logger.info("Nothing to do.")
+		elif not config.dry_run:
 			logger.debug("Updating ProductOnClient")
 			self.service.jsonrpc("productOnClient_updateObjects", [new_pocs])
