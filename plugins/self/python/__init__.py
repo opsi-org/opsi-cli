@@ -109,6 +109,8 @@ def setup_shell_completion(ctx: click.Context, shell: str) -> None:  # pylint: d
 	else:
 		shells = [shell]
 
+	entry_pattern = re.compile(rf"{START_MARKER}.*?{END_MARKER}\n")
+	empty_pattern = re.compile("")
 	console = get_console()
 	for shell_ in shells:
 		console.print(f"Setting up auto completion for shell [bold cyan]{shell_!r}[/bold cyan].")
@@ -118,7 +120,7 @@ def setup_shell_completion(ctx: click.Context, shell: str) -> None:  # pylint: d
 		data = ""
 		if conf_file.exists():
 			data = conf_file.read_text(encoding="utf-8")
-		data = re.sub(rf"{START_MARKER}.*?{END_MARKER}\n", "", data, flags=re.DOTALL)
+		data = re.sub(entry_pattern, empty_pattern, data, flags=re.DOTALL)
 
 		comp_cls = get_completion_class(shell_)
 		if not comp_cls:
