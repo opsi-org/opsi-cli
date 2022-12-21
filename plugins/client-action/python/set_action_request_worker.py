@@ -186,7 +186,6 @@ class SetActionRequestWorker(ClientActionWorker):
 					installationStatus="not_installed",
 					actionRequest=None,
 				).to_hash()
-				print(poc)
 				new_pocs.extend(self.set_single_action_request(poc, request_type or self.request_type, force=force))
 		return new_pocs
 
