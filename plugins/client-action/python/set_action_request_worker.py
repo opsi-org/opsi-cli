@@ -7,7 +7,6 @@ client_action_worker
 from typing import Dict, List, Optional, Set
 
 from opsicommon.logging import logger  # type: ignore[import]
-from opsicommon.objects import ProductOnClient  # type: ignore[import]
 
 from opsicli.config import config
 
@@ -179,13 +178,13 @@ class SetActionRequestWorker(ClientActionWorker):
 			existing_pocs[poc["clientId"]].update({poc["productId"]: poc})
 		for client in clients:
 			for product in products:
-				poc = existing_pocs.get(client, {}).get(product, None) or ProductOnClient(
-					productId=product,
-					productType='LocalbootProduct',
-					clientId=client,
-					installationStatus='not_installed',
-					actionRequest=None
-				)
+				poc = existing_pocs.get(client, {}).get(product, None) or {
+					"productId": product,
+					"productType": "LocalbootProduct",
+					"clientId": client,
+					"installationStatus": "not_installed",
+					"actionRequest": None
+				}
 				new_pocs.extend(self.set_single_action_request(poc, request_type or self.request_type, force=force))
 		return new_pocs
 
