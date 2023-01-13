@@ -21,7 +21,7 @@ from opsicommon.logging import (  # type: ignore[import]
 	DEFAULT_FORMAT,
 	LOG_ESSENTIAL,
 	LOG_NONE,
-	logger,
+	get_logger,
 	logging_config,
 	secret_filter,
 )
@@ -42,6 +42,7 @@ from opsicli.types import (
 
 IN_COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ
 
+logger = get_logger("opsicli")
 
 class ConfigValueSource(Enum):
 	DEFAULT = "default"
@@ -61,7 +62,7 @@ class ConfigValue:  # pylint: disable=too-many-instance-attributes
 	value: Any
 	source: ConfigValueSource | None = None
 
-	def __setattr__(self, name: str, value: Any):
+	def __setattr__(self, name: str, value: Any) -> None:
 		if name == "value" and value is not None:
 			if not isinstance(value, self.type):
 				if isinstance(value, dict):
@@ -70,10 +71,10 @@ class ConfigValue:  # pylint: disable=too-many-instance-attributes
 					value = self.type(value)
 		self.__dict__[name] = value
 
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return f"<ConfigValue value={self.value!r}, source={self.source}>"
 
-	def __str__(self):
+	def __str__(self) -> str:
 		if self.source:
 			return f"{self.value} ({ConfigValueSource(self.source).value})"
 		return f"{self.value}"
@@ -93,11 +94,24 @@ class ConfigItem:  # pylint: disable=too-many-instance-attributes
 	_default: list[ConfigValue] | ConfigValue | None = None
 	_value: list[ConfigValue] | ConfigValue | None = None
 
-	def __post_init__(self, default: Any, value: Any):
+	def __post_init__(self, default: Any, value: Any) -> None:
 		self.set_default(default)
 		self.set_value(value)
 
-	def __setattr__(self, name: str, value: Any, source: ConfigValueSource | None = None):
+	def __setattr__(self, name: str, value: Any) -> None:
+		self._set_value(name, value)
+
+	def __getattribute__(self, name: str) -> Any:
+		if name in ("default", "value"):
+			attribute = f"_{name}"
+			if self.multiple:
+				return [config_value.value for config_value in getattr(self, attribute) or []]
+			if getattr(self, attribute) is None:
+				return None
+			return getattr(self, attribute).value
+		return super().__getattribute__(name)
+
+	def _set_value(self, name: str, value: Any, source: ConfigValueSource | None = None) -> None:
 		if name in ("default", "value"):
 			if name == "default":
 				source = ConfigValueSource.DEFAULT
@@ -119,23 +133,13 @@ class ConfigItem:  # pylint: disable=too-many-instance-attributes
 		else:
 			self.__dict__[name] = value
 
-	def __getattribute__(self, name: str) -> Any:
-		if name in ("default", "value"):
-			attribute = f"_{name}"
-			if self.multiple:
-				return [config_value.value for config_value in getattr(self, attribute) or []]
-			if getattr(self, attribute) is None:
-				return None
-			return getattr(self, attribute).value
-		return super().__getattribute__(name)
+	def set_value(self, value: Any, source: ConfigValueSource | None = None) -> None:
+		self._set_value("value", value, source)  # pylint: disable=unnecessary-dunder-call
 
-	def set_value(self, value, source: ConfigValueSource | None = None):
-		return self.__setattr__("value", value, source)  # pylint: disable=unnecessary-dunder-call
+	def set_default(self, value: Any) -> None:
+		self._set_value("default", value, ConfigValueSource.DEFAULT)  # pylint: disable=unnecessary-dunder-call
 
-	def set_default(self, value):
-		return self.__setattr__("default", value, ConfigValueSource.DEFAULT)  # pylint: disable=unnecessary-dunder-call
-
-	def _add_value(self, attribute: str, value: Any, source: ConfigValueSource | None = None):
+	def _add_value(self, attribute: str, value: Any, source: ConfigValueSource | None = None) -> None:
 		if attribute not in ("default", "value"):
 			raise ValueError(f"Invalid attribute '{attribute}'")
 		if not self.multiple:
@@ -153,10 +157,10 @@ class ConfigItem:  # pylint: disable=too-many-instance-attributes
 					return
 		self.__dict__[attribute].append(config_value)
 
-	def add_value(self, value, source: ConfigValueSource | None = None):
-		return self._add_value("value", value, source)
+	def add_value(self, value: Any, source: ConfigValueSource | None = None) -> None:
+		self._add_value("value", value, source)
 
-	def _remove_value(self, attribute: str, value: Any):
+	def _remove_value(self, attribute: str, value: Any) -> None:
 		if attribute not in ("default", "value"):
 			raise ValueError(f"Invalid attribute '{attribute}'")
 		if not self.multiple:
@@ -164,7 +168,7 @@ class ConfigItem:  # pylint: disable=too-many-instance-attributes
 		attribute = f"_{attribute}"
 		self.__dict__[attribute].remove(value)
 
-	def remove_value(self, value):
+	def remove_value(self, value: Any) -> None:
 		return self._remove_value("value", value)
 
 	def get_value(self, value_only: bool = True) -> Any:
@@ -185,13 +189,13 @@ class ConfigItem:  # pylint: disable=too-many-instance-attributes
 			return self.default
 		return self._default
 
-	def as_dict(self):
+	def as_dict(self) -> dict[str, Any]:
 		dict_ = asdict(self)
 		dict_["value"] = dict_.pop("_value")
 		dict_["default"] = dict_.pop("_default")
 		return dict_
 
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return f"<ConfigItem name={self.name!r}, default={self.default}, value={repr(self.value)}>"
 
 
@@ -327,7 +331,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 		for item in CONFIG_ITEMS:
 			self.add_config_item(item)
 
-	def add_config_item(self, config_item: ConfigItem):
+	def add_config_item(self, config_item: ConfigItem) -> None:
 		self._config[config_item.name] = config_item
 
 	def get_config_item(self, name: str) -> ConfigItem:

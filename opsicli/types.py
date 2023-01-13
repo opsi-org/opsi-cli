@@ -5,9 +5,11 @@ opsi-cli - command line interface for opsi
 types
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Type
 from urllib.parse import urlparse
 
 import rich_click as click  # type: ignore[import]
@@ -25,7 +27,7 @@ class LogLevel(int):
 		[f"[metavar]{name}[/metavar]/[metavar]{LEVEL_TO_OPSI_LEVEL[NAME_TO_LEVEL[name.upper()]]}[/metavar]" for name in possible_values]
 	)
 
-	def __new__(cls, value: Any):
+	def __new__(cls, value: Any) -> LogLevel:
 		try:
 			value = min(9, max(0, int(value)))
 		except ValueError:
@@ -35,7 +37,7 @@ class LogLevel(int):
 				raise ValueError(f"{value!r} is not a valid log level, choose one of: {cls.possible_values_for_description}") from None
 		return super().__new__(cls, value)
 
-	def to_yaml(self):
+	def to_yaml(self) -> int:
 		return int(self)
 
 
@@ -43,18 +45,18 @@ class OutputFormat(str):
 	possible_values = ["auto", "json", "pretty-json", "msgpack", "table", "csv"]
 	possible_values_for_description = ", ".join([f"[metavar]{v}[/metavar]" for v in possible_values])
 
-	def __new__(cls, value: Any):
+	def __new__(cls: Type[OutputFormat], value: Any) -> OutputFormat:
 		value = str(value)
 		if value not in cls.possible_values:
 			raise ValueError(f"{value!r} is not a valid output format, choose one of: {cls.possible_values_for_description}") from None
 		return super().__new__(cls, value)
 
-	def to_yaml(self):
+	def to_yaml(self) -> str:
 		return str(self)
 
 
 class Attributes(list):
-	def __init__(self, value):
+	def __init__(self, value: list | str) -> None:
 		if isinstance(value, str):
 			value = [v.strip() for v in value.split(",") if v.strip()]
 		super().__init__(value)
@@ -63,14 +65,14 @@ class Attributes(list):
 class Bool:  # pylint: disable=too-few-public-methods
 	click_type = bool
 
-	def __new__(cls, value: Any):
+	def __new__(cls: Type[Bool], value: Any) -> bool:  # type: ignore[misc]
 		if isinstance(value, str):
 			value = value.lower() in ("1", "true", "yes")
 		return bool(value)
 
 
 class OPSIServiceUrl(str):  # pylint: disable=too-few-public-methods
-	def __new__(cls, value: Any):
+	def __new__(cls: Type[OPSIServiceUrl], value: str) -> OPSIServiceUrl:
 		value = str(value)
 		if "://" not in value:
 			value = f"https://{value}"
@@ -83,35 +85,33 @@ class OPSIServiceUrl(str):  # pylint: disable=too-few-public-methods
 
 
 class OPSIServiceUrlOrServiceName(str):  # pylint: disable=too-few-public-methods
-	def __new__(cls, value: Any):
+	def __new__(cls: Type[OPSIServiceUrlOrServiceName], value: str) -> OPSIServiceUrl | str:  # type: ignore[misc]
 		if value.startswith("http://") or value.startswith("https://"):
 			return OPSIServiceUrl(value)
 		return value
 
 
 class Password(str):  # pylint: disable=too-few-public-methods
-	def __new__(cls, value: Any):
-		if value is None:
-			return None
-		return super().__new__(cls, value)
+	def __new__(cls: Type[Password], value: str | None) -> Password:
+		return super().__new__(cls, value or "")
 
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return "***secret***"
 
-	def to_yaml(self):
+	def to_yaml(self) -> str | None:
 		if not self:
-			return self
+			return None
 		return encrypt(str(self))
 
 	@classmethod
-	def from_yaml(cls, value):
+	def from_yaml(cls, value: str) -> Password:
 		return cls(decrypt(value))
 
 
 class File(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public-methods
 	click_type = click.Path(dir_okay=False)
 
-	def __new__(cls, *args, **kwargs):
+	def __new__(cls: Type[File], *args: Any, **kwargs: Any) -> File:
 		path = super().__new__(cls, *args, **kwargs)
 		if str(path) != "-":
 			path = path.expanduser().absolute()
@@ -119,21 +119,21 @@ class File(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public
 				raise ValueError("Not a file: {path!r}")
 		return path
 
-	def to_yaml(self):
+	def to_yaml(self) -> str:
 		return str(self)
 
 
 class Directory(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public-methods
 	click_type = click.Path(file_okay=False)
 
-	def __new__(cls, *args, **kwargs):
+	def __new__(cls: Type[Directory], *args: Any, **kwargs: Any) -> Directory:
 		path = super().__new__(cls, *args, **kwargs)
 		path = path.expanduser().absolute()
 		if path.exists() and not path.is_dir():
 			raise ValueError("Not a directory: {path!r}")
 		return path
 
-	def to_yaml(self):
+	def to_yaml(self) -> str:
 		return str(self)
 
 
@@ -149,11 +149,11 @@ class OPSIService:
 			value = Password(value)
 		self.__dict__[name] = value
 
-	def to_yaml(self):
+	def to_yaml(self) -> dict[str, Any]:
 		return {key: val.to_yaml() if hasattr(val, "to_yaml") else val for key, val in vars(self).items()}
 
 	@classmethod
-	def from_yaml(cls, value):
+	def from_yaml(cls, value: dict[str, Any]) -> OPSIService:
 		if value.get("password"):
 			value["password"] = Password.from_yaml(value["password"])
 		return cls(**value)

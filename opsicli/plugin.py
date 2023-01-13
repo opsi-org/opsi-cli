@@ -11,12 +11,14 @@ import sys
 import warnings
 import zipfile
 from importlib._bootstrap import BuiltinImporter  # type: ignore[import]
+from importlib.machinery import ModuleSpec
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 from urllib.parse import quote, unquote
 
 from click import Command  # type: ignore[import]
-from opsicommon.logging import logger  # type: ignore[import]
+from opsicommon.logging import get_logger  # type: ignore[import]
 from opsicommon.utils import Singleton  # type: ignore[import]
 from packaging.version import parse
 from pip._internal.commands.install import InstallCommand
@@ -25,8 +27,12 @@ from pipreqs import pipreqs  # type: ignore[import]
 
 from opsicli.config import IN_COMPLETION_MODE, config
 
+logger = get_logger("opsicli")
 
-def monkeypatched_make_multiple(self, specifications, options=None):  # pylint: disable=unused-argument
+
+def monkeypatched_make_multiple(
+	self: ScriptMaker, specifications: list[str], options: dict[str, Any] | None = None  # pylint: disable=unused-argument
+) -> list:
 	return []
 
 
@@ -69,7 +75,7 @@ class OPSICLIPlugin:
 
 class PluginImporter(BuiltinImporter):
 	@classmethod
-	def find_spec(cls, fullname, path=None, target=None):
+	def find_spec(cls, fullname: str, path: None = None, target: None = None) -> ModuleSpec | None:
 		if not fullname.startswith("opsicli.addon"):
 			return None
 		plugin_path = unquote(fullname.split("_", 1)[1]).replace("%2E", ".")
@@ -174,7 +180,7 @@ class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-meth
 		self.unload_plugin(plugin_id)
 		self.load_plugin(path)
 
-	def reload_plugins(self):
+	def reload_plugins(self) -> None:
 		self.unload_plugins()
 		self.load_plugins()
 

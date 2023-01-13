@@ -12,15 +12,17 @@ import random
 import string
 import subprocess
 
-from opsicommon.logging import logger  # type: ignore[import]
+from opsicommon.logging import get_logger  # type: ignore[import]
+
+logger = get_logger("opsicli")
 
 
-def random_string(length):
+def random_string(length: int) -> str:
 	letters = string.ascii_letters + string.digits
 	return "".join(random.choice(letters) for _ in range(length))
 
 
-def encrypt(cleartext: str):
+def encrypt(cleartext: str) -> str:
 	if not cleartext:
 		raise ValueError("Invalid cleartext")
 	key = random_string(16)
@@ -31,7 +33,7 @@ def encrypt(cleartext: str):
 	return "{crypt}" + base64.urlsafe_b64encode(f"{key}:{cipher}".encode("utf-8")).decode("ascii")
 
 
-def decrypt(cipher: str):
+def decrypt(cipher: str) -> str:
 	if not cipher:
 		raise ValueError("Invalid cipher")
 	if not cipher.startswith("{crypt}"):

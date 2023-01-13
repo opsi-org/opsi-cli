@@ -12,12 +12,13 @@ from typing import Any
 from urllib.parse import urlparse
 
 from opsicommon.client.jsonrpc import JSONRPCClient  # type: ignore[import]
-from opsicommon.logging import logger, secret_filter  # type: ignore[import]
+from opsicommon.logging import get_logger, secret_filter  # type: ignore[import]
 
 from opsicli import __version__
 from opsicli.cache import cache
 from opsicli.config import config
 
+logger = get_logger("opsicli")
 jsonrpc_client = None  # pylint: disable=invalid-name
 
 

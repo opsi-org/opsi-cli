@@ -7,11 +7,13 @@ dummy command - proof of concept
 import click
 import netifaces  # type: ignore[import] # pylint: disable=import-error
 import requests  # type: ignore[import]
-from opsicommon.logging import logger  # type: ignore[import]
+from opsicommon.logging import get_logger  # type: ignore[import]
 
 from opsicli.plugin import OPSICLIPlugin
 
 __version__ = "0.1.0"
+
+logger = get_logger("opsicli")
 
 
 @click.group(name="dummy", short_help="short help for dummy")

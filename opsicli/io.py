@@ -7,14 +7,14 @@ input output
 
 import csv
 import inspect
-import io
 import sys
 from contextlib import contextmanager
-from typing import IO, Any, Type
+from io import BytesIO, StringIO
+from typing import IO, Any, Iterator, Type
 
 import msgpack  # type: ignore[import]
 import orjson
-from opsicommon.logging import logger  # type: ignore[import]
+from opsicommon.logging import get_logger
 from rich import print_json  # type: ignore[import]
 from rich.console import Console  # type: ignore[import]
 from rich.prompt import FloatPrompt, IntPrompt, Prompt  # type: ignore[import]
@@ -22,11 +22,13 @@ from rich.table import Table, box  # type: ignore[import]
 
 from opsicli.config import config
 
+logger = get_logger("opsicli")
 
-def get_attributes(data, all_elements=True) -> list[str]:
+
+def get_attributes(data: list[dict[str, Any]], all_elements: bool = True) -> list[str]:
 	attributes_set = set()
 	for element in data:
-		attributes_set |= set(element.keys())
+		attributes_set |= set(element)
 		if not all_elements:
 			break
 	attributes = sorted(list(attributes_set))
@@ -39,7 +41,7 @@ def get_attributes(data, all_elements=True) -> list[str]:
 	return attributes
 
 
-def get_structure_type(data):
+def get_structure_type(data: list | dict) -> type[list] | type[dict] | None:
 	if isinstance(data, list):
 		if data and isinstance(data[0], list):
 			return list[list]
@@ -67,18 +69,24 @@ def output_file_is_a_tty() -> bool:
 
 
 @contextmanager
-def output_file(encoding: str | None = "utf-8"):
+def output_file_bin() -> Iterator[IO[bytes]]:
 	if str(config.output_file) in ("-", ""):
-		if encoding == "binary":
-			yield sys.stdout.buffer
-		else:
-			yield sys.stdout
+		yield sys.stdout.buffer
 		sys.stdout.flush()
 	else:
-		mode = "w"
-		if encoding == "binary":
-			mode = "wb"
-		with open(config.output_file, mode=mode, encoding=None if encoding == "binary" else encoding) as file:
+		with open(config.output_file, mode="wb") as file:
+			yield file
+			file.flush()
+
+
+@contextmanager
+def output_file_str(encoding: str | None = "utf-8") -> Iterator[IO[str]]:
+	encoding = encoding or "utf-8"
+	if str(config.output_file) in ("-", ""):
+		yield sys.stdout
+		sys.stdout.flush()
+	else:
+		with open(config.output_file, mode="w", encoding=encoding) as file:
 			yield file
 			file.flush()
 
@@ -113,7 +121,7 @@ def prompt(  # pylint: disable=too-many-arguments
 
 
 def write_output_table(data: Any, metadata: dict) -> None:
-	def to_string(value):
+	def to_string(value: Any) -> str:
 		if value is None:
 			return ""
 		if isinstance(value, bool):
@@ -143,13 +151,13 @@ def write_output_table(data: Any, metadata: dict) -> None:
 		else:
 			table.add_row(*[to_string(row)])
 
-	with output_file() as file:
+	with output_file_str() as file:
 		console = get_console(file)
 		console.print(table)
 
 
 def write_output_csv(data: Any, metadata: dict) -> None:
-	def to_string(value):
+	def to_string(value: Any) -> str:
 		if value is None:
 			return "<null>"
 		if isinstance(value, bool):
@@ -160,7 +168,7 @@ def write_output_csv(data: Any, metadata: dict) -> None:
 			return value.__name__
 		return str(value)
 
-	with output_file() as file:
+	with output_file_str() as file:
 		writer = csv.writer(file, delimiter=";", quotechar='"', quoting=csv.QUOTE_MINIMAL)
 		row_ids = []
 		header = []
@@ -181,7 +189,7 @@ def write_output_csv(data: Any, metadata: dict) -> None:
 
 
 def write_output_json(data: Any, metadata: dict | None = None, pretty: bool = False) -> None:
-	def to_string(value):
+	def to_string(value: Any) -> str:
 		if inspect.isclass(value):
 			return value.__name__
 		return str(value)
@@ -197,20 +205,18 @@ def write_output_json(data: Any, metadata: dict | None = None, pretty: bool = Fa
 	if pretty and output_file_is_a_tty():
 		print_json(json.decode("utf-8"))
 	else:
-		with output_file(encoding="binary") as file:
-			file.write(json)  # type: ignore[attr-defined]
+		with output_file_bin() as file:
+			file.write(json)
 
 
 def write_output_msgpack(data: Any, metadata: dict | None = None) -> None:
-	def to_string(value):
+	def to_string(value: Any) -> str:
 		if inspect.isclass(value):
 			return value.__name__
 		return str(value)
 
-	with output_file(encoding="binary") as file:
-		file.write(  # type: ignore[attr-defined]  # pylint: disable=no-member
-			msgpack.dumps({"metadata": metadata, "data": data} if config.metadata and metadata else data, default=to_string)
-		)
+	with output_file_bin() as file:
+		file.write(msgpack.dumps({"metadata": metadata, "data": data} if config.metadata and metadata else data, default=to_string))
 
 
 def write_output(data: Any, metadata: dict | None = None, default_output_format: str | None = None) -> None:
@@ -230,9 +236,11 @@ def write_output(data: Any, metadata: dict | None = None, default_output_format:
 			raise RuntimeError(f"Output-format {config.output_format!r} does not support stucture {stt!r}")
 
 	if output_format in ("table"):
-		write_output_table(data, metadata)  # type: ignore[arg-type]
+		assert metadata
+		write_output_table(data, metadata)
 	elif output_format == "csv":
-		write_output_csv(data, metadata)  # type: ignore[arg-type]
+		assert metadata
+		write_output_csv(data, metadata)
 	elif output_format in ("json", "pretty-json"):
 		write_output_json(data, metadata, output_format == "pretty-json")
 	elif output_format == "msgpack":
@@ -242,9 +250,12 @@ def write_output(data: Any, metadata: dict | None = None, default_output_format:
 
 
 def write_output_raw(data: bytes | str) -> None:
-	encoding = "binary" if isinstance(data, bytes) else "utf-8"
-	with output_file(encoding=encoding) as file:
-		file.write(data)
+	if isinstance(data, bytes):
+		with output_file_bin() as file:
+			file.write(data)
+	else:
+		with output_file_str() as file:
+			file.write(data)
 
 
 def input_file_is_stdin() -> bool:
@@ -263,28 +274,37 @@ def input_file_is_a_tty() -> bool:
 
 
 @contextmanager
-def input_file(encoding: str | None = None):
+def input_file_bin() -> Iterator[IO[bytes]]:
 	if str(config.input_file) in ("-", ""):
 		if input_file_is_a_tty():
-			if encoding == "binary":
-				yield io.BytesIO()
-			else:
-				yield io.StringIO()
+			yield BytesIO()
 		else:
-			if encoding == "binary":
-				yield sys.stdin.buffer
-			else:
-				yield sys.stdin
+			yield sys.stdin.buffer
 	else:
-		mode = "r"
-		if encoding == "binary":
-			mode = "rb"
-		with open(config.input_file, mode=mode, encoding=None if encoding == "binary" else encoding) as file:
+		with open(config.input_file, mode="rb") as file:
 			yield file
 
 
-def read_input_raw(encoding: str | None = None) -> str:
-	with input_file(encoding) as file:
+@contextmanager
+def input_file_str(encoding: str | None = "utf-8") -> Iterator[IO[str]]:
+	encoding = encoding or "utf-8"
+	if str(config.input_file) in ("-", ""):
+		if input_file_is_a_tty():
+			yield StringIO()
+		else:
+			yield sys.stdin
+	else:
+		with open(config.input_file, mode="r", encoding=encoding) as file:
+			yield file
+
+
+def read_input_raw_bin() -> bytes:
+	with input_file_bin() as file:
+		return file.read()
+
+
+def read_input_raw_str(encoding: str | None = "utf-8") -> str:
+	with input_file_str(encoding) as file:
 		return file.read()
 
 
@@ -302,7 +322,7 @@ def read_input_json(data: bytes) -> Any:
 	return data
 
 
-def read_input_csv(data: bytes) -> dict | list[str]:
+def read_input_csv(data: bytes) -> list[dict | list[str]]:
 	rows: list[dict | list[str]] = []
 	header = []
 	reader = csv.reader(data.decode("utf-8").split("\n"), delimiter=";", quotechar='"')
@@ -322,10 +342,11 @@ def read_input_csv(data: bytes) -> dict | list[str]:
 
 
 def read_input() -> Any:
-	with input_file(encoding="binary") as file:
+	with input_file_bin() as file:
 		data = file.read()
 	if not data:
 		return None
+
 	try:
 		logger.debug("Trying msgpack")
 		return read_input_msgpack(data)

@@ -11,11 +11,14 @@ from _pytest.capture import CaptureFixture
 
 from opsicli.config import config
 from opsicli.io import (
-	input_file,
-	output_file,
+	input_file_bin,
+	input_file_str,
+	output_file_bin,
+	output_file_str,
 	prompt,
 	read_input,
-	read_input_raw,
+	read_input_raw_bin,
+	read_input_raw_str,
 	write_output,
 	write_output_raw,
 )
@@ -71,7 +74,8 @@ def test_output_config(output_format: str, startstrings: list[str]) -> None:
 
 @pytest.mark.parametrize(("input_format", "string", "data"), input_output_testdata)
 def test_input(input_format: str, string: str, data: Any) -> None:  # pylint: disable=unused-argument # format is automatically detected
-	with TextIOWrapper(BufferedReader(BytesIO(string.encode("utf-8")))) as inputfile:
+	# with TextIOWrapper(BufferedReader(BytesIO(string.encode("utf-8")))) as inputfile:
+	with TextIOWrapper(BufferedReader(BytesIO(string.encode("utf-8")))) as inputfile:  # type: ignore[arg-type]
 		old_stdin = sys.stdin
 		sys.stdin = inputfile
 		result = read_input()
@@ -83,7 +87,7 @@ def test_input(input_format: str, string: str, data: Any) -> None:  # pylint: di
 	("string", "input_type", "expected_result"), (("teststring", str, "teststring"), ("3.14159", float, 3.14159), ("42", int, 42))
 )
 def test_prompt(string: str, input_type: type, expected_result: str | float | int) -> None:
-	with TextIOWrapper(BufferedReader(BytesIO(string.encode("utf-8")))) as inputfile:
+	with TextIOWrapper(BufferedReader(BytesIO(string.encode("utf-8")))) as inputfile:  # type: ignore[arg-type]
 		old_stdin = sys.stdin
 		sys.stdin = inputfile
 		result = prompt("input some value", return_type=input_type)
@@ -91,38 +95,32 @@ def test_prompt(string: str, input_type: type, expected_result: str | float | in
 		assert result == expected_result
 
 
-@pytest.mark.parametrize("encoding", ("utf-8", "binary"))
-def test_input_output_file(encoding: str) -> None:
-	teststring = "teststring"
+@pytest.mark.parametrize("data", (b"binary", "string"))
+def test_input_output_file(data: str | bytes) -> None:
 	with temp_context() as tempdir:
 		testfile = tempdir / "output.txt"
 		config.output_file = testfile
 		config.input_file = testfile
-		with output_file(encoding=encoding) as file_handle:
-			if encoding == "binary":
-				file_handle.write(teststring.encode("utf-8"))
-			else:
-				file_handle.write(teststring)
-		with input_file(encoding=encoding) as file_handle:
-			result = file_handle.read()
-			if encoding == "binary":
-				assert result == teststring.encode("utf-8")
-			else:
-				assert result == teststring
+		if isinstance(data, bytes):
+			with output_file_bin() as file:
+				file.write(data)
+			with input_file_bin() as file:
+				assert file.read() == data
+		else:
+			with output_file_str() as file:
+				file.write(data)
+			with input_file_str() as file:
+				assert file.read() == data
 
 
-@pytest.mark.parametrize("encoding", ("utf-8", "binary"))
-def test_input_output_file_raw(encoding: str) -> None:
-	teststring = "teststring"
+@pytest.mark.parametrize("data", (b"binary", "string"))
+def test_input_output_file_raw(data: str | bytes) -> None:
 	with temp_context() as tempdir:
 		testfile = tempdir / "output.txt"
 		config.output_file = testfile
 		config.input_file = testfile
-		if encoding == "binary":
-			write_output_raw(teststring.encode("utf-8"))
+		write_output_raw(data)
+		if isinstance(data, bytes):
+			assert read_input_raw_bin() == data
 		else:
-			write_output_raw(teststring)
-		if encoding == "binary":
-			assert read_input_raw(encoding=encoding) == teststring.encode("utf-8")
-		else:
-			assert read_input_raw() == teststring
+			assert read_input_raw_str() == data

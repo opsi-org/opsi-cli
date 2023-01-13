@@ -10,10 +10,12 @@ from pathlib import Path
 from typing import Any
 
 import orjson
-from opsicommon.logging import logger  # type: ignore[import]
+from opsicommon.logging import get_logger  # type: ignore[import]
 from opsicommon.utils import Singleton  # type: ignore[import]
 
 from opsicli.config import config
+
+logger = get_logger("opsicli")
 
 
 class Cache(metaclass=Singleton):  # pylint: disable=too-few-public-methods
@@ -23,16 +25,16 @@ class Cache(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 		self._loaded = False
 		self._modified = False
 
-	def _ensure_loaded(self):
+	def _ensure_loaded(self) -> None:
 		if not self._loaded:
 			self.load()
 
-	def exit(self):
+	def exit(self) -> None:
 		logger.debug("Cache exit")
 		if self._modified:
 			self.store()
 
-	def load(self):
+	def load(self) -> None:
 		if self._cache_file.exists():
 			with open(self._cache_file, "rb") as file:
 				try:
@@ -42,7 +44,7 @@ class Cache(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 		self._loaded = True
 		self._modified = False
 
-	def store(self):
+	def store(self) -> None:
 		self._ensure_loaded()
 		if not self._cache_file.parent.exists():
 			self._cache_file.parent.mkdir(parents=True)

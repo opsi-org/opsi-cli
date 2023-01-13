@@ -12,7 +12,7 @@ from typing import Any, Sequence
 import rich_click as click  # type: ignore[import]
 from click.exceptions import Abort, ClickException  # type: ignore[import]
 from click.shell_completion import CompletionItem  # type: ignore[import]
-from opsicommon.logging import logger  # type: ignore[import]
+from opsicommon.logging import get_logger  # type: ignore[import]
 from rich_click.rich_click import (  # type: ignore[import]
 	rich_abort_error,
 	rich_format_error,
@@ -50,6 +50,8 @@ for group, items in config.get_items_by_group().items():
 	if options:
 		click.rich_click.OPTION_GROUPS["opsi-cli"].append({"name": f"{group} options", "options": options})
 
+
+logger = get_logger("opsicli")
 
 # https://click.palletsprojects.com/en/7.x/commands/#custom-multi-commands
 class OpsiCLI(click.MultiCommand):
@@ -132,7 +134,7 @@ class LogLevel(click.ParamType):
 @config.get_click_option("username", short_option="-u")
 @config.get_click_option("password", short_option="-p")
 @config.get_click_option("dry_run", is_flag=True)
-def main(*args, **kwargs) -> None:  # pylint: disable=unused-argument
+def main(*args: str, **kwargs: str) -> None:  # pylint: disable=unused-argument
 	"""
 	opsi command line interface\n
 	Plugins are dynamically loaded from a subfolder

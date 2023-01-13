@@ -8,7 +8,7 @@ import os
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator, Sequence
+from typing import Generator, Iterator, Sequence
 
 from click.testing import CliRunner  # type: ignore[import]
 
@@ -20,7 +20,7 @@ runner = CliRunner()
 
 
 def run_cli(args: Sequence[str], stdin: list[str] | None = None) -> tuple[int, str]:
-	result = runner.invoke(main, args, obj={}, catch_exceptions=False, input=stdin)
+	result = runner.invoke(main, args, obj={}, catch_exceptions=False, input="\n".join(stdin or []))
 	return (result.exit_code, result.output)
 
 
@@ -44,7 +44,7 @@ def temp_context() -> Generator[Path, None, None]:
 
 
 @contextmanager
-def temp_env(**environ: str) -> None:
+def temp_env(**environ: str) -> Iterator[None]:
 	old_environ = dict(os.environ)
 	os.environ.update(environ)
 	try:
