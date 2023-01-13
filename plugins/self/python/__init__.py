@@ -16,13 +16,9 @@ from typing import Optional
 import psutil  # type: ignore[import]
 import rich_click as click  # type: ignore[import]
 from click.shell_completion import get_completion_class  # type: ignore[import]
-<<<<<<< HEAD
 from opsicommon.logging import get_logger  # type: ignore[import]
-=======
-from opsicommon.logging import logger  # type: ignore[import]
 from rich import print as rich_print
 from rich.tree import Tree
->>>>>>> devel
 
 from opsicli import __version__ as opsi_cli_version
 from opsicli.config import ConfigValueSource, config
@@ -116,7 +112,6 @@ def setup_shell_completion(ctx: click.Context, shell: str) -> None:  # pylint: d
 		shells = [shell]
 
 	entry_pattern = re.compile(rf"{START_MARKER}.*?{END_MARKER}\n")
-	empty_pattern = re.compile("")
 	console = get_console()
 	for shell_ in shells:
 		console.print(f"Setting up auto completion for shell [bold cyan]{shell_!r}[/bold cyan].")
@@ -126,7 +121,7 @@ def setup_shell_completion(ctx: click.Context, shell: str) -> None:  # pylint: d
 		data = ""
 		if conf_file.exists():
 			data = conf_file.read_text(encoding="utf-8")
-		data = re.sub(entry_pattern, empty_pattern, data, flags=re.DOTALL)
+		data = re.sub(entry_pattern, "", data, flags=re.DOTALL)
 
 		comp_cls = get_completion_class(shell_)
 		if not comp_cls:
@@ -160,11 +155,7 @@ def setup_shell_completion(ctx: click.Context, shell: str) -> None:  # pylint: d
 	default=False,
 	show_default=True,
 )
-<<<<<<< HEAD
 def install(system: bool, binary_path: Path | None = None, no_add_to_path: bool = False) -> None:
-=======
-def install(system: bool, binary_path: Optional[Path] = None, no_add_to_path: bool = False) -> None:
->>>>>>> devel
 	"""
 	opsi-cli self install subcommand.
 
@@ -198,11 +189,7 @@ def install(system: bool, binary_path: Optional[Path] = None, no_add_to_path: bo
 	type=File,
 	help="File path to find binary at.",
 )
-<<<<<<< HEAD
 def uninstall(system: bool, binary_path: Path | None = None) -> None:
-=======
-def uninstall(system: bool, binary_path: Optional[Path] = None) -> None:
->>>>>>> devel
 	"""
 	opsi-cli self uninstall subcommand.
 
@@ -227,7 +214,7 @@ def command_structure() -> None:
 	Prints the command structure of this opsi-cli instance.
 	"""
 
-	def add_sub_structure(item: click.Command | OPSICLIPlugin, tree: Tree):
+	def add_sub_structure(item: click.Command | OPSICLIPlugin, tree: Tree) -> None:
 		if isinstance(item, OPSICLIPlugin) and item.cli:
 			branch = tree.add(f"{item.cli.name} [grey53]({item.version})[/grey53]", guide_style="green")
 			if isinstance(item.cli, click.Group):
@@ -241,7 +228,7 @@ def command_structure() -> None:
 			tree.add(item.name)
 
 	tree = Tree(f"opsi-cli [grey53]({opsi_cli_version})[/grey53]", guide_style="bold bright_blue")
-	for cmd in sorted([plugin for plugin in plugin_manager.plugins if plugin.cli], key=lambda plugin: plugin.cli.name):
+	for cmd in sorted([plugin for plugin in plugin_manager.plugins if plugin.cli], key=lambda plugin: plugin.cli.name):  # type: ignore
 		add_sub_structure(cmd, tree)
 	rich_print(tree)
 

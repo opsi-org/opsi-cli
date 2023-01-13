@@ -15,11 +15,12 @@ import sys
 from contextlib import contextmanager
 from typing import Iterator
 
+from opsicommon.logging import get_logger, logging_config  # type: ignore[import]
+
 if platform.system().lower() != "windows":
 	import termios
 	import tty
 
-from opsicommon.logging import get_logger, logging_config  # type: ignore[import]
 
 logger = get_logger("opsicli")
 
