@@ -71,9 +71,9 @@ pylint-pytest:
     - poetry lock --no-update
     - poetry install
     - poetry run pylint --disable=R,fixme opsicli plugins tests
-    - rm -rf .mypy_cache
     - poetry run flake8 opsicli plugins tests
     - poetry run mypy opsicli tests
+    - rm -rf .mypy_cache
     - poetry run mypy --explicit-package-bases plugins
     - for db in coverage_*; do sqlite3 $db 'update file set path=replace(substr(path,instr(path,"opsicli")),"\","/");'; done
     - echo -e '[run]\nrelative_files = True\n' > .coveragerc
