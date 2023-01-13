@@ -10,13 +10,14 @@ pyinstaller-poetry:
       - opsicli.io
       - opsicli.cache
       - opsicli.opsiservice
+      - opsicli.messagebus
       - pip._internal.commands.install
+      - rich.tree
     windows:
       - pip._vendor.platformdirs.windows
     darwin:
       - pip._vendor.platformdirs.macos
   extra_args:
-    - --exclude-module=cryptography
     - --exclude-module=tkinter
     - --exclude-module=tan
     - --exclude-module=pytest
@@ -38,6 +39,8 @@ pyinstaller-poetry:
       dst: plugins
   dirname: opsicli
   locale_install: []
+  packages:
+    - opsicli
 
 
 jenkins-test:

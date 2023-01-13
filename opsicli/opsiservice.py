@@ -11,22 +11,28 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from opsicommon.client.jsonrpc import JSONRPCClient  # type: ignore[import]
-from opsicommon.logging import get_logger, secret_filter  # type: ignore[import]
+from opsicommon.client.opsiservice import (  # type: ignore[import]
+	ServiceClient,
+	ServiceVerificationFlags,
+)
+from opsicommon.config import OpsiConfig  # type: ignore[import]
+from opsicommon.logging import get_logger  # type: ignore[import]
 
 from opsicli import __version__
-from opsicli.cache import cache
 from opsicli.config import config
 
 logger = get_logger("opsicli")
 jsonrpc_client = None  # pylint: disable=invalid-name
+SESSION_LIFETIME = 15  # seconds
 
 
 def get_service_credentials_from_backend() -> tuple[str, str]:
+	logger.info("Fetching credentials from backend")
 	dispatch_conf = Path("/etc/opsi/backendManager/dispatch.conf")
 	backend = "mysql"
+	backend_pattern = re.compile(r"backend_.*:\s*(\S+)")
 	for line in dispatch_conf.read_text(encoding="utf-8").splitlines():
-		match = re.search(r"backend_.*:\s*(\S+)", line)
+		match = re.search(backend_pattern, line)
 		if match:
 			backend = match.group(1).replace(",", "").strip()
 
@@ -70,7 +76,7 @@ def get_service_credentials_from_backend() -> tuple[str, str]:
 	raise RuntimeError("Failed to get service credentials")
 
 
-def get_service_connection() -> JSONRPCClient:
+def get_service_connection() -> ServiceClient:
 	global jsonrpc_client  # pylint: disable=invalid-name,global-statement
 	if not jsonrpc_client:
 		address = config.service
@@ -84,25 +90,26 @@ def get_service_connection() -> JSONRPCClient:
 				if service.password:
 					password = service.password
 
+		opsiconf = OpsiConfig(upgrade_config=False)
+		if not username or not password:
+			logger.info("Fetching credentials from opsi config file")
+			try:
+				username = opsiconf.get("host", "id")
+				password = opsiconf.get("host", "key")
+			except Exception as error:  # pylint: disable=broad-except
+				logger.info("Failed to get credentials from opsi config file: %s", error)
 		if not username or not password and urlparse(address).hostname in ("localhost", "::1", "127.0.0.1"):
 			try:
 				username, password = get_service_credentials_from_backend()
 			except Exception as err:  # pylint: disable=broad-except
 				logger.warning(err)
 
-		session_lifetime = 15
-		cache_key = f"jsonrpc-session-{address}-{username}"
-		session_id = cache.get(cache_key)
-		if session_id:
-			secret_filter.add_secrets(session_id.split("=", 1)[1])
-			logger.debug("Reusing session %s", session_id)
-		jsonrpc_client = JSONRPCClient(
+		jsonrpc_client = ServiceClient(
 			address=address,
 			username=username,
 			password=password,
-			application=f"opsi-cli/{__version__}",
-			session_lifetime=session_lifetime,
-			session_id=session_id,
+			user_agent=f"opsi-cli/{__version__}",
+			session_lifetime=SESSION_LIFETIME,
+			verify=ServiceVerificationFlags.ACCEPT_ALL,
 		)
-		cache.set(cache_key, jsonrpc_client.session_id, ttl=session_lifetime)
 	return jsonrpc_client

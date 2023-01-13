@@ -11,8 +11,15 @@ import platform
 import random
 import string
 import subprocess
+import sys
+from contextlib import contextmanager
+from typing import Iterator
 
-from opsicommon.logging import get_logger  # type: ignore[import]
+if platform.system().lower() != "windows":
+	import termios
+	import tty
+
+from opsicommon.logging import get_logger, logging_config  # type: ignore[import]
 
 logger = get_logger("opsicli")
 
@@ -59,3 +66,20 @@ def add_to_env_variable(key: str, value: str, system: bool = False) -> None:
 	call = f'setx {key} "%{key}%;{value}" /M' if system else f'setx {key} "%{key}%;{value}"'
 	logger.notice("Adding %s to Environment Variable %s", value, key)
 	subprocess.check_call(call, shell=True)
+
+
+@contextmanager
+def stream_wrap() -> Iterator[None]:
+	logging_config(stderr_level=0)  # Restore?
+	if platform.system().lower() == "windows":
+		yield
+	else:
+		attrs = termios.tcgetattr(sys.stdin.fileno())
+		try:
+			tty.setraw(sys.stdin.fileno())  # Set raw mode to access char by char
+			yield
+		except Exception as err:  # pylint: disable=broad-except
+			termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, attrs)
+			print(err, file=sys.stderr)
+		else:
+			termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, attrs)

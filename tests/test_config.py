@@ -124,11 +124,16 @@ def test_read_write_config() -> None:
 
 def test_service_config() -> None:
 	config = Config()
-	(exit_code, _) = run_cli(
-		["config", "service", "add", "--name=test", "--username=testuser", "--password=testpassword", "https://testurl:4447"]
-	)
-	assert exit_code == 0
-	assert any(service.name == "test" for service in config.get_values().get("services", []))
-	(exit_code, _) = run_cli(["config", "service", "remove", "test"])
-	assert exit_code == 0
-	assert not any(service.name == "test" for service in config.get_values().get("services", []))
+
+	with temp_context() as tempdir:
+		# config service add writes conffile. Explicitely set here to avoid wiping config file of the user.
+		conffile = Path(tempdir) / "conffile.conf"
+		config.config_file_user = conffile
+		(exit_code, _) = run_cli(
+			["config", "service", "add", "--name=test", "--username=testuser", "--password=testpassword", "https://testurl:4447"]
+		)
+		assert exit_code == 0
+		assert any(service.name == "test" for service in config.get_values().get("services", []))
+		(exit_code, _) = run_cli(["config", "service", "remove", "test"])
+		assert exit_code == 0
+		assert not any(service.name == "test" for service in config.get_values().get("services", []))

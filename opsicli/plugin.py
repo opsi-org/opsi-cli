@@ -21,24 +21,11 @@ from click import Command  # type: ignore[import]
 from opsicommon.logging import get_logger  # type: ignore[import]
 from opsicommon.utils import Singleton  # type: ignore[import]
 from packaging.version import parse
-from pip._internal.commands.install import InstallCommand
-from pip._vendor.distlib.scripts import ScriptMaker
 from pipreqs import pipreqs  # type: ignore[import]
 
 from opsicli.config import IN_COMPLETION_MODE, config
 
 logger = get_logger("opsicli")
-
-
-def monkeypatched_make_multiple(
-	self: ScriptMaker, specifications: list[str], options: dict[str, Any] | None = None  # pylint: disable=unused-argument
-) -> list:
-	return []
-
-
-# ScriptMaker is called by pip to create executable python scripts from libraries (i.e. .../bin)
-# Monkeypatch here to avoid trying to create this (nasty in frozen context)
-ScriptMaker.make_multiple = monkeypatched_make_multiple  # type: ignore
 
 PLUGIN_EXTENSION = "opsicliplug"
 # These dependencies are not in python standard library
@@ -90,7 +77,12 @@ sys.meta_path.append(PluginImporter)  # type: ignore[arg-type]
 
 
 class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-methods
+	_initialized = False
+
 	def __init__(self) -> None:
+		if self._initialized:
+			return
+		self._initialized = True
 		self._plugins: dict[str, OPSICLIPlugin] = {}
 
 	@classmethod
@@ -243,6 +235,23 @@ def install_plugin(source_dir: Path, name: str, system: bool = False) -> Path:
 
 
 def install_python_package(target_dir: Path, package: dict[str, str]) -> None:
+	# These imports take ~0.25s
+	from pip._internal.commands.install import (  # pylint: disable=import-outside-toplevel
+		InstallCommand,
+	)
+	from pip._vendor.distlib.scripts import (  # pylint: disable=import-outside-toplevel
+		ScriptMaker,
+	)
+
+	def monkeypatched_make_multiple(
+		self: ScriptMaker, specifications: list[str], options: dict[str, Any] | None = None  # pylint: disable=unused-argument
+	) -> list:
+		return []
+
+	# ScriptMaker is called by pip to create executable python scripts from libraries (i.e. .../bin)
+	# Monkeypatch here to avoid trying to create this (nasty in frozen context)
+	ScriptMaker.make_multiple = monkeypatched_make_multiple  # type: ignore
+
 	logger.info("Installing %r, version %r", package["name"], package["version"])
 	# packaging version bundled in pip uses legacy format (see pip/__main__.py)
 	with warnings.catch_warnings():
