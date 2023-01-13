@@ -4,8 +4,6 @@ opsi-cli basic command line interface for opsi
 client_action_worker
 """
 
-from typing import List
-
 from opsicommon.logging import logger  # type: ignore[import]
 
 from opsicli.opsiservice import get_service_connection
@@ -16,7 +14,7 @@ class ClientActionWorker:  # pylint: disable=too-many-instance-attributes
 		self, clients: str = None, client_groups: str = None, exclude_clients: str = None, exclude_client_groups: str = None
 	) -> None:
 		self.service = get_service_connection()
-		self.clients: List[str] = []
+		self.clients: list[str] = []
 		self.determine_clients(clients, client_groups, exclude_clients, exclude_client_groups)
 
 	def client_ids_from_group(self, group: str):

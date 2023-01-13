@@ -4,7 +4,6 @@ opsi-cli basic command line interface for opsi
 config plugin
 """
 
-from typing import List, Optional
 from urllib.parse import urlparse
 
 import rich_click as click  # type: ignore[import]
@@ -51,7 +50,7 @@ def config_list() -> None:
 
 def complete_config_item_name(
 	ctx: click.Context, param: click.Parameter, incomplete: str  # pylint: disable=unused-argument
-) -> List[CompletionItem]:
+) -> list[CompletionItem]:
 	items = []
 	for item in config.get_config_items():
 		if item.name.startswith(incomplete):
@@ -146,10 +145,10 @@ def service_list() -> None:
 @click.option("--password", type=str, required=False, default=None)
 @click.option("--system", type=bool, required=False, default=False)
 def service_add(
-	url: Optional[str] = None,
-	name: Optional[str] = None,
-	username: Optional[str] = None,
-	password: Optional[str] = None,
+	url: str | None = None,
+	name: str | None = None,
+	username: str | None = None,
+	password: str | None = None,
 	system: bool = False,
 ) -> None:
 	"""
@@ -185,7 +184,7 @@ def service_add(
 @click.argument("name", type=str, required=False)
 @click.option("--system", type=bool, required=False, default=False)
 def service_remove(
-	name: Optional[str] = None,
+	name: str | None = None,
 	system: bool = False,
 ) -> None:
 	"""

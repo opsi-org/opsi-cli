@@ -4,12 +4,9 @@ opsi-cli Basic command line interface for opsi
 dummy command - proof of concept
 """
 
-from typing import Any, Dict
-
-import requests  # type: ignore[import]
 import click
 import netifaces  # type: ignore[import] # pylint: disable=import-error
-
+import requests  # type: ignore[import]
 from opsicommon.logging import logger  # type: ignore[import]
 
 from opsicli.plugin import OPSICLIPlugin
@@ -34,7 +31,7 @@ def libtest() -> None:
 	This is the long help.
 	"""
 	print(netifaces.gateways())
-	print(requests.get("https://opsi.org"))
+	print(requests.get("https://opsi.org", timeout=5))
 
 
 class DummyPlugin(OPSICLIPlugin):

@@ -4,8 +4,10 @@ test_config
 
 import sys
 from io import BufferedReader, BytesIO, TextIOWrapper
+from typing import Any
 
 import pytest
+from _pytest.capture import CaptureFixture
 
 from opsicli.config import config
 from opsicli.io import (
@@ -39,7 +41,7 @@ input_output_testdata = (
 
 
 @pytest.mark.parametrize(("output_format", "string", "data"), input_output_testdata)
-def test_output(output_format, string, data, capsys):
+def test_output(output_format: str, string: str, data: Any, capsys: CaptureFixture[str]) -> None:
 	old_output_format = config.output_format
 	config.output_format = output_format
 	write_output(data)
@@ -59,7 +61,7 @@ def test_output(output_format, string, data, capsys):
 		("csv", ["name;"]),
 	),
 )
-def test_output_config(output_format, startstrings):
+def test_output_config(output_format: str, startstrings: list[str]) -> None:
 	exit_code, output = run_cli(["--output-format", output_format, "config", "list"])
 	print(output)
 	assert exit_code == 0
@@ -68,7 +70,7 @@ def test_output_config(output_format, startstrings):
 
 
 @pytest.mark.parametrize(("input_format", "string", "data"), input_output_testdata)
-def test_input(input_format, string, data):  # pylint: disable=unused-argument # format is automatically detected
+def test_input(input_format: str, string: str, data: Any) -> None:  # pylint: disable=unused-argument # format is automatically detected
 	with TextIOWrapper(BufferedReader(BytesIO(string.encode("utf-8")))) as inputfile:
 		old_stdin = sys.stdin
 		sys.stdin = inputfile
@@ -80,7 +82,7 @@ def test_input(input_format, string, data):  # pylint: disable=unused-argument #
 @pytest.mark.parametrize(
 	("string", "input_type", "expected_result"), (("teststring", str, "teststring"), ("3.14159", float, 3.14159), ("42", int, 42))
 )
-def test_prompt(string, input_type, expected_result):
+def test_prompt(string: str, input_type: type, expected_result: str | float | int) -> None:
 	with TextIOWrapper(BufferedReader(BytesIO(string.encode("utf-8")))) as inputfile:
 		old_stdin = sys.stdin
 		sys.stdin = inputfile
@@ -90,7 +92,7 @@ def test_prompt(string, input_type, expected_result):
 
 
 @pytest.mark.parametrize("encoding", ("utf-8", "binary"))
-def test_input_output_file(encoding):
+def test_input_output_file(encoding: str) -> None:
 	teststring = "teststring"
 	with temp_context() as tempdir:
 		testfile = tempdir / "output.txt"
@@ -110,7 +112,7 @@ def test_input_output_file(encoding):
 
 
 @pytest.mark.parametrize("encoding", ("utf-8", "binary"))
-def test_input_output_file_raw(encoding):
+def test_input_output_file_raw(encoding: str) -> None:
 	teststring = "teststring"
 	with temp_context() as tempdir:
 		testfile = tempdir / "output.txt"

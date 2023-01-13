@@ -8,7 +8,7 @@ opsi service
 import re
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any
 from urllib.parse import urlparse
 
 from opsicommon.client.jsonrpc import JSONRPCClient  # type: ignore[import]
@@ -21,7 +21,7 @@ from opsicli.config import config
 jsonrpc_client = None  # pylint: disable=invalid-name
 
 
-def get_service_credentials_from_backend() -> Tuple[str, str]:
+def get_service_credentials_from_backend() -> tuple[str, str]:
 	dispatch_conf = Path("/etc/opsi/backendManager/dispatch.conf")
 	backend = "mysql"
 	for line in dispatch_conf.read_text(encoding="utf-8").splitlines():
@@ -39,7 +39,7 @@ def get_service_credentials_from_backend() -> Tuple[str, str]:
 						return depot_id, host_key.strip()
 	else:
 		mysql_conf = Path("/etc/opsi/backends/mysql.conf")
-		loc: Dict[str, Any] = {}
+		loc: dict[str, Any] = {}
 		exec(compile(mysql_conf.read_bytes(), "<string>", "exec"), None, loc)  # pylint: disable=exec-used
 		cfg = loc["config"]
 		with subprocess.Popen(

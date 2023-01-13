@@ -4,8 +4,6 @@ opsi-cli basic command line interface for opsi
 client_action_worker
 """
 
-from typing import Dict, List, Set
-
 from opsicommon.logging import logger  # type: ignore[import]
 from opsicommon.objects import ProductOnClient  # type: ignore[import]
 
@@ -48,12 +46,12 @@ class SetActionRequestWorker(ClientActionWorker):
 			kwargs.get("exclude_clients"),
 			kwargs.get("exclude_client_groups")
 		)
-		self.products: List[str] = []
-		self.products_with_only_uninstall: List[str] = []
-		self.depot_versions: Dict[str, Dict[str, str]] = {}
-		self.product_action_scripts: Dict[str, List[str]] = {}
-		self.client_to_depot: Dict[str, str] = {}
-		self.depending_products: Set[str] = set()
+		self.products: list[str] = []
+		self.products_with_only_uninstall: list[str] = []
+		self.depot_versions: dict[str, dict[str, str]] = {}
+		self.product_action_scripts: dict[str, list[str]] = {}
+		self.client_to_depot: dict[str, str] = {}
+		self.depending_products: set[str] = set()
 		self.request_type = "setup"
 		for single_client_to_depot in self.service.execute_rpc("configState_getClientToDepotserver", [[], self.clients]):
 			self.client_to_depot[single_client_to_depot["clientId"]] = single_client_to_depot["depotId"]
@@ -70,7 +68,7 @@ class SetActionRequestWorker(ClientActionWorker):
 			self.product_action_scripts[product.id] = [key[:-6] for key in ACTION_REQUEST_SCRIPTS if getattr(product, key, "")]
 		logger.trace("Products with dependencies: %s", self.depending_products)
 
-	def product_ids_from_group(self, group: str) -> List[str]:
+	def product_ids_from_group(self, group: str) -> list[str]:
 		result = self.service.execute_rpc("group_getObjects", [[], {"id": group, "type": "ProductGroup"}])
 		if not result:
 			raise ValueError(f"Product group '{group}' not found")
@@ -87,7 +85,7 @@ class SetActionRequestWorker(ClientActionWorker):
 		exclude_products = []
 		if use_default_excludes:
 			exclude_products = STATIC_EXCLUDE_PRODUCTS
-		products: List[str] = []
+		products: list[str] = []
 		if products_string:
 			products = [entry.strip() for entry in products_string.split(",")]
 		if product_groups_string:
@@ -121,7 +119,7 @@ class SetActionRequestWorker(ClientActionWorker):
 		self, product_on_client: ProductOnClient,
 		request_type: str = None,
 		force: bool = False
-	) -> List[ProductOnClient]:
+	) -> list[ProductOnClient]:
 		if not force and product_on_client.actionRequest not in (None, "none"):
 			logger.info(
 				"Skipping %s %s as an actionRequest is set: %s",
@@ -164,12 +162,12 @@ class SetActionRequestWorker(ClientActionWorker):
 
 	def set_action_requests_for_all(
 		self,
-		clients: List[str], products: List[str],
+		clients: list[str], products: list[str],
 		request_type: str = None,
 		force: bool = False
-	) -> List[ProductOnClient]:
+	) -> list[ProductOnClient]:
 		new_pocs = []
-		existing_pocs: Dict[str, Dict[str, ProductOnClient]] = {}
+		existing_pocs: dict[str, dict[str, ProductOnClient]] = {}
 		for poc in self.service.execute_rpc(
 			"productOnClient_getObjects",
 			[[], {"clientId": self.clients or None, "productType": "LocalbootProduct", "productId": self.products}],

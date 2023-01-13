@@ -10,7 +10,7 @@ import inspect
 import io
 import sys
 from contextlib import contextmanager
-from typing import IO, Any, Dict, List, Optional, Type, Union
+from typing import IO, Any, Type
 
 import msgpack  # type: ignore[import]
 import orjson
@@ -23,7 +23,7 @@ from rich.table import Table, box  # type: ignore[import]
 from opsicli.config import config
 
 
-def get_attributes(data, all_elements=True) -> List[str]:
+def get_attributes(data, all_elements=True) -> list[str]:
 	attributes_set = set()
 	for element in data:
 		attributes_set |= set(element.keys())
@@ -42,12 +42,12 @@ def get_attributes(data, all_elements=True) -> List[str]:
 def get_structure_type(data):
 	if isinstance(data, list):
 		if data and isinstance(data[0], list):
-			return List[List]
+			return list[list]
 		if data and isinstance(data[0], dict):
-			return List[Dict]
-		return List
+			return list[dict]
+		return list
 	if isinstance(data, dict):
-		return Dict
+		return dict
 	return None
 
 
@@ -67,7 +67,7 @@ def output_file_is_a_tty() -> bool:
 
 
 @contextmanager
-def output_file(encoding: Optional[str] = "utf-8"):
+def output_file(encoding: str | None = "utf-8"):
 	if str(config.output_file) in ("-", ""):
 		if encoding == "binary":
 			yield sys.stdout.buffer
@@ -83,20 +83,20 @@ def output_file(encoding: Optional[str] = "utf-8"):
 			file.flush()
 
 
-def get_console(file: Optional[IO[str]] = None) -> Console:
+def get_console(file: IO[str] | None = None) -> Console:
 	return Console(file=file, color_system="auto" if config.color else None)
 
 
 def prompt(  # pylint: disable=too-many-arguments
 	text: str,
-	return_type: Optional[type] = str,
+	return_type: type = str,
 	password: bool = False,
 	default: Any = ...,
-	choices: Optional[List[str]] = None,
+	choices: list[str] | None = None,
 	show_default: bool = True,
 	show_choices: bool = True,
-) -> Union[str, int, float]:
-	cls: Union[Type[Prompt], Type[IntPrompt], Type[FloatPrompt]] = Prompt
+) -> str | int | float:
+	cls: Type[Prompt] | Type[IntPrompt] | Type[FloatPrompt] = Prompt
 	if return_type == int:
 		cls = IntPrompt
 	elif return_type == float:
@@ -112,7 +112,7 @@ def prompt(  # pylint: disable=too-many-arguments
 	)
 
 
-def write_output_table(data: Any, metadata: Dict) -> None:
+def write_output_table(data: Any, metadata: dict) -> None:
 	def to_string(value):
 		if value is None:
 			return ""
@@ -148,7 +148,7 @@ def write_output_table(data: Any, metadata: Dict) -> None:
 		console.print(table)
 
 
-def write_output_csv(data: Any, metadata: Dict) -> None:
+def write_output_csv(data: Any, metadata: dict) -> None:
 	def to_string(value):
 		if value is None:
 			return "<null>"
@@ -180,7 +180,7 @@ def write_output_csv(data: Any, metadata: Dict) -> None:
 				writer.writerow([to_string(row)])
 
 
-def write_output_json(data: Any, metadata: Optional[Dict] = None, pretty: bool = False) -> None:
+def write_output_json(data: Any, metadata: dict | None = None, pretty: bool = False) -> None:
 	def to_string(value):
 		if inspect.isclass(value):
 			return value.__name__
@@ -201,7 +201,7 @@ def write_output_json(data: Any, metadata: Optional[Dict] = None, pretty: bool =
 			file.write(json)  # type: ignore[attr-defined]
 
 
-def write_output_msgpack(data: Any, metadata: Optional[Dict] = None) -> None:
+def write_output_msgpack(data: Any, metadata: dict | None = None) -> None:
 	def to_string(value):
 		if inspect.isclass(value):
 			return value.__name__
@@ -213,18 +213,18 @@ def write_output_msgpack(data: Any, metadata: Optional[Dict] = None) -> None:
 		)
 
 
-def write_output(data: Any, metadata: Optional[Dict] = None, default_output_format: Optional[str] = None) -> None:
+def write_output(data: Any, metadata: dict | None = None, default_output_format: str | None = None) -> None:
 	output_format = config.output_format
 	if output_format == "auto":
 		output_format = default_output_format if default_output_format else "table"
 
 	if output_format in ("table", "csv") and not metadata:
 		stt = get_structure_type(data)
-		if stt == List:
+		if stt == list:
 			metadata = {"attributes": [{"id": "value0"}]}
-		elif stt == List[List]:
+		elif stt == list[list]:
 			metadata = {"attributes": [{"id": f"value{idx}"} for idx in range(len(data[0]))]}
-		elif stt == List[Dict]:
+		elif stt == list[dict]:
 			metadata = {"attributes": [{"id": key} for key in get_attributes(data)]}
 		else:
 			raise RuntimeError(f"Output-format {config.output_format!r} does not support stucture {stt!r}")
@@ -241,7 +241,7 @@ def write_output(data: Any, metadata: Optional[Dict] = None, default_output_form
 		raise ValueError(f"Invalid output-format: {output_format}")
 
 
-def write_output_raw(data: Union[bytes, str]) -> None:
+def write_output_raw(data: bytes | str) -> None:
 	encoding = "binary" if isinstance(data, bytes) else "utf-8"
 	with output_file(encoding=encoding) as file:
 		file.write(data)
@@ -263,7 +263,7 @@ def input_file_is_a_tty() -> bool:
 
 
 @contextmanager
-def input_file(encoding: Optional[str] = None):
+def input_file(encoding: str | None = None):
 	if str(config.input_file) in ("-", ""):
 		if input_file_is_a_tty():
 			if encoding == "binary":
@@ -283,7 +283,7 @@ def input_file(encoding: Optional[str] = None):
 			yield file
 
 
-def read_input_raw(encoding: Optional[str] = None) -> str:
+def read_input_raw(encoding: str | None = None) -> str:
 	with input_file(encoding) as file:
 		return file.read()
 
@@ -302,8 +302,8 @@ def read_input_json(data: bytes) -> Any:
 	return data
 
 
-def read_input_csv(data: bytes) -> List[Union[Dict, List[str]]]:
-	rows: List[Union[Dict, List[str]]] = []
+def read_input_csv(data: bytes) -> dict | list[str]:
+	rows: list[dict | list[str]] = []
 	header = []
 	reader = csv.reader(data.decode("utf-8").split("\n"), delimiter=";", quotechar='"')
 	for idx, row in enumerate(reader):

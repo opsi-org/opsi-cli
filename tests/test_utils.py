@@ -17,7 +17,7 @@ from opsicli.utils import decrypt, encrypt
 		"u3heequeish9uuphei4aemich4yeonahGee2ohphe8aedaeb1iphoo7yahRahsh9eibea1chahsaika5ieshiegogu6AhG7meipooB4yulung1xeil",
 	),
 )
-def test_encrypt_decrypt(cleartext) -> None:
+def test_encrypt_decrypt(cleartext: str) -> None:
 	enc = encrypt(cleartext)
 	assert enc.startswith("{crypt}")
 	dec = decrypt(enc)

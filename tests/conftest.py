@@ -11,13 +11,16 @@ This file is part of opsi - https://www.opsi.org
 import os
 import platform
 import warnings
-import urllib3  # type: ignore[import]
+from typing import Any
 
 import pytest
+import urllib3  # type: ignore[import]
+from _pytest.config import Config as PytestConfig
 from _pytest.logging import LogCaptureHandler
+from _pytest.nodes import Item
 
 
-def emit(*args, **kwargs) -> None:  # pylint: disable=unused-argument
+def emit(*args: Any, **kwargs: Any) -> None:  # pylint: disable=unused-argument
 	pass
 
 
@@ -25,12 +28,12 @@ LogCaptureHandler.emit = emit  # type: ignore[assignment]
 
 
 @pytest.fixture(autouse=True)
-def disable_insecure_request_warning():
+def disable_insecure_request_warning() -> None:
 	warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
 
 
 @pytest.hookimpl()
-def pytest_configure(config):
+def pytest_configure(config: PytestConfig) -> None:
 	# https://pypi.org/project/pytest-asyncio
 	# When the mode is auto, all discovered async tests are considered
 	# asyncio-driven even if they have no @pytest.mark.asyncio marker.
@@ -45,23 +48,17 @@ def pytest_configure(config):
 	config.addinivalue_line("markers", "posix: mark test to run only on posix")
 
 
-def running_in_docker():
-	if not os.path.exists("/proc/self/cgroup"):
-		return False
-	with open("/proc/self/cgroup", "r", encoding="utf-8") as file:
-		for line in file.readlines():
-			if line.split(":")[2].startswith("/docker/"):
-				return True
-	return False
+def running_in_docker() -> bool:
+	return os.path.exists("/.dockerenv")
 
 
-def admin_permissions():
+def admin_permissions() -> bool:
 	try:
 		return os.geteuid() == 0
 	except AttributeError:
 		import ctypes  # pylint: disable=import-outside-toplevel
 
-		return ctypes.windll.shell32.IsUserAnAdmin() != 0
+		return ctypes.windll.shell32.IsUserAnAdmin() != 0  # type: ignore[attr-defined]
 
 
 PLATFORM = platform.system().lower()
@@ -69,7 +66,7 @@ RUNNING_IN_DOCKER = running_in_docker()
 ADMIN_PERMISSIONS = admin_permissions()
 
 
-def pytest_runtest_setup(item):
+def pytest_runtest_setup(item: Item) -> None:
 	supported_platforms = []
 	for marker in item.iter_markers():
 		if marker.name == "docker_linux" and not RUNNING_IN_DOCKER:

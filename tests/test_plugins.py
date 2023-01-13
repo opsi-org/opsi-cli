@@ -83,7 +83,7 @@ def test_plugin_remove() -> None:
 		assert "dummy" not in output
 
 
-def test_pluginarchive_export_import(tmp_path) -> None:
+def test_pluginarchive_export_import(tmp_path: Path) -> None:
 	with temp_context():
 		destination = tmp_path / f"dummy.{PLUGIN_EXTENSION}"
 
@@ -110,7 +110,7 @@ def test_pluginarchive_export_import(tmp_path) -> None:
 		assert "dummy" in output
 
 
-def test_plugin_new(tmp_path) -> None:
+def test_plugin_new(tmp_path: Path) -> None:
 	with temp_context():
 		destination = tmp_path / "newplugin"
 
@@ -130,7 +130,7 @@ def test_plugin_new(tmp_path) -> None:
 		assert "newplugin" in output
 
 
-def test_pluginarchive_extract_compress(tmp_path) -> None:
+def test_pluginarchive_extract_compress(tmp_path: Path) -> None:
 	with temp_context():
 		exit_code, output = run_cli(["plugin", "compress", str(TESTPLUGIN), str(tmp_path)])
 		assert exit_code == 0
@@ -146,7 +146,7 @@ def test_pluginarchive_extract_compress(tmp_path) -> None:
 		)
 
 
-def test_flag_protected(tmp_path) -> None:
+def test_flag_protected(tmp_path: Path) -> None:
 	with temp_context():
 		run_cli(["plugin", "new", "--description", "", "--version", "0.1.0", "--path", str(tmp_path), "newplugin"])
 		with open(tmp_path / "newplugin" / "python" / "__init__.py", "r", encoding="utf-8") as entrypoint:

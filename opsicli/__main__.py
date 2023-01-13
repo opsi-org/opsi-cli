@@ -7,7 +7,7 @@ Main command
 
 import re
 import sys
-from typing import Any, List, Optional, Sequence
+from typing import Any, Sequence
 
 import rich_click as click  # type: ignore[import]
 from click.exceptions import Abort, ClickException  # type: ignore[import]
@@ -55,9 +55,9 @@ for group, items in config.get_items_by_group().items():
 class OpsiCLI(click.MultiCommand):
 	def main(
 		self,
-		args: Optional[Sequence[str]] = None,
-		prog_name: Optional[str] = None,
-		complete_var: Optional[str] = None,
+		args: Sequence[str] | None = None,
+		prog_name: str | None = None,
+		complete_var: str | None = None,
 		standalone_mode: bool = False,
 		**extra: Any,
 	) -> Any:
@@ -87,7 +87,7 @@ class OpsiCLI(click.MultiCommand):
 			return super().format_help(ctx, formatter)
 		return rich_format_help(self, ctx, formatter)
 
-	def list_commands(self, ctx: click.Context) -> List[str]:
+	def list_commands(self, ctx: click.Context) -> list[str]:
 		logger.debug("list_commands")
 		plugin_manager.load_plugins()
 		return sorted([plugin.cli.name for plugin in plugin_manager.plugins if plugin.cli])  # type: ignore[attr-defined,misc]
@@ -102,7 +102,7 @@ class OpsiCLI(click.MultiCommand):
 
 
 class LogLevel(click.ParamType):
-	def shell_complete(self, ctx: click.Context, param: click.Parameter, incomplete: str) -> List[CompletionItem]:
+	def shell_complete(self, ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
 		completion_items = []
 		try:
 			completion_items = [CompletionItem(min(9, max(0, int(incomplete))))]

@@ -4,8 +4,6 @@ opsi-cli basic command line interface for opsi
 jsonrpc plugin
 """
 
-from typing import List, Optional
-
 import orjson
 import rich_click as click  # type: ignore[import]
 from click.shell_completion import CompletionItem  # type: ignore[import]
@@ -60,7 +58,7 @@ def methods() -> None:
 
 def complete_methods(
 	ctx: click.Context, param: click.Parameter, incomplete: str  # pylint: disable=unused-argument
-) -> List[CompletionItem]:
+) -> list[CompletionItem]:
 	interface = cache.get("jsonrpc-interface")
 	if not interface:
 		return []
@@ -71,7 +69,7 @@ def complete_methods(
 	return items
 
 
-def complete_params(ctx: click.Context, param: click.Parameter, incomplete: str) -> List[CompletionItem]:  # pylint: disable=unused-argument
+def complete_params(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:  # pylint: disable=unused-argument
 	interface = cache.get("jsonrpc-interface")
 	if not interface:
 		return []
@@ -91,7 +89,7 @@ def complete_params(ctx: click.Context, param: click.Parameter, incomplete: str)
 @cli.command(short_help="Execute JSONRPC")
 @click.argument("method", type=str, shell_complete=complete_methods)
 @click.argument("params", type=str, nargs=-1, shell_complete=complete_params)
-def execute(method: str, params: Optional[List[str]] = None) -> None:  # pylint: disable=too-many-branches
+def execute(method: str, params: list[str] | None = None) -> None:  # pylint: disable=too-many-branches
 	"""
 	opsi-cli jsonrpc execute subcommand.
 	"""

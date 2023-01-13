@@ -47,7 +47,7 @@ def cli() -> None:  # pylint: disable=unused-argument
 	default=False,
 	show_default=True,
 )
-def add(paths: List[Path], system: bool) -> None:
+def add(paths: list[Path], system: bool) -> None:
 	"""
 	opsi-cli plugin add subcommand.
 	Specify a path to a python package directory or an opsi-cli plugin file

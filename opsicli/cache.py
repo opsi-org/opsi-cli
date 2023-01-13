@@ -7,7 +7,7 @@ general configuration
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import orjson
 from opsicommon.logging import logger  # type: ignore[import]
@@ -19,7 +19,7 @@ from opsicli.config import config
 class Cache(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 	def __init__(self) -> None:
 		self._cache_file: Path = config.user_lib_dir / "cache.json"
-		self._data: Dict[str, Any] = {}
+		self._data: dict[str, Any] = {}
 		self._loaded = False
 		self._modified = False
 
@@ -51,7 +51,7 @@ class Cache(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 			file.write(orjson.dumps(self._data))  # pylint: disable=no-member
 		self._modified = False
 
-	def get(self, name: str, default: Optional[Any] = None) -> Any:
+	def get(self, name: str, default: Any = None) -> Any:
 		self._ensure_loaded()
 		if name not in self._data:
 			return default
@@ -60,7 +60,7 @@ class Cache(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 			return default
 		return self._data[name]["value"]
 
-	def set(self, name: str, value: Any, ttl: int = 0, store: Optional[bool] = False) -> None:
+	def set(self, name: str, value: Any, ttl: int = 0, store: bool = False) -> None:
 		self._ensure_loaded()
 		self._data[name] = {"date": datetime.utcnow().isoformat(), "ttl": max(int(ttl), 0), "value": value}
 		self._modified = True

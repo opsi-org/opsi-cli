@@ -7,7 +7,7 @@ types
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 import rich_click as click  # type: ignore[import]
@@ -141,8 +141,8 @@ class Directory(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-p
 class OPSIService:
 	name: str
 	url: str
-	username: Optional[str] = None
-	password: Optional[Password] = None
+	username: str | None = None
+	password: Password | None = None
 
 	def __setattr__(self, name: str, value: Any) -> None:
 		if name == "password" and not isinstance(value, Password):

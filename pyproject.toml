@@ -47,6 +47,12 @@ use-tabs = true
 profile = "black"
 indent = "\t"
 
+[tool.mypy]
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+follow_imports = "silent"
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"

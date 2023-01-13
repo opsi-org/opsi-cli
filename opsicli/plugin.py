@@ -13,7 +13,6 @@ import zipfile
 from importlib._bootstrap import BuiltinImporter  # type: ignore[import]
 from pathlib import Path
 from types import ModuleType
-from typing import Dict, List, Optional
 from urllib.parse import quote, unquote
 
 from click import Command  # type: ignore[import]
@@ -48,8 +47,8 @@ class OPSICLIPlugin:
 	name: str = ""
 	description: str = ""
 	version: str = ""
-	cli: Optional[Command] = None
-	flags: List[str] = []
+	cli: Command | None = None
+	flags: list[str] = []
 
 	def __init__(self, path: Path) -> None:  # pylint: disable=redefined-builtin
 		self.path = path
@@ -86,14 +85,14 @@ sys.meta_path.append(PluginImporter)  # type: ignore[arg-type]
 
 class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 	def __init__(self) -> None:
-		self._plugins: Dict[str, OPSICLIPlugin] = {}
+		self._plugins: dict[str, OPSICLIPlugin] = {}
 
 	@classmethod
 	def module_name(cls, plugin_path: Path) -> str:
 		return f"opsicli.addon_{quote(str(plugin_path).replace('.', '%2E'))}"
 
 	@property
-	def plugins(self) -> List[OPSICLIPlugin]:
+	def plugins(self) -> list[OPSICLIPlugin]:
 		return list(self._plugins.values())
 
 	def get_plugin(self, plugin_id: str) -> OPSICLIPlugin:
@@ -183,7 +182,7 @@ class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-meth
 plugin_manager = PluginManager()
 
 
-def replace_data(string: str, replacements: Dict[str, str]) -> str:
+def replace_data(string: str, replacements: dict[str, str]) -> str:
 	for key, value in replacements.items():
 		string = string.replace(key, value)
 	return string
@@ -206,7 +205,7 @@ def prepare_plugin(path: Path, tmpdir: Path) -> str:
 	return plugin_id
 
 
-def install_plugin(source_dir: Path, name: str, system: Optional[bool] = False) -> Path:
+def install_plugin(source_dir: Path, name: str, system: bool = False) -> Path:
 	"""Copy the prepared plugin from tmp to LIB_DIR"""
 	plugin_dir = config.plugin_system_dir if system else config.plugin_user_dir
 	if not plugin_dir.is_dir():
@@ -237,7 +236,7 @@ def install_plugin(source_dir: Path, name: str, system: Optional[bool] = False) 
 	return destination
 
 
-def install_python_package(target_dir: Path, package: Dict[str, str]) -> None:
+def install_python_package(target_dir: Path, package: dict[str, str]) -> None:
 	logger.info("Installing %r, version %r", package["name"], package["version"])
 	# packaging version bundled in pip uses legacy format (see pip/__main__.py)
 	with warnings.catch_warnings():
