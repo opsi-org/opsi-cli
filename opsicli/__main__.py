@@ -53,6 +53,7 @@ for group, items in config.get_items_by_group().items():
 
 logger = get_logger("opsicli")
 
+
 # https://click.palletsprojects.com/en/7.x/commands/#custom-multi-commands
 class OpsiCLI(click.MultiCommand):
 	def main(

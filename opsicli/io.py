@@ -9,6 +9,7 @@ import csv
 import inspect
 import sys
 from contextlib import contextmanager
+from dataclasses import asdict, dataclass, field
 from io import BytesIO, StringIO
 from typing import IO, Any, Iterator, Type
 
@@ -23,6 +24,25 @@ from rich.table import Table, box  # type: ignore[import]
 from opsicli.config import config
 
 logger = get_logger("opsicli")
+
+
+@dataclass
+class Attribute:
+	id: str  # pylint: disable=invalid-name
+	description: str | None = None
+	identifier: bool = False
+	selected: bool = True
+
+	def as_dict(self) -> dict[str, str | bool]:
+		return asdict(self)
+
+
+@dataclass
+class Metadata:
+	attributes: list[Attribute] = field(default_factory=list)
+
+	def as_dict(self) -> dict[str, Any]:
+		return asdict(self)
 
 
 def get_attributes(data: list[dict[str, Any]], all_elements: bool = True) -> list[str]:
@@ -120,7 +140,7 @@ def prompt(  # pylint: disable=too-many-arguments
 	)
 
 
-def write_output_table(data: Any, metadata: dict) -> None:
+def write_output_table(data: Any, metadata: Metadata) -> None:
 	def to_string(value: Any) -> str:
 		if value is None:
 			return ""
@@ -136,12 +156,12 @@ def write_output_table(data: Any, metadata: dict) -> None:
 	attributes = config.attributes or []
 	table = Table(box=box.ROUNDED, show_header=config.header, show_lines=False)
 	row_ids = []
-	for column in metadata["attributes"]:
-		if attributes == ["all"] or column["id"] in attributes or (not attributes and column.get("selected", True)):
-			style = "cyan" if column.get("identifier") else None
-			no_wrap = bool(column.get("identifier"))
-			table.add_column(header=column["id"], style=style, no_wrap=no_wrap)
-			row_ids.append(column["id"])
+	for attribute in metadata.attributes:
+		if attributes == ["all"] or attribute.id in attributes or (not attributes and attribute.selected):
+			style = "cyan" if attribute.identifier else None
+			no_wrap = bool(attribute.identifier)
+			table.add_column(header=attribute.id, style=style, no_wrap=no_wrap)
+			row_ids.append(attribute.id)
 
 	for row in data:
 		if isinstance(row, dict):
@@ -156,7 +176,7 @@ def write_output_table(data: Any, metadata: dict) -> None:
 		console.print(table)
 
 
-def write_output_csv(data: Any, metadata: dict) -> None:
+def write_output_csv(data: Any, metadata: Metadata) -> None:
 	def to_string(value: Any) -> str:
 		if value is None:
 			return "<null>"
@@ -173,10 +193,10 @@ def write_output_csv(data: Any, metadata: dict) -> None:
 		row_ids = []
 		header = []
 		attributes = config.attributes or []
-		for column in metadata["attributes"]:
-			if attributes == ["all"] or column["id"] in attributes or (not attributes and column.get("selected", True)):
-				row_ids.append(column["id"])
-				header.append(column["id"])
+		for attribute in metadata.attributes:
+			if attributes == ["all"] or attribute.id in attributes or (not attributes and attribute.selected):
+				row_ids.append(attribute.id)
+				header.append(attribute.id)
 		if config.header:
 			writer.writerow(header)
 		for row in data:
@@ -188,7 +208,7 @@ def write_output_csv(data: Any, metadata: dict) -> None:
 				writer.writerow([to_string(row)])
 
 
-def write_output_json(data: Any, metadata: dict | None = None, pretty: bool = False) -> None:
+def write_output_json(data: Any, metadata: Metadata | None = None, pretty: bool = False) -> None:
 	def to_string(value: Any) -> str:
 		if inspect.isclass(value):
 			return value.__name__
@@ -199,7 +219,7 @@ def write_output_json(data: Any, metadata: dict | None = None, pretty: bool = Fa
 		option |= orjson.OPT_APPEND_NEWLINE | orjson.OPT_INDENT_2  # pylint: disable=no-member
 
 	json = orjson.dumps(  # pylint: disable=no-member
-		{"metadata": metadata, "data": data} if config.metadata and metadata else data, default=to_string, option=option
+		{"metadata": metadata.as_dict(), "data": data} if config.metadata and metadata else data, default=to_string, option=option
 	)
 
 	if pretty and output_file_is_a_tty():
@@ -209,17 +229,19 @@ def write_output_json(data: Any, metadata: dict | None = None, pretty: bool = Fa
 			file.write(json)
 
 
-def write_output_msgpack(data: Any, metadata: dict | None = None) -> None:
+def write_output_msgpack(data: Any, metadata: Metadata | None = None) -> None:
 	def to_string(value: Any) -> str:
 		if inspect.isclass(value):
 			return value.__name__
 		return str(value)
 
 	with output_file_bin() as file:
-		file.write(msgpack.dumps({"metadata": metadata, "data": data} if config.metadata and metadata else data, default=to_string))
+		file.write(
+			msgpack.dumps({"metadata": metadata.as_dict(), "data": data} if config.metadata and metadata else data, default=to_string)
+		)
 
 
-def write_output(data: Any, metadata: dict | None = None, default_output_format: str | None = None) -> None:
+def write_output(data: Any, metadata: Metadata | None = None, default_output_format: str | None = None) -> None:
 	output_format = config.output_format
 	if output_format == "auto":
 		output_format = default_output_format if default_output_format else "table"
@@ -227,11 +249,11 @@ def write_output(data: Any, metadata: dict | None = None, default_output_format:
 	if output_format in ("table", "csv") and not metadata:
 		stt = get_structure_type(data)
 		if stt == list:
-			metadata = {"attributes": [{"id": "value0"}]}
+			metadata = Metadata(attributes=[Attribute(id="value0")])
 		elif stt == list[list]:
-			metadata = {"attributes": [{"id": f"value{idx}"} for idx in range(len(data[0]))]}
+			metadata = Metadata(attributes=[Attribute(id=f"value{idx}") for idx in range(len(data[0]))])
 		elif stt == list[dict]:
-			metadata = {"attributes": [{"id": key} for key in get_attributes(data)]}
+			metadata = Metadata(attributes=[Attribute(id=key) for key in get_attributes(data)])
 		else:
 			raise RuntimeError(f"Output-format {config.output_format!r} does not support stucture {stt!r}")
 

@@ -13,10 +13,10 @@ from pathlib import Path
 from typing import List
 
 import rich_click as click  # type: ignore[import]
-from opsicommon.logging import logger  # type: ignore[import]
+from opsicommon.logging import get_logger  # type: ignore[import]
 
 from opsicli.config import config
-from opsicli.io import get_console, prompt, write_output
+from opsicli.io import Attribute, Metadata, get_console, prompt, write_output
 from opsicli.plugin import (
 	PLUGIN_EXTENSION,
 	OPSICLIPlugin,
@@ -27,6 +27,8 @@ from opsicli.plugin import (
 )
 
 __version__ = "0.1.0"
+
+logger = get_logger("opsicli")
 
 
 @click.group(name="plugin", short_help="Manage opsi-cli plugins")
@@ -156,15 +158,15 @@ def list_() -> None:
 	This subcommand lists all installed opsi-cli plugins.
 	"""
 
-	metadata = {
-		"attributes": [
-			{"id": "id", "description": "Plugin ID", "identifier": True},
-			{"id": "name", "description": "Name of the Plugin"},
-			{"id": "description", "description": "Plugin description"},
-			{"id": "version", "description": "Version of the plugin"},
-			{"id": "path", "description": "Location of the plugin"},
+	metadata = Metadata(
+		attributes=[
+			Attribute(id="id", description="Plugin ID", identifier=True),
+			Attribute(id="name", description="Name of the Plugin"),
+			Attribute(id="description", description="Plugin description"),
+			Attribute(id="version", description="Version of the plugin"),
+			Attribute(id="path", description="Location of the plugin"),
 		]
-	}
+	)
 	data = []
 	for plugin in sorted(plugin_manager.plugins, key=lambda plugin: plugin.id):
 		data.append(

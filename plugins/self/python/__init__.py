@@ -15,7 +15,7 @@ from pathlib import Path
 import psutil  # type: ignore[import]
 import rich_click as click  # type: ignore[import]
 from click.shell_completion import get_completion_class  # type: ignore[import]
-from opsicommon.logging import logger  # type: ignore[import]
+from opsicommon.logging import get_logger  # type: ignore[import]
 
 from opsicli.config import ConfigValueSource, config
 from opsicli.io import get_console
@@ -28,8 +28,10 @@ __version__ = "0.1.0"
 START_MARKER = "### Added by opsi-cli ###"
 END_MARKER = "### /Added by opsi-cli ###"
 
+logger = get_logger("opsicli")
 
-def get_completion_config_path(shell: str):
+
+def get_completion_config_path(shell: str) -> Path:
 	if shell == "fish":
 		return Path("~/.config/fish/completions/opsi-cli.fish").expanduser().resolve()
 	if shell == "bash":
@@ -148,7 +150,7 @@ def setup_shell_completion(ctx: click.Context, shell: str) -> None:  # pylint: d
 	default=False,
 	show_default=True,
 )
-def install(system: bool, binary_path: Path = None, no_add_to_path: bool = False) -> None:
+def install(system: bool, binary_path: Path | None = None, no_add_to_path: bool = False) -> None:
 	"""
 	opsi-cli self install subcommand.
 
@@ -182,7 +184,7 @@ def install(system: bool, binary_path: Path = None, no_add_to_path: bool = False
 	type=File,
 	help="File path to find binary at.",
 )
-def uninstall(system: bool, binary_path: Path = None) -> None:
+def uninstall(system: bool, binary_path: Path | None = None) -> None:
 	"""
 	opsi-cli self uninstall subcommand.
 

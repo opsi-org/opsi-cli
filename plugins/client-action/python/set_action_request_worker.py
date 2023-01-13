@@ -4,7 +4,7 @@ opsi-cli basic command line interface for opsi
 client_action_worker
 """
 
-from opsicommon.logging import logger  # type: ignore[import]
+from opsicommon.logging import get_logger  # type: ignore[import]
 from opsicommon.objects import ProductOnClient  # type: ignore[import]
 
 from opsicli.config import config
@@ -38,8 +38,11 @@ ACTION_REQUEST_SCRIPTS = [
 ]
 
 
+logger = get_logger("opsicli")
+
+
 class SetActionRequestWorker(ClientActionWorker):
-	def __init__(self, **kwargs):
+	def __init__(self, **kwargs: str) -> None:
 		super().__init__(
 			kwargs.get("clients"),
 			kwargs.get("client_groups"),
@@ -76,10 +79,11 @@ class SetActionRequestWorker(ClientActionWorker):
 
 	def determine_products(  # pylint: disable=too-many-arguments
 		self,
-		products_string: str = None,
-		exclude_products_string: str = None,
-		product_groups_string: str = None,
-		exclude_product_groups_string: str = None,
+		*,
+		products_string: str | None = None,
+		exclude_products_string: str | None = None,
+		product_groups_string: str | None = None,
+		exclude_product_groups_string: str | None = None,
 		use_default_excludes: bool = True
 	) -> None:
 		exclude_products = []
@@ -116,8 +120,9 @@ class SetActionRequestWorker(ClientActionWorker):
 		logger.notice("Handling products %s", self.products)
 
 	def set_single_action_request(
-		self, product_on_client: ProductOnClient,
-		request_type: str = None,
+		self,
+		product_on_client: ProductOnClient,
+		request_type: str | None = None,
 		force: bool = False
 	) -> list[ProductOnClient]:
 		if not force and product_on_client.actionRequest not in (None, "none"):
@@ -163,7 +168,7 @@ class SetActionRequestWorker(ClientActionWorker):
 	def set_action_requests_for_all(
 		self,
 		clients: list[str], products: list[str],
-		request_type: str = None,
+		request_type: str | None = None,
 		force: bool = False
 	) -> list[ProductOnClient]:
 		new_pocs = []
@@ -187,24 +192,24 @@ class SetActionRequestWorker(ClientActionWorker):
 				new_pocs.extend(self.set_single_action_request(poc, request_type or self.request_type, force=force))
 		return new_pocs
 
-	def set_action_request(self, **kwargs) -> None:  # pylint: disable=too-many-branches
+	def set_action_request(self, **kwargs: str) -> None:  # pylint: disable=too-many-branches
 		if config.dry_run:
 			logger.notice("Operating in dry-run mode - not performing any actions")
 
 		self.request_type = kwargs.get("request_type", self.request_type)
 		self.determine_products(
-			kwargs.get("products"),
-			kwargs.get("exclude_products"),
-			kwargs.get("product_groups"),
-			kwargs.get("exclude_product_groups"),
-			use_default_excludes=kwargs.get("where_outdated", False) or kwargs.get("where_failed", False)
+			products_string=kwargs.get("products"),
+			exclude_products_string=kwargs.get("exclude_products"),
+			product_groups_string=kwargs.get("product_groups"),
+			exclude_product_groups_string=kwargs.get("exclude_product_groups"),
+			use_default_excludes=bool(kwargs.get("where_outdated", False)) or bool(kwargs.get("where_failed", False))
 		)
 		if not self.products:
 			raise ValueError("No products selected")
 		if kwargs.get("uninstall_where_only_uninstall"):
 			logger.notice("Uninstalling products (where installed): %s", self.products_with_only_uninstall)
 
-		new_pocs = []
+		new_pocs: list[ProductOnClient] = []
 		if kwargs.get("where_failed") or kwargs.get("where_outdated") or kwargs.get("uninstall_where_only_uninstall"):
 			modified_clients = set()
 			for entry in self.service.execute_rpc(
@@ -218,7 +223,7 @@ class SetActionRequestWorker(ClientActionWorker):
 					logger.error("Skipping check of %s %s (product not available on depot)", entry.clientId, entry.productId)
 					continue
 				if kwargs.get("uninstall_where_only_uninstall") and entry.productId in self.products_with_only_uninstall:
-					new_pocs.append(self.set_single_action_request(entry, "uninstall"))
+					new_pocs.extend(self.set_single_action_request(entry, "uninstall"))
 					modified_clients.add(entry.clientId)
 				elif kwargs.get("where_failed") and entry.actionResult == "failed":
 					new_pocs.extend(self.set_single_action_request(entry))

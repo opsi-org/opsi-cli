@@ -4,18 +4,29 @@ opsi-cli basic command line interface for opsi
 jsonrpc plugin
 """
 
+from typing import Any
+
 import orjson
 import rich_click as click  # type: ignore[import]
 from click.shell_completion import CompletionItem  # type: ignore[import]
-from opsicommon.logging import logger  # type: ignore[import]
+from opsicommon.logging import get_logger  # type: ignore[import]
 
 from opsicli.cache import cache
 from opsicli.config import config
-from opsicli.io import output_file_is_stdout, read_input, write_output, write_output_raw
+from opsicli.io import (
+	Attribute,
+	Metadata,
+	output_file_is_stdout,
+	read_input,
+	write_output,
+	write_output_raw,
+)
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 
 __version__ = "0.1.0"
+
+logger = get_logger("opsicli")
 
 
 @click.group(name="jsonrpc", short_help="opsi JSONRPC client")
@@ -28,7 +39,7 @@ def cli() -> None:  # pylint: disable=unused-argument
 	logger.trace("jsonrpc command")
 
 
-def cache_interface(interface):
+def cache_interface(interface: list[dict[str, Any]]) -> None:
 	if cache.age("jsonrpc-interface") >= 3600:
 		cache.set("jsonrpc-interface", {m["name"]: {"params": m["params"]} for m in interface})
 
@@ -39,20 +50,21 @@ def methods() -> None:
 	opsi-cli jsonrpc methods subcommand.
 	"""
 	client = get_service_connection()
-	cache_interface(client.interface)
+	if client.interface:
+		cache_interface(client.interface)
 
-	metadata = {
-		"attributes": [
-			{"id": "name", "description": "Method name", "identifier": True, "selected": True},
-			{"id": "params", "description": "Method params", "selected": True},
-			{"id": "deprecated", "description": "If the method is deprectated", "selected": True},
-			{"id": "alternative_method", "description": "Alternative method, if deprecated", "selected": True},
-			{"id": "args", "description": "Args", "selected": False},
-			{"id": "varargs", "description": "Varargs", "selected": False},
-			{"id": "keywords", "description": "Keywords", "selected": False},
-			{"id": "defaults", "description": "Defaults", "selected": False},
+	metadata = Metadata(
+		attributes=[
+			Attribute(id="name", description="Method name", identifier=True),
+			Attribute(id="params", description="Method params"),
+			Attribute(id="deprecated", description="If the method is deprectated"),
+			Attribute(id="alternative_method", description="Alternative method, if deprecated"),
+			Attribute(id="args", description="Args", selected=False),
+			Attribute(id="varargs", description="Varargs", selected=False),
+			Attribute(id="keywords", description="Keywords", selected=False),
+			Attribute(id="defaults", description="Defaults", selected=False),
 		]
-	}
+	)
 	write_output(client.interface, metadata=metadata, default_output_format="table")
 
 
@@ -116,7 +128,8 @@ def execute(method: str, params: list[str] | None = None) -> None:  # pylint: di
 	default_output_format = "pretty-json" if output_file_is_stdout() else "json"
 
 	client = get_service_connection()
-	cache_interface(client.interface)
+	if client.interface:
+		cache_interface(client.interface)
 
 	client.create_objects = False
 	if not result_only and config.output_format == "msgpack":
