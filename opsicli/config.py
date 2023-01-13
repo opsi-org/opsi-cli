@@ -44,6 +44,7 @@ IN_COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ
 
 logger = get_logger("opsicli")
 
+
 class ConfigValueSource(Enum):
 	DEFAULT = "default"
 	COMMANDLINE = "commandline"
