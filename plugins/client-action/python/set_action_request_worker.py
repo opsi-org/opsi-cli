@@ -4,10 +4,8 @@ opsi-cli basic command line interface for opsi
 client_action_worker
 """
 
-from typing import Dict, List, Optional, Set
-
-from opsicommon.logging import logger  # type: ignore[import]
-from opsicommon.objects import ProductOnClient
+from opsicommon.logging import get_logger  # type: ignore[import]
+from opsicommon.objects import ProductOnClient  # type: ignore[import]
 
 from opsicli.config import config
 
@@ -40,20 +38,23 @@ ACTION_REQUEST_SCRIPTS = [
 ]
 
 
+logger = get_logger("opsicli")
+
+
 class SetActionRequestWorker(ClientActionWorker):
-	def __init__(self, **kwargs):
+	def __init__(self, **kwargs: str) -> None:
 		super().__init__(
 			kwargs.get("clients"),
 			kwargs.get("client_groups"),
 			kwargs.get("exclude_clients"),
 			kwargs.get("exclude_client_groups")
 		)
-		self.products: List[str] = []
-		self.products_with_only_uninstall: List[str] = []
-		self.depot_versions: Dict[str, Dict[str, str]] = {}
-		self.product_action_scripts: Dict[str, List[str]] = {}
-		self.client_to_depot: Dict[str, str] = {}
-		self.depending_products: Set[str] = set()
+		self.products: list[str] = []
+		self.products_with_only_uninstall: list[str] = []
+		self.depot_versions: dict[str, dict[str, str]] = {}
+		self.product_action_scripts: dict[str, list[str]] = {}
+		self.client_to_depot: dict[str, str] = {}
+		self.depending_products: set[str] = set()
 		self.request_type = "setup"
 		for single_client_to_depot in self.service.jsonrpc("configState_getClientToDepotserver", [[], self.clients]):
 			self.client_to_depot[single_client_to_depot["clientId"]] = single_client_to_depot["depotId"]
@@ -70,7 +71,7 @@ class SetActionRequestWorker(ClientActionWorker):
 			self.product_action_scripts[product["id"]] = [key[:-6] for key in ACTION_REQUEST_SCRIPTS if product.get(key)]
 		logger.trace("Products with dependencies: %s", self.depending_products)
 
-	def product_ids_from_group(self, group: str) -> List[str]:
+	def product_ids_from_group(self, group: str) -> list[str]:
 		result = self.service.jsonrpc("group_getObjects", [[], {"id": group, "type": "ProductGroup"}])
 		if not result:
 			raise ValueError(f"Product group '{group}' not found")
@@ -78,16 +79,17 @@ class SetActionRequestWorker(ClientActionWorker):
 
 	def determine_products(  # pylint: disable=too-many-arguments
 		self,
-		products_string: Optional[str] = None,
-		exclude_products_string: Optional[str] = None,
-		product_groups_string: Optional[str] = None,
-		exclude_product_groups_string: Optional[str] = None,
+		*,
+		products_string: str | None = None,
+		exclude_products_string: str | None = None,
+		product_groups_string: str | None = None,
+		exclude_product_groups_string: str | None = None,
 		use_default_excludes: bool = True
 	) -> None:
 		exclude_products = []
 		if use_default_excludes:
 			exclude_products = STATIC_EXCLUDE_PRODUCTS
-		products: List[str] = []
+		products: list[str] = []
 		if products_string:
 			products = [entry.strip() for entry in products_string.split(",")]
 		if product_groups_string:
@@ -118,10 +120,11 @@ class SetActionRequestWorker(ClientActionWorker):
 		logger.notice("Handling products %s", self.products)
 
 	def set_single_action_request(
-		self, product_on_client: Dict[str, str],
-		request_type: Optional[str] = None,
+		self,
+		product_on_client: dict[str, str],
+		request_type: str | None = None,
 		force: bool = False
-	) -> List[Dict[str, str]]:
+	) -> list[dict[str, str]]:
 		if not force and product_on_client["actionRequest"] not in (None, "none"):
 			logger.info(
 				"Skipping %s %s as an actionRequest is set: %s",
@@ -164,12 +167,13 @@ class SetActionRequestWorker(ClientActionWorker):
 
 	def set_action_requests_for_all(
 		self,
-		clients: List[str], products: List[str],
-		request_type: Optional[str] = None,
+		clients: list[str],
+		products: list[str],
+		request_type: str | None = None,
 		force: bool = False
-	) -> List[Dict[str, str]]:
+	) -> list[dict[str, str]]:
 		new_pocs = []
-		existing_pocs: Dict[str, Dict[str, Dict[str, str]]] = {}
+		existing_pocs: dict[str, dict[str, dict[str, str]]] = {}
 		for poc in self.service.jsonrpc(
 			"productOnClient_getObjects",
 			[[], {"clientId": self.clients or None, "productType": "LocalbootProduct", "productId": self.products}],
@@ -189,24 +193,24 @@ class SetActionRequestWorker(ClientActionWorker):
 				new_pocs.extend(self.set_single_action_request(poc, request_type or self.request_type, force=force))
 		return new_pocs
 
-	def set_action_request(self, **kwargs) -> None:  # pylint: disable=too-many-branches
+	def set_action_request(self, **kwargs: str) -> None:  # pylint: disable=too-many-branches
 		if config.dry_run:
 			logger.notice("Operating in dry-run mode - not performing any actions")
 
 		self.request_type = kwargs.get("request_type", self.request_type)
 		self.determine_products(
-			kwargs.get("products"),
-			kwargs.get("exclude_products"),
-			kwargs.get("product_groups"),
-			kwargs.get("exclude_product_groups"),
-			use_default_excludes=kwargs.get("where_outdated", False) or kwargs.get("where_failed", False)
+			products_string=kwargs.get("products"),
+			exclude_products_string=kwargs.get("exclude_products"),
+			product_groups_string=kwargs.get("product_groups"),
+			exclude_product_groups_string=kwargs.get("exclude_product_groups"),
+			use_default_excludes=bool(kwargs.get("where_outdated", False)) or bool(kwargs.get("where_failed", False))
 		)
 		if not self.products:
 			raise ValueError("No products selected")
 		if kwargs.get("uninstall_where_only_uninstall"):
 			logger.notice("Uninstalling products (where installed): %s", self.products_with_only_uninstall)
 
-		new_pocs = []
+		new_pocs: list[dict[str, str]] = []
 		if kwargs.get("where_failed") or kwargs.get("where_outdated") or kwargs.get("uninstall_where_only_uninstall"):
 			modified_clients = set()
 			for entry in self.service.jsonrpc(

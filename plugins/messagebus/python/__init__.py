@@ -5,13 +5,16 @@ opsi-cli messagebus plugin
 from typing import Optional
 
 import rich_click as click  # type: ignore[import]
-from opsicommon.logging import logger  # type: ignore[import]
+from opsicommon.logging import get_logger  # type: ignore[import]
 
 from opsicli.messagebus import MessagebusConnection
 from opsicli.plugin import OPSICLIPlugin
 
 __version__ = "0.1.0"  # Use this field to track the current version number
 __description__ = "This plugin interacts with the opsi message bus."
+
+
+logger = get_logger("opsicli")
 
 
 @click.command(name="terminal", short_help="Start remote terminal session")

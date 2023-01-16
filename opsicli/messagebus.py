@@ -10,15 +10,15 @@ from typing import Optional
 from uuid import uuid4
 
 from opsicommon.client.opsiservice import MessagebusListener  # type: ignore[import]
-from opsicommon.logging import logger  # type: ignore[import]
+from opsicommon.logging import get_logger  # type: ignore[import]
 from opsicommon.messagebus import (  # type: ignore[import]
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
 	Message,
-	TerminalCloseEvent,
-	TerminalDataRead,
-	TerminalDataWrite,
-	TerminalOpenRequest,
+	TerminalCloseEventMessage,
+	TerminalDataReadMessage,
+	TerminalDataWriteMessage,
+	TerminalOpenRequestMessage,
 )
 
 from opsicli.opsiservice import get_service_connection
@@ -28,6 +28,8 @@ if platform.system().lower() == "windows":
 	import msvcrt  # pylint: disable=import-error
 
 CHANNEL_SUBSCRIPTION_TIMEOUT = 5
+
+logger = get_logger("opsicli")
 
 
 def log_message(message: Message) -> None:
@@ -42,7 +44,7 @@ class MessagebusConnection(MessagebusListener):
 	def __init__(self) -> None:
 		MessagebusListener.__init__(self)
 		self.should_close = False
-		self.service_worker_channel = None
+		self.service_worker_channel: str | None = None
 		self.channel_subscription_event_event = Event()
 		self.service_client = get_service_connection()
 
@@ -58,10 +60,10 @@ class MessagebusConnection(MessagebusListener):
 			# Get responsible service_worker
 			self.service_worker_channel = message.sender
 			self.channel_subscription_event_event.set()
-		elif isinstance(message, (TerminalDataRead)):
+		elif isinstance(message, (TerminalDataReadMessage)):
 			sys.stdout.buffer.write(message.data)
 			sys.stdout.flush()  # This actually pops the buffer to terminal (without waiting for '\n')
-		elif isinstance(message, TerminalCloseEvent):
+		elif isinstance(message, TerminalCloseEventMessage):
 			logger.notice("received terminal close event - shutting down")
 			self.should_close = True
 
@@ -74,7 +76,7 @@ class MessagebusConnection(MessagebusListener):
 			if not data:  # or data == b"\x03":  # Ctrl+C
 				self.should_close = True
 				break
-			tdw = TerminalDataWrite(sender="@", channel=term_write_channel, terminal_id=term_id, data=data)
+			tdw = TerminalDataWriteMessage(sender="@", channel=term_write_channel, terminal_id=term_id, data=data)
 			log_message(tdw)
 			self.service_client.messagebus.send_message(tdw)
 
@@ -97,7 +99,7 @@ class MessagebusConnection(MessagebusListener):
 				term_read_channel = f"session:{term_id}"
 				size = shutil.get_terminal_size()
 				logger.notice("Requesting to open new terminal with id %s ", term_id)
-				tor = TerminalOpenRequest(
+				tor = TerminalOpenRequestMessage(
 					sender="@",
 					channel=term_write_channel,
 					terminal_id=term_id,

@@ -7,12 +7,12 @@ Main command
 
 import re
 import sys
-from typing import Any, List, Optional, Sequence
+from typing import Any, Sequence
 
 import rich_click as click  # type: ignore[import]
 from click.exceptions import Abort, ClickException  # type: ignore[import]
 from click.shell_completion import CompletionItem  # type: ignore[import]
-from opsicommon.logging import logger  # type: ignore[import]
+from opsicommon.logging import get_logger  # type: ignore[import]
 from rich_click.rich_click import (  # type: ignore[import]
 	rich_abort_error,
 	rich_format_error,
@@ -51,13 +51,16 @@ for group, items in config.get_items_by_group().items():
 		click.rich_click.OPTION_GROUPS["opsi-cli"].append({"name": f"{group} options", "options": options})
 
 
+logger = get_logger("opsicli")
+
+
 # https://click.palletsprojects.com/en/7.x/commands/#custom-multi-commands
 class OpsiCLI(click.MultiCommand):
 	def main(
 		self,
-		args: Optional[Sequence[str]] = None,
-		prog_name: Optional[str] = None,
-		complete_var: Optional[str] = None,
+		args: Sequence[str] | None = None,
+		prog_name: str | None = None,
+		complete_var: str | None = None,
 		standalone_mode: bool = False,
 		**extra: Any,
 	) -> Any:
@@ -87,7 +90,7 @@ class OpsiCLI(click.MultiCommand):
 			return super().format_help(ctx, formatter)
 		return rich_format_help(self, ctx, formatter)
 
-	def list_commands(self, ctx: click.Context) -> List[str]:
+	def list_commands(self, ctx: click.Context) -> list[str]:
 		logger.debug("list_commands")
 		plugin_manager.load_plugins()
 		return sorted([plugin.cli.name for plugin in plugin_manager.plugins if plugin.cli])  # type: ignore[attr-defined,misc]
@@ -102,7 +105,7 @@ class OpsiCLI(click.MultiCommand):
 
 
 class LogLevel(click.ParamType):
-	def shell_complete(self, ctx: click.Context, param: click.Parameter, incomplete: str) -> List[CompletionItem]:
+	def shell_complete(self, ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
 		completion_items = []
 		try:
 			completion_items = [CompletionItem(min(9, max(0, int(incomplete))))]
@@ -132,7 +135,7 @@ class LogLevel(click.ParamType):
 @config.get_click_option("username", short_option="-u")
 @config.get_click_option("password", short_option="-p")
 @config.get_click_option("dry_run", is_flag=True)
-def main(*args, **kwargs) -> None:  # pylint: disable=unused-argument
+def main(*args: str, **kwargs: str) -> None:  # pylint: disable=unused-argument
 	"""
 	opsi command line interface\n
 	Plugins are dynamically loaded from a subfolder

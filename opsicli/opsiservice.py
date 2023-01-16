@@ -8,24 +8,25 @@ opsi service
 import re
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any
 from urllib.parse import urlparse
 
 from opsicommon.client.opsiservice import (  # type: ignore[import]
 	ServiceClient,
-	ServiceVerificationModes,
+	ServiceVerificationFlags,
 )
 from opsicommon.config import OpsiConfig  # type: ignore[import]
-from opsicommon.logging import logger  # type: ignore[import]
+from opsicommon.logging import get_logger  # type: ignore[import]
 
 from opsicli import __version__
 from opsicli.config import config
 
+logger = get_logger("opsicli")
 jsonrpc_client = None  # pylint: disable=invalid-name
 SESSION_LIFETIME = 15  # seconds
 
 
-def get_service_credentials_from_backend() -> Tuple[str, str]:
+def get_service_credentials_from_backend() -> tuple[str, str]:
 	logger.info("Fetching credentials from backend")
 	dispatch_conf = Path("/etc/opsi/backendManager/dispatch.conf")
 	backend = "mysql"
@@ -45,7 +46,7 @@ def get_service_credentials_from_backend() -> Tuple[str, str]:
 						return depot_id, host_key.strip()
 	else:
 		mysql_conf = Path("/etc/opsi/backends/mysql.conf")
-		loc: Dict[str, Any] = {}
+		loc: dict[str, Any] = {}
 		exec(compile(mysql_conf.read_bytes(), "<string>", "exec"), None, loc)  # pylint: disable=exec-used
 		cfg = loc["config"]
 		with subprocess.Popen(
@@ -109,6 +110,6 @@ def get_service_connection() -> ServiceClient:
 			password=password,
 			user_agent=f"opsi-cli/{__version__}",
 			session_lifetime=SESSION_LIFETIME,
-			verify=ServiceVerificationModes.ACCEPT_ALL,
+			verify=ServiceVerificationFlags.ACCEPT_ALL,
 		)
 	return jsonrpc_client

@@ -13,20 +13,24 @@ import string
 import subprocess
 import sys
 from contextlib import contextmanager
+from typing import Iterator
 
-from opsicommon.logging import logger, logging_config  # type: ignore[import]
+from opsicommon.logging import get_logger, logging_config  # type: ignore[import]
 
 if platform.system().lower() != "windows":
 	import termios
 	import tty
 
 
-def random_string(length):
+logger = get_logger("opsicli")
+
+
+def random_string(length: int) -> str:
 	letters = string.ascii_letters + string.digits
 	return "".join(random.choice(letters) for _ in range(length))
 
 
-def encrypt(cleartext: str):
+def encrypt(cleartext: str) -> str:
 	if not cleartext:
 		raise ValueError("Invalid cleartext")
 	key = random_string(16)
@@ -37,7 +41,7 @@ def encrypt(cleartext: str):
 	return "{crypt}" + base64.urlsafe_b64encode(f"{key}:{cipher}".encode("utf-8")).decode("ascii")
 
 
-def decrypt(cipher: str):
+def decrypt(cipher: str) -> str:
 	if not cipher:
 		raise ValueError("Invalid cipher")
 	if not cipher.startswith("{crypt}"):
@@ -66,7 +70,7 @@ def add_to_env_variable(key: str, value: str, system: bool = False) -> None:
 
 
 @contextmanager
-def stream_wrap():
+def stream_wrap() -> Iterator[None]:
 	logging_config(stderr_level=0)  # Restore?
 	if platform.system().lower() == "windows":
 		yield

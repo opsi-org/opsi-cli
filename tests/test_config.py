@@ -3,6 +3,7 @@ test_config
 """
 
 from pathlib import Path
+from typing import Type
 
 import pytest
 
@@ -16,7 +17,7 @@ from .utils import run_cli, temp_context
 	"default, value, expected",
 	((None, None, None), ("1", None, 1), (1, 10, 10), (None, 1, 1)),
 )
-def test_config_item_defaults(default, value, expected):
+def test_config_item_defaults(default: str | None, value: int | None, expected: int | None) -> None:
 	item = ConfigItem(name="test", type=int, default=default, value=value)
 	assert item.value == expected
 
@@ -33,7 +34,7 @@ def test_config_item_defaults(default, value, expected):
 		("invalid", None, ValueError),
 	),
 )
-def test_config_item_log_level(value, expected, exception):
+def test_config_item_log_level(value: str | int | None, expected: int | None, exception: Type[Exception] | None) -> None:
 	item = ConfigItem(name="log_level_file", type=LogLevel)
 	if exception:
 		with pytest.raises(exception):
@@ -47,7 +48,7 @@ def test_config_item_log_level(value, expected, exception):
 	"value, expected",
 	((None, None), ("1", True), (True, True), (False, False), ("true", True), ("TRUE", True), ("false", False), ("FALSE", False)),
 )
-def test_config_item_bool(value, expected):
+def test_config_item_bool(value: str | None, expected: bool | None) -> None:
 	item = ConfigItem(name="color", type=Bool, value=value)
 	assert item.value == expected
 
@@ -60,38 +61,38 @@ def test_config_item_bool(value, expected):
 		("https://[2a02:810b:f3f:fa4b:7170:26c0:c849:6e33]", "https://[2a02:810b:f3f:fa4b:7170:26c0:c849:6e33]:4447"),
 	),
 )
-def test_config_item_opsi_service(value, expected):
+def test_config_item_opsi_service(value: str, expected: str) -> None:
 	item = ConfigItem(name="service", type=OPSIServiceUrl, value=value)
 	# as_dict produces Dict containing Dict of values being Dicts with the actual value
 	assert item.as_dict()["value"].get("value") == expected
 	assert item.value == expected
 
 
-def test_config_item_password():
+def test_config_item_password() -> None:
 	item = ConfigItem(name="password", type=Password, value="password123")
 	assert item.value == "password123"
 	assert f"{item.value!r}" == "***secret***"
 
 
 @pytest.mark.posix
-def test_config_item_plugin_user_dir_posix():
+def test_config_item_plugin_user_dir_posix() -> None:
 	item = ConfigItem(name="plugin_user_dir", type=Directory, value="/path1")
 	assert item.value == Path("/path1")
 
 
 @pytest.mark.windows
-def test_config_item_plugin_user_dir_windows():
+def test_config_item_plugin_user_dir_windows() -> None:
 	item = ConfigItem(name="plugin_user_dir", type=Directory, value=r"C:\path1")
 	assert item.value == Path(r"C:\path1")
 
 
-def test_config_defaults():
+def test_config_defaults() -> None:
 	config = Config()
 	assert config.color is True
 	assert config.service == "https://localhost:4447"
 
 
-def test_set_config():
+def test_set_config() -> None:
 	config = Config()
 	assert config.color is True
 	config.color = "false"
@@ -100,7 +101,7 @@ def test_set_config():
 	assert config.get_config_item("color").value is False
 
 
-def test_read_write_config():
+def test_read_write_config() -> None:
 	config = Config()
 	with temp_context() as tempdir:
 		conffile = Path(tempdir) / "conffile.conf"
@@ -121,7 +122,7 @@ def test_read_write_config():
 		assert config.get_values().get("output_format") == "auto"
 
 
-def test_service_config():
+def test_service_config() -> None:
 	config = Config()
 
 	with temp_context() as tempdir:

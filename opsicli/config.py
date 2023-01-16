@@ -12,7 +12,7 @@ from copy import deepcopy
 from dataclasses import InitVar, asdict, dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Set, Union
+from typing import Any, Callable
 
 import rich_click as click  # type: ignore[import]
 from click.core import ParameterSource  # type: ignore[import]
@@ -21,7 +21,7 @@ from opsicommon.logging import (  # type: ignore[import]
 	DEFAULT_FORMAT,
 	LOG_ESSENTIAL,
 	LOG_NONE,
-	logger,
+	get_logger,
 	logging_config,
 	secret_filter,
 )
@@ -42,6 +42,8 @@ from opsicli.types import (
 
 IN_COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ
 
+logger = get_logger("opsicli")
+
 
 class ConfigValueSource(Enum):
 	DEFAULT = "default"
@@ -59,9 +61,9 @@ logging_config(stderr_level=LOG_ESSENTIAL, file_level=LOG_NONE)
 class ConfigValue:  # pylint: disable=too-many-instance-attributes
 	type: Any
 	value: Any
-	source: Optional[ConfigValueSource] = None
+	source: ConfigValueSource | None = None
 
-	def __setattr__(self, name: str, value: Any):
+	def __setattr__(self, name: str, value: Any) -> None:
 		if name == "value" and value is not None:
 			if not isinstance(value, self.type):
 				if isinstance(value, dict):
@@ -70,10 +72,10 @@ class ConfigValue:  # pylint: disable=too-many-instance-attributes
 					value = self.type(value)
 		self.__dict__[name] = value
 
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return f"<ConfigValue value={self.value!r}, source={self.source}>"
 
-	def __str__(self):
+	def __str__(self) -> str:
 		if self.source:
 			return f"{self.value} ({ConfigValueSource(self.source).value})"
 		return f"{self.value}"
@@ -84,20 +86,33 @@ class ConfigItem:  # pylint: disable=too-many-instance-attributes
 	name: str
 	type: Any
 	multiple: bool = False
-	key: Optional[str] = None
-	description: Optional[str] = None
-	plugin: Optional[str] = None
-	group: Optional[str] = None
+	key: str | None = None
+	description: str | None = None
+	plugin: str | None = None
+	group: str | None = None
 	default: InitVar[Any] = None
 	value: InitVar[Any] = None
-	_default: Optional[Union[List[ConfigValue], ConfigValue]] = None
-	_value: Optional[Union[List[ConfigValue], ConfigValue]] = None
+	_default: list[ConfigValue] | ConfigValue | None = None
+	_value: list[ConfigValue] | ConfigValue | None = None
 
-	def __post_init__(self, default: Any, value: Any):
+	def __post_init__(self, default: Any, value: Any) -> None:
 		self.set_default(default)
 		self.set_value(value)
 
-	def __setattr__(self, name: str, value: Any, source: Optional[ConfigValueSource] = None):
+	def __setattr__(self, name: str, value: Any) -> None:
+		self._set_value(name, value)
+
+	def __getattribute__(self, name: str) -> Any:
+		if name in ("default", "value"):
+			attribute = f"_{name}"
+			if self.multiple:
+				return [config_value.value for config_value in getattr(self, attribute) or []]
+			if getattr(self, attribute) is None:
+				return None
+			return getattr(self, attribute).value
+		return super().__getattribute__(name)
+
+	def _set_value(self, name: str, value: Any, source: ConfigValueSource | None = None) -> None:
 		if name in ("default", "value"):
 			if name == "default":
 				source = ConfigValueSource.DEFAULT
@@ -119,23 +134,13 @@ class ConfigItem:  # pylint: disable=too-many-instance-attributes
 		else:
 			self.__dict__[name] = value
 
-	def __getattribute__(self, name: str) -> Any:
-		if name in ("default", "value"):
-			attribute = f"_{name}"
-			if self.multiple:
-				return [config_value.value for config_value in getattr(self, attribute) or []]
-			if getattr(self, attribute) is None:
-				return None
-			return getattr(self, attribute).value
-		return super().__getattribute__(name)
+	def set_value(self, value: Any, source: ConfigValueSource | None = None) -> None:
+		self._set_value("value", value, source)  # pylint: disable=unnecessary-dunder-call
 
-	def set_value(self, value, source: Optional[ConfigValueSource] = None):
-		return self.__setattr__("value", value, source)  # pylint: disable=unnecessary-dunder-call
+	def set_default(self, value: Any) -> None:
+		self._set_value("default", value, ConfigValueSource.DEFAULT)  # pylint: disable=unnecessary-dunder-call
 
-	def set_default(self, value):
-		return self.__setattr__("default", value, ConfigValueSource.DEFAULT)  # pylint: disable=unnecessary-dunder-call
-
-	def _add_value(self, attribute: str, value: Any, source: Optional[ConfigValueSource] = None):
+	def _add_value(self, attribute: str, value: Any, source: ConfigValueSource | None = None) -> None:
 		if attribute not in ("default", "value"):
 			raise ValueError(f"Invalid attribute '{attribute}'")
 		if not self.multiple:
@@ -153,10 +158,10 @@ class ConfigItem:  # pylint: disable=too-many-instance-attributes
 					return
 		self.__dict__[attribute].append(config_value)
 
-	def add_value(self, value, source: Optional[ConfigValueSource] = None):
-		return self._add_value("value", value, source)
+	def add_value(self, value: Any, source: ConfigValueSource | None = None) -> None:
+		self._add_value("value", value, source)
 
-	def _remove_value(self, attribute: str, value: Any):
+	def _remove_value(self, attribute: str, value: Any) -> None:
 		if attribute not in ("default", "value"):
 			raise ValueError(f"Invalid attribute '{attribute}'")
 		if not self.multiple:
@@ -164,7 +169,7 @@ class ConfigItem:  # pylint: disable=too-many-instance-attributes
 		attribute = f"_{attribute}"
 		self.__dict__[attribute].remove(value)
 
-	def remove_value(self, value):
+	def remove_value(self, value: Any) -> None:
 		return self._remove_value("value", value)
 
 	def get_value(self, value_only: bool = True) -> Any:
@@ -172,7 +177,7 @@ class ConfigItem:  # pylint: disable=too-many-instance-attributes
 			return self.value
 		return self._value
 
-	def get_values(self, value_only: bool = True, sources: Optional[List[ConfigValueSource]] = None) -> List[Any]:
+	def get_values(self, value_only: bool = True, sources: list[ConfigValueSource] | None = None) -> list[Any]:
 		values = [
 			val.value if value_only else val
 			for val in (self._value if self.multiple else [self._value])  # type: ignore[union-attr,list-item] # _value can be List or Scalar
@@ -185,13 +190,13 @@ class ConfigItem:  # pylint: disable=too-many-instance-attributes
 			return self.default
 		return self._default
 
-	def as_dict(self):
+	def as_dict(self) -> dict[str, Any]:
 		dict_ = asdict(self)
 		dict_["value"] = dict_.pop("_value")
 		dict_["default"] = dict_.pop("_default")
 		return dict_
 
-	def __repr__(self):
+	def __repr__(self) -> str:
 		return f"<ConfigItem name={self.name!r}, default={self.default}, value={repr(self.value)}>"
 
 
@@ -322,12 +327,12 @@ CONFIG_ITEMS.extend(
 
 class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 	def __init__(self) -> None:
-		self._options_processed: Set[str] = set()
-		self._config: Dict[str, ConfigItem] = {}
+		self._options_processed: set[str] = set()
+		self._config: dict[str, ConfigItem] = {}
 		for item in CONFIG_ITEMS:
 			self.add_config_item(item)
 
-	def add_config_item(self, config_item: ConfigItem):
+	def add_config_item(self, config_item: ConfigItem) -> None:
 		self._config[config_item.name] = config_item
 
 	def get_config_item(self, name: str) -> ConfigItem:
@@ -335,16 +340,16 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 
 	def get_config_items(
 		self,
-	) -> List[ConfigItem]:
+	) -> list[ConfigItem]:
 		return list(self._config.values())
 
-	def get_values(self) -> Dict[str, Any]:
+	def get_values(self) -> dict[str, Any]:
 		values = {}
 		for name, item in self._config.items():
 			values[name] = item.value
 		return values
 
-	def set_values(self, values: Dict[str, Any]) -> None:
+	def set_values(self, values: dict[str, Any]) -> None:
 		for name, value in values.items():
 			self._config[name].value = value
 
@@ -382,7 +387,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 							value = config_item.type.from_yaml(value)
 						config_item.set_value(value, source)
 
-	def write_config_files(self, sources: Optional[List[ConfigValueSource]] = None) -> None:
+	def write_config_files(self, sources: list[ConfigValueSource] | None = None) -> None:
 		logger.info("Writing config files")
 		for file_type in ("config_file_system", "config_file_user"):
 			config_file = getattr(self, file_type, None)
@@ -428,7 +433,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 			stderr_format=DEFAULT_COLORED_FORMAT if self.color else DEFAULT_FORMAT,
 		)
 
-	def get_click_option(self, name: str, **kwargs: Union[str, bool]) -> Callable:
+	def get_click_option(self, name: str, **kwargs: str | bool) -> Callable:
 		config_item = self._config[name]
 		long_option = kwargs.pop("long_option", None)
 		if long_option is None:
@@ -488,11 +493,11 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 	def get_default(self, name: str) -> Any:
 		return self._config[name].get_default()
 
-	def get_description(self, name: str) -> Optional[str]:
+	def get_description(self, name: str) -> str | None:
 		return self._config[name].description
 
-	def get_items_by_group(self) -> Dict[str, List[ConfigItem]]:
-		items: Dict[str, List[ConfigItem]] = {}
+	def get_items_by_group(self) -> dict[str, list[ConfigItem]]:
+		items: dict[str, list[ConfigItem]] = {}
 		for item in self._config.values():
 			group = item.group or ""
 			if group not in items:

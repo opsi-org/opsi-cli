@@ -4,26 +4,26 @@ opsi-cli basic command line interface for opsi
 client_action_worker
 """
 
-from typing import List, Optional
-
-from opsicommon.logging import logger  # type: ignore[import]
+from opsicommon.logging import get_logger  # type: ignore[import]
 
 from opsicli.opsiservice import get_service_connection
+
+logger = get_logger("opsicli")
 
 
 class ClientActionWorker:  # pylint: disable=too-many-instance-attributes
 	def __init__(
 		self,
-		clients: Optional[str] = None,
-		client_groups: Optional[str] = None,
-		exclude_clients: Optional[str] = None,
-		exclude_client_groups: Optional[str] = None,
+		clients: str | None = None,
+		client_groups: str | None = None,
+		exclude_clients: str | None = None,
+		exclude_client_groups: str | None = None,
 	) -> None:
 		self.service = get_service_connection()
-		self.clients: List[str] = []
+		self.clients: list[str] = []
 		self.determine_clients(clients, client_groups, exclude_clients, exclude_client_groups)
 
-	def client_ids_from_group(self, group: str):
+	def client_ids_from_group(self, group: str) -> list[str]:
 		result = self.service.jsonrpc("group_getObjects", [[], {"id": group, "type": "HostGroup"}])
 		if not result:
 			raise ValueError(f"Client group '{group}' not found")
@@ -31,10 +31,10 @@ class ClientActionWorker:  # pylint: disable=too-many-instance-attributes
 
 	def determine_clients(
 		self,
-		clients: Optional[str] = None,
-		client_groups: Optional[str] = None,
-		exclude_clients: Optional[str] = None,
-		exclude_client_groups: Optional[str] = None,
+		clients: str | None = None,
+		client_groups: str | None = None,
+		exclude_clients: str | None = None,
+		exclude_client_groups: str | None = None,
 	) -> None:
 		self.clients = []
 		if clients:

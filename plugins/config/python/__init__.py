@@ -4,19 +4,20 @@ opsi-cli basic command line interface for opsi
 config plugin
 """
 
-from typing import List, Optional
 from urllib.parse import urlparse
 
 import rich_click as click  # type: ignore[import]
 from click.shell_completion import CompletionItem  # type: ignore[import]
-from opsicommon.logging import logger  # type: ignore[import]
+from opsicommon.logging import get_logger  # type: ignore[import]
 
 from opsicli.config import ConfigValueSource, config
-from opsicli.io import prompt, write_output
+from opsicli.io import Attribute, Metadata, prompt, write_output
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.types import OPSIService, Password
 
 __version__ = "0.1.0"
+
+logger = get_logger("opsicli")
 
 
 @click.group(name="config", short_help="Manage opsi-cli configuration")
@@ -34,14 +35,14 @@ def config_list() -> None:
 	"""
 	opsi-cli config list subcommand.
 	"""
-	metadata = {
-		"attributes": [
-			{"id": "name", "description": "Name of configuration item", "identifier": True},
-			{"id": "type", "description": "Data type"},
-			{"id": "default", "description": "Default value"},
-			{"id": "value", "description": "Current value"},
+	metadata = Metadata(
+		attributes=[
+			Attribute(id="name", description="Name of configuration item", identifier=True),
+			Attribute(id="type", description="Data type"),
+			Attribute(id="default", description="Default value"),
+			Attribute(id="value", description="Current value"),
 		]
-	}
+	)
 	data = []
 	for item in sorted(config.get_config_items(), key=lambda x: x.name):
 		data.append({"name": item.name, "type": item.type, "default": item.default, "value": item.value})
@@ -51,7 +52,7 @@ def config_list() -> None:
 
 def complete_config_item_name(
 	ctx: click.Context, param: click.Parameter, incomplete: str  # pylint: disable=unused-argument
-) -> List[CompletionItem]:
+) -> list[CompletionItem]:
 	items = []
 	for item in config.get_config_items():
 		if item.name.startswith(incomplete):
@@ -65,12 +66,12 @@ def config_show(name: str) -> None:
 	"""
 	opsi-cli config show subcommand.
 	"""
-	metadata = {
-		"attributes": [
-			{"id": "attribute", "description": "Name of the configuration item attribute", "identifier": True},
-			{"id": "value", "description": "Attribute value"},
+	metadata = Metadata(
+		attributes=[
+			Attribute(id="attribute", description="Name of the configuration item attribute", identifier=True),
+			Attribute(id="value", description="Attribute value"),
 		]
-	}
+	)
 	data = []
 	item = config.get_config_item(name).as_dict()
 	for attribute in ("name", "type", "multiple", "default", "description", "plugin", "group", "value"):
@@ -123,14 +124,14 @@ def service_list() -> None:
 	"""
 	opsi-cli config service list subcommand.
 	"""
-	metadata = {
-		"attributes": [
-			{"id": "name", "description": "The service identifier", "identifier": True},
-			{"id": "url", "description": "The base url of the opsi service"},
-			{"id": "username", "description": "Username to use for authentication"},
-			{"id": "password", "description": "Password to use for authentication"},
+	metadata = Metadata(
+		attributes=[
+			Attribute(id="name", description="The service identifier", identifier=True),
+			Attribute(id="url", description="The base url of the opsi service"),
+			Attribute(id="username", description="Username to use for authentication"),
+			Attribute(id="password", description="Password to use for authentication"),
 		]
-	}
+	)
 	data = []
 	for item in sorted(config.services, key=lambda x: x.name):
 		data.append({"name": item.name, "url": item.url, "username": item.username, "password": "*****" if item.password else ""})
@@ -146,10 +147,10 @@ def service_list() -> None:
 @click.option("--password", type=str, required=False, default=None)
 @click.option("--system", type=bool, required=False, default=False)
 def service_add(
-	url: Optional[str] = None,
-	name: Optional[str] = None,
-	username: Optional[str] = None,
-	password: Optional[str] = None,
+	url: str | None = None,
+	name: str | None = None,
+	username: str | None = None,
+	password: str | None = None,
 	system: bool = False,
 ) -> None:
 	"""
@@ -185,7 +186,7 @@ def service_add(
 @click.argument("name", type=str, required=False)
 @click.option("--system", type=bool, required=False, default=False)
 def service_remove(
-	name: Optional[str] = None,
+	name: str | None = None,
 	system: bool = False,
 ) -> None:
 	"""

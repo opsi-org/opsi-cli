@@ -4,17 +4,16 @@ opsi-cli Basic command line interface for opsi
 dummy command - proof of concept
 """
 
-from typing import Any, Dict
-
-import requests  # type: ignore[import]
 import click
 import netifaces  # type: ignore[import] # pylint: disable=import-error
-
-from opsicommon.logging import logger  # type: ignore[import]
+import requests  # type: ignore[import]
+from opsicommon.logging import get_logger  # type: ignore[import]
 
 from opsicli.plugin import OPSICLIPlugin
 
 __version__ = "0.1.0"
+
+logger = get_logger("opsicli")
 
 
 @click.group(name="dummy", short_help="short help for dummy")
@@ -34,7 +33,7 @@ def libtest() -> None:
 	This is the long help.
 	"""
 	print(netifaces.gateways())
-	print(requests.get("https://opsi.org"))
+	print(requests.get("https://opsi.org", timeout=5))
 
 
 class DummyPlugin(OPSICLIPlugin):

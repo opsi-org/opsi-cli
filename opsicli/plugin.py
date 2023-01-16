@@ -11,18 +11,21 @@ import sys
 import warnings
 import zipfile
 from importlib._bootstrap import BuiltinImporter  # type: ignore[import]
+from importlib.machinery import ModuleSpec
 from pathlib import Path
 from types import ModuleType
-from typing import Dict, List, Optional
+from typing import Any
 from urllib.parse import quote, unquote
 
 from click import Command  # type: ignore[import]
-from opsicommon.logging import logger  # type: ignore[import]
+from opsicommon.logging import get_logger  # type: ignore[import]
 from opsicommon.utils import Singleton  # type: ignore[import]
 from packaging.version import parse
 from pipreqs import pipreqs  # type: ignore[import]
 
 from opsicli.config import IN_COMPLETION_MODE, config
+
+logger = get_logger("opsicli")
 
 PLUGIN_EXTENSION = "opsicliplug"
 # These dependencies are not in python standard library
@@ -37,8 +40,8 @@ class OPSICLIPlugin:
 	name: str = ""
 	description: str = ""
 	version: str = ""
-	cli: Optional[Command] = None
-	flags: List[str] = []
+	cli: Command | None = None
+	flags: list[str] = []
 
 	def __init__(self, path: Path) -> None:  # pylint: disable=redefined-builtin
 		self.path = path
@@ -59,7 +62,7 @@ class OPSICLIPlugin:
 
 class PluginImporter(BuiltinImporter):
 	@classmethod
-	def find_spec(cls, fullname, path=None, target=None):
+	def find_spec(cls, fullname: str, path: None = None, target: None = None) -> ModuleSpec | None:
 		if not fullname.startswith("opsicli.addon"):
 			return None
 		plugin_path = unquote(fullname.split("_", 1)[1]).replace("%2E", ".")
@@ -80,14 +83,14 @@ class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-meth
 		if self._initialized:
 			return
 		self._initialized = True
-		self._plugins: Dict[str, OPSICLIPlugin] = {}
+		self._plugins: dict[str, OPSICLIPlugin] = {}
 
 	@classmethod
 	def module_name(cls, plugin_path: Path) -> str:
 		return f"opsicli.addon_{quote(str(plugin_path).replace('.', '%2E'))}"
 
 	@property
-	def plugins(self) -> List[OPSICLIPlugin]:
+	def plugins(self) -> list[OPSICLIPlugin]:
 		return list(self._plugins.values())
 
 	def get_plugin(self, plugin_id: str) -> OPSICLIPlugin:
@@ -169,7 +172,7 @@ class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-meth
 		self.unload_plugin(plugin_id)
 		self.load_plugin(path)
 
-	def reload_plugins(self):
+	def reload_plugins(self) -> None:
 		self.unload_plugins()
 		self.load_plugins()
 
@@ -177,7 +180,7 @@ class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-meth
 plugin_manager = PluginManager()
 
 
-def replace_data(string: str, replacements: Dict[str, str]) -> str:
+def replace_data(string: str, replacements: dict[str, str]) -> str:
 	for key, value in replacements.items():
 		string = string.replace(key, value)
 	return string
@@ -200,7 +203,7 @@ def prepare_plugin(path: Path, tmpdir: Path) -> str:
 	return plugin_id
 
 
-def install_plugin(source_dir: Path, name: str, system: Optional[bool] = False) -> Path:
+def install_plugin(source_dir: Path, name: str, system: bool = False) -> Path:
 	"""Copy the prepared plugin from tmp to LIB_DIR"""
 	plugin_dir = config.plugin_system_dir if system else config.plugin_user_dir
 	if not plugin_dir.is_dir():
@@ -231,10 +234,7 @@ def install_plugin(source_dir: Path, name: str, system: Optional[bool] = False) 
 	return destination
 
 
-def install_python_package(target_dir: Path, package: Dict[str, str]) -> None:
-	def monkeypatched_make_multiple(self, specifications, options=None):  # pylint: disable=unused-argument
-		return []
-
+def install_python_package(target_dir: Path, package: dict[str, str]) -> None:
 	# These imports take ~0.25s
 	from pip._internal.commands.install import (  # pylint: disable=import-outside-toplevel
 		InstallCommand,
@@ -242,6 +242,11 @@ def install_python_package(target_dir: Path, package: Dict[str, str]) -> None:
 	from pip._vendor.distlib.scripts import (  # pylint: disable=import-outside-toplevel
 		ScriptMaker,
 	)
+
+	def monkeypatched_make_multiple(
+		self: ScriptMaker, specifications: list[str], options: dict[str, Any] | None = None  # pylint: disable=unused-argument
+	) -> list:
+		return []
 
 	# ScriptMaker is called by pip to create executable python scripts from libraries (i.e. .../bin)
 	# Monkeypatch here to avoid trying to create this (nasty in frozen context)
