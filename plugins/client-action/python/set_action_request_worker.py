@@ -104,7 +104,7 @@ class SetActionRequestWorker(ClientActionWorker):
 				exclude_products.extend(self.product_ids_from_group(group))
 		logger.info("List of excluded products: %s", exclude_products)
 		product_objects = self.service.jsonrpc("product_getObjects", [[], {"type": "LocalbootProduct", "id": products or None}])
-		self.products = [entry["id"] for entry in product_objects if entry["id"] not in exclude_products]
+		self.products = set((entry["id"] for entry in product_objects if entry["id"] not in exclude_products))
 		self.products_with_only_uninstall = [
 			entry["id"]
 			for entry in product_objects
