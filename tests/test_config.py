@@ -10,6 +10,7 @@ import pytest
 from opsicli.config import Config, ConfigItem
 from opsicli.types import Bool, Directory, LogLevel, OPSIServiceUrl, Password
 
+from .conftest import PLATFORM
 from .utils import run_cli, temp_context
 
 
@@ -74,16 +75,13 @@ def test_config_item_password() -> None:
 	assert f"{item.value!r}" == "***secret***"
 
 
-@pytest.mark.posix
-def test_config_item_plugin_user_dir_posix() -> None:
-	item = ConfigItem(name="plugin_user_dir", type=Directory, value="/path1")
-	assert item.value == Path("/path1")
-
-
-@pytest.mark.windows
-def test_config_item_plugin_user_dir_windows() -> None:
-	item = ConfigItem(name="plugin_user_dir", type=Directory, value=r"C:\path1")
-	assert item.value == Path(r"C:\path1")
+def test_config_item_plugin_user_dir() -> None:
+	if PLATFORM == "windows":
+		item = ConfigItem(name="plugin_user_dir", type=Directory, value=r"C:\path1")
+		assert item.value == Path(r"C:\path1")
+	elif PLATFORM in ("linux", "darwin"):
+		item = ConfigItem(name="plugin_user_dir", type=Directory, value="/path1")
+		assert item.value == Path("/path1")
 
 
 def test_config_defaults() -> None:
@@ -119,6 +117,7 @@ def test_read_write_config() -> None:
 		assert config.output_format == "csv"
 		exit_code, _ = run_cli(["config", "unset", "output_format"])
 		assert exit_code == 0
+		config.read_config_files()
 		assert config.get_values().get("output_format") == "auto"
 
 
