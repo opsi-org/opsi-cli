@@ -387,7 +387,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 							value = config_item.type.from_yaml(value)
 						config_item.set_value(value, source)
 
-	def write_config_files(self, sources: list[ConfigValueSource] | None = None) -> None:
+	def write_config_files(self, sources: list[ConfigValueSource] | None = None, skip_keys: list[str] | None = None) -> None:
 		logger.info("Writing config files")
 		for file_type in ("config_file_system", "config_file_user"):
 			config_file = getattr(self, file_type, None)
@@ -418,11 +418,15 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 						data[config_item.name] = yaml_values
 				else:
 					data[config_item.name] = yaml_values[0]
+			if skip_keys:
+				for key in skip_keys:
+					data.pop(key)
 			if not config_file.parent.exists():
 				logger.debug("Creating directory %s", config_file.parent)
 				config_file.parent.mkdir(parents=True)
 			with open(config_file, "w", encoding="utf-8") as file:  # IDEA: save file and restore on error
 				logger.debug("Writing file %s", config_file)
+				logger.trace("Writing data %s", data)
 				YAML().dump(data, file)
 
 	def set_logging_config(self) -> None:

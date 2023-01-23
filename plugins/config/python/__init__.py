@@ -109,7 +109,7 @@ def config_unset(key: str, system: bool) -> None:
 	logger.notice("Unsetting config %s ", key)
 	source = ConfigValueSource.CONFIG_FILE_SYSTEM if system else ConfigValueSource.CONFIG_FILE_USER
 	config.get_config_item(key).set_value(config.get_config_item(key).get_default())
-	config.write_config_files(sources=[source])
+	config.write_config_files(sources=[source], skip_keys=[key])
 
 
 @cli.group(short_help="Configuration of opsi services")
