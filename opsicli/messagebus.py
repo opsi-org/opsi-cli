@@ -18,6 +18,7 @@ from opsicommon.messagebus import (  # type: ignore[import]
 	TerminalCloseEventMessage,
 	TerminalDataReadMessage,
 	TerminalDataWriteMessage,
+	TerminalOpenEventMessage,
 	TerminalOpenRequestMessage,
 )
 
@@ -27,7 +28,7 @@ from opsicli.utils import stream_wrap
 if platform.system().lower() == "windows":
 	import msvcrt  # pylint: disable=import-error
 
-CHANNEL_SUBSCRIPTION_TIMEOUT = 5
+CHANNEL_SUB_TIMEOUT = 5
 
 logger = get_logger("opsicli")
 
@@ -45,7 +46,8 @@ class MessagebusConnection(MessagebusListener):
 		MessagebusListener.__init__(self)
 		self.should_close = False
 		self.service_worker_channel: str | None = None
-		self.channel_subscription_event_event = Event()
+		self.channel_subscription_event = Event()
+		self.terminal_open_event = Event()
 		self.service_client = get_service_connection()
 
 	def message_received(self, message: Message) -> None:
@@ -59,12 +61,16 @@ class MessagebusConnection(MessagebusListener):
 		if isinstance(message, ChannelSubscriptionEventMessage):
 			# Get responsible service_worker
 			self.service_worker_channel = message.sender
-			self.channel_subscription_event_event.set()
-		elif isinstance(message, (TerminalDataReadMessage)):
+			self.channel_subscription_event.set()
+		elif isinstance(message, TerminalOpenEventMessage):
+			self.terminal_open_event.set()
+		elif isinstance(message, TerminalDataReadMessage):
 			sys.stdout.buffer.write(message.data)
 			sys.stdout.flush()  # This actually pops the buffer to terminal (without waiting for '\n')
 		elif isinstance(message, TerminalCloseEventMessage):
 			logger.notice("received terminal close event - shutting down")
+			sys.stdout.buffer.write(b"\nreceived terminal close event - press Enter to return to local shell\n")
+			sys.stdout.flush()  # This actually pops the buffer to terminal (without waiting for '\n')
 			self.should_close = True
 
 	def transmit_input(self, term_write_channel: str, term_id: str) -> None:
@@ -84,21 +90,30 @@ class MessagebusConnection(MessagebusListener):
 		if not self.service_client.connected:
 			self.service_client.connect()
 		self.service_client.connect_messagebus()
+		open_new_terminal = False
 		with self.register(self.service_client.messagebus):
 			# If service_worker_channel is not set, wait for channel_subscription_event
-			if not self.service_worker_channel and not self.channel_subscription_event_event.wait(CHANNEL_SUBSCRIPTION_TIMEOUT):
+			if not self.service_worker_channel and not self.channel_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
 				raise ConnectionError("Failed to subscribe to session channel.")
+			if not term_id:
+				term_id = str(uuid4())
+				open_new_terminal = True
 			term_read_channel = f"session:{term_id}"
 			if target.lower() == "configserver":
 				term_write_channel = f"{self.service_worker_channel}:terminal"
 			else:
 				term_write_channel = f"host:{target}"
 
-			if not term_id:
-				term_id = str(uuid4())
-				term_read_channel = f"session:{term_id}"
+			self.channel_subscription_event.clear()
+			csr = ChannelSubscriptionRequestMessage(sender="@", operation="add", channels=[term_read_channel], channel="service:messagebus")
+			logger.notice("Requesting access to terminal session channel")
+			log_message(csr)
+			self.service_client.messagebus.send_message(csr)
+
+			if open_new_terminal:
+				if not self.channel_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
+					raise ConnectionError("Could not subscribe to terminal session channel")
 				size = shutil.get_terminal_size()
-				logger.notice("Requesting to open new terminal with id %s ", term_id)
 				tor = TerminalOpenRequestMessage(
 					sender="@",
 					channel=term_write_channel,
@@ -107,17 +122,14 @@ class MessagebusConnection(MessagebusListener):
 					rows=size.lines,
 					cols=size.columns,
 				)
+				logger.notice("Requesting to open new terminal with id %s ", term_id)
 				log_message(tor)
 				self.service_client.messagebus.send_message(tor)
 			else:
 				logger.notice("Requesting access to existing terminal with id %s ", term_id)
 
-			self.channel_subscription_event_event.clear()
-			csr = ChannelSubscriptionRequestMessage(sender="@", operation="add", channels=[term_read_channel], channel="service:messagebus")
-			log_message(csr)
-			self.service_client.messagebus.send_message(csr)
-
-			if not self.channel_subscription_event_event.wait(CHANNEL_SUBSCRIPTION_TIMEOUT):
+			if not self.terminal_open_event.wait(CHANNEL_SUB_TIMEOUT):
 				raise ConnectionError("Could not subscribe to terminal session channel")
+			logger.notice("Return to local shell with 'exit' or 'Ctrl+D'")
 			with stream_wrap():
 				self.transmit_input(term_write_channel, term_id)

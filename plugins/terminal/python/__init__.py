@@ -1,5 +1,5 @@
 """
-opsi-cli messagebus plugin
+opsi-cli terminal plugin
 """
 
 from typing import Optional
@@ -10,21 +10,21 @@ from opsicommon.logging import get_logger  # type: ignore[import]
 from opsicli.messagebus import MessagebusConnection
 from opsicli.plugin import OPSICLIPlugin
 
-__version__ = "0.1.0"  # Use this field to track the current version number
-__description__ = "This plugin interacts with the opsi message bus."
+__version__ = "0.1.1"  # Use this field to track the current version number
+__description__ = "This plugin allows to open a remote terminal on a host."
 
 
 logger = get_logger("opsicli")
 
 
 @click.command(name="terminal", short_help="Start remote terminal session")
-@click.version_option(__version__, message="opsi-cli plugin messagebus, version %(version)s")
+@click.version_option(__version__, message="opsi-cli plugin terminal, version %(version)s")
 @click.argument("target", type=str, required=True)
 @click.option("--terminal-id", help="Connect to existing terminal session with this id.")
 def cli(target: str, terminal_id: Optional[str]) -> None:
 	"""
 	This command starts an interactive console session.
-	It connects to the specified target host-id (or the config server if omitted).
+	It connects to the specified target host-id (opsi Client, Depotserver or Configserver).
 	"""
 	logger.trace("terminal command")
 	messagebus = MessagebusConnection()
@@ -32,8 +32,8 @@ def cli(target: str, terminal_id: Optional[str]) -> None:
 
 
 class TerminalPlugin(OPSICLIPlugin):
-	id: str = "messagebus"  # pylint: disable=invalid-name
-	name: str = "messagebus"
+	id: str = "terminal"  # pylint: disable=invalid-name
+	name: str = "terminal"
 	description: str = __description__
 	version: str = __version__
 	cli = cli
