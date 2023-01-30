@@ -49,6 +49,7 @@ class MessagebusConnection(MessagebusListener):
 		self.channel_subscription_event = Event()
 		self.terminal_open_event = Event()
 		self.service_client = get_service_connection()
+		self.terminal_id: str | None = None
 
 	def message_received(self, message: Message) -> None:
 		log_message(message)
@@ -63,17 +64,20 @@ class MessagebusConnection(MessagebusListener):
 			self.service_worker_channel = message.sender
 			self.channel_subscription_event.set()
 		elif isinstance(message, TerminalOpenEventMessage):
-			self.terminal_open_event.set()
+			if message.terminal_id == self.terminal_id:
+				self.terminal_open_event.set()
 		elif isinstance(message, TerminalDataReadMessage):
 			sys.stdout.buffer.write(message.data)
 			sys.stdout.flush()  # This actually pops the buffer to terminal (without waiting for '\n')
 		elif isinstance(message, TerminalCloseEventMessage):
 			logger.notice("received terminal close event - shutting down")
-			sys.stdout.buffer.write(b"\nreceived terminal close event - press Enter to return to local shell\n")
+			sys.stdout.buffer.write(b"\nreceived terminal close event - press Enter to return to local shell")
 			sys.stdout.flush()  # This actually pops the buffer to terminal (without waiting for '\n')
 			self.should_close = True
 
-	def transmit_input(self, term_write_channel: str, term_id: str) -> None:
+	def transmit_input(self, term_write_channel: str) -> None:
+		if not self.terminal_id:
+			raise ValueError("Terminal id not set.")
 		while not self.should_close:
 			if platform.system().lower() == "windows":
 				data = msvcrt.getch()  # type: ignore
@@ -82,23 +86,25 @@ class MessagebusConnection(MessagebusListener):
 			if not data:  # or data == b"\x03":  # Ctrl+C
 				self.should_close = True
 				break
-			tdw = TerminalDataWriteMessage(sender="@", channel=term_write_channel, terminal_id=term_id, data=data)
+			tdw = TerminalDataWriteMessage(sender="@", channel=term_write_channel, terminal_id=self.terminal_id, data=data)
 			log_message(tdw)
 			self.service_client.messagebus.send_message(tdw)
 
 	def run_terminal(self, target: str, term_id: Optional[str] = None) -> None:
+		open_new_terminal = False
+		self.terminal_id = term_id
+		if not self.terminal_id:
+			self.terminal_id = str(uuid4())
+			open_new_terminal = True
+
 		if not self.service_client.connected:
 			self.service_client.connect()
 		self.service_client.connect_messagebus()
-		open_new_terminal = False
 		with self.register(self.service_client.messagebus):
 			# If service_worker_channel is not set, wait for channel_subscription_event
 			if not self.service_worker_channel and not self.channel_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
 				raise ConnectionError("Failed to subscribe to session channel.")
-			if not term_id:
-				term_id = str(uuid4())
-				open_new_terminal = True
-			term_read_channel = f"session:{term_id}"
+			term_read_channel = f"session:{self.terminal_id}"
 			if target.lower() == "configserver":
 				term_write_channel = f"{self.service_worker_channel}:terminal"
 			else:
@@ -117,19 +123,19 @@ class MessagebusConnection(MessagebusListener):
 				tor = TerminalOpenRequestMessage(
 					sender="@",
 					channel=term_write_channel,
-					terminal_id=term_id,
+					terminal_id=self.terminal_id,
 					back_channel=term_read_channel,
 					rows=size.lines,
 					cols=size.columns,
 				)
-				logger.notice("Requesting to open new terminal with id %s ", term_id)
+				logger.notice("Requesting to open new terminal with id %s ", self.terminal_id)
 				log_message(tor)
 				self.service_client.messagebus.send_message(tor)
 			else:
-				logger.notice("Requesting access to existing terminal with id %s ", term_id)
+				logger.notice("Requesting access to existing terminal with id %s ", self.terminal_id)
 
 			if not self.terminal_open_event.wait(CHANNEL_SUB_TIMEOUT):
 				raise ConnectionError("Could not subscribe to terminal session channel")
 			logger.notice("Return to local shell with 'exit' or 'Ctrl+D'")
 			with stream_wrap():
-				self.transmit_input(term_write_channel, term_id)
+				self.transmit_input(term_write_channel)
