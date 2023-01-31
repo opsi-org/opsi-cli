@@ -106,6 +106,7 @@ def execute(method: str, params: list[str] | None = None) -> None:  # pylint: di
 	opsi-cli jsonrpc execute subcommand.
 	"""
 	if params:
+		logger.debug("Raw parameters: %s", params)
 		params = list(params)
 		for idx, param in enumerate(params):
 			try:
@@ -126,6 +127,7 @@ def execute(method: str, params: list[str] | None = None) -> None:  # pylint: di
 	default_output_format = "pretty-json" if output_file_is_stdout() else "json"
 
 	client = get_service_connection()
+	logger.info("Calling method %s with params %s", method, params)
 	data = client.jsonrpc(method, params)
 	write_output(data, default_output_format=default_output_format)
 

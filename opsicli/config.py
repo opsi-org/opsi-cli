@@ -387,7 +387,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 							value = config_item.type.from_yaml(value)
 						config_item.set_value(value, source)
 
-	def write_config_files(self, sources: list[ConfigValueSource] | None = None, skip_keys: list[str] | None = None) -> None:
+	def write_config_files(self, sources: list[ConfigValueSource] | None = None, skip_keys: list[str] | None = None) -> None:  # pylint: disable=too-many-branches
 		logger.info("Writing config files")
 		for file_type in ("config_file_system", "config_file_user"):
 			config_file = getattr(self, file_type, None)
