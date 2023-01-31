@@ -63,13 +63,12 @@ class MessagebusConnection(MessagebusListener):
 			# Get responsible service_worker
 			self.service_worker_channel = message.sender
 			self.channel_subscription_event.set()
-		elif isinstance(message, TerminalOpenEventMessage):
-			if message.terminal_id == self.terminal_id:
-				self.terminal_open_event.set()
-		elif isinstance(message, TerminalDataReadMessage):
+		elif isinstance(message, TerminalOpenEventMessage) and message.terminal_id == self.terminal_id:
+			self.terminal_open_event.set()
+		elif isinstance(message, TerminalDataReadMessage) and message.terminal_id == self.terminal_id:
 			sys.stdout.buffer.write(message.data)
 			sys.stdout.flush()  # This actually pops the buffer to terminal (without waiting for '\n')
-		elif isinstance(message, TerminalCloseEventMessage):
+		elif isinstance(message, TerminalCloseEventMessage) and message.terminal_id == self.terminal_id:
 			logger.notice("received terminal close event - shutting down")
 			sys.stdout.buffer.write(b"\nreceived terminal close event - press Enter to return to local shell")
 			sys.stdout.flush()  # This actually pops the buffer to terminal (without waiting for '\n')
