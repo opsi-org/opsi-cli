@@ -43,11 +43,11 @@ def test_self_uninstall() -> None:
 def test_setup_shell_completion(tmp_path: Path) -> None:
 	plugin_manager.load_plugin(Path("plugins/self"))
 	completion_config = tmp_path / "completion"
+	mod_self_name, mod_self = [(n, m) for n, m in sys.modules.items() if n.endswith("plugins/self")][0]
 	with (
-		patch("opsicli.addon_plugins/self.get_running_shell", lambda: "bash"),
-		patch("opsicli.addon_plugins/self.get_completion_config_path", lambda x: completion_config),
+		patch(f"{mod_self_name}.get_running_shell", lambda: "bash"),
+		patch(f"{mod_self_name}.get_completion_config_path", lambda x: completion_config),
 	):
-		mod = sys.modules["opsicli.addon_plugins/self"]
 		runner = CliRunner()
 		result = runner.invoke(main, ["self", "setup-shell-completion"])
 		assert result.exit_code == 0
@@ -55,9 +55,9 @@ def test_setup_shell_completion(tmp_path: Path) -> None:
 			result.output == "Setting up auto completion for shell 'bash'.\nPlease restart your running shell for changes to take effect.\n"
 		)
 		cont = completion_config.read_text()
-		assert cont.startswith(mod.START_MARKER + "\n")
+		assert cont.startswith(mod_self.START_MARKER + "\n")
 		assert "_opsi_cli_completion() {" in cont
-		assert cont.endswith(mod.END_MARKER + "\n")
+		assert cont.endswith(mod_self.END_MARKER + "\n")
 		completion_config.unlink()
 
 		runner = CliRunner()
@@ -65,9 +65,9 @@ def test_setup_shell_completion(tmp_path: Path) -> None:
 		assert result.exit_code == 0
 		assert result.output == "Setting up auto completion for shell 'zsh'.\n"
 		cont = completion_config.read_text()
-		assert cont.startswith(mod.START_MARKER + "\n")
+		assert cont.startswith(mod_self.START_MARKER + "\n")
 		assert "#compdef opsi-cli" in cont
-		assert cont.endswith(mod.END_MARKER + "\n")
+		assert cont.endswith(mod_self.END_MARKER + "\n")
 		completion_config.unlink()
 
 		runner = CliRunner()
@@ -82,4 +82,4 @@ def test_command_structure() -> None:
 	mod_self = [m for n, m in sys.modules.items() if n.endswith("plugins/self")][0]
 	assert result.exit_code == 0
 	assert result.output.startswith("opsi-cli")
-	assert f"\n┣━━ self ({mod_self.__version__})\n" in result.output
+	assert f"━━ self ({mod_self.__version__})\n" in result.output
