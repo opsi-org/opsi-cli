@@ -59,6 +59,12 @@ class OPSICLIPlugin:
 		"""Return information in string form"""
 		return f"{self.id}_{self.version}({self.flags})"
 
+	def get_module_name(self) -> str:
+		return PluginManager.module_name(self.path)
+
+	def get_module(self) -> ModuleType:
+		return sys.modules[self.get_module_name()]
+
 
 class PluginImporter(BuiltinImporter):
 	@classmethod
@@ -87,7 +93,8 @@ class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-meth
 
 	@classmethod
 	def module_name(cls, plugin_path: Path) -> str:
-		return f"opsicli.addon_{quote(str(plugin_path).replace('.', '%2E'))}"
+		quoted_path = quote(str(plugin_path), safe="").replace(".", "%2E")
+		return f"opsicli.addon_{quoted_path}"
 
 	@property
 	def plugins(self) -> list[OPSICLIPlugin]:
@@ -96,7 +103,7 @@ class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-meth
 	def get_plugin(self, plugin_id: str) -> OPSICLIPlugin:
 		return self._plugins[plugin_id]
 
-	def get_plugin_module(self, plugin_dir: Path) -> ModuleType:
+	def load_plugin_module(self, plugin_dir: Path) -> ModuleType:
 		if str(config.user_lib_dir) not in sys.path:
 			sys.path.append(str(config.user_lib_dir))
 		if str(config.python_lib_dir) not in sys.path:
@@ -115,8 +122,8 @@ class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-meth
 			return sys.modules[module_name]
 		return importlib.import_module(module_name)
 
-	def load_plugin(self, plugin_dir: Path) -> None:
-		module = self.get_plugin_module(plugin_dir)
+	def load_plugin(self, plugin_dir: Path) -> OPSICLIPlugin:
+		module = self.load_plugin_module(plugin_dir)
 		for cls in module.__dict__.values():
 			if isinstance(cls, type) and issubclass(cls, OPSICLIPlugin) and cls != OPSICLIPlugin and cls.id:
 				logger.info("Loading plugin %r (name=%s, cli=%s)", cls.id, cls.name, cls.cli)
@@ -124,10 +131,11 @@ class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-meth
 				if not IN_COMPLETION_MODE:
 					self._plugins[cls.id].on_load()
 				# Only one class per module
-				break
+				return self._plugins[cls.id]
+		raise RuntimeError(f"Failed to load plugin from {plugin_dir}.")
 
 	def extract_plugin_object(self, plugin_dir: Path) -> OPSICLIPlugin:
-		module = self.get_plugin_module(plugin_dir)
+		module = self.load_plugin_module(plugin_dir)
 		for cls in module.__dict__.values():
 			if isinstance(cls, type) and issubclass(cls, OPSICLIPlugin) and cls != OPSICLIPlugin and cls.id:
 				logger.info("Loading plugin %r (name=%s, cli=%s)", cls.id, cls.name, cls.cli)
