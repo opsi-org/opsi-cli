@@ -179,7 +179,7 @@ def install(system: bool, binary_path: Path | None = None, no_add_to_path: bool 
 	if not no_add_to_path and str(binary_path.parent) not in os.environ.get("PATH", ""):
 		add_to_env_variable("PATH", str(binary_path.parent), system=system)
 	rich_print(f"opsi-cli installed to '{binary_path}'.")
-	rich_print(f"Run 'opsi-cli self setup-shell-completion' to setup shell completion.")
+	rich_print("Run 'opsi-cli self setup-shell-completion' to setup shell completion.")
 
 
 @cli.command(short_help="Uninstall opsi-cli locally")
