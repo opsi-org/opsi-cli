@@ -40,13 +40,15 @@ def test_self_uninstall() -> None:
 		assert not config.config_file_user.exists()
 
 
-def hide_test_setup_shell_completion(tmp_path: Path) -> None:
-	plugin_manager.load_plugin(Path("plugins/self"))
+def test_setup_shell_completion(tmp_path: Path) -> None:
+	plugin = plugin_manager.load_plugin(Path("plugins/self"))
 	completion_config = tmp_path / "completion"
-	mod_self_name, mod_self = [(n, m) for n, m in sys.modules.items() if n.endswith("plugins/self")][0]
+
+	mod_name = plugin.get_module_name()
+	mod_self = plugin.get_module()
 	with (
-		patch(f"{mod_self_name}.get_running_shell", lambda: "bash"),
-		patch(f"{mod_self_name}.get_completion_config_path", lambda x: completion_config),
+		patch(f"{mod_name}.get_running_shell", lambda: "bash"),
+		patch(f"{mod_name}.get_completion_config_path", lambda x: completion_config),
 	):
 		runner = CliRunner()
 		result = runner.invoke(main, ["self", "setup-shell-completion"])
@@ -76,10 +78,10 @@ def hide_test_setup_shell_completion(tmp_path: Path) -> None:
 		assert "Invalid value for '--shell': 'invalid' is not one of 'auto', 'all', 'zsh', 'bash', 'fish'." in result.output
 
 
-def hide_test_command_structure() -> None:
+def test_command_structure() -> None:
 	runner = CliRunner()
 	result = runner.invoke(main, ["self", "command-structure"])
-	mod_self = [m for n, m in sys.modules.items() if n.endswith("plugins/self")][0]
+	mod_self = plugin_manager.get_plugin("self").get_module()
 	assert result.exit_code == 0
 	assert result.output.startswith("opsi-cli")
 	assert f"━━ self ({mod_self.__version__})\n" in result.output
