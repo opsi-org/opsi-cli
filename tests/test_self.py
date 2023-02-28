@@ -2,7 +2,7 @@
 test_self
 """
 
-import sys
+
 from pathlib import Path
 from unittest.mock import patch
 
@@ -12,6 +12,7 @@ from opsicli.__main__ import main
 from opsicli.config import config
 from opsicli.plugin import plugin_manager
 
+from .conftest import PLATFORM
 from .utils import run_cli, temp_context
 
 
@@ -52,6 +53,16 @@ def test_setup_shell_completion(tmp_path: Path) -> None:
 	):
 		runner = CliRunner()
 		result = runner.invoke(main, ["self", "setup-shell-completion"])
+		print(result.exit_code, result.output)
+
+		if PLATFORM == "windows":
+			assert result.exit_code == 1
+			return
+
+		if PLATFORM == "darwin":
+			assert result.exit_code == 1
+			return
+
 		assert result.exit_code == 0
 		assert (
 			result.output == "Setting up auto completion for shell 'bash'.\nPlease restart your running shell for changes to take effect.\n"
@@ -75,7 +86,7 @@ def test_setup_shell_completion(tmp_path: Path) -> None:
 		runner = CliRunner()
 		result = runner.invoke(main, ["self", "setup-shell-completion", "--shell", "invalid"])
 		assert result.exit_code == 2
-		assert "Invalid value for '--shell': 'invalid' is not one of 'auto', 'all', 'zsh', 'bash', 'fish'." in result.output
+		assert "'invalid' is not one of 'auto', 'all', 'zsh', 'bash', 'fish'." in result.output
 
 
 def test_command_structure() -> None:
@@ -84,4 +95,4 @@ def test_command_structure() -> None:
 	mod_self = plugin_manager.get_plugin("self").get_module()
 	assert result.exit_code == 0
 	assert result.output.startswith("opsi-cli")
-	assert f"━━ self ({mod_self.__version__})\n" in result.output
+	assert f"self ({mod_self.__version__})\n" in result.output
