@@ -74,3 +74,12 @@ def test_setup_shell_completion(tmp_path: Path) -> None:
 		result = runner.invoke(main, ["self", "setup-shell-completion", "--shell", "invalid"])
 		assert result.exit_code == 2
 		assert "Invalid value for '--shell': 'invalid' is not one of 'auto', 'all', 'zsh', 'bash', 'fish'." in result.output
+
+
+def test_command_structure() -> None:
+	runner = CliRunner()
+	result = runner.invoke(main, ["self", "command-structure"])
+	mod_self = [m for n, m in sys.modules.items() if n.endswith("plugins/self")][0]
+	assert result.exit_code == 0
+	assert result.output.startswith("opsi-cli")
+	assert f"\n┣━━ self ({mod_self.__version__})\n" in result.output
