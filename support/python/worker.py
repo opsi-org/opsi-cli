@@ -13,28 +13,22 @@ def default_health_check() -> tuple[list[dict[str, Any]], Metadata]:
 
 	metadata = Metadata(
 		attributes=[
-			# Attribute(id="name", description=""),
 			Attribute(id="id", description=""),
-			# Attribute(id="description", description=""),
 			Attribute(id="status", description=""),
 			Attribute(id="message", description=""),
 			Attribute(id="partial_results", description=""),
 			Attribute(id="partial_results_status", description=""),
 			Attribute(id="partial_results_message", description=""),
-			# Attribute(id="upgrade_issue", description=""),
 		],
 	)
 	data = []
 	for i in service_data:
 		data.append(
 			{
-				# "name": i["check_name"],
 				"id": i["check_id"],
-				# "description": i["check_description"],
 				"status": i["check_status"],
 				"message": i["message"],
 				"err_status": i["check_status"],
-				# "upgrade_issue": i["upgrade_issue"],
 			}
 		)
 		for result in i["partial_results"]:
