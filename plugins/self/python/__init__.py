@@ -72,6 +72,13 @@ def cli() -> None:  # pylint: disable=unused-argument
 SUPPORTED_SHELLS = ["zsh", "bash", "fish"]
 
 
+def get_running_shell() -> str:
+	running_shell = psutil.Process(os.getpid()).parent().name()
+	if not running_shell or running_shell not in SUPPORTED_SHELLS:
+		running_shell = Path(os.environ["SHELL"]).name
+	return running_shell
+
+
 @cli.command(short_help="Setup shell completion")
 @click.option(
 	"--shell",
@@ -92,10 +99,7 @@ def setup_shell_completion(ctx: click.Context, shell: str) -> None:  # pylint: d
 	opsi-cli self setup_shell_completion subcommand.
 	"""
 	shells = []
-	running_shell = psutil.Process(os.getpid()).parent().name()
-	if not running_shell or running_shell not in SUPPORTED_SHELLS:
-		running_shell = Path(os.environ["SHELL"]).name
-
+	running_shell = get_running_shell()
 	if shell == "auto":
 		if running_shell not in SUPPORTED_SHELLS:
 			raise ValueError(f"Shell {running_shell!r} is not supported")
@@ -111,7 +115,7 @@ def setup_shell_completion(ctx: click.Context, shell: str) -> None:  # pylint: d
 	else:
 		shells = [shell]
 
-	entry_pattern = re.compile(rf"{START_MARKER}.*?{END_MARKER}\n")
+	entry_pattern = re.compile(rf"{START_MARKER}.*?{END_MARKER}\n", flags=re.DOTALL)
 	console = get_console()
 	for shell_ in shells:
 		console.print(f"Setting up auto completion for shell [bold cyan]{shell_!r}[/bold cyan].")
@@ -121,7 +125,7 @@ def setup_shell_completion(ctx: click.Context, shell: str) -> None:  # pylint: d
 		data = ""
 		if conf_file.exists():
 			data = conf_file.read_text(encoding="utf-8")
-		data = re.sub(entry_pattern, "", data, flags=re.DOTALL)
+		data = re.sub(entry_pattern, "", data)
 
 		comp_cls = get_completion_class(shell_)
 		if not comp_cls:
