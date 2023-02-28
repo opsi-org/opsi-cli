@@ -24,19 +24,6 @@ def cli() -> None:  # The docstring is used in opsi-cli support --help
 	logger.trace("support command")
 
 
-# @cli.command(short_help="Some example subcommand")
-# @click.argument("exampleargument", nargs=1, default="defaultvalue", type=str)
-# @click.option("--exampleoption", "-o", help="example for an option", is_flag=True, default=False)
-# def subcommand(exampleargument: str, exampleoption: bool) -> None:  # The name of the function is used as name for the subcommand
-# 	"""
-# 	This is a subcommand example to the support command
-# 	"""
-# 	logger.trace("support 'subcommand' subcommand")
-# 	print(f"support subcommand is called with values exampleargument={exampleargument}")
-# 	if exampleoption:
-# 		print("exampleoption was used.")
-
-
 @cli.command()
 def health_check() -> None:
 	data, metadata = default_health_check()
