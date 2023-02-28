@@ -178,6 +178,8 @@ def install(system: bool, binary_path: Path | None = None, no_add_to_path: bool 
 	logger.debug("PATH is '%s'", os.environ.get("PATH", ""))
 	if not no_add_to_path and str(binary_path.parent) not in os.environ.get("PATH", ""):
 		add_to_env_variable("PATH", str(binary_path.parent), system=system)
+	rich_print(f"opsi-cli installed to '{binary_path}'.")
+	rich_print(f"Run 'opsi-cli self setup-shell-completion' to setup shell completion.")
 
 
 @cli.command(short_help="Uninstall opsi-cli locally")
@@ -200,14 +202,14 @@ def uninstall(system: bool, binary_path: Path | None = None) -> None:
 	Uninstalls opsi-cli binary and configuration files from the system.
 	"""
 	binary_path = binary_path or get_binary_path(system=system)
-	logger.notice("Removing binary from %s", binary_path)
-	try:
+	if binary_path.exists():
+		logger.notice("Removing binary from %s", binary_path)
 		binary_path.unlink()
-	except FileNotFoundError:
-		logger.warning("'%s' not found!", binary_path)
+
 	config_file = config.config_file_system if system else config.config_file_user
 	if config_file and config_file.exists():
 		config_file.unlink()
+	rich_print("opsi-cli uninstalled.")
 
 
 @cli.command(name="command-structure", short_help="Print structure of opsi-cli commands")

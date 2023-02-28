@@ -66,7 +66,7 @@ def add_to_env_variable(key: str, value: str, system: bool = False) -> None:
 		return
 	call = f'setx {key} "%{key}%;{value}" /M' if system else f'setx {key} "%{key}%;{value}"'
 	logger.notice("Adding %s to Environment Variable %s", value, key)
-	subprocess.check_call(call, shell=True)
+	subprocess.check_output(call, shell=True)
 
 
 @contextmanager
