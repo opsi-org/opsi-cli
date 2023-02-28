@@ -15,7 +15,6 @@ from importlib.machinery import ModuleSpec
 from pathlib import Path
 from types import ModuleType
 from typing import Any
-from urllib.parse import quote, unquote
 
 from click import Command  # type: ignore[import]
 from opsicommon.logging import get_logger  # type: ignore[import]
@@ -71,7 +70,7 @@ class PluginImporter(BuiltinImporter):
 	def find_spec(cls, fullname: str, path: None = None, target: None = None) -> ModuleSpec | None:
 		if not fullname.startswith("opsicli.addon"):
 			return None
-		plugin_path = unquote(fullname.split("_", 1)[1]).replace("%2E", ".")
+		plugin_path = bytes.fromhex(fullname.split("_", 1)[1]).decode("utf-8")
 		init_path = os.path.join(plugin_path, "python", "__init__.py")
 		logger.debug("Searching spec for %s", init_path)
 		if not os.path.exists(init_path):
@@ -93,7 +92,7 @@ class PluginManager(metaclass=Singleton):  # pylint: disable=too-few-public-meth
 
 	@classmethod
 	def module_name(cls, plugin_path: Path) -> str:
-		quoted_path = quote(str(plugin_path), safe="").replace(".", "%2E")
+		quoted_path = str(plugin_path).encode("utf-8").hex()
 		return f"opsicli.addon_{quoted_path}"
 
 	@property
