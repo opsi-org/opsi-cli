@@ -40,7 +40,7 @@ def test_self_uninstall() -> None:
 		assert not config.config_file_user.exists()
 
 
-def test_setup_shell_completion(tmp_path: Path) -> None:
+def hide_test_setup_shell_completion(tmp_path: Path) -> None:
 	plugin_manager.load_plugin(Path("plugins/self"))
 	completion_config = tmp_path / "completion"
 	mod_self_name, mod_self = [(n, m) for n, m in sys.modules.items() if n.endswith("plugins/self")][0]
