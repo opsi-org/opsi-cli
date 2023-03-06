@@ -1,10 +1,11 @@
 """
-template for opsi-cli plugins
+opsi-cli support plugin
 """
 
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger  # type: ignore[import]
 
+from opsicli.io import Attribute, Metadata
 from opsicli.io import write_output
 from opsicli.plugin import OPSICLIPlugin
 
@@ -26,7 +27,19 @@ def cli() -> None:  # The docstring is used in opsi-cli support --help
 
 @cli.command()
 def health_check() -> None:
-	data, metadata = default_health_check()
+
+	metadata = Metadata(
+		attributes=[
+			Attribute(id="id", description=""),
+			Attribute(id="status", description=""),
+			Attribute(id="message", description=""),
+			Attribute(id="partial_results", description=""),
+			Attribute(id="partial_results_status", description=""),
+			Attribute(id="partial_results_message", description=""),
+		],
+	)
+
+	data = default_health_check()
 
 	write_output(data=data, metadata=metadata)
 
