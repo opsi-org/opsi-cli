@@ -2,6 +2,7 @@
 test_config
 """
 
+import json
 from pathlib import Path
 from typing import Type
 
@@ -136,3 +137,14 @@ def test_service_config() -> None:
 		(exit_code, _) = run_cli(["config", "service", "remove", "test"])
 		assert exit_code == 0
 		assert not any(service.name == "test" for service in config.get_values().get("services", []))
+
+
+def test_metadata_bool_flag() -> None:
+	config = Config()
+
+	with temp_context() as tempdir:
+		conffile = Path(tempdir) / "conffile.conf"
+		config.config_file_user = conffile
+		exit_code, output = run_cli(["--metadata", "--output-format=json", "config", "service", "list"])
+		assert exit_code == 0
+		assert True if "metadata" in json.loads(output) else False
