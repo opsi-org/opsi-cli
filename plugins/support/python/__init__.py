@@ -12,7 +12,7 @@ from opsicli.plugin import OPSICLIPlugin
 from .worker import default_health_check
 
 __version__ = "0.1.0"  # Use this field to track the current version number
-__description__ = ""
+__description__ = "This command can be used to identify potential problems in an opsi environment"
 
 
 logger = get_logger("opsicli")
