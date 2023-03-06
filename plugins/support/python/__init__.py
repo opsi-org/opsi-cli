@@ -1,5 +1,5 @@
 """
-opsi-cli support plugin
+This command can be used to identify potential problems in an opsi environment
 """
 
 import rich_click as click  # type: ignore[import]
