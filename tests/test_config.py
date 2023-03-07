@@ -145,6 +145,14 @@ def test_metadata_bool_flag() -> None:
 	with temp_context() as tempdir:
 		conffile = Path(tempdir) / "conffile.conf"
 		config.config_file_user = conffile
-		exit_code, output = run_cli(["--metadata", "--output-format=json", "config", "service", "list"])
+		exit_code, _ = run_cli(["config", "set", "metadata", "true"])
 		assert exit_code == 0
+		assert conffile.exists()
+		exit_code, output = run_cli(["--output-format=json", "config", "service", "list"])
+		assert exit_code == 0
+		assert conffile.exists()
 		assert True if "metadata" in json.loads(output) else False
+		exit_code, output = run_cli(["--output-format=json", "--no-metadata", "config", "service", "list"])
+		assert exit_code == 0
+		assert conffile.exists()
+		assert True if "metadata" not in json.loads(output) else False
