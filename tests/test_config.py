@@ -139,20 +139,19 @@ def test_service_config() -> None:
 		assert not any(service.name == "test" for service in config.get_values().get("services", []))
 
 
-def test_metadata_bool_flag() -> None:
+@pytest.mark.parametrize(
+	"config_value, call_parameter",
+	(("true", "--no-metadata"), ("false", "--metadata")),
+)
+def test_metadata_bool_flag(config_value: str, call_parameter: str) -> None:
 	config = Config()
 
 	with temp_context() as tempdir:
 		conffile = Path(tempdir) / "conffile.conf"
 		config.config_file_user = conffile
-		exit_code, _ = run_cli(["config", "set", "metadata", "true"])
+		exit_code, _ = run_cli(["config", "set", "metadata", config_value])
 		assert exit_code == 0
-		assert conffile.exists()
-		exit_code, output = run_cli(["--output-format=json", "config", "service", "list"])
+		exit_code, output = run_cli(["--output-format=json", call_parameter, "config", "service", "list"])
 		assert exit_code == 0
-		assert conffile.exists()
-		assert True if "metadata" in json.loads(output) else False
-		exit_code, output = run_cli(["--output-format=json", "--no-metadata", "config", "service", "list"])
-		assert exit_code == 0
-		assert conffile.exists()
-		assert True if "metadata" not in json.loads(output) else False
+		print("config_value: ", config_value, "\ncall_parameter: ", call_parameter, "\noutput: ", output, "\n")
+		assert (call_parameter == "--metadata") == ("metadata" in output)
