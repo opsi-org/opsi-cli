@@ -13,7 +13,7 @@ pytest-darwin:
   script:
     - poetry lock --no-update
     - poetry install
-    - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_darwin.xml --cov-append --cov opsicli --cov-report term --cov-report xml -v tests
+    - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_darwin.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - mv .coverage coverage_darwin
   artifacts:
     name: 'opsi-cli_test_darwin'
@@ -30,7 +30,7 @@ pytest-windows:
   script:
     - poetry lock --no-update
     - poetry install
-    - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_windows.xml --cov-append --cov opsicli --cov-report term --cov-report xml -v tests
+    - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_windows.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - Rename-Item -Path .coverage -NewName coverage_windows
   artifacts:
     name: 'opsi-cli_test_windows'
@@ -42,10 +42,46 @@ pytest-windows:
 
 pytest-linux:
   stage: test_python
+  services:
+    - name: mysql:latest
+      command:
+        - --max_connections=1000
+        - --default-authentication-plugin=mysql_native_password
+    - name: redislabs/redistimeseries:latest
+      alias: redis
+  variables:
+    MYSQL_ROOT_PASSWORD: "opsi"
+    MYSQL_DATABASE: "opsitest"
+    MYSQL_USER: "opsi"
+    MYSQL_PASSWORD: "opsi"
+    MYSQL_HOST: mysql
+    REDIS_HOST: redis
+    OPSI_ADMIN_PASSWORD: vhahd8usaz  # also hardcoded in tests/utils.py
+    OPSI_HOST_ROLE: configserver
+    OPSI_HOST_ID: "test.uib.gmbh"
+    OPSI_TFTPBOOT: "false"
+    OPSICONFD_RESTORE_BACKUP_URL: "http://binaryindex.uib.gmbh/development/testbackup/all/all/testbackup_all_all_1.1.tar.gz"
+  image:
+    name: docker.uib.gmbh/opsi/opsi-server:4.3-development
+    entrypoint: [""]
   script:
-    - poetry lock --no-update
+    - bash /entrypoint.sh &
+    - apt update
+    - apt --yes install --no-install-recommends curl build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev libsqlite3-dev wget libbz2-dev
+    - wget https://www.python.org/ftp/python/3.11.1/Python-3.11.1.tgz
+    - tar -xvf Python-3.11.1.tgz
+    - cd Python-3.11.1
+    - ./configure > /dev/null
+    - make -j 2 build_all > /dev/null
+    - make EXTRATESTOPTS=--list-tests altinstall
+    - cd ..
+    - python3.11 -m pip install certifi
+    - curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetry.py | SSL_CERT_FILE=$(python3.11 -c "import certifi;print(certifi.where())") python3.11 - --version=1.3.2
+    - ln -s /root/.local/bin/poetry /usr/local/bin/poetry
+    - while ! nc -v -z -w3 localhost 4447 > /dev/null 2>&1; do sleep 1; done
+    - source /entrypoint.sh set_environment_vars  # to set hosts for redis/grafana
     - poetry install
-    - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_linux.xml --cov-append --cov opsicli --cov-report term --cov-report xml -v tests
+    - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_linux.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - mv .coverage coverage_linux
   artifacts:
     name: 'opsi-cli_test_linux'
@@ -75,7 +111,9 @@ pylint-pytest:
     - poetry run mypy opsicli tests
     - rm -rf .mypy_cache
     - poetry run mypy --explicit-package-bases plugins
+    # Convert file.path to a relative path in coverage databases
     - for db in coverage_*; do sqlite3 $db 'update file set path=replace(substr(path,instr(path,"opsicli")),"\","/");'; done
+    - for db in coverage_*; do sqlite3 $db 'update file set path=replace(substr(path,instr(path,"plugins")),"\","/");'; done
     - echo -e '[run]\nrelative_files = True\n' > .coveragerc
     - poetry run coverage combine coverage_*
     - poetry run coverage xml

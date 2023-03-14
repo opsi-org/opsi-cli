@@ -14,6 +14,7 @@ import warnings
 from typing import Any
 
 import pytest
+import requests  # type: ignore[import]
 import urllib3  # type: ignore[import]
 from _pytest.config import Config as PytestConfig
 from _pytest.logging import LogCaptureHandler
@@ -61,9 +62,18 @@ def admin_permissions() -> bool:
 		return ctypes.windll.shell32.IsUserAnAdmin() != 0  # type: ignore[attr-defined]
 
 
+def testcontainer_running() -> bool:
+	try:
+		result = requests.get("https://localhost:4447/public", timeout=5, verify=False)
+		return result.status_code == 200
+	except requests.exceptions.ConnectionError:
+		return False
+
+
 PLATFORM = platform.system().lower()
 RUNNING_IN_DOCKER = running_in_docker()
 ADMIN_PERMISSIONS = admin_permissions()
+TESTCONTAINER_RUNNING = testcontainer_running()
 
 
 def pytest_runtest_setup(item: Item) -> None:
@@ -77,6 +87,9 @@ def pytest_runtest_setup(item: Item) -> None:
 			return
 		if marker.name == "admin_permissions" and not ADMIN_PERMISSIONS:
 			pytest.skip("No admin permissions")
+			return
+		if marker.name == "requires_testcontainer" and not TESTCONTAINER_RUNNING:
+			pytest.skip("Cannot run without testcontainer")
 			return
 		if marker.name in ("windows", "linux", "darwin", "posix"):
 			if marker.name == "posix":
