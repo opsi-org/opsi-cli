@@ -14,7 +14,6 @@ from click.testing import CliRunner  # type: ignore[import]
 
 from opsicli.__main__ import main
 from opsicli.config import config
-from opsicli.plugin import plugin_manager
 
 runner = CliRunner()
 
@@ -39,7 +38,6 @@ def temp_context() -> Generator[Path, None, None]:
 			config.plugin_system_dir = tempdir_path / "system_plugins"
 			yield tempdir_path
 	finally:
-		plugin_manager.unload_plugins()
 		config.set_values(values)
 
 
