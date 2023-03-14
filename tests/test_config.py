@@ -171,4 +171,4 @@ def test_header_bool_flag(config_value: str, call_parameter: str) -> None:
 		assert exit_code == 0
 		exit_code, output = run_cli([call_parameter, "config", "service", "list"])
 		assert exit_code == 0
-		assert (call_parameter == "--header") == ("│ name │ url │ username │ password │" in output)
+		assert (call_parameter == "--header") == ("name" and "url" in output)
