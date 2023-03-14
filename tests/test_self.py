@@ -2,10 +2,10 @@
 test_self
 """
 
-
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from click.testing import CliRunner
 
 from opsicli.__main__ import main
@@ -41,6 +41,7 @@ def test_self_uninstall() -> None:
 		assert not config.config_file_user.exists()
 
 
+@pytest.mark.posix
 def test_setup_shell_completion(tmp_path: Path) -> None:
 	plugin = plugin_manager.load_plugin(Path("plugins/self"))
 	completion_config = tmp_path / "completion"

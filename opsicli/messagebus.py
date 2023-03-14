@@ -39,9 +39,12 @@ def log_message(message: Message) -> None:
 	for key, value in message.to_dict().items():
 		debug_string += f"\t{key}: {value}\n"
 	logger.debug(debug_string)
+	# logger.devel(debug_string)  # TODO: for test_messagebus.py
 
 
 class MessagebusConnection(MessagebusListener):
+	terminal_id: str
+
 	def __init__(self) -> None:
 		MessagebusListener.__init__(self)
 		self.should_close = False
@@ -49,7 +52,6 @@ class MessagebusConnection(MessagebusListener):
 		self.channel_subscription_event = Event()
 		self.terminal_open_event = Event()
 		self.service_client = get_service_connection()
-		self.terminal_id: str | None = None
 
 	def message_received(self, message: Message) -> None:
 		log_message(message)
@@ -74,9 +76,15 @@ class MessagebusConnection(MessagebusListener):
 			sys.stdout.flush()  # This actually pops the buffer to terminal (without waiting for '\n')
 			self.should_close = True
 
-	def transmit_input(self, term_write_channel: str) -> None:
+	def transmit_input(self, term_write_channel: str, data: bytes | None = None) -> None:
 		if not self.terminal_id:
 			raise ValueError("Terminal id not set.")
+		if data:
+			tdw = TerminalDataWriteMessage(sender="@", channel=term_write_channel, terminal_id=self.terminal_id, data=data)
+			log_message(tdw)
+			self.service_client.messagebus.send_message(tdw)
+			return
+		# If no data is given, transmit from stdin until EOF
 		while not self.should_close:
 			if platform.system().lower() == "windows":
 				data = msvcrt.getch()  # type: ignore
@@ -85,56 +93,61 @@ class MessagebusConnection(MessagebusListener):
 			if not data:  # or data == b"\x03":  # Ctrl+C
 				self.should_close = True
 				break
-			tdw = TerminalDataWriteMessage(sender="@", channel=term_write_channel, terminal_id=self.terminal_id, data=data)
-			log_message(tdw)
-			self.service_client.messagebus.send_message(tdw)
+			self.transmit_input(term_write_channel, data)
+
+	def open_new_terminal(self, term_read_channel: str, term_write_channel: str) -> None:
+		if not self.channel_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
+			raise ConnectionError("Could not subscribe to terminal session channel")
+		size = shutil.get_terminal_size()
+		tor = TerminalOpenRequestMessage(
+			sender="@",
+			channel=term_write_channel,
+			terminal_id=self.terminal_id,
+			back_channel=term_read_channel,
+			rows=size.lines,
+			cols=size.columns,
+		)
+		logger.notice("Requesting to open new terminal with id %s ", self.terminal_id)
+		log_message(tor)
+		self.service_client.messagebus.send_message(tor)
+
+	def get_terminal_channel_pair(self, target: str, open_new_terminal: bool = True) -> tuple[str, str]:
+		term_read_channel = f"session:{self.terminal_id}"
+		if target.lower() == "configserver":
+			term_write_channel = f"{self.service_worker_channel}:terminal"
+		else:
+			term_write_channel = f"host:{target}"
+
+		self.channel_subscription_event.clear()
+		csr = ChannelSubscriptionRequestMessage(sender="@", operation="add", channels=[term_read_channel], channel="service:messagebus")
+		logger.notice("Requesting access to terminal session channel")
+		log_message(csr)
+		self.service_client.messagebus.send_message(csr)
+
+		if open_new_terminal:
+			self.open_new_terminal(term_read_channel, term_write_channel)
+		else:
+			logger.notice("Requesting access to existing terminal with id %s ", self.terminal_id)
+
+		if not self.terminal_open_event.wait(CHANNEL_SUB_TIMEOUT):
+			raise ConnectionError("Could not subscribe to terminal session channel")
+		return (term_read_channel, term_write_channel)
+
+	def prepare_terminal_connection(self, term_id: str | None = None) -> None:
+		if term_id:
+			self.terminal_id = term_id
+		else:
+			self.terminal_id = str(uuid4())
+		self.service_client.connect()
+		self.service_client.connect_messagebus()
 
 	def run_terminal(self, target: str, term_id: Optional[str] = None) -> None:
-		open_new_terminal = False
-		self.terminal_id = term_id
-		if not self.terminal_id:
-			self.terminal_id = str(uuid4())
-			open_new_terminal = True
-
-		if not self.service_client.connected:
-			self.service_client.connect()
-		self.service_client.connect_messagebus()
+		self.prepare_terminal_connection(term_id)
 		with self.register(self.service_client.messagebus):
 			# If service_worker_channel is not set, wait for channel_subscription_event
 			if not self.service_worker_channel and not self.channel_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
 				raise ConnectionError("Failed to subscribe to session channel.")
-			term_read_channel = f"session:{self.terminal_id}"
-			if target.lower() == "configserver":
-				term_write_channel = f"{self.service_worker_channel}:terminal"
-			else:
-				term_write_channel = f"host:{target}"
-
-			self.channel_subscription_event.clear()
-			csr = ChannelSubscriptionRequestMessage(sender="@", operation="add", channels=[term_read_channel], channel="service:messagebus")
-			logger.notice("Requesting access to terminal session channel")
-			log_message(csr)
-			self.service_client.messagebus.send_message(csr)
-
-			if open_new_terminal:
-				if not self.channel_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
-					raise ConnectionError("Could not subscribe to terminal session channel")
-				size = shutil.get_terminal_size()
-				tor = TerminalOpenRequestMessage(
-					sender="@",
-					channel=term_write_channel,
-					terminal_id=self.terminal_id,
-					back_channel=term_read_channel,
-					rows=size.lines,
-					cols=size.columns,
-				)
-				logger.notice("Requesting to open new terminal with id %s ", self.terminal_id)
-				log_message(tor)
-				self.service_client.messagebus.send_message(tor)
-			else:
-				logger.notice("Requesting access to existing terminal with id %s ", self.terminal_id)
-
-			if not self.terminal_open_event.wait(CHANNEL_SUB_TIMEOUT):
-				raise ConnectionError("Could not subscribe to terminal session channel")
+			(_, term_write_channel) = self.get_terminal_channel_pair(target, open_new_terminal=term_id is None)
 			logger.notice("Return to local shell with 'exit' or 'Ctrl+D'")
 			with stream_wrap():
 				self.transmit_input(term_write_channel)

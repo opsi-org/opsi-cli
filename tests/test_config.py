@@ -119,6 +119,7 @@ def test_read_write_config() -> None:
 		assert exit_code == 0
 		config.read_config_files()
 		assert config.get_values().get("output_format") == "auto"
+		assert config.output_format == "auto"
 
 
 def test_service_config() -> None:
