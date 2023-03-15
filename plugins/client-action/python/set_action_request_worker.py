@@ -4,8 +4,8 @@ opsi-cli basic command line interface for opsi
 client_action_worker
 """
 
-from opsicommon.logging import get_logger  # type: ignore[import]
-from opsicommon.objects import ProductOnClient  # type: ignore[import]
+from opsicommon.logging import get_logger
+from opsicommon.objects import ProductOnClient
 
 from opsicli.config import config
 
@@ -44,10 +44,7 @@ logger = get_logger("opsicli")
 class SetActionRequestWorker(ClientActionWorker):
 	def __init__(self, **kwargs: str) -> None:
 		super().__init__(
-			kwargs.get("clients"),
-			kwargs.get("client_groups"),
-			kwargs.get("exclude_clients"),
-			kwargs.get("exclude_client_groups")
+			kwargs.get("clients"), kwargs.get("client_groups"), kwargs.get("exclude_clients"), kwargs.get("exclude_client_groups")
 		)
 		self.products: list[str] = []
 		self.products_with_only_uninstall: list[str] = []
@@ -84,7 +81,7 @@ class SetActionRequestWorker(ClientActionWorker):
 		exclude_products_string: str | None = None,
 		product_groups_string: str | None = None,
 		exclude_product_groups_string: str | None = None,
-		use_default_excludes: bool = True
+		use_default_excludes: bool = True,
 	) -> None:
 		exclude_products = []
 		if use_default_excludes:
@@ -108,22 +105,19 @@ class SetActionRequestWorker(ClientActionWorker):
 		self.products_with_only_uninstall = [
 			entry["id"]
 			for entry in product_objects
-			if entry.get("uninstallScript") and
-			not entry.get("setupScript") and
-			not entry.get("onceScript") and
-			not entry.get("customScript") and
-			not entry.get("updateScript") and
-			not entry.get("alwaysScript") and
-			not entry.get("userLoginScript") and
-			entry["id"] in self.products
+			if entry.get("uninstallScript")
+			and not entry.get("setupScript")
+			and not entry.get("onceScript")
+			and not entry.get("customScript")
+			and not entry.get("updateScript")
+			and not entry.get("alwaysScript")
+			and not entry.get("userLoginScript")
+			and entry["id"] in self.products
 		]
 		logger.notice("Handling products %s", self.products)
 
 	def set_single_action_request(
-		self,
-		product_on_client: dict[str, str],
-		request_type: str | None = None,
-		force: bool = False
+		self, product_on_client: dict[str, str], request_type: str | None = None, force: bool = False
 	) -> list[dict[str, str]]:
 		if not force and product_on_client["actionRequest"] not in (None, "none"):
 			logger.info(
@@ -133,7 +127,11 @@ class SetActionRequestWorker(ClientActionWorker):
 				product_on_client["actionRequest"],
 			)
 			return []  # existing actionRequests are left untouched
-		if request_type and request_type.lower() != "none" and request_type not in self.product_action_scripts[product_on_client["productId"]]:
+		if (
+			request_type
+			and request_type.lower() != "none"
+			and request_type not in self.product_action_scripts[product_on_client["productId"]]
+		):
 			logger.warning(
 				"Skipping %s %s as the package does not have a script for: %s",
 				product_on_client["productId"],
@@ -147,12 +145,12 @@ class SetActionRequestWorker(ClientActionWorker):
 				"Setting '%s' ProductActionRequest with Dependencies: %s -> %s",
 				request_type or self.request_type,
 				product_on_client["productId"],
-				product_on_client["clientId"]
+				product_on_client["clientId"],
 			)
 			if not config.dry_run:
 				self.service.jsonrpc(
 					"setProductActionRequestWithDependencies",
-					[product_on_client["productId"], product_on_client["clientId"], request_type or self.request_type]
+					[product_on_client["productId"], product_on_client["clientId"], request_type or self.request_type],
 				)
 			return []  # no need to update the POC
 		logger.notice(
@@ -161,16 +159,13 @@ class SetActionRequestWorker(ClientActionWorker):
 			product_on_client["productId"],
 			product_on_client["clientId"],
 		)
+		# Remark: request_type="none" instead of None for compatibility with file backend
 		if not config.dry_run:
 			product_on_client["actionRequest"] = request_type or self.request_type
 		return [product_on_client]
 
 	def set_action_requests_for_all(
-		self,
-		clients: list[str],
-		products: list[str],
-		request_type: str | None = None,
-		force: bool = False
+		self, clients: list[str], products: list[str], request_type: str | None = None, force: bool = False
 	) -> list[dict[str, str]]:
 		new_pocs = []
 		existing_pocs: dict[str, dict[str, dict[str, str]]] = {}
@@ -183,13 +178,16 @@ class SetActionRequestWorker(ClientActionWorker):
 			existing_pocs[poc["clientId"]].update({poc["productId"]: poc})
 		for client in clients:
 			for product in products:
-				poc = existing_pocs.get(client, {}).get(product, None) or ProductOnClient(
-					productId=product,
-					productType="LocalbootProduct",
-					clientId=client,
-					installationStatus="not_installed",
-					actionRequest=None,
-				).to_hash()
+				poc = (
+					existing_pocs.get(client, {}).get(product, None)
+					or ProductOnClient(
+						productId=product,
+						productType="LocalbootProduct",
+						clientId=client,
+						installationStatus="not_installed",
+						actionRequest=None,
+					).to_hash()
+				)
 				new_pocs.extend(self.set_single_action_request(poc, request_type or self.request_type, force=force))
 		return new_pocs
 
@@ -203,7 +201,7 @@ class SetActionRequestWorker(ClientActionWorker):
 			exclude_products_string=kwargs.get("exclude_products"),
 			product_groups_string=kwargs.get("product_groups"),
 			exclude_product_groups_string=kwargs.get("exclude_product_groups"),
-			use_default_excludes=bool(kwargs.get("where_outdated", False)) or bool(kwargs.get("where_failed", False))
+			use_default_excludes=bool(kwargs.get("where_outdated", False)) or bool(kwargs.get("where_failed", False)),
 		)
 		if not self.products:
 			raise ValueError("No products selected")
@@ -218,7 +216,8 @@ class SetActionRequestWorker(ClientActionWorker):
 				[[], {"clientId": self.clients or None, "productType": "LocalbootProduct", "productId": self.products}],
 			):
 				logger.debug(
-					"Checking %s (%s) on %s", entry["productId"],
+					"Checking %s (%s) on %s",
+					entry["productId"],
 					f"{entry['productVersion']}-{entry['packageVersion']}",
 					entry["clientId"],
 				)
@@ -234,8 +233,9 @@ class SetActionRequestWorker(ClientActionWorker):
 					new_pocs.extend(self.set_single_action_request(entry))
 					modified_clients.add(entry["clientId"])
 				elif (
-					kwargs.get("where_outdated") and entry["installationStatus"] == "installed" and
-					f"{entry['productVersion']}-{entry['packageVersion']}" != available
+					kwargs.get("where_outdated")
+					and entry["installationStatus"] == "installed"
+					and f"{entry['productVersion']}-{entry['packageVersion']}" != available
 				):
 					new_pocs.extend(self.set_single_action_request(entry))
 					modified_clients.add(entry["clientId"])
