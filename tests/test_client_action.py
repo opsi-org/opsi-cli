@@ -43,6 +43,7 @@ def test_set_action_request_single() -> None:
 		connection.jsonrpc("host_delete", params=[CLIENT2])
 
 
+@pytest.mark.requires_testcontainer
 def test_set_action_request_group() -> None:
 	with container_connection() as connection:
 		connection.jsonrpc("host_createOpsiClient", params=[CLIENT1])
