@@ -11,7 +11,6 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
 
 import psutil  # type: ignore[import]
 import rich_click as click  # type: ignore[import]
@@ -93,8 +92,14 @@ def get_running_shell() -> str:
 	default="auto",
 	show_default=True,
 )
+@click.option(
+	"--completion-file",
+	type=click.Path(file_okay=False, dir_okay=True, path_type=Path),
+	help="Use this file to store shell completions instead of the shell-default.",
+	hidden=True,
+)
 @click.pass_context
-def setup_shell_completion(ctx: click.Context, shell: str) -> None:  # pylint: disable=too-many-branches
+def setup_shell_completion(ctx: click.Context, shell: str, completion_file: Path) -> None:  # pylint: disable=too-many-branches
 	"""
 	opsi-cli self setup_shell_completion subcommand.
 	"""
@@ -114,12 +119,13 @@ def setup_shell_completion(ctx: click.Context, shell: str) -> None:  # pylint: d
 			raise ValueError("No supported shell found")
 	else:
 		shells = [shell]
-
+	if len(shells) > 1 and completion_file:
+		raise RuntimeError(f"Attempting to write multiple shell completions ({shells}) into one file {completion_file}")
 	entry_pattern = re.compile(rf"{START_MARKER}.*?{END_MARKER}\n", flags=re.DOTALL)
 	console = get_console()
 	for shell_ in shells:
 		console.print(f"Setting up auto completion for shell [bold cyan]{shell_!r}[/bold cyan].")
-		conf_file = get_completion_config_path(shell_)
+		conf_file = completion_file or get_completion_config_path(shell_)
 		if not conf_file.parent.exists():
 			conf_file.parent.mkdir(parents=True)
 		data = ""
@@ -234,8 +240,9 @@ def command_structure() -> None:
 			tree.add(item.name)
 
 	tree = Tree(f"opsi-cli [grey53]({opsi_cli_version})[/grey53]", guide_style="bold bright_blue")
-	for cmd in sorted([plugin for plugin in plugin_manager.plugins if plugin.cli], key=lambda plugin: plugin.cli.name):  # type: ignore
-		add_sub_structure(cmd, tree)
+	for plugin_id in sorted(plugin_manager.plugins):
+		plugin = plugin_manager.load_plugin(plugin_id)
+		add_sub_structure(plugin, tree)
 	rich_print(tree)
 
 

@@ -49,11 +49,6 @@ class OPSICLIPlugin:
 		"""Called after loading the plugin"""
 		return
 
-	# TODO: obsolete?
-	def on_unload(self) -> None:  # pylint: disable=unused-argument
-		"""Called before unloading the plugin"""
-		return
-
 	def __str__(self) -> str:
 		"""Return information in string form"""
 		return f"{self.path.name}_{self.version}({self.flags})"
