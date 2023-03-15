@@ -31,10 +31,11 @@ def get_service_credentials_from_backend() -> tuple[str, str]:
 	dispatch_conf = Path("/etc/opsi/backendManager/dispatch.conf")
 	backend = "mysql"
 	backend_pattern = re.compile(r"backend_.*:\s*(\S+)")
-	for line in dispatch_conf.read_text(encoding="utf-8").splitlines():
-		match = re.search(backend_pattern, line)
-		if match:
-			backend = match.group(1).replace(",", "").strip()
+	if dispatch_conf.exists():  # it not we are on opsi4.3 -> use mysql
+		for line in dispatch_conf.read_text(encoding="utf-8").splitlines():
+			match = re.search(backend_pattern, line)
+			if match:
+				backend = match.group(1).replace(",", "").strip()
 
 	if backend == "file":
 		for file in Path("/var/lib/opsi/config/depots").glob("*.ini"):

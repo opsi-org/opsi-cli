@@ -45,10 +45,10 @@ input_output_testdata = (
 
 @pytest.mark.parametrize(("output_format", "string", "data"), input_output_testdata)
 def test_output(output_format: str, string: str, data: Any, capsys: CaptureFixture[str]) -> None:
-	old_output_format = config.output_format
-	config.output_format = output_format
+	old_output_format = config.get_values().get("output_format")
+	config.set_values({"output_format": output_format})
 	write_output(data)
-	config.output_format = old_output_format
+	config.set_values({"output_format": old_output_format})
 	captured = capsys.readouterr()
 	assert captured.out == string
 
@@ -70,6 +70,7 @@ def test_output_config(output_format: str, startstrings: list[str]) -> None:
 	assert exit_code == 0
 	assert any(output.startswith(startstring) for startstring in startstrings)
 	print("\n\n")
+	config.set_values({"output_format": "auto"})  # To not affect following tests
 
 
 @pytest.mark.parametrize(("input_format", "string", "data"), input_output_testdata)

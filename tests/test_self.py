@@ -2,8 +2,9 @@
 test_self
 """
 
-
 from pathlib import Path
+
+import pytest
 
 from opsicli.config import config
 from opsicli.plugin import plugin_manager
@@ -37,6 +38,7 @@ def test_self_uninstall() -> None:
 		assert not config.config_file_user.exists()
 
 
+@pytest.mark.posix
 def test_setup_shell_completion(tmp_path: Path) -> None:
 	plugin = plugin_manager.load_plugin("self")
 	completion_config = tmp_path / "completion"
