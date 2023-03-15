@@ -24,20 +24,22 @@ def test_set_action_request_single() -> None:
 
 		(code, _) = run_cli(cmd)
 		assert code == 0
-		poc = connection.jsonrpc(
+		pocs = connection.jsonrpc(
 			"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
 		)
-		for index in range(4):
-			assert poc[index].get("actionRequest") == "setup"
+		assert len(pocs) == 4
+		for poc in pocs:
+			assert poc.get("actionRequest") == "setup"
 
 		cmd += ["--request-type", "none"]
 		(code, _) = run_cli(cmd)
 		assert code == 0
-		poc = connection.jsonrpc(
+		pocs = connection.jsonrpc(
 			"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
 		)
-		for index in range(4):
-			assert poc[index].get("actionRequest") in ("none", None)
+		assert len(pocs) == 4
+		for poc in pocs:
+			assert poc.get("actionRequest") in ("none", None)
 
 		connection.jsonrpc("host_delete", params=[CLIENT1])
 		connection.jsonrpc("host_delete", params=[CLIENT2])
@@ -54,24 +56,26 @@ def test_set_action_request_group() -> None:
 		connection.jsonrpc("group_createObjects", params=[{"id": P_GROUP, "type": "ProductGroup"}])
 		connection.jsonrpc("objectToGroup_create", params=["ProductGroup", P_GROUP, PRODUCT1])
 		connection.jsonrpc("objectToGroup_create", params=["ProductGroup", P_GROUP, PRODUCT2])
-		cmd = ["client-action", "--client-groups", H_GROUP, "set-action-request", "--product-groups", P_GROUP]
+		cmd = ["-l6", "client-action", "--client-groups", H_GROUP, "set-action-request", "--product-groups", P_GROUP]
 
 		(code, _) = run_cli(cmd)
 		assert code == 0
-		poc = connection.jsonrpc(
+		pocs = connection.jsonrpc(
 			"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
 		)
-		for index in range(4):
-			assert poc[index].get("actionRequest") == "setup"
+		assert len(pocs) == 4
+		for poc in pocs:
+			assert poc.get("actionRequest") == "setup"
 
 		cmd += ["--request-type", "none"]
 		(code, _) = run_cli(cmd)
 		assert code == 0
-		poc = connection.jsonrpc(
+		pocs = connection.jsonrpc(
 			"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
 		)
-		for index in range(4):
-			assert poc[index].get("actionRequest") in ("none", None)
+		assert len(pocs) == 4
+		for poc in pocs:
+			assert poc.get("actionRequest") in ("none", None)
 
 		connection.jsonrpc("group_deleteObjects", params=[{"id": H_GROUP}])
 		connection.jsonrpc("group_deleteObjects", params=[{"id": P_GROUP}])
@@ -99,8 +103,70 @@ def test_set_action_request_where_failed() -> None:
 
 		(code, _) = run_cli(["client-action", "--clients", CLIENT1, "set-action-request", "--where-failed", "--setup-on-action", PRODUCT2])
 		assert code == 0
-		poc = connection.jsonrpc("productOnClient_getObjects", params=[[], {"clientId": CLIENT1, "productId": [PRODUCT1, PRODUCT2]}])
-		for index in range(2):
-			assert poc[index].get("actionRequest") == "setup"
+		pocs = connection.jsonrpc("productOnClient_getObjects", params=[[], {"clientId": CLIENT1, "productId": [PRODUCT1, PRODUCT2]}])
+		assert len(pocs) == 2
+		for poc in pocs:
+			assert poc.get("actionRequest") == "setup"
+
+		connection.jsonrpc("host_delete", params=[CLIENT1])
+
+
+@pytest.mark.requires_testcontainer
+def test_set_action_request_excludes() -> None:
+	with container_connection() as connection:
+		connection.jsonrpc("host_createOpsiClient", params=[CLIENT1])
+		connection.jsonrpc("host_createOpsiClient", params=[CLIENT2])
+		connection.jsonrpc("group_createHostGroup", params=[H_GROUP])
+		connection.jsonrpc("objectToGroup_create", params=["HostGroup", H_GROUP, CLIENT2])
+		connection.jsonrpc("group_createObjects", params=[{"id": P_GROUP, "type": "ProductGroup"}])
+		connection.jsonrpc("objectToGroup_create", params=["ProductGroup", P_GROUP, PRODUCT2])
+		cmd = [
+			"client-action",
+			f"--clients={CLIENT1},{CLIENT2}",
+			"--exclude-clients=nonexistent.test.tld",
+			f"--exclude-client-groups={H_GROUP}",
+			"set-action-request",
+			f"--products={PRODUCT1},{PRODUCT2}",
+			"--exclude-products=nonexistent",
+			f"--exclude-product-groups={P_GROUP}",
+		]
+
+		(code, output) = run_cli(cmd)
+		print(output)
+		assert code == 0
+		pocs = connection.jsonrpc(
+			"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
+		)
+		for poc in pocs:
+			if poc.get("clientId") == CLIENT1 and poc.get("productId") == PRODUCT1:
+				assert poc.get("actionRequest") == "setup"
+			else:
+				assert poc.get("actionRequest") in (None, "none")
+
+		cmd += ["--request-type", "none"]
+		(code, _) = run_cli(cmd)
+		assert code == 0
+		pocs = connection.jsonrpc(
+			"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
+		)
+		for poc in pocs:
+			assert poc.get("actionRequest") in ("none", None)
+
+		connection.jsonrpc("group_deleteObjects", params=[{"id": H_GROUP}])
+		connection.jsonrpc("group_deleteObjects", params=[{"id": P_GROUP}])
+		connection.jsonrpc("host_delete", params=[CLIENT1])
+		connection.jsonrpc("host_delete", params=[CLIENT2])
+
+
+@pytest.mark.requires_testcontainer
+def test_set_action_request_unknown_type() -> None:
+	with container_connection() as connection:
+		connection.jsonrpc("host_createOpsiClient", params=[CLIENT1])
+		cmd = ["client-action", "--clients", CLIENT1, "set-action-request", "--products", PRODUCT1, "--request-type", "nonexistent"]
+
+		(code, _) = run_cli(cmd)
+		assert code == 0
+		pocs = connection.jsonrpc("productOnClient_getObjects", params=[[], {"clientId": CLIENT1, "productId": PRODUCT1}])
+		assert len(pocs) == 0
 
 		connection.jsonrpc("host_delete", params=[CLIENT1])
