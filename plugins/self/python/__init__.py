@@ -247,7 +247,6 @@ def command_structure() -> None:
 
 
 class SelfPlugin(OPSICLIPlugin):
-	id: str = "self"  # pylint: disable=invalid-name
 	name: str = "Self"
 	description: str = "Manage opsi-cli"
 	version: str = __version__

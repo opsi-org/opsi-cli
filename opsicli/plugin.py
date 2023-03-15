@@ -87,7 +87,7 @@ class PluginManager(metaclass=Singleton):
 
 	@property
 	def plugins(self) -> list[str]:
-		plugin_names = []
+		plugin_ids = []
 		for plugin_base_dir in (config.plugin_bundle_dir, config.plugin_system_dir, config.plugin_user_dir):
 			if not plugin_base_dir:
 				continue
@@ -96,9 +96,9 @@ class PluginManager(metaclass=Singleton):
 				continue
 			logger.debug("Checking plugins from dir '%s'", plugin_base_dir)
 			for plugin_dir in plugin_base_dir.iterdir():
-				if (plugin_dir / "python" / "__init__.py").exists():
-					plugin_names.append(plugin_dir.name)
-		return plugin_names
+				if (plugin_dir / "python" / "__init__.py").exists() and plugin_dir.name not in plugin_ids:
+					plugin_ids.append(plugin_dir.name)
+		return plugin_ids
 
 	def load_plugin_module(self, plugin_dir: Path) -> ModuleType:
 		if str(config.user_lib_dir) not in sys.path:

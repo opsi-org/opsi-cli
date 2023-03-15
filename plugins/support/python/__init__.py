@@ -46,8 +46,7 @@ def health_check() -> None:
 
 # This class keeps track of the plugins meta-information
 class CustomPlugin(OPSICLIPlugin):
-	id: str = "support"  # pylint: disable=invalid-name
-	name: str = "support"
+	name: str = "Support"
 	description: str = __description__
 	version: str = __version__
 	cli = cli

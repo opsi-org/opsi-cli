@@ -172,7 +172,6 @@ def list_() -> None:
 		data.append(
 			{"id": plugin_id, "name": plugin.name, "description": plugin.description, "version": plugin.version, "path": plugin.path}
 		)
-
 	write_output(data, metadata)
 
 
