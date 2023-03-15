@@ -16,7 +16,6 @@ from opsicommon.client.opsiservice import ServiceClient
 from opsicli.__main__ import main
 from opsicli.config import config
 from opsicli.opsiservice import get_service_connection
-from opsicli.plugin import plugin_manager
 
 runner = CliRunner()
 
@@ -41,7 +40,6 @@ def temp_context() -> Generator[Path, None, None]:
 			config.plugin_system_dir = tempdir_path / "system_plugins"
 			yield tempdir_path
 	finally:
-		plugin_manager.unload_plugins()
 		config.set_values(values)
 
 

@@ -32,8 +32,7 @@ def cli(target: str, terminal_id: Optional[str]) -> None:
 
 
 class TerminalPlugin(OPSICLIPlugin):
-	id: str = "terminal"  # pylint: disable=invalid-name
-	name: str = "terminal"
+	name: str = "Terminal"
 	description: str = __description__
 	version: str = __version__
 	cli = cli

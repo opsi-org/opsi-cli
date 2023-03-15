@@ -63,7 +63,6 @@ def set_action_request(ctx: click.Context, **kwargs: str) -> None:
 
 # This class keeps track of the plugins meta-information
 class ClientActionPlugin(OPSICLIPlugin):
-	id: str = "client-action"  # pylint: disable=invalid-name
 	name: str = "Client Action"
 	description: str = __description__
 	version: str = __version__

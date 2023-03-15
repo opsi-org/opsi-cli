@@ -92,16 +92,17 @@ class OpsiCLI(click.MultiCommand):
 
 	def list_commands(self, ctx: click.Context) -> list[str]:
 		logger.debug("list_commands")
-		plugin_manager.load_plugins()
-		return sorted([plugin.cli.name for plugin in plugin_manager.plugins if plugin.cli])  # type: ignore[attr-defined,misc]
+		return sorted(plugin_manager.plugins)
 
 	def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command:
 		logger.debug("get_command %r", cmd_name)
-		plugin_manager.load_plugins()
-		for plugin in plugin_manager.plugins:
-			if plugin.cli and plugin.cli.name == cmd_name:
-				return plugin.cli
-		raise ValueError(f"Invalid command {cmd_name!r}")
+		try:
+			plugin = plugin_manager.load_plugin(cmd_name)
+		except ModuleNotFoundError as error:
+			raise ModuleNotFoundError(f"Invalid command {cmd_name!r}") from error
+		if plugin.cli:
+			return plugin.cli
+		raise RuntimeError(f"Plugin {cmd_name} appears to be broken.")
 
 
 class LogLevel(click.ParamType):

@@ -10,7 +10,6 @@ import shutil
 import tempfile
 import zipfile
 from pathlib import Path
-from typing import List
 
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger  # type: ignore[import]
@@ -26,7 +25,7 @@ from opsicli.plugin import (
 	replace_data,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 logger = get_logger("opsicli")
 
@@ -80,7 +79,7 @@ def export(plugin_id: str, destination_dir: Path, src: bool) -> None:
 	instance of opsi-cli via "plugin add". Also see "plugin list".
 	"""
 	destination_dir.mkdir(parents=True, exist_ok=True)
-	path = plugin_manager.get_plugin(plugin_id).path
+	path = plugin_manager.get_plugin_dir(plugin_id)
 	logger.debug("Getting plugin from path %s", path)
 
 	if src:
@@ -168,11 +167,11 @@ def list_() -> None:
 		]
 	)
 	data = []
-	for plugin in sorted(plugin_manager.plugins, key=lambda plugin: plugin.id):
+	for plugin_id in sorted(plugin_manager.plugins):
+		plugin = plugin_manager.load_plugin(plugin_id)
 		data.append(
-			{"id": plugin.id, "name": plugin.name, "description": plugin.description, "version": plugin.version, "path": plugin.path}
+			{"id": plugin_id, "name": plugin.name, "description": plugin.description, "version": plugin.version, "path": plugin.path}
 		)
-
 	write_output(data, metadata)
 
 
@@ -183,7 +182,7 @@ def remove(plugin_id: str) -> None:
 	opsi-cli plugin remove subcommand.
 	This subcommand removes an installed opsi-cli plugin. See "[bold]plugin list[/bold]".
 	"""
-	plugin_object = plugin_manager.get_plugin(plugin_id)
+	plugin_object = plugin_manager.load_plugin(plugin_id)
 	if "protected" in plugin_object.flags:
 		raise PermissionError(f"Plugin {plugin_id} has flag 'protected', cannot remove!")
 	path = plugin_object.path
@@ -195,7 +194,7 @@ def remove(plugin_id: str) -> None:
 	if not found:
 		raise ValueError(f"Attempt to remove plugin from invalid path {path!r} - Stopping.")
 	logger.notice("Removing plugin %s", plugin_id)
-	plugin_manager.unload_plugin(plugin_id)
+	del plugin_object  # Necessary? windows?
 	logger.debug("Deleting %s", path)
 	shutil.rmtree(path)
 	get_console().print(f"Plugin {plugin_id!r} removed")
@@ -237,7 +236,7 @@ def new(name: str, version: str, description: str, path: Path) -> None:
 	(result_path / "python").mkdir(parents=True)
 	(result_path / "data").mkdir()
 
-	template_file_path = plugin_manager.get_plugin("plugin").path / "data" / "template.py"  # Configurable?
+	template_file_path = plugin_manager.get_plugin_dir("plugin") / "data" / "template.py"  # Configurable?
 	if not template_file_path.exists():
 		raise FileNotFoundError("No template file for new plugins found!")
 	replacements = {
@@ -259,7 +258,6 @@ def new(name: str, version: str, description: str, path: Path) -> None:
 
 
 class PluginPlugin(OPSICLIPlugin):
-	id: str = "plugin"  # pylint: disable=invalid-name
 	name: str = "Plugin"
 	description: str = "Manage opsi-cli plugins"
 	version: str = __version__
