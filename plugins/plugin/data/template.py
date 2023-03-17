@@ -3,7 +3,7 @@ template for opsi-cli plugins
 """
 
 import rich_click as click  # type: ignore[import]
-from opsicommon.logging import get_logger  # type: ignore[import]
+from opsicommon.logging import get_logger
 
 from opsicli.plugin import OPSICLIPlugin
 
@@ -38,7 +38,6 @@ def subcommand(exampleargument: str, exampleoption: bool) -> None:  # The name o
 
 # This class keeps track of the plugins meta-information
 class CustomPlugin(OPSICLIPlugin):
-	id: str = "{{ID}}"  # pylint: disable=invalid-name
 	name: str = "{{NAME}}"
 	description: str = __description__
 	version: str = __version__
