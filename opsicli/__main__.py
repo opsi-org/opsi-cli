@@ -86,6 +86,9 @@ class OpsiCLI(click.MultiCommand):
 			cache.exit()
 
 	def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+		# configs are evaluated lazily. Config files are only read on click processing option "config_file_system" and "config_file_user"
+		# This does not happen if click realizes an argument (command) is missing
+		config.read_config_files()
 		if not config.color:
 			return super().format_help(ctx, formatter)
 		return rich_format_help(self, ctx, formatter)

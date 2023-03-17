@@ -137,3 +137,22 @@ def test_service_config() -> None:
 		(exit_code, _) = run_cli(["config", "service", "remove", "test"])
 		assert exit_code == 0
 		assert not any(service.name == "test" for service in config.get_values().get("services", []))
+
+
+def test_service_config_list_remove() -> None:
+	config = Config()
+
+	with temp_context() as tempdir:
+		# config service add writes conffile. Explicitely set here to avoid wiping config file of the user.
+		conffile = Path(tempdir) / "conffile.conf"
+		config.config_file_user = conffile
+		(exit_code, _) = run_cli(["config", "service", "add", "--name=test", "https://testurl:4447"])
+		assert exit_code == 0
+		(exit_code, output) = run_cli(["config", "service", "list"])
+		assert exit_code == 0
+		assert "https://testurl:4447" in output
+		(exit_code, output) = run_cli(["config", "service", "remove", "test"])
+		assert exit_code == 0
+		(exit_code, output) = run_cli(["config", "service", "list"])
+		assert exit_code == 0
+		assert "https://testurl:4447" not in output
