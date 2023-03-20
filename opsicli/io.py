@@ -223,7 +223,7 @@ def write_output_json(data: Any, metadata: Metadata | None = None, pretty: bool 
 	)
 
 	if pretty and output_file_is_a_tty():
-		print_json(json.decode("utf-8"))
+		print_json(json.decode("utf-8"), highlight=config.color)
 	else:
 		with output_file_bin() as file:
 			file.write(json)
