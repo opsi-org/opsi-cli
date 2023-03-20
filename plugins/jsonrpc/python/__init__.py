@@ -133,7 +133,6 @@ def execute(method: str, params: list[str] | None = None) -> None:  # pylint: di
 
 
 class JSONRPCPlugin(OPSICLIPlugin):
-	id: str = "jsonrpc"  # pylint: disable=invalid-name
 	name: str = "JSONRPC"
 	description: str = "Opsi JSONRPC API client"
 	version: str = __version__

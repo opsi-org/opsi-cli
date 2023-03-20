@@ -215,7 +215,6 @@ def service_remove(
 
 
 class ConfigPlugin(OPSICLIPlugin):
-	id: str = "config"  # pylint: disable=invalid-name
 	name: str = "Config"
 	description: str = "Manage opsi-cli configuration"
 	version: str = __version__

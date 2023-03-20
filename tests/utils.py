@@ -11,10 +11,11 @@ from pathlib import Path
 from typing import Generator, Iterator, Sequence
 
 from click.testing import CliRunner  # type: ignore[import]
+from opsicommon.client.opsiservice import ServiceClient
 
 from opsicli.__main__ import main
 from opsicli.config import config
-from opsicli.plugin import plugin_manager
+from opsicli.opsiservice import get_service_connection
 
 runner = CliRunner()
 
@@ -39,7 +40,6 @@ def temp_context() -> Generator[Path, None, None]:
 			config.plugin_system_dir = tempdir_path / "system_plugins"
 			yield tempdir_path
 	finally:
-		plugin_manager.unload_plugins()
 		config.set_values(values)
 
 
@@ -52,3 +52,19 @@ def temp_env(**environ: str) -> Iterator[None]:
 	finally:
 		os.environ.clear()
 		os.environ.update(old_environ)
+
+
+@contextmanager
+def container_connection() -> Generator[ServiceClient, None, None]:
+	old_username = config.get_values().get("username")
+	old_password = config.get_values().get("password")
+	old_service = config.get_values().get("service")
+	try:
+		config.set_values({"username": "adminuser"})
+		config.set_values({"password": "vhahd8usaz"})
+		config.set_values({"service": "https://localhost:4447"})
+		yield get_service_connection()
+	finally:
+		config.set_values({"username": old_username})
+		config.set_values({"password": old_password})
+		config.set_values({"service": old_service})

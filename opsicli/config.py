@@ -387,7 +387,9 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 							value = config_item.type.from_yaml(value)
 						config_item.set_value(value, source)
 
-	def write_config_files(self, sources: list[ConfigValueSource] | None = None, skip_keys: list[str] | None = None) -> None:  # pylint: disable=too-many-branches
+	def write_config_files(  # pylint: disable=too-many-branches
+		self, sources: list[ConfigValueSource] | None = None, skip_keys: list[str] | None = None
+	) -> None:
 		logger.info("Writing config files")
 		for file_type in ("config_file_system", "config_file_user"):
 			config_file = getattr(self, file_type, None)
@@ -404,7 +406,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 
 			for config_item in self._config.values():
 				values = [val for val in config_item.get_values(value_only=False) if val and val.source == source]
-				if not values:
+				if not config_item.multiple and not values:
 					continue
 				yaml_values = [val.value.to_yaml() if hasattr(val.value, "to_yaml") else val.value for val in values if val]
 
@@ -451,7 +453,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 			"envvar": f"OPSICLI_{name.upper()}",
 			"help": config_item.description,
 			"default": config_item.get_default(),
-			"show_default": True
+			"show_default": True,
 		}
 		_args = [str(long_option)] + ([str(kwargs.pop("short_option"))] if "short_option" in kwargs else [])
 		_kwargs.update(kwargs)

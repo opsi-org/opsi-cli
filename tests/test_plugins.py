@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 from opsicli.config import config
-from opsicli.plugin import PLUGIN_EXTENSION, install_python_package, plugin_manager
+from opsicli.plugin import PLUGIN_EXTENSION, install_python_package
 
 from .utils import run_cli, temp_context
 
@@ -38,16 +38,6 @@ def test_plugin_add() -> None:
 		assert "default" in result  # netifaces.gateways()
 
 
-def test_plugin_reload() -> None:
-	with temp_context():
-		exit_code, _ = run_cli(["plugin", "add", str(TESTPLUGIN)])
-		exit_code, _ = run_cli(["dummy", "libtest"])
-		assert exit_code == 0
-		plugin_manager.reload_plugins()
-		exit_code, _ = run_cli(["dummy", "libtest"])
-		assert exit_code == 0
-
-
 def test_plugin_fail() -> None:
 	with temp_context():
 		exit_code, output = run_cli(["plugin", "add", str(FAULTYPLUGIN)])
@@ -61,8 +51,6 @@ def test_plugin_fail() -> None:
 		run_cli(["plugin", "add", str(TESTPLUGIN)])
 		exit_code, output = run_cli(["dummy", "libtest"])
 		assert exit_code == 0
-
-		plugin_manager.unload_plugins()
 
 		# Break dummy plugin
 		(config.plugin_user_dir / "dummy" / "python" / "__init__.py").unlink()
