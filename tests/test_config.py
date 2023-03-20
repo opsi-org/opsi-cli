@@ -145,7 +145,6 @@ def test_service_config() -> None:
 		assert not any(service.name == "test" for service in config.get_values().get("services", []))
 
 
-<<<<<<< HEAD
 @pytest.mark.parametrize(
 	"config_value, call_parameter",
 	(("true", "--no-metadata"), ("false", "--metadata")),
@@ -178,7 +177,7 @@ def test_header_bool_flag(config_value: str, call_parameter: str) -> None:
 		assert exit_code == 0
 		exit_code, output = run_cli([call_parameter, "config", "service", "list"])
 		assert exit_code == 0
-		assert (call_parameter == "--header") == ("name" and "url" in output)
+		assert (call_parameter == "--header") == ("name" in output and "url" in output)
 
 
 def test_color_displayed() -> None:
@@ -195,22 +194,3 @@ def test_color_displayed() -> None:
 		print(out)
 		print("here")
 		print(re.findall(b"\x0b.[0-9]{1,2};[0-9]{1,2};[0-9]{1,2}m", out.encode()))
-=======
-def test_service_config_list_remove() -> None:
-	config = Config()
-
-	with temp_context() as tempdir:
-		# config service add writes conffile. Explicitely set here to avoid wiping config file of the user.
-		conffile = Path(tempdir) / "conffile.conf"
-		config.config_file_user = conffile
-		(exit_code, _) = run_cli(["config", "service", "add", "--name=test", "https://testurl:4447"])
-		assert exit_code == 0
-		(exit_code, output) = run_cli(["config", "service", "list"])
-		assert exit_code == 0
-		assert "https://testurl:4447" in output
-		(exit_code, output) = run_cli(["config", "service", "remove", "test"])
-		assert exit_code == 0
-		(exit_code, output) = run_cli(["config", "service", "list"])
-		assert exit_code == 0
-		assert "https://testurl:4447" not in output
->>>>>>> devel
