@@ -2,12 +2,6 @@
 test_config
 """
 
-import json
-import os
-import pty
-import re
-import subprocess
-import time
 from pathlib import Path
 from typing import Type
 
@@ -178,19 +172,3 @@ def test_header_bool_flag(config_value: str, call_parameter: str) -> None:
 		exit_code, output = run_cli([call_parameter, "config", "service", "list"])
 		assert exit_code == 0
 		assert (call_parameter == "--header") == ("name" in output and "url" in output)
-
-
-def test_color_displayed() -> None:
-	child_pid, fd = pty.fork()
-	if child_pid == -1:
-		subprocess.run(["zsh"])
-	else:
-		os.write(fd, "cd /home/elias/coding/opsi-cli && opsi-cli \n".encode())
-		time.sleep(3)
-		out = ""
-		for i in range(2):
-			print(i)
-			out += os.read(fd, 4095).decode()
-		print(out)
-		print("here")
-		print(re.findall(b"\x0b.[0-9]{1,2};[0-9]{1,2};[0-9]{1,2}m", out.encode()))
