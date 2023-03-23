@@ -40,7 +40,6 @@ def test_plugin_add() -> None:
 
 def test_plugin_fail() -> None:
 	with temp_context():
-		"""
 		exit_code, output = run_cli(["plugin", "add", str(FAULTYPLUGIN)])
 		assert exit_code == 1
 		assert "Invalid path given" in output
@@ -48,7 +47,6 @@ def test_plugin_fail() -> None:
 		exit_code, output = run_cli(["plugin", "add", str(MISSINGPLUGIN)])
 		assert exit_code == 2
 		assert "does not exist" in output
-		"""
 
 		run_cli(["plugin", "add", str(TESTPLUGIN)])
 		exit_code, output = run_cli(["dummy", "libtest"])

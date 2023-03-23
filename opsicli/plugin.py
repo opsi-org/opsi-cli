@@ -7,7 +7,6 @@ plugin handling
 import importlib
 import os
 import shutil
-import site
 import sys
 import warnings
 import zipfile
