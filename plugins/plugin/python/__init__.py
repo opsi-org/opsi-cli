@@ -55,6 +55,9 @@ def add(paths: list[Path], system: bool) -> None:
 	to install it as plugin for opsi-cli
 	"""
 	for path in paths:
+		if path.name in plugin_manager.get_plugins([config.plugin_bundle_dir]):
+			logger.warning("Not adding plugin %s as it would override bundled plugin", path.name)
+			continue
 		with tempfile.TemporaryDirectory() as tmpdir:
 			tmpdir_path = Path(tmpdir)
 			(tmpdir_path / "lib").mkdir(parents=True, exist_ok=True)

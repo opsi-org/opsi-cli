@@ -83,8 +83,11 @@ class PluginManager(metaclass=Singleton):
 
 	@property
 	def plugins(self) -> list[str]:
+		return self.get_plugins([config.plugin_bundle_dir, config.plugin_system_dir, config.plugin_user_dir])
+
+	def get_plugins(self, dirs: list[Path]) -> list[str]:
 		plugin_ids = []
-		for plugin_base_dir in (config.plugin_bundle_dir, config.plugin_system_dir, config.plugin_user_dir):
+		for plugin_base_dir in dirs:
 			if not plugin_base_dir:
 				continue
 			if not plugin_base_dir.exists():
@@ -102,6 +105,16 @@ class PluginManager(metaclass=Singleton):
 			sys.path.insert(0, str(config.python_lib_dir / plugin_dir.name))
 		logger.debug("Extracting plugin object from '%s'", plugin_dir)
 		logger.debug("sys.path = %s", sys.path)
+		module_name = self.module_name(plugin_dir)
+		if module_name in sys.modules:
+			reload = []
+			for sys_module in list(sys.modules):
+				if sys_module.startswith(module_name):
+					reload.append(sys_module)
+			reload.sort(reverse=True)
+			for sys_module in reload:
+				importlib.reload(sys.modules[sys_module])
+			return sys.modules[module_name]
 		return importlib.import_module(self.module_name(plugin_dir))
 
 	def get_plugin_dir(self, name: str) -> Path:
