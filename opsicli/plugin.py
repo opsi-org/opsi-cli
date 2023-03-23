@@ -27,11 +27,6 @@ from opsicli.config import IN_COMPLETION_MODE, config
 logger = get_logger("opsicli")
 
 PLUGIN_EXTENSION = "opsicliplug"
-# These dependencies are not in python standard library
-# but they are part of opsi-cli core, so in sys.modules.
-# Installing them in libs dir would not make a difference
-# as sys.modules takes precedence.
-SKIP_DEPENDENCY_LIST = ["click", "opsicommon", "rich_click", "pydantic", "ruamel", "msgpack", "orjson"]
 
 
 class OPSICLIPlugin:
@@ -101,14 +96,14 @@ class PluginManager(metaclass=Singleton):
 		return plugin_ids
 
 	def load_plugin_module(self, plugin_dir: Path) -> ModuleType:
-		if str(config.user_lib_dir) not in sys.path:
-			sys.path.append(str(config.user_lib_dir))
-		if str(config.python_lib_dir) not in sys.path:
-			sys.path.append(str(config.python_lib_dir))
+		if str(config.python_lib_dir / plugin_dir.name) not in sys.path and (config.python_lib_dir / plugin_dir.name).exists():
+			logger.debug("Prepending to sys.path: %s", config.python_lib_dir / plugin_dir.name)
+			sys.path.insert(0, str(config.python_lib_dir / plugin_dir.name))
+		logger.debug("PATH: %s", sys.path)
 		logger.debug("Extracting plugin object from '%s'", plugin_dir)
 		module_name = self.module_name(plugin_dir)
-		logger.trace("Module name is %r", module_name)
 		if module_name in sys.modules:
+			logger.devel("Reloading module %s", module_name)
 			reload = []
 			for sys_module in list(sys.modules):
 				if sys_module.startswith(module_name):
@@ -175,7 +170,7 @@ def prepare_plugin(path: Path, tmpdir: Path) -> str:
 		raise ValueError(f"Invalid path given '{path}'")
 
 	logger.info("Retrieving libraries for new plugin")
-	install_dependencies(tmpdir / plugin_id, tmpdir / "lib")
+	install_dependencies(tmpdir / plugin_id, tmpdir / "lib" / plugin_id)
 	return plugin_id
 
 
@@ -206,7 +201,6 @@ def install_plugin(source_dir: Path, name: str, system: bool = False) -> Path:
 	if destination.exists():
 		shutil.rmtree(destination)
 	shutil.copytree(source_dir / name, destination)
-	plugin_manager.load_plugin(destination)
 	return destination
 
 
@@ -228,6 +222,7 @@ def install_python_package(target_dir: Path, package: dict[str, str]) -> None:
 	# Monkeypatch here to avoid trying to create this (nasty in frozen context)
 	ScriptMaker.make_multiple = monkeypatched_make_multiple  # type: ignore
 
+	target_dir.mkdir(parents=True, exist_ok=True)
 	logger.info("Installing %r, version %r", package["name"], package["version"])
 	# packaging version bundled in pip uses legacy format (see pip/__main__.py)
 	with warnings.catch_warnings():
@@ -263,9 +258,6 @@ def install_dependencies(path: Path, target_dir: Path) -> None:
 	logger.debug("Got dependencies: %s", dependencies)
 	for dependency in dependencies:
 		logger.debug("Checking dependency %s", dependency["name"])
-		if dependency["name"] in SKIP_DEPENDENCY_LIST:
-			logger.debug("Not installing %s, as it is part of opsi-cli core", dependency["name"])
-			continue
 		try:
 			temp_module = importlib.import_module(dependency["name"])
 			logger.trace("found present %s, version %s", dependency["name"], temp_module.__version__)
@@ -278,3 +270,5 @@ def install_dependencies(path: Path, target_dir: Path) -> None:
 			)
 		except (ImportError, AssertionError, AttributeError):
 			install_python_package(target_dir, dependency)
+	# Place requirements.txt at lib dir for possible later use (upgrade dependencies etc.)
+	shutil.copy(path / "requirements.txt", target_dir)

@@ -17,5 +17,6 @@ def prepare_cli_paths() -> None:
 	if config.python_lib_dir and not config.python_lib_dir.exists():
 		config.python_lib_dir.mkdir(parents=True)
 
-	if str(config.python_lib_dir) not in sys.path:
-		sys.path.append(str(config.python_lib_dir))
+	# Adding plugin dir
+	if str(config.plugin_user_dir) not in sys.path:
+		sys.path.append(str(config.plugin_user_dir))

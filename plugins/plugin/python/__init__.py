@@ -195,8 +195,11 @@ def remove(plugin_id: str) -> None:
 		raise ValueError(f"Attempt to remove plugin from invalid path {path!r} - Stopping.")
 	logger.notice("Removing plugin %s", plugin_id)
 	del plugin_object  # Necessary? windows?
-	logger.debug("Deleting %s", path)
+	logger.debug("Deleting plugin path %s", path)
 	shutil.rmtree(path)
+	if (config.python_lib_dir / plugin_id).exists():
+		logger.debug("Deleting plugin dependencies %s", config.python_lib_dir / plugin_id)
+		shutil.rmtree(config.python_lib_dir / plugin_id)
 	get_console().print(f"Plugin {plugin_id!r} removed")
 
 
