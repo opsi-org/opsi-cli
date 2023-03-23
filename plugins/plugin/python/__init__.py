@@ -25,7 +25,7 @@ from opsicli.plugin import (
 	replace_data,
 )
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 logger = get_logger("opsicli")
 

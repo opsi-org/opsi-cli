@@ -7,6 +7,7 @@ plugin handling
 import importlib
 import os
 import shutil
+import site
 import sys
 import warnings
 import zipfile
@@ -96,23 +97,12 @@ class PluginManager(metaclass=Singleton):
 		return plugin_ids
 
 	def load_plugin_module(self, plugin_dir: Path) -> ModuleType:
-		if str(config.python_lib_dir / plugin_dir.name) not in sys.path and (config.python_lib_dir / plugin_dir.name).exists():
+		if (config.python_lib_dir / plugin_dir.name).exists() and str(config.python_lib_dir / plugin_dir.name) not in sys.path:
 			logger.debug("Prepending to sys.path: %s", config.python_lib_dir / plugin_dir.name)
 			sys.path.insert(0, str(config.python_lib_dir / plugin_dir.name))
-		logger.debug("PATH: %s", sys.path)
 		logger.debug("Extracting plugin object from '%s'", plugin_dir)
-		module_name = self.module_name(plugin_dir)
-		if module_name in sys.modules:
-			logger.devel("Reloading module %s", module_name)
-			reload = []
-			for sys_module in list(sys.modules):
-				if sys_module.startswith(module_name):
-					reload.append(sys_module)
-			reload.sort(reverse=True)
-			for sys_module in reload:
-				importlib.reload(sys.modules[sys_module])
-			return sys.modules[module_name]
-		return importlib.import_module(module_name)
+		logger.debug("sys.path = %s", sys.path)
+		return importlib.import_module(self.module_name(plugin_dir))
 
 	def get_plugin_dir(self, name: str) -> Path:
 		for plugin_base_dir in (config.plugin_bundle_dir, config.plugin_system_dir, config.plugin_user_dir):
@@ -139,14 +129,6 @@ class PluginManager(metaclass=Singleton):
 				return plugin
 		raise RuntimeError(f"Failed to load plugin {name}.")
 
-	def extract_plugin_object(self, plugin_dir: Path) -> OPSICLIPlugin:
-		module = self.load_plugin_module(plugin_dir)
-		for cls in module.__dict__.values():
-			if isinstance(cls, type) and issubclass(cls, OPSICLIPlugin) and cls != OPSICLIPlugin:
-				logger.info("Loading plugin %r (name=%s, cli=%s)", plugin_dir.name, cls.name, cls.cli)
-				return cls(plugin_dir)
-		raise ImportError(f"Could not load plugin from {plugin_dir}.")
-
 
 plugin_manager = PluginManager()
 
@@ -170,7 +152,7 @@ def prepare_plugin(path: Path, tmpdir: Path) -> str:
 		raise ValueError(f"Invalid path given '{path}'")
 
 	logger.info("Retrieving libraries for new plugin")
-	install_dependencies(tmpdir / plugin_id, tmpdir / "lib" / plugin_id)
+	install_dependencies(tmpdir / plugin_id, tmpdir / "lib")
 	return plugin_id
 
 
@@ -180,21 +162,11 @@ def install_plugin(source_dir: Path, name: str, system: bool = False) -> Path:
 	if not plugin_dir.is_dir():
 		raise FileNotFoundError(f"Plugin dir '{plugin_dir}' does not exist")
 
+	if not name:
+		raise ValueError("Attempting to install empty plugin.")
 	logger.info("Installing libraries from '%s'", source_dir / "lib")
-	# https://lukelogbook.tech/2018/01/25/merging-two-folders-in-python/
-	for src_dir_string, _, files in os.walk(source_dir / "lib"):
-		src_dir = Path(src_dir_string)
-		dst_dir = config.python_lib_dir / src_dir.relative_to(source_dir / "lib")
-		if not dst_dir.exists():
-			dst_dir.mkdir(parents=True, exist_ok=True)
-		for file_ in files:
-			if not (dst_dir / file_).exists():
-				# avoid replacing files that might be currently loaded -> segfault
-				shutil.copy2(src_dir / file_, dst_dir / file_)
-
-	plugin_object = plugin_manager.extract_plugin_object(source_dir / name)
-	if "protected" in plugin_object.flags:
-		raise PermissionError(f"Failed to add plugin {name}. It is marked as 'protected'.")
+	shutil.rmtree(config.python_lib_dir / name, ignore_errors=True)
+	shutil.copytree(source_dir / "lib", config.python_lib_dir / name)
 
 	destination = plugin_dir / name
 	logger.info("Installing plugin from '%s' to '%s'", source_dir / name, destination)
