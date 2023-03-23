@@ -80,6 +80,7 @@ def test_setup_shell_completion(tmp_path: Path) -> None:
 def test_command_structure() -> None:
 	exit_code, output = run_cli(["self", "command-structure"])
 	mod_self = plugin_manager.load_plugin("self").get_module()
+	print(output)
 	assert exit_code == 0
 	assert output.startswith("opsi-cli")
 	assert f"self ({mod_self.__version__})\n" in output
