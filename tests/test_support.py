@@ -2,8 +2,6 @@
 test_support
 """
 
-import json
-
 import pytest
 
 from .utils import container_connection, run_cli
