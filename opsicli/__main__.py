@@ -138,7 +138,7 @@ class LogLevel(click.ParamType):
 @config.get_click_option("service")
 @config.get_click_option("username", short_option="-u")
 @config.get_click_option("password", short_option="-p")
-@config.get_click_option("dry_run", long_option="--dry_run/--no-dry_run")
+@config.get_click_option("dry_run", long_option="--dry-run/--no-dry-run")
 def main(*args: str, **kwargs: str) -> None:  # pylint: disable=unused-argument
 	"""
 	opsi command line interface\n
