@@ -10,6 +10,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from opsicommon.logging import get_logger
+from opsicommon.objects import ProductDependency
 from opsicommon.package import OpsiPackage
 
 logger = get_logger("opsicli")
@@ -19,6 +20,15 @@ logger = get_logger("opsicli")
 class MetadataFile:
 	type: str
 	urls: list[str]
+
+
+def prod_dep_data(dep: ProductDependency) -> dict[str, str | None]:
+	data = dep.to_hash()
+	del data["productId"]
+	del data["productVersion"]
+	del data["packageVersion"]
+	del data["type"]
+	return data
 
 
 @dataclass
@@ -31,7 +41,7 @@ class PackageMetadata:  # pylint: disable=too-many-instance-attributes
 	product_id: str
 	product_version: str
 	package_version: str
-	product_dependencies: list[dict[str, str]]
+	product_dependencies: list[dict[str, str | None]]
 	package_dependencies: list[dict[str, str]]
 	description: str | None = None
 
@@ -44,15 +54,15 @@ class PackageMetadata:  # pylint: disable=too-many-instance-attributes
 		self.from_archive(archive)
 
 	def from_archive(self, archive: Path) -> None:
-		logger.notice("Reading package archive %s to extract meta data", archive)
-		self.url = str(archive)  # TODO: relative to base_dir!
+		logger.notice("Reading package archive %s", archive)
+		self.url = str(archive)  # relative to base_dir
 		self.size = archive.stat().st_size
 		with open(archive, "rb", buffering=0) as file_handle:
 			# file_digest is python>=3.11 only
 			self.md5_hash = hashlib.file_digest(file_handle, "md5").hexdigest()  # type: ignore
 			self.sha256_hash = hashlib.file_digest(file_handle, "sha256").hexdigest()  # type: ignore
 		if archive.with_suffix(".opsi.zsync").exists():
-			self.md5_hash = str(archive.with_suffix(".opsi.zsync"))
+			self.zsync_url = str(archive.with_suffix(".opsi.zsync"))
 		# TODO: changelog_url - check if exists? or check once beforehand which are available -> crawler needed?
 		# TODO: release_notes_url - check if exists? or check once beforehand which are available -> crawler needed?
 		# TODO: icon_url - ?
@@ -62,7 +72,7 @@ class PackageMetadata:  # pylint: disable=too-many-instance-attributes
 		self.product_version = opsi_package.product.productVersion
 		self.package_version = opsi_package.product.packageVersion
 		self.description = opsi_package.product.description
-		self.product_dependencies = [dep.to_hash() for dep in opsi_package.product_dependencies]
+		self.product_dependencies = [prod_dep_data(dep) for dep in opsi_package.product_dependencies]
 		self.package_dependencies = [asdict(dep) for dep in opsi_package.package_dependencies]
 
 
@@ -74,11 +84,14 @@ class PackagesMetadataCollection:
 		self.packages: dict[str, PackageMetadata] = {}
 
 	def collect(self, path: Path) -> None:
+		logger.notice("Starting to collect metadata from %s", path)
 		for archive in path.rglob("*.opsi"):
 			package = PackageMetadata(archive)
 			self.packages[f"{package.product_id};{package.product_version};{package.package_version}"] = package
+		logger.info("Finished collecting metadata")
 
 	def write(self, path: Path) -> None:
+		logger.notice("Writing result to %s", path)
 		result = {
 			"schema_version": self.schema_version,
 			"repository": self.repository,

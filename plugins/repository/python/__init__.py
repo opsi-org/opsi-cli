@@ -33,7 +33,7 @@ def cli() -> None:
 	"--output-file",
 	help="file to store the output in",
 	default=Path("packages.json"),
-	type=click.Path(file_okay=False, dir_okay=True, path_type=Path),
+	type=click.Path(file_okay=True, dir_okay=False, path_type=Path),
 )
 def create_meta_file(path: Path, output_file: Path) -> None:
 	"""
