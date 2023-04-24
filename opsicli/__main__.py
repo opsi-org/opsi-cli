@@ -127,18 +127,18 @@ class LogLevel(click.ParamType):
 @config.get_click_option("log_file")
 @config.get_click_option("log_level_file")
 @config.get_click_option("log_level_stderr", short_option="-l")
-@config.get_click_option("color", is_eager=True, envvar="NO_COLOR")
+@config.get_click_option("color", long_option="--color/--no-color", is_eager=True, envvar="NO_COLOR")
 @config.get_click_option("interactive", long_option="--interactive/--non-interactive")
 @config.get_click_option("output_format")
 @config.get_click_option("output_file")
 @config.get_click_option("input_file")
-@config.get_click_option("metadata")
-@config.get_click_option("header")
+@config.get_click_option("metadata", long_option="--metadata/--no-metadata")
+@config.get_click_option("header", long_option="--header/--no-header")
 @config.get_click_option("attributes", show_default=False, help=f"{config.get_description('attributes')}. Comma separated list.")
 @config.get_click_option("service")
 @config.get_click_option("username", short_option="-u")
 @config.get_click_option("password", short_option="-p")
-@config.get_click_option("dry_run", is_flag=True)
+@config.get_click_option("dry_run", long_option="--dry-run/--no-dry-run")
 def main(*args: str, **kwargs: str) -> None:  # pylint: disable=unused-argument
 	"""
 	opsi command line interface\n

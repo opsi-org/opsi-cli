@@ -25,7 +25,7 @@ from opsicli.plugin import (
 	replace_data,
 )
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 logger = get_logger("opsicli")
 
@@ -55,6 +55,9 @@ def add(paths: list[Path], system: bool) -> None:
 	to install it as plugin for opsi-cli
 	"""
 	for path in paths:
+		if path.name in plugin_manager.get_plugins([config.plugin_bundle_dir]):
+			logger.warning("Not adding plugin %s as it would override bundled plugin", path.name)
+			continue
 		with tempfile.TemporaryDirectory() as tmpdir:
 			tmpdir_path = Path(tmpdir)
 			(tmpdir_path / "lib").mkdir(parents=True, exist_ok=True)
@@ -195,8 +198,11 @@ def remove(plugin_id: str) -> None:
 		raise ValueError(f"Attempt to remove plugin from invalid path {path!r} - Stopping.")
 	logger.notice("Removing plugin %s", plugin_id)
 	del plugin_object  # Necessary? windows?
-	logger.debug("Deleting %s", path)
+	logger.debug("Deleting plugin path %s", path)
 	shutil.rmtree(path)
+	if (config.python_lib_dir / plugin_id).exists():
+		logger.debug("Deleting plugin dependencies %s", config.python_lib_dir / plugin_id)
+		shutil.rmtree(config.python_lib_dir / plugin_id)
 	get_console().print(f"Plugin {plugin_id!r} removed")
 
 

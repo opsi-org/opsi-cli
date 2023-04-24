@@ -17,6 +17,8 @@ pyinstaller-poetry:
       - pip._vendor.platformdirs.windows
     darwin:
       - pip._vendor.platformdirs.macos
+  collect_submodules:
+    - urllib3
   extra_args:
     - --exclude-module=tkinter
     - --exclude-module=tan

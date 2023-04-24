@@ -27,11 +27,6 @@ from opsicli.config import IN_COMPLETION_MODE, config
 logger = get_logger("opsicli")
 
 PLUGIN_EXTENSION = "opsicliplug"
-# These dependencies are not in python standard library
-# but they are part of opsi-cli core, so in sys.modules.
-# Installing them in libs dir would not make a difference
-# as sys.modules takes precedence.
-SKIP_DEPENDENCY_LIST = ["click", "opsicommon", "rich_click", "pydantic", "ruamel", "msgpack", "orjson"]
 
 
 class OPSICLIPlugin:
@@ -87,8 +82,11 @@ class PluginManager(metaclass=Singleton):
 
 	@property
 	def plugins(self) -> list[str]:
+		return self.get_plugins([config.plugin_bundle_dir, config.plugin_system_dir, config.plugin_user_dir])
+
+	def get_plugins(self, dirs: list[Path]) -> list[str]:
 		plugin_ids = []
-		for plugin_base_dir in (config.plugin_bundle_dir, config.plugin_system_dir, config.plugin_user_dir):
+		for plugin_base_dir in dirs:
 			if not plugin_base_dir:
 				continue
 			if not plugin_base_dir.exists():
@@ -101,13 +99,12 @@ class PluginManager(metaclass=Singleton):
 		return plugin_ids
 
 	def load_plugin_module(self, plugin_dir: Path) -> ModuleType:
-		if str(config.user_lib_dir) not in sys.path:
-			sys.path.append(str(config.user_lib_dir))
-		if str(config.python_lib_dir) not in sys.path:
-			sys.path.append(str(config.python_lib_dir))
+		if (config.python_lib_dir / plugin_dir.name).exists() and str(config.python_lib_dir / plugin_dir.name) not in sys.path:
+			logger.debug("Prepending to sys.path: %s", config.python_lib_dir / plugin_dir.name)
+			sys.path.insert(0, str(config.python_lib_dir / plugin_dir.name))
 		logger.debug("Extracting plugin object from '%s'", plugin_dir)
+		logger.debug("sys.path = %s", sys.path)
 		module_name = self.module_name(plugin_dir)
-		logger.trace("Module name is %r", module_name)
 		if module_name in sys.modules:
 			reload = []
 			for sys_module in list(sys.modules):
@@ -117,7 +114,7 @@ class PluginManager(metaclass=Singleton):
 			for sys_module in reload:
 				importlib.reload(sys.modules[sys_module])
 			return sys.modules[module_name]
-		return importlib.import_module(module_name)
+		return importlib.import_module(self.module_name(plugin_dir))
 
 	def get_plugin_dir(self, name: str) -> Path:
 		for plugin_base_dir in (config.plugin_bundle_dir, config.plugin_system_dir, config.plugin_user_dir):
@@ -143,14 +140,6 @@ class PluginManager(metaclass=Singleton):
 				# Only one class per module
 				return plugin
 		raise RuntimeError(f"Failed to load plugin {name}.")
-
-	def extract_plugin_object(self, plugin_dir: Path) -> OPSICLIPlugin:
-		module = self.load_plugin_module(plugin_dir)
-		for cls in module.__dict__.values():
-			if isinstance(cls, type) and issubclass(cls, OPSICLIPlugin) and cls != OPSICLIPlugin:
-				logger.info("Loading plugin %r (name=%s, cli=%s)", plugin_dir.name, cls.name, cls.cli)
-				return cls(plugin_dir)
-		raise ImportError(f"Could not load plugin from {plugin_dir}.")
 
 
 plugin_manager = PluginManager()
@@ -185,28 +174,17 @@ def install_plugin(source_dir: Path, name: str, system: bool = False) -> Path:
 	if not plugin_dir.is_dir():
 		raise FileNotFoundError(f"Plugin dir '{plugin_dir}' does not exist")
 
+	if not name:
+		raise ValueError("Attempting to install empty plugin.")
 	logger.info("Installing libraries from '%s'", source_dir / "lib")
-	# https://lukelogbook.tech/2018/01/25/merging-two-folders-in-python/
-	for src_dir_string, _, files in os.walk(source_dir / "lib"):
-		src_dir = Path(src_dir_string)
-		dst_dir = config.python_lib_dir / src_dir.relative_to(source_dir / "lib")
-		if not dst_dir.exists():
-			dst_dir.mkdir(parents=True, exist_ok=True)
-		for file_ in files:
-			if not (dst_dir / file_).exists():
-				# avoid replacing files that might be currently loaded -> segfault
-				shutil.copy2(src_dir / file_, dst_dir / file_)
-
-	plugin_object = plugin_manager.extract_plugin_object(source_dir / name)
-	if "protected" in plugin_object.flags:
-		raise PermissionError(f"Failed to add plugin {name}. It is marked as 'protected'.")
+	shutil.rmtree(config.python_lib_dir / name, ignore_errors=True)
+	shutil.copytree(source_dir / "lib", config.python_lib_dir / name)
 
 	destination = plugin_dir / name
 	logger.info("Installing plugin from '%s' to '%s'", source_dir / name, destination)
 	if destination.exists():
 		shutil.rmtree(destination)
 	shutil.copytree(source_dir / name, destination)
-	plugin_manager.load_plugin(destination)
 	return destination
 
 
@@ -228,6 +206,7 @@ def install_python_package(target_dir: Path, package: dict[str, str]) -> None:
 	# Monkeypatch here to avoid trying to create this (nasty in frozen context)
 	ScriptMaker.make_multiple = monkeypatched_make_multiple  # type: ignore
 
+	target_dir.mkdir(parents=True, exist_ok=True)
 	logger.info("Installing %r, version %r", package["name"], package["version"])
 	# packaging version bundled in pip uses legacy format (see pip/__main__.py)
 	with warnings.catch_warnings():
@@ -263,9 +242,6 @@ def install_dependencies(path: Path, target_dir: Path) -> None:
 	logger.debug("Got dependencies: %s", dependencies)
 	for dependency in dependencies:
 		logger.debug("Checking dependency %s", dependency["name"])
-		if dependency["name"] in SKIP_DEPENDENCY_LIST:
-			logger.debug("Not installing %s, as it is part of opsi-cli core", dependency["name"])
-			continue
 		try:
 			temp_module = importlib.import_module(dependency["name"])
 			logger.trace("found present %s, version %s", dependency["name"], temp_module.__version__)
@@ -278,3 +254,5 @@ def install_dependencies(path: Path, target_dir: Path) -> None:
 			)
 		except (ImportError, AssertionError, AttributeError):
 			install_python_package(target_dir, dependency)
+	# Place requirements.txt at lib dir for possible later use (upgrade dependencies etc.)
+	shutil.copy(path / "requirements.txt", target_dir)

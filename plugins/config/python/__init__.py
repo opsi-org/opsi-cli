@@ -145,7 +145,7 @@ def service_list() -> None:
 @click.option("--name", type=str, required=False, default=None)
 @click.option("--username", type=str, required=False, default=None)
 @click.option("--password", type=str, required=False, default=None)
-@click.option("--system", type=bool, required=False, default=False)
+@click.option("--system", is_flag=True, type=bool, required=False, default=False)
 def service_add(
 	url: str | None = None,
 	name: str | None = None,
@@ -184,7 +184,7 @@ def service_add(
 
 @service.command(name="remove", short_help="Remove an opsi service")
 @click.argument("name", type=str, required=False)
-@click.option("--system", type=bool, required=False, default=False)
+@click.option("--system", is_flag=True, type=bool, required=False, default=False)
 def service_remove(
 	name: str | None = None,
 	system: bool = False,

@@ -139,20 +139,36 @@ def test_service_config() -> None:
 		assert not any(service.name == "test" for service in config.get_values().get("services", []))
 
 
-def test_service_config_list_remove() -> None:
+@pytest.mark.parametrize(
+	"config_value, call_parameter",
+	(("true", "--no-metadata"), ("false", "--metadata")),
+)
+def test_metadata_bool_flag(config_value: str, call_parameter: str) -> None:
 	config = Config()
 
 	with temp_context() as tempdir:
-		# config service add writes conffile. Explicitely set here to avoid wiping config file of the user.
 		conffile = Path(tempdir) / "conffile.conf"
 		config.config_file_user = conffile
-		(exit_code, _) = run_cli(["config", "service", "add", "--name=test", "https://testurl:4447"])
+		exit_code, _ = run_cli(["config", "set", "metadata", config_value])
 		assert exit_code == 0
-		(exit_code, output) = run_cli(["config", "service", "list"])
+		exit_code, output = run_cli(["--output-format=json", call_parameter, "config", "service", "list"])
 		assert exit_code == 0
-		assert "https://testurl:4447" in output
-		(exit_code, output) = run_cli(["config", "service", "remove", "test"])
+		print("config_value: ", config_value, "\ncall_parameter: ", call_parameter, "\noutput: ", output, "\n")
+		assert (call_parameter == "--metadata") == ("metadata" in output)
+
+
+@pytest.mark.parametrize(
+	"config_value, call_parameter",
+	(("false", "--header"), ("true", "--no-header")),
+)
+def test_header_bool_flag(config_value: str, call_parameter: str) -> None:
+	config = Config()
+
+	with temp_context() as tempdir:
+		conffile = Path(tempdir) / "conffile.conf"
+		config.config_file_user = conffile
+		exit_code, _ = run_cli(["config", "set", "header", config_value])
 		assert exit_code == 0
-		(exit_code, output) = run_cli(["config", "service", "list"])
+		exit_code, output = run_cli([call_parameter, "config", "service", "list"])
 		assert exit_code == 0
-		assert "https://testurl:4447" not in output
+		assert (call_parameter == "--header") == ("name" in output and "url" in output)
