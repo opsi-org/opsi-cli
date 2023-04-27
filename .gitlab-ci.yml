@@ -103,6 +103,7 @@ pylint-pytest:
       artifacts: true
   script:
     - apt-get update
+    - apt-get --yes --allow-downgrades install libsqlite3-0=3.16.2-5+deb9u1
     - apt-get --yes install sqlite3
     - poetry lock --no-update
     - poetry install
