@@ -31,16 +31,22 @@ def cli() -> None:
 @click.argument("path", nargs=1, default=Path(), type=click.Path(file_okay=False, dir_okay=True, path_type=Path))
 @click.option(
 	"--output-file",
-	help="file to store the output in",
+	help="File to store the output in",
 	default=Path("packages.json"),
 	type=click.Path(file_okay=True, dir_okay=False, path_type=Path),
 )
-def create_meta_file(path: Path, output_file: Path) -> None:
+@click.option(
+	"--repository-name",
+	help="Name of the repository",
+	default="opsi package repository",
+	type=str,
+)
+def create_meta_file(path: Path, output_file: Path, repository_name: str) -> None:
 	"""
 	This subcommand traverses a given path, analyzes all opsi packages it finds
 	and stores that information in a structured way in a meta-data file.
 	"""
-	packages_metadata = PackagesMetadataCollection("testrepo")
+	packages_metadata = PackagesMetadataCollection(repository_name)
 	packages_metadata.collect(path)
 	packages_metadata.write(output_file)
 

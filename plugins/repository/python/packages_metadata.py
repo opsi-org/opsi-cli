@@ -25,12 +25,16 @@ class MetadataFile:
 
 
 def prod_dep_data(dep: ProductDependency) -> dict[str, str | None]:
-	data = dep.to_hash()
-	del data["productId"]
-	del data["productVersion"]
-	del data["packageVersion"]
-	del data["type"]
-	return data
+	wanted_keys = (
+		"requiredProductVersion",
+		"requiredPackageVersion",
+		"requiredAction",
+		"requiredInstallationStatus",
+		"requirementType",
+		"productAction",
+		"requiredProductId",
+	)
+	return {key: value for key, value in dep.to_hash().items() if key in wanted_keys}
 
 
 def url_exists(url: str) -> bool:
