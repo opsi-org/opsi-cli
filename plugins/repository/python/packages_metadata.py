@@ -64,7 +64,7 @@ class PackageMetadata:  # pylint: disable=too-many-instance-attributes
 
 	def from_archive(self, archive: Path) -> None:
 		logger.notice("Reading package archive %s", archive)
-		self.url = str(PosixPath(archive))  # PosixPath to have "/" delimiter even on windows
+		self.url = str(archive).replace("\\", "/")  # Cannot instantiate PosixPath on windows
 		self.size = archive.stat().st_size
 		with open(archive, "rb", buffering=0) as file_handle:
 			# file_digest is python>=3.11 only
