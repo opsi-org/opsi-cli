@@ -8,11 +8,13 @@ import hashlib
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path, PosixPath
+from typing import Any
 
 import requests  # type: ignore
 from opsicommon.logging import get_logger
 from opsicommon.objects import ProductDependency
 from opsicommon.package import OpsiPackage
+from opsicommon.system import lock_file
 
 logger = get_logger("opsicli")
 CHANGELOG_SERVER = "https://changelog.opsi.org"
@@ -63,8 +65,15 @@ class PackageMetadata:  # pylint: disable=too-many-instance-attributes
 	icon_url: str | None = None  # preparation for later
 	zsync_url: str | None = None
 
-	def __init__(self, archive: Path) -> None:
-		self.from_archive(archive)
+	def __init__(self, data: Path | dict[str, Any]) -> None:
+		if isinstance(data, Path):
+			self.from_archive(data)
+		elif isinstance(data, dict):
+			self.from_dict(data)
+
+	@property
+	def version(self) -> str:
+		return f"{self.product_version}-{self.package_version}"
 
 	def from_archive(self, archive: Path) -> None:
 		logger.notice("Reading package archive %s", archive)
@@ -86,24 +95,69 @@ class PackageMetadata:  # pylint: disable=too-many-instance-attributes
 		self.package_dependencies = [asdict(dep) for dep in opsi_package.package_dependencies]
 
 		if url_exists(f"{CHANGELOG_SERVER}/OPSI_PACKAGE/{self.product_id}/changelog.txt"):
-			self.changelog_url = "{CHANGELOG_SERVER}/OPSI_PACKAGE/{self.product_id}/changelog.txt"
+			self.changelog_url = f"{CHANGELOG_SERVER}/OPSI_PACKAGE/{self.product_id}/changelog.txt"
 		if url_exists(f"{CHANGELOG_SERVER}/OPSI_PACKAGE/{self.product_id}/release_notes.txt"):
-			self.release_notes_url = "{CHANGELOG_SERVER}/OPSI_PACKAGE/{self.product_id}/release_notes.txt"
+			self.release_notes_url = f"{CHANGELOG_SERVER}/OPSI_PACKAGE/{self.product_id}/release_notes.txt"
+
+	def from_dict(self, data: dict[str, Any]) -> None:
+		if not (
+			isinstance(data["url"], str)
+			and isinstance(data["size"], int)
+			and isinstance(data["md5_hash"], str)
+			and isinstance(data["sha256_hash"], str)
+			and isinstance(data["product_id"], str)
+			and isinstance(data["product_version"], str)
+			and isinstance(data["package_version"], str)
+		):
+			raise ValueError(f"Invalid data to build PackageMetadata from: {data}")
+		self.url = data["url"]
+		self.size = data["size"]
+		self.md5_hash = data["md5_hash"]
+		self.sha256_hash = data["sha256_hash"]
+		self.product_id = data["product_id"]
+		self.product_version = data["product_version"]
+		self.package_version = data["package_version"]
+		self.product_dependencies = data.get("product_dependencies", [])
+		self.package_dependencies = data.get("package_dependencies", [])
+		self.description = data.get("description")
+		self.changelog_url = data.get("changelog_url")
+		self.release_notes_url = data.get("release_notes_url")
+		self.icon_url = data.get("icon_url")
+		self.zsync_url = data.get("zsync_url")
 
 
 class PackagesMetadataCollection:
-	def __init__(self, repo_name: str) -> None:
+	def __init__(self, path: Path | None = None) -> None:
 		self.schema_version: str = "1.1"
-		self.repository: dict[str, str] = {"name": repo_name}
+		self.repository: dict[str, str] = {}
 		self.metadata_files: list[MetadataFile] = []
-		self.packages: dict[str, PackageMetadata] = {}
+		self.packages: dict[str, dict[str, PackageMetadata]] = {}
+		if path and path.exists():
+			with open(path, mode="r", encoding="utf-8") as infile:
+				data = json.load(infile)
+				self.schema_version = data.get("schema_version")
+				self.repository = data.get("repository")
+				self.metadata_files = [MetadataFile(entry.get("type"), entry.get("urls")) for entry in data.get("metadata_files")]
+				self.packages = {}
+				for name, product in data.get("packages", {}).items():
+					if name not in self.packages:
+						self.packages[name] = {}
+					self.packages[name] = {version: PackageMetadata(package) for version, package in product.items()}
 
-	def collect(self, path: Path) -> None:
+	def collect(self, path: Path, repo_name: str) -> None:
+		self.repository = {"name": repo_name}
 		logger.notice("Starting to collect metadata from %s", path)
 		for archive in path.rglob("*.opsi"):
-			package = PackageMetadata(archive)
-			self.packages[f"{package.product_id};{package.product_version};{package.package_version}"] = package
+			# allow multiple versions for the same product in full scan
+			self.add_package(archive, keep_other_versions=True)
 		logger.info("Finished collecting metadata")
+
+	def add_package(self, archive: Path, keep_other_versions: bool = False) -> None:
+		package = PackageMetadata(archive)
+		# Key only consists of only product id (otw11 revision 03.05.)
+		if package.product_id not in self.packages or not keep_other_versions:
+			self.packages[package.product_id] = {}
+		self.packages[package.product_id][package.version] = package
 
 	def write(self, path: Path) -> None:
 		logger.notice("Writing result to %s", path)
@@ -111,6 +165,18 @@ class PackagesMetadataCollection:
 			"schema_version": self.schema_version,
 			"repository": self.repository,
 			"metadata_files": [asdict(metadata_file) for metadata_file in self.metadata_files],
-			"packages": {name: asdict(package) for name, package in self.packages.items()},
 		}
-		path.write_text(json.dumps(result))
+		packages_dict: dict[str, dict[str, Any]] = {}
+		for name, product in self.packages.items():
+			if name not in result:
+				packages_dict[name] = {}
+			packages_dict[name] = {version: asdict(package) for version, package in product.items()}
+		result["packages"] = packages_dict
+
+		if not path.exists():
+			path.touch()  # Need to create file before it can be opened with r+
+		with open(path, "r+", encoding="utf-8") as file:
+			with lock_file(file):
+				file.seek(0)
+				file.truncate()
+				file.write(json.dumps(result))

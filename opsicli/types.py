@@ -116,7 +116,7 @@ class File(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public
 		if str(path) != "-":
 			path = path.expanduser().absolute()
 			if path.exists() and not path.is_file():
-				raise ValueError("Not a file: {path!r}")
+				raise ValueError(f"Not a file: {path!r}")
 		return path
 
 	def to_yaml(self) -> str:
@@ -130,7 +130,7 @@ class Directory(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-p
 		path = super().__new__(cls, *args, **kwargs)
 		path = path.expanduser().absolute()
 		if path.exists() and not path.is_dir():
-			raise ValueError("Not a directory: {path!r}")
+			raise ValueError(f"Not a directory: {path!r}")
 		return path
 
 	def to_yaml(self) -> str:

@@ -27,10 +27,10 @@ def cli() -> None:
 	logger.trace("repository command")
 
 
-@cli.command(short_help="Some example subcommand", name="create-meta-file")
+@cli.command(short_help="Creates file with repo meta information", name="create-meta-file")
 @click.argument("path", nargs=1, default=Path(), type=click.Path(file_okay=False, dir_okay=True, path_type=Path))
 @click.option(
-	"--output-file",
+	"--meta-file",
 	help="File to store the output in",
 	default=Path("packages.json"),
 	type=click.Path(file_okay=True, dir_okay=False, path_type=Path),
@@ -41,14 +41,39 @@ def cli() -> None:
 	default="opsi package repository",
 	type=str,
 )
-def create_meta_file(path: Path, output_file: Path, repository_name: str) -> None:
+def create_meta_file(path: Path, meta_file: Path, repository_name: str) -> None:
 	"""
 	This subcommand traverses a given path, analyzes all opsi packages it finds
 	and stores that information in a structured way in a meta-data file.
 	"""
-	packages_metadata = PackagesMetadataCollection(repository_name)
-	packages_metadata.collect(path)
-	packages_metadata.write(output_file)
+	packages_metadata = PackagesMetadataCollection()
+	packages_metadata.collect(path, repository_name)
+	packages_metadata.write(meta_file)
+
+
+@cli.command(short_help="Adds or updates section in meta info file", name="update-meta-file")
+@click.argument("package", nargs=1, default=Path(), type=click.Path(file_okay=True, dir_okay=False, path_type=Path))
+@click.option(
+	"--meta-file",
+	help="Meta info file to update",
+	default=Path("packages.json"),
+	type=click.Path(file_okay=True, dir_okay=False, path_type=Path),
+)
+@click.option(
+	"--keep-other-versions",
+	help="If set, this prevents deletion of entries with the same productId",
+	is_flag=True,
+	show_default=True,
+	default=False,
+)
+def update_meta_file(package: Path, meta_file: Path, keep_other_versions: bool) -> None:
+	"""
+	This subcommand analyzes a given opsi package
+	and stores that information in a structured way in an existing meta-data file.
+	"""
+	packages_metadata = PackagesMetadataCollection(meta_file)
+	packages_metadata.add_package(package, keep_other_versions=keep_other_versions)
+	packages_metadata.write(meta_file)
 
 
 # This class keeps track of the plugins meta-information
@@ -57,4 +82,4 @@ class CustomPlugin(OPSICLIPlugin):
 	description: str = __description__
 	version: str = __version__
 	cli = cli
-	flags: list[str] = []
+	flags: list[str] = ["protected"]
