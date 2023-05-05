@@ -16,7 +16,7 @@ pytest-darwin:
     - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_darwin.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - mv .coverage coverage_darwin
   artifacts:
-    name: 'opsi-cli_test_darwin'
+    name: "opsi-cli_test_darwin"
     paths:
       - coverage.xml
       - testreport_darwin.xml
@@ -26,14 +26,14 @@ pytest-darwin:
 pytest-windows:
   stage: test_python
   tags:
-    - win10-py310
+    - win10-py311
   script:
     - poetry lock --no-update
     - poetry install
     - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_windows.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - Rename-Item -Path .coverage -NewName coverage_windows
   artifacts:
-    name: 'opsi-cli_test_windows'
+    name: "opsi-cli_test_windows"
     paths:
       - coverage.xml
       - testreport_windows.xml
@@ -56,7 +56,7 @@ pytest-linux:
     MYSQL_PASSWORD: "opsi"
     MYSQL_HOST: mysql
     REDIS_HOST: redis
-    OPSI_ADMIN_PASSWORD: vhahd8usaz  # also hardcoded in tests/utils.py
+    OPSI_ADMIN_PASSWORD: vhahd8usaz # also hardcoded in tests/utils.py
     OPSI_HOST_ROLE: configserver
     OPSI_HOST_ID: "test.uib.gmbh"
     OPSI_TFTPBOOT: "false"
@@ -79,12 +79,12 @@ pytest-linux:
     - curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetry.py | SSL_CERT_FILE=$(python3.11 -c "import certifi;print(certifi.where())") python3.11 - --version=1.3.2
     - ln -s /root/.local/bin/poetry /usr/local/bin/poetry
     - while ! nc -v -z -w3 localhost 4447 > /dev/null 2>&1; do sleep 1; done
-    - source /entrypoint.sh set_environment_vars  # to set hosts for redis/grafana
+    - source /entrypoint.sh set_environment_vars # to set hosts for redis/grafana
     - poetry install
     - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_linux.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - mv .coverage coverage_linux
   artifacts:
-    name: 'opsi-cli_test_linux'
+    name: "opsi-cli_test_linux"
     paths:
       - coverage.xml
       - testreport_linux.xml
@@ -122,13 +122,12 @@ pylint-pytest:
     - poetry run opsi-dev-tool -l info --testreport-merge testreport_*.xml testreport.xml
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
   artifacts:
-    name: 'opsi-cli_test'
+    name: "opsi-cli_test"
     paths:
       - coverage.xml
     expire_in: 3 days
     reports:
       junit: testreport.xml
-
 
 linux-pyinstaller:
   stage: build
@@ -193,7 +192,7 @@ macos-pyinstaller:
 windows-pyinstaller:
   stage: build
   tags:
-    - win10-py310
+    - win10-py311
   script:
     # build python environment
     - poetry lock --no-update
@@ -223,7 +222,6 @@ windows-pyinstaller:
     paths:
       - CLIENT_DATA\opsi-cli-windows.exe
 
-
 makeopsipackage:
   stage: package
   script:
@@ -238,7 +236,6 @@ makeopsipackage:
     name: controlfile
     paths:
       - OPSI/control
-
 
 .runtest: &runtest |
   version=$(grep OPSI/control -A 10 -e "\[Product\]" | grep "version:" | tr -d "^a-zA-Z :")
