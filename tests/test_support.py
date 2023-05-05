@@ -15,3 +15,6 @@ def test_healthcheck() -> None:
 		keywords = ("opsiconfd_config", "disk_usage", "redis", "mysql")
 		for word in keywords:
 			assert word in output
+
+
+# test_support_client_logs requires live client

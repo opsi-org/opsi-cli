@@ -2,11 +2,12 @@
 websocket functions
 """
 
+import json
 import platform
 import shutil
 import sys
 from threading import Event
-from typing import Optional
+from typing import Any
 from uuid import uuid4
 
 from opsicommon.client.opsiservice import MessagebusListener  # type: ignore[import]
@@ -14,6 +15,8 @@ from opsicommon.logging import get_logger  # type: ignore[import]
 from opsicommon.messagebus import (  # type: ignore[import]
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
+	JSONRPCRequestMessage,
+	JSONRPCResponseMessage,
 	Message,
 	TerminalCloseEventMessage,
 	TerminalDataReadMessage,
@@ -29,6 +32,7 @@ if platform.system().lower() == "windows":
 	import msvcrt  # pylint: disable=import-error
 
 CHANNEL_SUB_TIMEOUT = 5
+JSONRPC_TIMEOUT = 10
 
 logger = get_logger("opsicli")
 
@@ -51,7 +55,9 @@ class MessagebusConnection(MessagebusListener):
 		self.service_worker_channel: str | None = None
 		self.channel_subscription_event = Event()
 		self.terminal_open_event = Event()
+		self.jsonrpc_response_event = Event()
 		self.service_client = get_service_connection()
+		self.jsonrpc_response: Any | None = None
 
 	def message_received(self, message: Message) -> None:
 		log_message(message)
@@ -75,6 +81,10 @@ class MessagebusConnection(MessagebusListener):
 			sys.stdout.buffer.write(b"\nreceived terminal close event - press Enter to return to local shell")
 			sys.stdout.flush()  # This actually pops the buffer to terminal (without waiting for '\n')
 			self.should_close = True
+		elif isinstance(message, JSONRPCResponseMessage):
+			logger.notice("received jsonrpc response message")
+			self.jsonrpc_response = json.loads(message.result)
+			self.jsonrpc_response_event.set()
 
 	def transmit_input(self, term_write_channel: str, data: bytes | None = None) -> None:
 		if not self.terminal_id:
@@ -141,7 +151,27 @@ class MessagebusConnection(MessagebusListener):
 		self.service_client.connect()
 		self.service_client.connect_messagebus()
 
-	def run_terminal(self, target: str, term_id: Optional[str] = None) -> None:
+	def jsonrpc(self, channel: str, method: str, params: tuple | None = None) -> Any:
+		self.service_client.connect()
+		self.service_client.connect_messagebus()
+		with self.register(self.service_client.messagebus):
+			if not self.service_worker_channel and not self.channel_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
+				raise ConnectionError("Failed to subscribe to session channel.")
+			message = JSONRPCRequestMessage(
+				method=method,
+				params=params or (),
+				api_version="2.0",
+				rpc_id="1",
+				sender="@",
+				channel=channel,
+			)
+			self.service_client.messagebus.send_message(message)
+			logger.notice("Sending jsonrpc-request, awaiting response...")
+			if not self.jsonrpc_response and not self.jsonrpc_response_event.wait(JSONRPC_TIMEOUT):
+				raise TimeoutError("Timed out waiting for jsonrpc response.")
+			return self.jsonrpc_response
+
+	def run_terminal(self, target: str, term_id: str | None = None) -> None:
 		self.prepare_terminal_connection(term_id)
 		with self.register(self.service_client.messagebus):
 			# If service_worker_channel is not set, wait for channel_subscription_event
