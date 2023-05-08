@@ -2,6 +2,8 @@
 test_messagebus
 """
 
+from uuid import uuid4
+
 import pytest
 
 from opsicli.messagebus import CHANNEL_SUB_TIMEOUT, MessagebusConnection
@@ -45,9 +47,8 @@ def test_messagebus_terminal() -> None:
 	with container_connection():
 		connection = MessagebusConnection()
 		assert connection
-		connection.prepare_terminal_connection()
-		assert connection.terminal_id
-		with connection.register(connection.service_client.messagebus):
+		connection.terminal_id = str(uuid4())
+		with connection.connection():
 			if not connection.channel_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
 				raise ConnectionError("Failed to subscribe to session channel.")
 			(term_read_channel, term_write_channel) = connection.get_terminal_channel_pair("configserver")
@@ -60,9 +61,9 @@ def test_messagebus_reconnect() -> None:
 	with container_connection():
 		for iteration in range(2):
 			connection = MessagebusConnection()
-			connection.prepare_terminal_connection()
+			connection.terminal_id = str(uuid4())
 			print(f"Iteration {iteration} terminal_id: {connection.terminal_id}")
-			with connection.register(connection.service_client.messagebus):
+			with connection.connection():
 				if not connection.channel_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
 					raise ConnectionError("Failed to subscribe to session channel (first try).")
 				print(f"Iteration {iteration} getting channel pair")
@@ -71,19 +72,14 @@ def test_messagebus_reconnect() -> None:
 
 @pytest.mark.requires_testcontainer
 def test_messagebus_with_two_connections() -> None:
+	term_id = str(uuid4())
 	with container_connection():
 		first = MessagebusConnection()
-		first.prepare_terminal_connection()
+		first.terminal_id = term_id
 		second = MessagebusConnection()
-		second.prepare_terminal_connection(first.terminal_id)
-		with first.register(first.service_client.messagebus):
-			# if not first.channel_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
-			# 	raise ConnectionError("Failed to subscribe to session channel (first try).")
-			# first.channel_subscription_event.clear()
+		second.terminal_id = term_id
+		with first.connection():
 			first.get_terminal_channel_pair("configserver")
 
-			with second.register(second.service_client.messagebus):
-				# if not second.channel_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
-				# 	raise ConnectionError("Failed to subscribe to session channel (second try).")
-				# second.channel_subscription_event.clear()
+			with second.connection():
 				second.get_terminal_channel_pair("configserver", open_new_terminal=False)

@@ -5,6 +5,8 @@ test_client_action
 import pytest
 from opsicommon.objects import ProductOnClient
 
+from opsicli.opsiservice import get_service_connection
+
 from .utils import container_connection, run_cli
 
 CLIENT1 = "pytest-client1.test.tld"
@@ -17,7 +19,8 @@ P_GROUP = "pytest-test-product-group"
 
 @pytest.mark.requires_testcontainer
 def test_set_action_request_single() -> None:
-	with container_connection() as connection:
+	with container_connection():
+		connection = get_service_connection()
 		connection.jsonrpc("host_createOpsiClient", params=[CLIENT1])
 		connection.jsonrpc("host_createOpsiClient", params=[CLIENT2])
 		cmd = ["client-action", "--clients", f"{CLIENT1},{CLIENT2}", "set-action-request", "--products", f"{PRODUCT1},{PRODUCT2}"]
@@ -47,7 +50,8 @@ def test_set_action_request_single() -> None:
 
 @pytest.mark.requires_testcontainer
 def test_set_action_request_group() -> None:
-	with container_connection() as connection:
+	with container_connection():
+		connection = get_service_connection()
 		connection.jsonrpc("host_createOpsiClient", params=[CLIENT1])
 		connection.jsonrpc("host_createOpsiClient", params=[CLIENT2])
 		connection.jsonrpc("group_createHostGroup", params=[H_GROUP])
@@ -85,7 +89,8 @@ def test_set_action_request_group() -> None:
 
 @pytest.mark.requires_testcontainer
 def test_set_action_request_where_failed() -> None:
-	with container_connection() as connection:
+	with container_connection():
+		connection = get_service_connection()
 		connection.jsonrpc("host_createOpsiClient", params=[CLIENT1])
 		# create a failed POC
 		connection.jsonrpc(
@@ -113,7 +118,8 @@ def test_set_action_request_where_failed() -> None:
 
 @pytest.mark.requires_testcontainer
 def test_set_action_request_excludes() -> None:
-	with container_connection() as connection:
+	with container_connection():
+		connection = get_service_connection()
 		connection.jsonrpc("host_createOpsiClient", params=[CLIENT1])
 		connection.jsonrpc("host_createOpsiClient", params=[CLIENT2])
 		connection.jsonrpc("group_createHostGroup", params=[H_GROUP])
@@ -160,7 +166,8 @@ def test_set_action_request_excludes() -> None:
 
 @pytest.mark.requires_testcontainer
 def test_set_action_request_unknown_type() -> None:
-	with container_connection() as connection:
+	with container_connection():
+		connection = get_service_connection()
 		connection.jsonrpc("host_createOpsiClient", params=[CLIENT1])
 		cmd = ["client-action", "--clients", CLIENT1, "set-action-request", "--products", PRODUCT1, "--request-type", "nonexistent"]
 

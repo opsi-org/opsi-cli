@@ -6,8 +6,9 @@ import json
 import platform
 import shutil
 import sys
-from threading import Event
-from typing import Any
+from contextlib import contextmanager
+from threading import Event, Lock
+from typing import Any, Generator
 from uuid import uuid4
 
 from opsicommon.client.opsiservice import MessagebusListener  # type: ignore[import]
@@ -57,6 +58,7 @@ class MessagebusConnection(MessagebusListener):
 		self.jsonrpc_response_event = Event()
 		self.service_client = get_service_connection()
 		self.jsonrpc_response: Any | None = None
+		self.connection_lock = Lock()
 
 	def message_received(self, message: Message) -> None:
 		log_message(message)
@@ -144,18 +146,27 @@ class MessagebusConnection(MessagebusListener):
 
 		return (term_read_channel, term_write_channel)
 
-	def prepare_terminal_connection(self, term_id: str | None = None) -> None:
-		if term_id:
-			self.terminal_id = term_id
-		else:
-			self.terminal_id = str(uuid4())
-		self.service_client.connect()
-		self.service_client.connect_messagebus()
+	@contextmanager
+	def connection(self) -> Generator[None, None, None]:
+		try:
+			if not self.service_client.connected:
+				logger.devel("Connecting to service.")
+				self.service_client.connect()
+			if not self.service_client.messagebus_connected:
+				logger.devel("Connecting to messagebus.")
+				self.service_client.connect_messagebus()
+			with self.register(self.service_client.messagebus):
+				yield
+		finally:
+			if self.service_client.messagebus_connected:
+				logger.devel("Disconnecting from messagebus.")
+				self.service_client.disconnect_messagebus()
+			if self.service_client.connected:
+				logger.devel("Disconnecting from service.")
+				self.service_client.disconnect()
 
 	def jsonrpc(self, channel: str, method: str, params: tuple | None = None) -> Any:
-		self.service_client.connect()
-		self.service_client.connect_messagebus()
-		with self.register(self.service_client.messagebus):
+		with self.connection():
 			if not self.channel_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
 				raise ConnectionError("Failed to subscribe to session channel.")
 			self.channel_subscription_event.clear()  # prepare for catching the next channel_subscription_event
@@ -179,8 +190,11 @@ class MessagebusConnection(MessagebusListener):
 			return result
 
 	def run_terminal(self, target: str, term_id: str | None = None) -> None:
-		self.prepare_terminal_connection(term_id)
-		with self.register(self.service_client.messagebus):
+		if term_id:
+			self.terminal_id = term_id
+		else:
+			self.terminal_id = str(uuid4())
+		with self.connection():
 			(_, term_write_channel) = self.get_terminal_channel_pair(target, open_new_terminal=term_id is None)
 			logger.notice("Return to local shell with 'exit' or 'Ctrl+D'")
 			with stream_wrap():
