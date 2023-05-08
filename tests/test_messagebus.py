@@ -31,6 +31,17 @@ def test_messagebus_jsonrpc_params() -> None:
 
 
 @pytest.mark.requires_testcontainer
+def test_messagebus_jsonrpc_error() -> None:
+	with container_connection():
+		connection = MessagebusConnection()
+		assert connection
+		result = connection.jsonrpc("service:config:jsonrpc", "method_which_does_not_exist")
+	assert "data" in result
+	assert result["data"].get("class") == "ValueError"
+	assert "Invalid method" in result["data"].get("details")
+
+
+@pytest.mark.requires_testcontainer
 def test_messagebus_jsonrpc_multiple() -> None:
 	with container_connection():
 		connection = MessagebusConnection()
