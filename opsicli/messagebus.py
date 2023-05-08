@@ -81,7 +81,7 @@ class MessagebusConnection(MessagebusListener):
 			self.should_close = True
 		elif isinstance(message, JSONRPCResponseMessage):
 			logger.notice("received jsonrpc response message")
-			self.jsonrpc_response = json.loads(message.result) if isinstance(message.result, str) else message.result
+			self.jsonrpc_response = message.result
 			self.jsonrpc_response_event.set()
 
 	def transmit_input(self, term_write_channel: str, data: bytes | None = None) -> None:
@@ -167,7 +167,6 @@ class MessagebusConnection(MessagebusListener):
 				method=method,
 				params=params or (),
 				api_version="2.0",
-				rpc_id="1",
 				sender="@",
 				channel=channel,
 			)
@@ -178,7 +177,7 @@ class MessagebusConnection(MessagebusListener):
 			self.jsonrpc_response_event.clear()
 			if not self.jsonrpc_response:
 				raise ConnectionError("Failed to receive jsonrpc response.")
-			result = self.jsonrpc_response.copy()
+			result = self.jsonrpc_response
 			self.jsonrpc_response = None
 			return result
 
