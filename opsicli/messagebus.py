@@ -43,8 +43,8 @@ def log_message(message: Message) -> None:
 	debug_string = ""
 	for key, value in message.to_dict().items():
 		debug_string += f"\t{key}: {value}\n"
-	# logger.debug(debug_string)
-	logger.devel(debug_string)  # TODO: for test_messagebus.py
+	logger.debug(debug_string)
+	# logger.devel(debug_string)  # for test_messagebus.py
 
 
 class MessagebusConnection(MessagebusListener):
@@ -58,7 +58,6 @@ class MessagebusConnection(MessagebusListener):
 		self.jsonrpc_response_event = Event()
 		self.service_client = get_service_connection()
 		self.jsonrpc_response: Any | None = None
-		self.connection_lock = Lock()
 
 	def message_received(self, message: Message) -> None:
 		log_message(message)
@@ -149,21 +148,15 @@ class MessagebusConnection(MessagebusListener):
 	@contextmanager
 	def connection(self) -> Generator[None, None, None]:
 		try:
-			if not self.service_client.connected:
-				logger.devel("Connecting to service.")
-				self.service_client.connect()
 			if not self.service_client.messagebus_connected:
-				logger.devel("Connecting to messagebus.")
+				logger.debug("Connecting to messagebus.")
 				self.service_client.connect_messagebus()
 			with self.register(self.service_client.messagebus):
 				yield
 		finally:
 			if self.service_client.messagebus_connected:
-				logger.devel("Disconnecting from messagebus.")
+				logger.debug("Disconnecting from messagebus.")
 				self.service_client.disconnect_messagebus()
-			if self.service_client.connected:
-				logger.devel("Disconnecting from service.")
-				self.service_client.disconnect()
 
 	def jsonrpc(self, channel: str, method: str, params: tuple | None = None) -> Any:
 		with self.connection():
