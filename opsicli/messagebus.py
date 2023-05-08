@@ -2,11 +2,13 @@
 websocket functions
 """
 
+import json
 import platform
 import shutil
 import sys
-from threading import Event
-from typing import Optional
+from contextlib import contextmanager
+from threading import Event, Lock
+from typing import Any, Generator
 from uuid import uuid4
 
 from opsicommon.client.opsiservice import MessagebusListener  # type: ignore[import]
@@ -14,6 +16,8 @@ from opsicommon.logging import get_logger  # type: ignore[import]
 from opsicommon.messagebus import (  # type: ignore[import]
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
+	JSONRPCRequestMessage,
+	JSONRPCResponseMessage,
 	Message,
 	TerminalCloseEventMessage,
 	TerminalDataReadMessage,
@@ -29,6 +33,7 @@ if platform.system().lower() == "windows":
 	import msvcrt  # pylint: disable=import-error
 
 CHANNEL_SUB_TIMEOUT = 5
+JSONRPC_TIMEOUT = 10
 
 logger = get_logger("opsicli")
 
@@ -39,7 +44,7 @@ def log_message(message: Message) -> None:
 	for key, value in message.to_dict().items():
 		debug_string += f"\t{key}: {value}\n"
 	logger.debug(debug_string)
-	# logger.devel(debug_string)  # TODO: for test_messagebus.py
+	# logger.devel(debug_string)  # for test_messagebus.py
 
 
 class MessagebusConnection(MessagebusListener):
@@ -48,10 +53,11 @@ class MessagebusConnection(MessagebusListener):
 	def __init__(self) -> None:
 		MessagebusListener.__init__(self)
 		self.should_close = False
-		self.service_worker_channel: str | None = None
 		self.channel_subscription_event = Event()
 		self.terminal_open_event = Event()
+		self.jsonrpc_response_event = Event()
 		self.service_client = get_service_connection()
+		self.jsonrpc_response: Any | None = None
 
 	def message_received(self, message: Message) -> None:
 		log_message(message)
@@ -62,8 +68,6 @@ class MessagebusConnection(MessagebusListener):
 
 	def _process_message(self, message: Message) -> None:
 		if isinstance(message, ChannelSubscriptionEventMessage):
-			# Get responsible service_worker
-			self.service_worker_channel = message.sender
 			self.channel_subscription_event.set()
 		elif isinstance(message, TerminalOpenEventMessage) and message.terminal_id == self.terminal_id:
 			self.terminal_open_event.set()
@@ -75,6 +79,10 @@ class MessagebusConnection(MessagebusListener):
 			sys.stdout.buffer.write(b"\nreceived terminal close event - press Enter to return to local shell")
 			sys.stdout.flush()  # This actually pops the buffer to terminal (without waiting for '\n')
 			self.should_close = True
+		elif isinstance(message, JSONRPCResponseMessage):
+			logger.notice("received jsonrpc response message")
+			self.jsonrpc_response = message.error if message.error else message.result
+			self.jsonrpc_response_event.set()
 
 	def transmit_input(self, term_write_channel: str, data: bytes | None = None) -> None:
 		if not self.terminal_id:
@@ -98,6 +106,7 @@ class MessagebusConnection(MessagebusListener):
 	def open_new_terminal(self, term_read_channel: str, term_write_channel: str) -> None:
 		if not self.channel_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
 			raise ConnectionError("Could not subscribe to terminal session channel")
+		self.channel_subscription_event.clear()  # prepare for catching the next channel_subscription_event
 		size = shutil.get_terminal_size()
 		tor = TerminalOpenRequestMessage(
 			sender="@",
@@ -114,11 +123,10 @@ class MessagebusConnection(MessagebusListener):
 	def get_terminal_channel_pair(self, target: str, open_new_terminal: bool = True) -> tuple[str, str]:
 		term_read_channel = f"session:{self.terminal_id}"
 		if target.lower() == "configserver":
-			term_write_channel = f"{self.service_worker_channel}:terminal"
+			term_write_channel = "service:config:terminal"
 		else:
 			term_write_channel = f"host:{target}"
 
-		self.channel_subscription_event.clear()
 		csr = ChannelSubscriptionRequestMessage(sender="@", operation="add", channels=[term_read_channel], channel="service:messagebus")
 		logger.notice("Requesting access to terminal session channel")
 		log_message(csr)
@@ -126,27 +134,59 @@ class MessagebusConnection(MessagebusListener):
 
 		if open_new_terminal:
 			self.open_new_terminal(term_read_channel, term_write_channel)
+			if not self.terminal_open_event.wait(CHANNEL_SUB_TIMEOUT):
+				raise ConnectionError("Could not open new terminal")
+			self.terminal_open_event.clear()  # prepare for catching the next terminal_open_event
 		else:
 			logger.notice("Requesting access to existing terminal with id %s ", self.terminal_id)
-
-		if not self.terminal_open_event.wait(CHANNEL_SUB_TIMEOUT):
+		if not self.channel_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
 			raise ConnectionError("Could not subscribe to terminal session channel")
+		self.channel_subscription_event.clear()  # prepare for catching the next terminal_open_event
+
 		return (term_read_channel, term_write_channel)
 
-	def prepare_terminal_connection(self, term_id: str | None = None) -> None:
+	@contextmanager
+	def connection(self) -> Generator[None, None, None]:
+		try:
+			if not self.service_client.messagebus_connected:
+				logger.debug("Connecting to messagebus.")
+				self.service_client.connect_messagebus()
+			with self.register(self.service_client.messagebus):
+				yield
+		finally:
+			if self.service_client.messagebus_connected:
+				logger.debug("Disconnecting from messagebus.")
+				self.service_client.disconnect_messagebus()
+
+	def jsonrpc(self, channel: str, method: str, params: tuple | None = None) -> Any:
+		with self.connection():
+			if not self.channel_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
+				raise ConnectionError("Failed to subscribe to session channel.")
+			self.channel_subscription_event.clear()  # prepare for catching the next channel_subscription_event
+			message = JSONRPCRequestMessage(
+				method=method,
+				params=params or (),
+				api_version="2.0",
+				sender="@",
+				channel=channel,
+			)
+			self.service_client.messagebus.send_message(message)
+			logger.notice("Sending jsonrpc-request, awaiting response...")
+			if not self.jsonrpc_response and not self.jsonrpc_response_event.wait(JSONRPC_TIMEOUT):
+				raise TimeoutError("Timed out waiting for jsonrpc response.")
+			self.jsonrpc_response_event.clear()
+			if not self.jsonrpc_response:
+				raise ConnectionError("Failed to receive jsonrpc response.")
+			result = self.jsonrpc_response
+			self.jsonrpc_response = None
+			return result
+
+	def run_terminal(self, target: str, term_id: str | None = None) -> None:
 		if term_id:
 			self.terminal_id = term_id
 		else:
 			self.terminal_id = str(uuid4())
-		self.service_client.connect()
-		self.service_client.connect_messagebus()
-
-	def run_terminal(self, target: str, term_id: Optional[str] = None) -> None:
-		self.prepare_terminal_connection(term_id)
-		with self.register(self.service_client.messagebus):
-			# If service_worker_channel is not set, wait for channel_subscription_event
-			if not self.service_worker_channel and not self.channel_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
-				raise ConnectionError("Failed to subscribe to session channel.")
+		with self.connection():
 			(_, term_write_channel) = self.get_terminal_channel_pair(target, open_new_terminal=term_id is None)
 			logger.notice("Return to local shell with 'exit' or 'Ctrl+D'")
 			with stream_wrap():

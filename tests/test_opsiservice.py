@@ -46,7 +46,7 @@ def test_get_service_connection_half_configured_service() -> None:
 
 @pytest.mark.requires_testcontainer
 def test_get_service_connection() -> None:
-	with container_connection() as connection:
+	with container_connection():
 		connection = get_service_connection()
 		assert connection
 		result = connection.jsonrpc("backend_getInterface")
