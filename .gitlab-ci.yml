@@ -192,7 +192,7 @@ macos-pyinstaller:
 windows-pyinstaller:
   stage: build
   tags:
-    - win10-py311
+    - win10-py311-x86
   script:
     # build python environment
     - poetry lock --no-update
