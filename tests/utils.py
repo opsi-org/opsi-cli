@@ -14,7 +14,6 @@ from click.testing import CliRunner  # type: ignore[import]
 
 from opsicli.__main__ import main
 from opsicli.config import config
-from opsicli.opsiservice import get_service_connection
 
 runner = CliRunner()
 
@@ -54,7 +53,7 @@ def temp_env(**environ: str) -> Iterator[None]:
 
 
 @contextmanager
-def container_connection():
+def container_connection() -> Generator[None, None, None]:
 	old_username = config.get_values().get("username")
 	old_password = config.get_values().get("password")
 	old_service = config.get_values().get("service")

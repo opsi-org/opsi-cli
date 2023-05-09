@@ -2,12 +2,11 @@
 websocket functions
 """
 
-import json
 import platform
 import shutil
 import sys
 from contextlib import contextmanager
-from threading import Event, Lock
+from threading import Event
 from typing import Any, Generator
 from uuid import uuid4
 
