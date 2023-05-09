@@ -9,7 +9,7 @@ stages:
 pytest-darwin:
   stage: test_python
   tags:
-    - macos_catalina
+    - catalina-py311-x64
   script:
     - poetry lock --no-update
     - poetry install
