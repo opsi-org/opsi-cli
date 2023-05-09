@@ -170,7 +170,7 @@ linux-arm-pyinstaller:
 macos-pyinstaller:
   stage: build
   tags:
-    - macos_catalina
+    - catalina-py311-x64
   script:
     - export LC_ALL=en_US.UTF-8
     - poetry lock --no-update
