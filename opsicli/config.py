@@ -524,5 +524,11 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 			return
 		super().__setattr__(name, value)
 
+	def get_service_by_name(self, name: str) -> OPSIService | None:
+		for srv in self.services:
+			if srv.name == name:
+				return srv
+		return None
+
 
 config = Config()

@@ -20,6 +20,7 @@ from opsicommon.logging import get_logger  # type: ignore[import]
 
 from opsicli import __version__
 from opsicli.config import config
+from opsicli.io import prompt
 
 logger = get_logger("opsicli")
 jsonrpc_client = None  # pylint: disable=invalid-name
@@ -83,27 +84,31 @@ def get_service_connection() -> ServiceClient:
 		address = config.service
 		username = config.username
 		password = config.password
-		for service in config.services:
-			if service.name == config.service:
-				address = service.url
-				if service.username:
-					username = service.username
-				if service.password:
-					password = service.password
+		service = config.get_service_by_name(config.service)
 
-		opsiconf = OpsiConfig(upgrade_config=False)
-		if not username or not password:
-			logger.info("Fetching credentials from opsi config file")
-			try:
-				username = opsiconf.get("host", "id")
-				password = opsiconf.get("host", "key")
-			except Exception as error:  # pylint: disable=broad-except
-				logger.info("Failed to get credentials from opsi config file: %s", error)
-		if not username or not password and urlparse(address).hostname in ("localhost", "::1", "127.0.0.1"):
-			try:
-				username, password = get_service_credentials_from_backend()
-			except Exception as err:  # pylint: disable=broad-except
-				logger.warning(err)
+		if service:
+			address = service.url
+			if service.username:
+				username = service.username
+			if service.password:
+				password = service.password
+		else:
+			opsiconf = OpsiConfig(upgrade_config=False)
+			if not username or not password:
+				logger.info("Fetching credentials from opsi config file")
+				try:
+					username = opsiconf.get("host", "id")
+					password = opsiconf.get("host", "key")
+				except Exception as error:  # pylint: disable=broad-except
+					logger.info("Failed to get credentials from opsi config file: %s", error)
+			if not username or not password and urlparse(address).hostname in ("localhost", "::1", "127.0.0.1"):
+				try:
+					username, password = get_service_credentials_from_backend()
+				except Exception as err:  # pylint: disable=broad-except
+					logger.warning(err)
+
+		if username and not password and config.interactive:
+			password = str(prompt(f"Please enter the password for {username}@{address}", password=True))
 
 		jsonrpc_client = ServiceClient(
 			address=address,
