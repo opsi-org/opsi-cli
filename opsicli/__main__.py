@@ -13,6 +13,7 @@ import rich_click as click  # type: ignore[import]
 from click.exceptions import Abort, ClickException  # type: ignore[import]
 from click.shell_completion import CompletionItem  # type: ignore[import]
 from opsicommon.logging import get_logger  # type: ignore[import]
+from opsicommon.utils import monkeypatch_subprocess_for_frozen
 from rich_click.rich_click import (  # type: ignore[import]
 	rich_abort_error,
 	rich_format_error,
@@ -52,6 +53,7 @@ for group, items in config.get_items_by_group().items():
 
 
 logger = get_logger("opsicli")
+monkeypatch_subprocess_for_frozen()
 
 
 # https://click.palletsprojects.com/en/7.x/commands/#custom-multi-commands
