@@ -230,6 +230,8 @@ makeopsipackage:
     - package=1
     - '[ "$CI_COMMIT_TAG" = "" ] && sed -i "0,/version: $package\$/s/version: $package\$/version: $package.$CI_JOB_ID/" OPSI/control'
     - 'sed -i "/Product/,/version:/s/version: .*\$/version: $version/" OPSI/control'
+    - opsi-dev-cli changelog from-git output
+    - cp output/changelog.md OPSI/
     - opsi-makepackage --no-set-rights -l 6
     - upload-package opsi-cli*.opsi
   artifacts:
