@@ -7,7 +7,7 @@ Class to handle metadata of opsi packages
 import hashlib
 import json
 from dataclasses import asdict, dataclass
-from pathlib import Path, PosixPath
+from pathlib import Path
 from typing import Any
 
 import requests  # type: ignore
