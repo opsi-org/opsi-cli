@@ -7,7 +7,7 @@ Class to handle metadata of opsi packages
 import hashlib
 import json
 from dataclasses import asdict, dataclass
-from pathlib import Path, PosixPath
+from pathlib import Path
 from typing import Any
 
 import requests  # type: ignore
@@ -59,32 +59,48 @@ class PackageMetadata:  # pylint: disable=too-many-instance-attributes
 	product_dependencies: list[dict[str, str | None]]
 	package_dependencies: list[dict[str, str]]
 	description: str | None = None
+	compatibility: list[str] | None = None
 
 	changelog_url: str | None = None
 	release_notes_url: str | None = None
 	icon_url: str | None = None  # preparation for later
 	zsync_url: str | None = None
 
-	def __init__(self, data: Path | dict[str, Any]) -> None:
-		if isinstance(data, Path):
-			self.from_archive(data)
-		elif isinstance(data, dict):
+	def __init__(
+		self,
+		archive: Path | None = None,
+		data: dict[str, Any] | None = None,
+		relative_path: Path | None = None,
+		compatibility: str | None = None,
+	) -> None:
+		if archive and data:
+			raise ValueError("Cannot specify both archive and data")
+		if archive:
+			self.from_archive(archive, relative_path=relative_path, compatibility=compatibility)
+			return
+		if data:
 			self.from_dict(data)
+			return
+		raise ValueError("Must specify either archive or data")
 
 	@property
 	def version(self) -> str:
 		return f"{self.product_version}-{self.package_version}"
 
-	def from_archive(self, archive: Path) -> None:
+	def from_archive(self, archive: Path, relative_path: Path | None = None, compatibility: str | None = None) -> None:
 		logger.notice("Reading package archive %s", archive)
-		self.url = str(archive).replace("\\", "/")  # Cannot instantiate PosixPath on windows
+		if not relative_path:
+			relative_path = archive.relative_to(Path.cwd())
+		self.url = str(relative_path).replace("\\", "/")  # Cannot instantiate PosixPath on windows
 		self.size = archive.stat().st_size
 		with open(archive, "rb", buffering=0) as file_handle:
 			# file_digest is python>=3.11 only
 			self.md5_hash = hashlib.file_digest(file_handle, "md5").hexdigest()  # type: ignore
 			self.sha256_hash = hashlib.file_digest(file_handle, "sha256").hexdigest()  # type: ignore
 		if archive.with_suffix(".opsi.zsync").exists():
-			self.zsync_url = str(PosixPath(archive.with_suffix(".opsi.zsync")))
+			self.zsync_url = str(relative_path.with_suffix(".opsi.zsync")).replace("\\", "/")
+		if compatibility:
+			self.compatibility = compatibility.split(",")
 
 		opsi_package = OpsiPackage(archive)
 		self.product_id = opsi_package.product.id
@@ -124,6 +140,7 @@ class PackageMetadata:  # pylint: disable=too-many-instance-attributes
 		self.release_notes_url = data.get("release_notes_url")
 		self.icon_url = data.get("icon_url")
 		self.zsync_url = data.get("zsync_url")
+		self.compatibility = data.get("compatibility")
 
 
 class PackagesMetadataCollection:
@@ -142,18 +159,20 @@ class PackagesMetadataCollection:
 				for name, product in data.get("packages", {}).items():
 					if name not in self.packages:
 						self.packages[name] = {}
-					self.packages[name] = {version: PackageMetadata(package) for version, package in product.items()}
+					self.packages[name] = {version: PackageMetadata(data=package) for version, package in product.items()}
 
 	def collect(self, path: Path, repo_name: str) -> None:
 		self.repository = {"name": repo_name}
 		logger.notice("Starting to collect metadata from %s", path)
 		for archive in path.rglob("*.opsi"):
 			# allow multiple versions for the same product in full scan
-			self.add_package(archive, keep_other_versions=True)
+			self.add_package(archive, keep_other_versions=True, relative_path=archive.relative_to(path.parent))
 		logger.info("Finished collecting metadata")
 
-	def add_package(self, archive: Path, keep_other_versions: bool = False) -> None:
-		package = PackageMetadata(archive)
+	def add_package(
+		self, archive: Path, keep_other_versions: bool = False, relative_path: Path | None = None, compatibility: str | None = None
+	) -> None:
+		package = PackageMetadata(archive=archive, relative_path=relative_path, compatibility=compatibility)
 		# Key only consists of only product id (otw11 revision 03.05.)
 		if package.product_id not in self.packages or not keep_other_versions:
 			self.packages[package.product_id] = {}

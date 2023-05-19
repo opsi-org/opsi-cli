@@ -66,17 +66,32 @@ def create_meta_file(path: Path, meta_file: Path, repository_name: str) -> None:
 	show_default=True,
 	default=False,
 )
-def update_meta_file(package: Path, meta_file: Path, keep_other_versions: bool) -> None:
+@click.option(
+	"--relative-path",
+	help="Path to the package relative to the meta file",
+	type=click.Path(file_okay=True, dir_okay=False, path_type=Path),
+)
+@click.option(
+	"--compatibility",
+	help="Comma-separated list of operating systems that the package is compatible with",
+	type=str,
+)
+def update_meta_file(
+	package: Path, meta_file: Path, keep_other_versions: bool, relative_path: Path | None, compatibility: str | None
+) -> None:
 	"""
 	This subcommand analyzes a given opsi package
 	and stores that information in a structured way in an existing meta-data file.
 	"""
 	packages_metadata = PackagesMetadataCollection(meta_file)
-	packages_metadata.add_package(package, keep_other_versions=keep_other_versions)
+	if not relative_path:
+		relative_path = package.relative_to(meta_file.parent)
+	packages_metadata.add_package(
+		package, keep_other_versions=keep_other_versions, relative_path=relative_path, compatibility=compatibility
+	)
 	packages_metadata.write(meta_file)
 
 
-# This class keeps track of the plugins meta-information
 class CustomPlugin(OPSICLIPlugin):
 	name: str = "repository"
 	description: str = __description__

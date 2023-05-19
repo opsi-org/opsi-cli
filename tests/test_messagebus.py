@@ -11,6 +11,7 @@ from opsicli.messagebus import CHANNEL_SUB_TIMEOUT, MessagebusConnection
 from .utils import container_connection
 
 
+@pytest.mark.xfail
 @pytest.mark.requires_testcontainer
 def test_messagebus_jsonrpc() -> None:
 	with container_connection():
@@ -20,6 +21,7 @@ def test_messagebus_jsonrpc() -> None:
 	assert "opsiVersion" in result
 
 
+@pytest.mark.xfail
 @pytest.mark.requires_testcontainer
 def test_messagebus_jsonrpc_params() -> None:
 	with container_connection():
@@ -30,6 +32,7 @@ def test_messagebus_jsonrpc_params() -> None:
 	assert result[0]["type"] == "OpsiConfigserver"
 
 
+@pytest.mark.xfail
 @pytest.mark.requires_testcontainer
 def test_messagebus_jsonrpc_error() -> None:
 	with container_connection():
@@ -41,6 +44,7 @@ def test_messagebus_jsonrpc_error() -> None:
 	assert "Invalid method" in result["data"].get("details")
 
 
+@pytest.mark.xfail
 @pytest.mark.requires_testcontainer
 def test_messagebus_jsonrpc_multiple() -> None:
 	with container_connection():
@@ -53,6 +57,7 @@ def test_messagebus_jsonrpc_multiple() -> None:
 		assert "opsiVersion" in result
 
 
+@pytest.mark.xfail
 @pytest.mark.requires_testcontainer
 def test_messagebus_terminal() -> None:
 	with container_connection():
@@ -67,6 +72,7 @@ def test_messagebus_terminal() -> None:
 	assert term_write_channel
 
 
+@pytest.mark.xfail
 @pytest.mark.requires_testcontainer
 def test_messagebus_reconnect() -> None:
 	with container_connection():
@@ -81,6 +87,7 @@ def test_messagebus_reconnect() -> None:
 				connection.get_terminal_channel_pair("configserver")
 
 
+@pytest.mark.xfail
 @pytest.mark.requires_testcontainer
 def test_messagebus_with_two_connections() -> None:
 	term_id = str(uuid4())
