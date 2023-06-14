@@ -56,7 +56,7 @@ def test_repository_update(tmp_path: Path) -> None:
 	assert '"url": "data/localboot_new_1.0-1.opsi"' in result
 	assert '"url": "data/localboot_new_42.0-1337.opsi"' not in result
 
-	# check if update adds new package and keeps others with --keep-other-versions
+	# check if update adds new package and keeps others with --num-allowed-versions
 	returncode, _ = run_cli(
 		[
 			"-l6",
@@ -64,7 +64,7 @@ def test_repository_update(tmp_path: Path) -> None:
 			"update-meta-file",
 			f"--meta-file={tmp_path / 'packages.json'}",
 			str(tmp_path / "data" / "localboot_new_42.0-1337.opsi"),
-			"--keep-other-versions",
+			"--num-allowed-versions=2",
 		]
 	)
 	assert returncode == 0

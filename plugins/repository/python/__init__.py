@@ -60,11 +60,9 @@ def create_meta_file(path: Path, meta_file: Path, repository_name: str) -> None:
 	type=click.Path(file_okay=True, dir_okay=False, path_type=Path),
 )
 @click.option(
-	"--keep-other-versions",
-	help="If set, this prevents deletion of entries with the same productId",
-	is_flag=True,
-	show_default=True,
-	default=False,
+	"--num-allowed-versions",
+	help="This limits the number of kept versions (allows keeping more than 1)",
+	default=1,
 )
 @click.option(
 	"--relative-path",
@@ -77,7 +75,7 @@ def create_meta_file(path: Path, meta_file: Path, repository_name: str) -> None:
 	type=str,
 )
 def update_meta_file(
-	package: Path, meta_file: Path, keep_other_versions: bool, relative_path: Path | None, compatibility: str | None
+	package: Path, meta_file: Path, num_allowed_versions: int, relative_path: Path | None, compatibility: str | None
 ) -> None:
 	"""
 	This subcommand analyzes a given opsi package
@@ -87,7 +85,7 @@ def update_meta_file(
 	if not relative_path:
 		relative_path = package.relative_to(meta_file.parent)
 	packages_metadata.add_package(
-		package, keep_other_versions=keep_other_versions, relative_path=relative_path, compatibility=compatibility
+		package, num_allowed_versions=num_allowed_versions, relative_path=relative_path, compatibility=compatibility
 	)
 	packages_metadata.write(meta_file)
 
