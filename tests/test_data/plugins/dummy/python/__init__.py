@@ -33,7 +33,7 @@ def libtest() -> None:
 	This is the long help.
 	"""
 	print(netifaces.gateways())
-	print(requests.get("https://opsi.org", timeout=5))
+	print(requests.get("https://gitlab.uib.gmbh", timeout=10))
 
 
 class DummyPlugin(OPSICLIPlugin):
