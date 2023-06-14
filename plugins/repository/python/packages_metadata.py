@@ -10,6 +10,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+import packaging.version as packver
 import requests  # type: ignore
 from opsicommon.logging import get_logger
 from opsicommon.objects import ProductDependency
@@ -166,17 +167,29 @@ class PackagesMetadataCollection:
 		logger.notice("Starting to collect metadata from %s", path)
 		for archive in path.rglob("*.opsi"):
 			# allow multiple versions for the same product in full scan
-			self.add_package(archive, keep_other_versions=True, relative_path=archive.relative_to(path.parent))
+			self.add_package(archive, num_allowed_versions=0, relative_path=archive.relative_to(path.parent))
 		logger.info("Finished collecting metadata")
 
+	def limit_versions(self, name: str, num_allowed_versions: int = 1) -> None:
+		versions = list(self.packages[name].keys())
+		keep_versions = sorted(versions, key=packver.parse, reverse=True)[:num_allowed_versions]
+		for version in versions:
+			if version not in keep_versions:
+				logger.debug("Removing %s %s as limit is %s", name, version, num_allowed_versions)
+				del self.packages[name][version]
+
 	def add_package(
-		self, archive: Path, keep_other_versions: bool = False, relative_path: Path | None = None, compatibility: str | None = None
+		self, archive: Path, num_allowed_versions: int = 1, relative_path: Path | None = None, compatibility: str | None = None
 	) -> None:
 		package = PackageMetadata(archive=archive, relative_path=relative_path, compatibility=compatibility)
 		# Key only consists of only product id (otw11 revision 03.05.)
-		if package.product_id not in self.packages or not keep_other_versions:
+		if package.product_id not in self.packages or num_allowed_versions == 1:
+			# if only one version is allowed, always delete previous version, EVEN IF IT HAS HIGHER VERSION
 			self.packages[package.product_id] = {}
 		self.packages[package.product_id][package.version] = package
+		# num_allowed_versions = 0 means unlimited
+		if num_allowed_versions and len(self.packages[package.product_id]) > num_allowed_versions:
+			self.limit_versions(package.product_id, num_allowed_versions)
 
 	def write(self, path: Path) -> None:
 		logger.notice("Writing result to %s", path)
