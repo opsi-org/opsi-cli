@@ -89,3 +89,27 @@ def test_repository_update_options(tmp_path: Path) -> None:
 	result = (tmp_path / "packages.json").read_text()
 	assert '"url": "nonexisting/localboot_new_42.0-1337.opsi"' in result
 	assert '"compatibility": ["linux", "macos"]' in result
+
+
+def test_repository_update_multiple(tmp_path: Path) -> None:
+	# check if update can create a file if not present
+	(tmp_path / "data").mkdir()
+	shutil.copy(TEST_REPO / "localboot_new_1.0-1.opsi", tmp_path / "data")
+	shutil.copy(TEST_REPO / "localboot_new_2.0-1.opsi", tmp_path / "data")
+	shutil.copy(TEST_REPO / "localboot_new_42.0-1337.opsi", tmp_path / "data")
+
+	for package in ("localboot_new_1.0-1.opsi", "localboot_new_2.0-1.opsi", "localboot_new_42.0-1337.opsi"):
+		call = [
+			"-l6",
+			"repository",
+			"update-meta-file",
+			f"--meta-file={tmp_path / 'packages.json'}",
+			str(tmp_path / "data" / package),
+			"--num-allowed-versions=2",
+		]
+		returncode, _ = run_cli(call)
+		assert returncode == 0
+	result = (tmp_path / "packages.json").read_text()
+	assert '"url": "data/localboot_new_42.0-1337.opsi"' in result
+	assert '"url": "data/localboot_new_2.0-1.opsi"' in result
+	assert '"url": "data/localboot_new_1.0-1.opsi"' not in result

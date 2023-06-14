@@ -172,9 +172,10 @@ class PackagesMetadataCollection:
 
 	def limit_versions(self, name: str, num_allowed_versions: int = 1) -> None:
 		versions = list(self.packages[name].keys())
-		keep_versions = sorted(versions, key=packver.parse)[:num_allowed_versions]
+		keep_versions = sorted(versions, key=packver.parse, reverse=True)[:num_allowed_versions]
 		for version in versions:
 			if version not in keep_versions:
+				logger.debug("Removing %s %s as limit is %s", name, version, num_allowed_versions)
 				del self.packages[name][version]
 
 	def add_package(
@@ -182,7 +183,8 @@ class PackagesMetadataCollection:
 	) -> None:
 		package = PackageMetadata(archive=archive, relative_path=relative_path, compatibility=compatibility)
 		# Key only consists of only product id (otw11 revision 03.05.)
-		if package.product_id not in self.packages:
+		if package.product_id not in self.packages or num_allowed_versions == 1:
+			# if only one version is allowed, always delete previous version, EVEN IF IT HAS HIGHER VERSION
 			self.packages[package.product_id] = {}
 		self.packages[package.product_id][package.version] = package
 		# num_allowed_versions = 0 means unlimited
