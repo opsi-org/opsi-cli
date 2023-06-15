@@ -12,7 +12,7 @@ TEST_REPO = Path() / "tests" / "test_data" / "repository"
 
 def test_repository_collect(tmp_path: Path) -> None:
 	shutil.copytree(TEST_REPO, tmp_path / "data")
-	returncode, _ = run_cli(["-l6", "repository", "create-meta-file", f"--meta-file={tmp_path / 'packages.json'}", str(tmp_path / "data")])
+	returncode, _ = run_cli(["-l6", "repository", f"--meta-file={tmp_path / 'packages.json'}", "create-meta-file", str(tmp_path / "data")])
 	assert returncode == 0
 	result = (tmp_path / "packages.json").read_text()
 	assert '"name": "opsi package repository"' in result
@@ -32,8 +32,8 @@ def test_repository_update(tmp_path: Path) -> None:
 		[
 			"-l6",
 			"repository",
-			"update-meta-file",
 			f"--meta-file={tmp_path / 'packages.json'}",
+			"add-to-meta-file",
 			str(tmp_path / "data" / "localboot_new_42.0-1337.opsi"),
 		]
 	)
@@ -46,8 +46,8 @@ def test_repository_update(tmp_path: Path) -> None:
 		[
 			"-l6",
 			"repository",
-			"update-meta-file",
 			f"--meta-file={tmp_path / 'packages.json'}",
+			"add-to-meta-file",
 			str(tmp_path / "data" / "localboot_new_1.0-1.opsi"),
 		]
 	)
@@ -61,8 +61,8 @@ def test_repository_update(tmp_path: Path) -> None:
 		[
 			"-l6",
 			"repository",
-			"update-meta-file",
 			f"--meta-file={tmp_path / 'packages.json'}",
+			"add-to-meta-file",
 			str(tmp_path / "data" / "localboot_new_42.0-1337.opsi"),
 			"--num-allowed-versions=2",
 		]
@@ -78,8 +78,8 @@ def test_repository_update_options(tmp_path: Path) -> None:
 		[
 			"-l6",
 			"repository",
-			"update-meta-file",
 			f"--meta-file={tmp_path / 'packages.json'}",
+			"add-to-meta-file",
 			f"--relative-path={(tmp_path / 'nonexisting' / 'localboot_new_42.0-1337.opsi').relative_to(tmp_path)}",
 			"--compatibility=linux,macos",
 			str(TEST_REPO / "localboot_new_42.0-1337.opsi"),
@@ -102,8 +102,8 @@ def test_repository_update_multiple(tmp_path: Path) -> None:
 		call = [
 			"-l6",
 			"repository",
-			"update-meta-file",
 			f"--meta-file={tmp_path / 'packages.json'}",
+			"add-to-meta-file",
 			str(tmp_path / "data" / package),
 			"--num-allowed-versions=2",
 		]
@@ -111,5 +111,37 @@ def test_repository_update_multiple(tmp_path: Path) -> None:
 		assert returncode == 0
 	result = (tmp_path / "packages.json").read_text()
 	assert '"url": "data/localboot_new_42.0-1337.opsi"' in result
+	assert '"url": "data/localboot_new_2.0-1.opsi"' in result
+	assert '"url": "data/localboot_new_1.0-1.opsi"' not in result
+
+
+def test_repository_remove(tmp_path: Path) -> None:
+	# check if update can create a file if not present
+	(tmp_path / "data").mkdir()
+	shutil.copy(TEST_REPO / "localboot_new_1.0-1.opsi", tmp_path / "data")
+	shutil.copy(TEST_REPO / "localboot_new_2.0-1.opsi", tmp_path / "data")
+
+	for package in ("localboot_new_1.0-1.opsi", "localboot_new_2.0-1.opsi"):
+		call = [
+			"-l6",
+			"repository",
+			f"--meta-file={tmp_path / 'packages.json'}",
+			"add-to-meta-file",
+			str(tmp_path / "data" / package),
+			"--num-allowed-versions=2",
+		]
+		returncode, _ = run_cli(call)
+		assert returncode == 0
+	run_cli(
+		[
+			"-l6",
+			"repository",
+			f"--meta-file={tmp_path / 'packages.json'}",
+			"remove-from-meta-file",
+			"localboot_new",
+			"1.0-1",
+		]
+	)
+	result = (tmp_path / "packages.json").read_text()
 	assert '"url": "data/localboot_new_2.0-1.opsi"' in result
 	assert '"url": "data/localboot_new_1.0-1.opsi"' not in result

@@ -191,6 +191,10 @@ class PackagesMetadataCollection:
 		if num_allowed_versions and len(self.packages[package.product_id]) > num_allowed_versions:
 			self.limit_versions(package.product_id, num_allowed_versions)
 
+	def remove_package(self, name: str, version: str) -> None:
+		if name in self.packages and version in self.packages[name]:
+			del self.packages[name][version]
+
 	def write(self, path: Path) -> None:
 		logger.notice("Writing result to %s", path)
 		result = {
