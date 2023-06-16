@@ -32,6 +32,7 @@ def cli(ctx: click.Context, meta_file: Path) -> None:
 	This command manages repositories for opsi packages
 	"""
 	logger.trace("repository command")
+	ctx.ensure_object(dict)
 	ctx.obj["meta_file"] = meta_file
 
 
