@@ -1,5 +1,5 @@
 """
-opsi-cli repository
+opsi-cli manage-repo
 """
 
 from pathlib import Path
