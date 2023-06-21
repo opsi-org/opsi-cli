@@ -125,7 +125,6 @@ def test_metafile_scan_packages(tmp_path: Path) -> None:
 
 
 def test_metafile_add_package(tmp_path: Path) -> None:
-	# check if update can create a file if not present
 	repository_dir = tmp_path / "repository-dir"
 	formats = ["json", "msgpack", "msgpack.zstd"]
 
@@ -190,7 +189,6 @@ def test_metafile_add_package(tmp_path: Path) -> None:
 
 
 def test_metafile_remove_package(tmp_path: Path) -> None:
-	# check if update can create a file if not present
 	repository_dir = tmp_path / "repository-dir"
 	formats = ["json", "msgpack", "msgpack.zstd"]
 
