@@ -56,6 +56,7 @@ disallow_untyped_calls = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 follow_imports = "silent"
+incremental = false
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

@@ -111,7 +111,7 @@ pylint-pytest:
     - poetry run flake8 opsicli plugins tests
     - poetry run mypy opsicli tests
     - rm -rf .mypy_cache
-    - poetry run mypy --explicit-package-bases plugins
+    - "for plugindir in $(find plugins/*/python/*.py | cut -d'/' -f1-2  | sort | uniq); do echo $plugindir; poetry run mypy --explicit-package-bases $plugindir; done"
     # Convert file.path to a relative path in coverage databases
     - for db in coverage_*; do sqlite3 $db 'update file set path=replace(substr(path,instr(path,"opsicli")),"\","/");'; done
     - for db in coverage_*; do sqlite3 $db 'update file set path=replace(substr(path,instr(path,"plugins")),"\","/");'; done
