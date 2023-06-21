@@ -18,7 +18,7 @@ __description__ = "This command manages repositories for opsi packages"
 logger = get_logger("opsicli")
 
 
-@click.group(name="manage-repo", short_help="opsi-package-repository management")
+@click.group(name="manage-repo", short_help="opsi-package-repository management.")
 @click.version_option(__version__, message="opsi-cli opsi-package-repository management, version %(version)s")
 def cli() -> None:
 	"""
@@ -27,7 +27,7 @@ def cli() -> None:
 	logger.trace("manage-repo command")
 
 
-@cli.group(name="metafile", short_help="opsi-package-repository metafile management")
+@cli.group(name="metafile", short_help="opsi-package-repository metadata file management")
 def metafile() -> None:
 	"""
 	This command manages metafile in repositories for opsi packages
@@ -81,7 +81,7 @@ def _metafile_update(  # pylint: disable=redefined-builtin
 			packages_metadata.write(metadata_file)
 
 
-@metafile.command(short_help="Creates repository metadata files", name="create")
+@metafile.command(short_help="Creates repository metadata files.", name="create")
 @argument_directory
 @option_format
 @option_repository_name
@@ -93,7 +93,7 @@ def metafile_create(directory: Path, format: list[str], repository_name: str, sc
 	_metafile_update(directory=directory, read=False, format=format, repository_name=repository_name, scan=scan)
 
 
-@metafile.command(short_help="Updates repository metadata files", name="update")
+@metafile.command(short_help="Updates repository metadata files.", name="update")
 @argument_directory
 @option_format
 @option_repository_name
@@ -105,7 +105,7 @@ def metafile_update(directory: Path, format: list[str], repository_name: str, sc
 	_metafile_update(directory=directory, read=True, format=format, repository_name=repository_name, scan=scan)
 
 
-@metafile.command(short_help="Scan for opsi packages and update repository metadata files", name="scan-packages")
+@metafile.command(short_help="Scan for opsi packages and update repository metadata files.", name="scan-packages")
 @argument_directory
 def metafile_scan_packages(directory: Path) -> None:  # pylint: disable=redefined-builtin
 	"""
@@ -113,12 +113,12 @@ def metafile_scan_packages(directory: Path) -> None:  # pylint: disable=redefine
 	"""
 	current_meta_files = list(directory.glob("packages.*"))
 	if not current_meta_files:
-		raise RuntimeError(f"No metafiles found in '{directory}'")
+		raise RuntimeError(f"No metadata files found in '{directory}'")
 
 	_metafile_update(directory=directory, read=True, scan=True)
 
 
-@metafile.command(short_help="Adds or updates a package in repository metadata files", name="add-package")
+@metafile.command(short_help="Adds or updates a package in repository metadata files.", name="add-package")
 @argument_directory
 @click.argument("package", nargs=1, default=Path(), type=click.Path(file_okay=True, dir_okay=False, path_type=Path))
 @click.option(
@@ -138,7 +138,7 @@ def add_package(directory: Path, package: Path, num_allowed_versions: int, compa
 	"""
 	current_meta_files = list(directory.glob("packages.*"))
 	if not current_meta_files:
-		raise RuntimeError(f"No metafiles found in '{directory}'")
+		raise RuntimeError(f"No metadata files found in '{directory}'")
 
 	packages_metadata = PackagesMetadataCollection()
 	packages_metadata.read(current_meta_files[0])
@@ -153,7 +153,7 @@ def add_package(directory: Path, package: Path, num_allowed_versions: int, compa
 		packages_metadata.write(meta_file)
 
 
-@metafile.command(short_help="Removes a package from repository metadata files", name="remove-package")
+@metafile.command(short_help="Removes a package from repository metadata files.", name="remove-package")
 @argument_directory
 @click.argument("name", nargs=1, type=str)
 @click.argument("version", nargs=1, type=str)
@@ -163,7 +163,7 @@ def remove_package(directory: Path, name: str, version: str) -> None:
 	"""
 	current_meta_files = list(directory.glob("packages.*"))
 	if not current_meta_files:
-		raise RuntimeError(f"No metafiles found in '{directory}'")
+		raise RuntimeError(f"No metadata files found in '{directory}'")
 
 	packages_metadata = PackagesMetadataCollection()
 	packages_metadata.read(current_meta_files[0])
