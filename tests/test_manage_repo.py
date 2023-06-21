@@ -104,7 +104,7 @@ def test_metafile_scan_packages(tmp_path: Path) -> None:
 	cmd = ["-l6", "manage-repo", "metafile", "scan-packages", str(repository_dir)]
 	returncode, out = run_cli(cmd)
 	assert returncode == 1
-	assert "No metafiles found" in out
+	assert "No metadata files" in out
 
 	cmd = ["-l6", "manage-repo", "metafile", "create", str(repository_dir)] + [f"--format={f}" for f in formats]
 	returncode, _ = run_cli(cmd)
