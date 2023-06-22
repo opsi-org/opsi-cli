@@ -11,7 +11,7 @@ pytest-darwin:
   tags:
     - catalina-py311-x64
   script:
-    - poetry lock --no-update
+    - poetry lock --no-update --no-cache
     - poetry install
     - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_darwin.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - mv .coverage coverage_darwin
@@ -28,7 +28,7 @@ pytest-windows:
   tags:
     - win10-py311-x86
   script:
-    - poetry lock --no-update
+    - poetry lock --no-update --no-cache
     - poetry install
     - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_windows.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - Rename-Item -Path .coverage -NewName coverage_windows
@@ -105,7 +105,7 @@ pylint-pytest:
     - apt-get update
     - apt-get --yes --allow-downgrades install libsqlite3-0=3.16.2-5+deb9u1
     - apt-get --yes install sqlite3
-    - poetry lock --no-update
+    - poetry lock --no-update --no-cache
     - poetry install
     - poetry run pylint --disable=R,fixme opsicli plugins tests
     - poetry run flake8 opsicli plugins tests
@@ -133,7 +133,7 @@ linux-pyinstaller:
   stage: build
   script:
     - export LC_ALL=C.UTF-8
-    - poetry lock --no-update
+    - poetry lock --no-update --no-cache
     - poetry install
     - poetry run opsi-dev-cli -l info pyinstaller build
     - dist/opsi-cli --version
@@ -156,7 +156,7 @@ linux-arm-pyinstaller:
     - linux-arm64
   script:
     - export LC_ALL=C.UTF-8
-    - poetry lock --no-update
+    - poetry lock --no-update --no-cache
     - poetry install
     - poetry run opsi-dev-cli -l info pyinstaller build
     - dist/opsi-cli --version
@@ -173,7 +173,7 @@ macos-pyinstaller:
     - catalina-py311-x64
   script:
     - export LC_ALL=en_US.UTF-8
-    - poetry lock --no-update
+    - poetry lock --no-update --no-cache
     - poetry install
     - poetry run opsi-dev-cli -l info pyinstaller build
     - dist/opsi-cli --version
@@ -195,7 +195,7 @@ windows-pyinstaller:
     - win10-py311-x86
   script:
     # build python environment
-    - poetry lock --no-update
+    - poetry lock --no-update --no-cache
     - poetry install
     # get opsi-dev-tool
     - Invoke-WebRequest -UseBasicParsing -Uri "$OPSIDEVTOOLS_URL_WINDOWS_X86" -OutFile opsi-dev-tools.zip
