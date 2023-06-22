@@ -80,6 +80,7 @@ pytest-linux:
     - ln -s /root/.local/bin/poetry /usr/local/bin/poetry
     - while ! nc -v -z -w3 localhost 4447 > /dev/null 2>&1; do sleep 1; done
     - source /entrypoint.sh set_environment_vars # to set hosts for redis/grafana
+    - poetry lock --no-update --no-cache
     - poetry install
     - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_linux.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - mv .coverage coverage_linux
