@@ -4,18 +4,40 @@ opsi-cli manage-repo
 
 from pathlib import Path
 
+import requests  # type: ignore[import]
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger
+from opsicommon.package.repo_meta import (
+	RepoMetaPackage,
+	RepoMetaPackageCollection,
+	RepoMetaPackageCompatibility,
+)
 
 from opsicli.plugin import OPSICLIPlugin
-
-from .packages_metadata import PackageCompatibility, PackagesMetadataCollection
 
 __version__ = "0.2.0"
 __description__ = "This command manages repositories for opsi packages"
 
 
 logger = get_logger("opsicli")
+
+
+CHANGELOG_SERVER = "https://changelog.opsi.org"
+
+
+def url_exists(url: str) -> bool:
+	result = requests.head(url, timeout=(5, 5))
+	return result.status_code >= 200 and result.status_code < 300
+
+
+def add_changelog_and_releasenote_url(package: RepoMetaPackage) -> None:
+	base_url = f"{CHANGELOG_SERVER}/OPSI_PACKAGE/{package.product_id}"
+	changelog_url = f"{base_url}/changelog.txt"
+	release_notes_url = f"{base_url}/release_notes.txt"
+	if url_exists(changelog_url):
+		package.changelog_url = changelog_url
+	if url_exists(release_notes_url):
+		package.release_notes_url = release_notes_url
 
 
 @click.group(name="manage-repo", short_help="opsi-package-repository management.")
@@ -59,26 +81,26 @@ def _metafile_update(  # pylint: disable=redefined-builtin
 	directory: Path, read: bool, format: list[str] | None = None, repository_name: str | None = None, scan: bool = False
 ) -> None:
 	current_meta_files = list(directory.glob("packages.*"))
-	packages_metadata = PackagesMetadataCollection()
+	packages_metadata = RepoMetaPackageCollection()
 	if read and current_meta_files:
-		packages_metadata.read(current_meta_files[0])
+		packages_metadata.read_metafile(current_meta_files[0])
 	if repository_name:
 		packages_metadata.repository.name = repository_name
 	if scan:
-		packages_metadata.scan_packages(directory)
+		packages_metadata.scan_packages(directory, add_callback=add_changelog_and_releasenote_url)
 
 	if format:
 		for suffix in format:
 			metadata_file = directory / f"packages.{suffix}"
 			if metadata_file in current_meta_files:
 				current_meta_files.remove(metadata_file)
-			packages_metadata.write(metadata_file)
+			packages_metadata.write_metafile(metadata_file)
 
 		for meta_file in current_meta_files:
 			meta_file.unlink()
 	else:
 		for metadata_file in current_meta_files:
-			packages_metadata.write(metadata_file)
+			packages_metadata.write_metafile(metadata_file)
 
 
 @metafile.command(short_help="Creates repository metadata files.", name="create")
@@ -140,17 +162,18 @@ def add_package(directory: Path, package: Path, num_allowed_versions: int, compa
 	if not current_meta_files:
 		raise RuntimeError(f"No metadata files found in '{directory}'")
 
-	packages_metadata = PackagesMetadataCollection()
-	packages_metadata.read(current_meta_files[0])
+	packages_metadata = RepoMetaPackageCollection()
+	packages_metadata.read_metafile(current_meta_files[0])
 	packages_metadata.add_package(
 		directory,
 		package,
 		num_allowed_versions=num_allowed_versions,
-		compatibility=[PackageCompatibility.from_string(c) for c in compatibility or []],
 		url=url,
+		compatibility=[RepoMetaPackageCompatibility.from_string(c) for c in compatibility or []],
+		add_callback=add_changelog_and_releasenote_url,
 	)
 	for meta_file in current_meta_files:
-		packages_metadata.write(meta_file)
+		packages_metadata.write_metafile(meta_file)
 
 
 @metafile.command(short_help="Removes a package from repository metadata files.", name="remove-package")
@@ -165,12 +188,12 @@ def remove_package(directory: Path, name: str, version: str) -> None:
 	if not current_meta_files:
 		raise RuntimeError(f"No metadata files found in '{directory}'")
 
-	packages_metadata = PackagesMetadataCollection()
-	packages_metadata.read(current_meta_files[0])
+	packages_metadata = RepoMetaPackageCollection()
+	packages_metadata.read_metafile(current_meta_files[0])
 
 	packages_metadata.remove_package(name, version)
 	for meta_file in current_meta_files:
-		packages_metadata.write(meta_file)
+		packages_metadata.write_metafile(meta_file)
 
 
 class CustomPlugin(OPSICLIPlugin):
