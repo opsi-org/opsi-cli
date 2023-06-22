@@ -11,7 +11,7 @@ pytest-darwin:
   tags:
     - catalina-py311-x64
   script:
-    - poetry lock --no-update
+    - poetry lock --no-update --no-cache
     - poetry install
     - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_darwin.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - mv .coverage coverage_darwin
@@ -28,7 +28,7 @@ pytest-windows:
   tags:
     - win10-py311-x86
   script:
-    - poetry lock --no-update
+    - poetry lock --no-update --no-cache
     - poetry install
     - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_windows.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - Rename-Item -Path .coverage -NewName coverage_windows
@@ -80,6 +80,7 @@ pytest-linux:
     - ln -s /root/.local/bin/poetry /usr/local/bin/poetry
     - while ! nc -v -z -w3 localhost 4447 > /dev/null 2>&1; do sleep 1; done
     - source /entrypoint.sh set_environment_vars # to set hosts for redis/grafana
+    - poetry lock --no-update --no-cache
     - poetry install
     - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_linux.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - mv .coverage coverage_linux
@@ -105,13 +106,13 @@ pylint-pytest:
     - apt-get update
     - apt-get --yes --allow-downgrades install libsqlite3-0=3.16.2-5+deb9u1
     - apt-get --yes install sqlite3
-    - poetry lock --no-update
+    - poetry lock --no-update --no-cache
     - poetry install
     - poetry run pylint --disable=R,fixme opsicli plugins tests
     - poetry run flake8 opsicli plugins tests
     - poetry run mypy opsicli tests
     - rm -rf .mypy_cache
-    - poetry run mypy --explicit-package-bases plugins
+    - "for plugindir in $(find plugins/*/python/*.py | cut -d'/' -f1-2  | sort | uniq); do echo $plugindir; poetry run mypy --explicit-package-bases $plugindir; done"
     # Convert file.path to a relative path in coverage databases
     - for db in coverage_*; do sqlite3 $db 'update file set path=replace(substr(path,instr(path,"opsicli")),"\","/");'; done
     - for db in coverage_*; do sqlite3 $db 'update file set path=replace(substr(path,instr(path,"plugins")),"\","/");'; done
@@ -133,7 +134,7 @@ linux-pyinstaller:
   stage: build
   script:
     - export LC_ALL=C.UTF-8
-    - poetry lock --no-update
+    - poetry lock --no-update --no-cache
     - poetry install
     - poetry run opsi-dev-cli -l info pyinstaller build
     - dist/opsi-cli --version
@@ -156,7 +157,7 @@ linux-arm-pyinstaller:
     - linux-arm64
   script:
     - export LC_ALL=C.UTF-8
-    - poetry lock --no-update
+    - poetry lock --no-update --no-cache
     - poetry install
     - poetry run opsi-dev-cli -l info pyinstaller build
     - dist/opsi-cli --version
@@ -173,7 +174,7 @@ macos-pyinstaller:
     - catalina-py311-x64
   script:
     - export LC_ALL=en_US.UTF-8
-    - poetry lock --no-update
+    - poetry lock --no-update --no-cache
     - poetry install
     - poetry run opsi-dev-cli -l info pyinstaller build
     - dist/opsi-cli --version
@@ -195,14 +196,15 @@ windows-pyinstaller:
     - win10-py311-x86
   script:
     # build python environment
-    - poetry lock --no-update
+    - poetry lock --no-update --no-cache
     - poetry install
     # get opsi-dev-tool
     - Invoke-WebRequest -UseBasicParsing -Uri "$OPSIDEVTOOLS_URL_WINDOWS_X86" -OutFile opsi-dev-tools.zip
     - Expand-Archive opsi-dev-tools.zip -DestinationPath .
-    - .\opsi-dev-tool.exe --self-install
+    - .\opsi-dev-tool.exe --self-install -l info
+    - $env:Path += ';C:\opsi.org\opsi-dev-cli'  # To immediately have it in PATH
     # build opsi-cli binary
-    - poetry run .\opsi-dev-cli.exe -l info pyinstaller build
+    - poetry run opsi-dev-cli -l info pyinstaller build
     # test opsi-cli binary
     - dist\opsi-cli.exe --version
     - dist\opsi-cli.exe --non-interactive plugin new cicdtest --version=1.0
@@ -210,12 +212,12 @@ windows-pyinstaller:
     - dist\opsi-cli.exe -l 7 plugin add cicdtest
     - powershell -command "Measure-Command { dist\opsi-cli.exe --help }"
     # sign opsi-cli binary
-    - .\opsi-dev-tool.exe -l info --signserver-sign dist\opsi-cli.exe
+    - opsi-dev-tool -l info --signserver-sign dist\opsi-cli.exe
     # virus check of opsi-cli binary
-    - .\opsi-dev-cli.exe -l info --output-format summary virustotal check dist\opsi-cli.exe --allow-detections=10
+    - opsi-dev-cli -l info --output-format summary virustotal check dist\opsi-cli.exe --allow-detections=10
     # upload and archive opsi-cli binary
-    - if (! $CI_COMMIT_TAG) {.\opsi-dev-cli.exe -l info binary push dist\opsi-cli.exe --prerelease="$CI_JOB_ID"}
-    - if ($CI_COMMIT_TAG) {.\opsi-dev-cli.exe -l info binary push dist\opsi-cli.exe}
+    - if (! $CI_COMMIT_TAG) {opsi-dev-cli -l info binary push dist\opsi-cli.exe --prerelease="$CI_JOB_ID"}
+    - if ($CI_COMMIT_TAG) {opsi-dev-cli -l info binary push dist\opsi-cli.exe}
     - move dist\opsi-cli.exe CLIENT_DATA\opsi-cli-windows.exe
   artifacts:
     name: opsi-cli-windows.exe
