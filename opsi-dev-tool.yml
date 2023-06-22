@@ -7,19 +7,16 @@ pyinstaller-poetry:
     all:
       - orjson
       - psutil
-      - opsicli.io
-      - opsicli.cache
-      - opsicli.opsiservice
-      - opsicli.messagebus
       - pip._internal.commands.install
       - rich.tree
-      - opsicommon.package
     windows:
       - pip._vendor.platformdirs.windows
     darwin:
       - pip._vendor.platformdirs.macos
   collect_submodules:
+    - opsicli
     - urllib3
+    - opsicommon.package
   extra_args:
     - --exclude-module=tkinter
     - --exclude-module=tan
@@ -44,7 +41,6 @@ pyinstaller-poetry:
   locale_install: []
   packages:
     - opsicli
-
 
 jenkins-test:
   ACTIONREQUEST: setup,setup,uninstall,uninstall,setup
