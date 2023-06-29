@@ -28,6 +28,7 @@ starlette = "^0.28"
 websockets = "^11.0"
 prompt-toolkit = "^3.0.33"
 pywin32 = {platform = "win32", version = ">=303,<304"}
+passlib = "^1.7.4"
 
 [tool.poetry.dev-dependencies]
 flake8 = "^6.0"
