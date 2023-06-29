@@ -1,8 +1,8 @@
 """
-template for opsi-cli plugins
+opsi-cli crypto
 """
 
-import passlib.hash
+import passlib.hash  # type: ignore[import]
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger
 
