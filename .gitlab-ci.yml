@@ -194,7 +194,7 @@ macos-pyinstaller:
     - poetry run ./opsi-dev-cli -l info pyinstaller build
 
     - mkdir ziplaunch-build
-    - ./opsi-dev-cli apple create-app --identifier org.opsi.opsi-cli --name opsi-cli --executable-name opsi-cli --version 1.0 ziplaunch-build/opsi-cli.app
+    - ./opsi-dev-cli apple create-app --identifier org.opsi.opsi-cli --executable-name opsi-cli --version 1.0 ziplaunch-build/opsi-cli.app
     - rm ziplaunch-build/opsi-cli.app/Contents/MacOS
     - mv dist/opsicli ziplaunch-build/opsi-cli.app/Contents/MacOS
     - ./opsi-dev-cli apple sign-and-notarize --print-log ziplaunch-build/opsi-cli.app
