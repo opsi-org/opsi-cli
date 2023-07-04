@@ -7,7 +7,6 @@ stages:
   - test_package
 
 pytest-darwin:
-  when: manual
   stage: test_python
   tags:
     - catalina-py311-x64
