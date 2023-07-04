@@ -41,6 +41,7 @@ pytest-windows:
     expire_in: 3 days
 
 pytest-linux:
+  when: manual
   stage: test_python
   services:
     - name: mysql:latest
