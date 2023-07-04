@@ -1,5 +1,5 @@
 pyinstaller-poetry:
-  one_file: yes
+  one_file: no
   strip: yes
   before_script:
     - find plugins -name __pycache__ -exec rm -rf {} +
