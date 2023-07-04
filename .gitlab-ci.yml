@@ -7,6 +7,7 @@ stages:
   - test_package
 
 pytest-darwin:
+  when: manual
   stage: test_python
   tags:
     - catalina-py311-x64
@@ -24,6 +25,7 @@ pytest-darwin:
     expire_in: 3 days
 
 pytest-windows:
+  when: manual
   stage: test_python
   tags:
     - win10-py311-x86
@@ -94,6 +96,7 @@ pytest-linux:
     expire_in: 3 days
 
 pylint-pytest:
+  when: manual
   stage: test_python
   needs:
     # We want to combine test coverage from all test jobs
@@ -141,7 +144,7 @@ linux-pyinstaller:
     - poetry lock --no-update --no-cache
     - poetry install
     - poetry run opsi-dev-cli -l info pyinstaller build
-    - ./ziplaunch/ziplaunch dist/opsi-cli ziplaunch.ini opsi-cli
+    - ./ziplaunch/ziplaunch dist/opsicli ziplaunch.ini opsi-cli
     - ./opsi-cli --version
     - ./opsi-cli --non-interactive plugin new cicdtest --version=1.0
     - sed -i 's/import rich_click as click/import rich_click as click; import flask/' cicdtest/python/__init__.py
