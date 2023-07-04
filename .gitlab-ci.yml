@@ -198,9 +198,9 @@ macos-pyinstaller:
     - cp macos-start.sh ziplaunch-build/opsi-cli.app/Contents/MacOS/opsi-cli
     - chmod +x ziplaunch-build/opsi-cli.app/Contents/MacOS/opsi-cli
     - mv dist/opsicli ziplaunch-build/opsi-cli.app/Contents/Resources/
-    - ./opsi-dev-cli apple sign-and-notarize --print-log ziplaunch-build/opsi-cli.app
+    - ./opsi-dev-cli -l info apple sign-and-notarize --print-log ziplaunch-build/opsi-cli.app
     - ./ziplaunch/ziplaunch ziplaunch-build ziplaunch.ini opsi-cli
-    - ./opsi-dev-cli apple sign-and-notarize --print-log opsi-cli
+    - ./opsi-dev-cli -l info apple sign-and-notarize --print-log opsi-cli
 
     - ./opsi-cli --version
     - ./opsi-cli --non-interactive plugin new cicdtest --version=1.0
