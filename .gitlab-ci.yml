@@ -198,7 +198,7 @@ macos-pyinstaller:
     #- cp macos-start.sh ziplaunch-build/opsi-cli.app/Contents/MacOS/opsi-cli
     #- chmod +x ziplaunch-build/opsi-cli.app/Contents/MacOS/opsi-cli
     - rm -r ziplaunch-build/opsi-cli.app/Contents/MacOS
-    - mv dist/opsicli zziplaunch-build/opsi-cli.app/Contents/MacOS
+    - mv dist/opsicli ziplaunch-build/opsi-cli.app/Contents/MacOS
     #- mv dist/opsi-cli.app ziplaunch-build/
     - ./opsi-dev-cli -l info apple sign-and-notarize --print-log ziplaunch-build/opsi-cli.app
     - ./ziplaunch/ziplaunch ziplaunch-build ziplaunch.ini opsi-cli
