@@ -237,11 +237,11 @@ windows-pyinstaller:
     # Build ziplauncher
     - .\ziplaunch\ziplaunch dist\opsicli ziplaunch.ini opsi-cli.exe
     # Test opsi-cli binary
-    - opsi-cli.exe --version
-    - opsi-cli.exe --non-interactive plugin new cicdtest --version=1.0
+    - .\opsi-cli.exe --version
+    - .\opsi-cli.exe --non-interactive plugin new cicdtest --version=1.0
     - (get-content cicdtest\python\__init__.py) | %{$_ -replace "import click","import click; import flask"} | Out-File -encoding ascii cicdtest\python\__init__.py
-    - opsi-cli.exe -l 7 plugin add cicdtest
-    - powershell -command "Measure-Command { opsi-cli.exe --help }"
+    - .\opsi-cli.exe -l 7 plugin add cicdtest
+    - powershell -command "Measure-Command { .\opsi-cli.exe --help }"
     # Sign ziplauncher binary
     - .\opsi-dev-tool -l info --signserver-sign opsi-cli.exe
     # Virus check opsi-cli binary and ziplauncher
