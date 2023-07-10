@@ -140,7 +140,7 @@ linux-pyinstaller:
     - poetry lock --no-update --no-cache
     - poetry install
     - poetry run ./opsi-dev-cli -l info pyinstaller build
-    - ./ziplaunch/ziplaunch dist/opsicli ziplaunch.ini opsi-cli
+    - ./ziplaunch/ziplaunch dist/opsicli ./ziplaunch_data/ziplaunch.ini opsi-cli
     - ./opsi-cli --version
     - ./opsi-cli --non-interactive plugin new cicdtest --version=1.0
     - sed -i 's/import rich_click as click/import rich_click as click; import flask/' cicdtest/python/__init__.py
@@ -167,7 +167,7 @@ linux-arm-pyinstaller:
     - poetry lock --no-update --no-cache
     - poetry install
     - poetry run ./opsi-dev-cli -l info pyinstaller build
-    - ./ziplaunch/ziplaunch dist/opsicli ziplaunch.ini opsi-cli
+    - ./ziplaunch/ziplaunch dist/opsicli ./ziplaunch_data/ziplaunch.ini opsi-cli
     - ./opsi-cli --version
     - ./opsi-cli --non-interactive plugin new cicdtest --version=1.0
     - sed -i 's/import rich_click as click/import rich_click as click; import flask/' cicdtest/python/__init__.py
@@ -193,12 +193,12 @@ macos-pyinstaller:
     - version=$(./dist/opsicli/opsi-cli --version | cut -d ' ' -f3)
     - mkdir ziplaunch-build
     - ./opsi-dev-cli apple create-app --identifier org.opsi.opsi-cli --executable-name opsi-cli --version $version ziplaunch-build opsi-cli
-    - cp macos-start.sh ziplaunch-build/opsi-cli.app/Contents/MacOS/opsi-cli
+    - cp ./ziplaunch_data/macos-start.sh ziplaunch-build/opsi-cli.app/Contents/MacOS/opsi-cli
     - chmod +x ziplaunch-build/opsi-cli.app/Contents/MacOS/opsi-cli
     - mv dist/opsicli ziplaunch-build/opsi-cli.app/Contents/Resources/
     - ./opsi-dev-cli -l info apple sign-and-notarize --print-log ziplaunch-build/opsi-cli.app
 
-    - ./ziplaunch/ziplaunch ziplaunch-build ziplaunch.ini opsi-cli
+    - ./ziplaunch/ziplaunch ziplaunch-build ./ziplaunch_data/ziplaunch.ini opsi-cli
     - ./opsi-dev-cli -l info apple sign-and-notarize --macho-fix --print-log opsi-cli
 
     - ./opsi-cli --version
@@ -235,8 +235,8 @@ windows-pyinstaller:
     # Build ziplauncher
     - $out = dist\opsicli\opsi-cli.exe --version
     - $version = $out.split()[2]
-    - ((Get-Content -path ziplaunch.ini -Raw) -replace "{version}",$version) | Set-Content -Path ziplaunch.ini
-    - .\ziplaunch\ziplaunch dist\opsicli ziplaunch.ini opsi-cli.exe
+    - ((Get-Content -path .\ziplaunch_data\ziplaunch.ini -Raw) -replace "{version}",$version) | Set-Content -Path .\ziplaunch_data\ziplaunch.ini
+    - .\ziplaunch\ziplaunch dist\opsicli .\ziplaunch_data\ziplaunch.ini opsi-cli.exe
     # Test opsi-cli binary
     - .\opsi-cli.exe --version
     - .\opsi-cli.exe --non-interactive plugin new cicdtest --version=1.0
