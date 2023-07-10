@@ -190,8 +190,9 @@ macos-pyinstaller:
     - ./opsi-dev-cli binary pull ziplaunch
     - poetry run ./opsi-dev-cli -l info pyinstaller build
 
+    - version=$(./dist/opsicli/opsi-cli --version | cut -d ' ' -f3)
     - mkdir ziplaunch-build
-    - ./opsi-dev-cli apple create-app --identifier org.opsi.opsi-cli --executable-name opsi-cli --version 1.0 ziplaunch-build opsi-cli
+    - ./opsi-dev-cli apple create-app --identifier org.opsi.opsi-cli --executable-name opsi-cli --version $version ziplaunch-build opsi-cli
     - cp macos-start.sh ziplaunch-build/opsi-cli.app/Contents/MacOS/opsi-cli
     - chmod +x ziplaunch-build/opsi-cli.app/Contents/MacOS/opsi-cli
     - mv dist/opsicli ziplaunch-build/opsi-cli.app/Contents/Resources/
@@ -232,6 +233,9 @@ windows-pyinstaller:
     # Sign opsi-cli binary
     - .\opsi-dev-tool -l info --signserver-sign  dist\opsicli\opsi-cli.exe
     # Build ziplauncher
+    - $out = dist\opsicli\opsi-cli.exe --version
+    - $version = $out.split()[2]
+    - ((Get-Content -path ziplaunch.ini -Raw) -replace "{version}",$version) | Set-Content -Path ziplaunch.ini
     - .\ziplaunch\ziplaunch dist\opsicli ziplaunch.ini opsi-cli.exe
     # Test opsi-cli binary
     - .\opsi-cli.exe --version
