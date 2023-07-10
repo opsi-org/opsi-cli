@@ -24,7 +24,6 @@ pytest-darwin:
     expire_in: 3 days
 
 pytest-windows:
-  when: manual
   stage: test_python
   tags:
     - win10-py311-x86
@@ -42,7 +41,6 @@ pytest-windows:
     expire_in: 3 days
 
 pytest-linux:
-  when: manual
   stage: test_python
   services:
     - name: mysql:latest
@@ -95,7 +93,6 @@ pytest-linux:
     expire_in: 3 days
 
 pylint-pytest:
-  when: manual
   stage: test_python
   needs:
     # We want to combine test coverage from all test jobs
@@ -257,7 +254,6 @@ windows-pyinstaller:
       - CLIENT_DATA\opsi-cli-windows.exe
 
 makeopsipackage:
-  when: manual
   stage: package
   script:
     # Disregard any information from OPSI and write controlfile according to pyproject.toml version and CI_JOB_ID
