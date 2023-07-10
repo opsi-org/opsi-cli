@@ -13,6 +13,7 @@ import string
 import subprocess
 import sys
 from contextlib import contextmanager
+from functools import lru_cache
 from typing import Iterator
 
 from opsicommon.logging import get_logger, logging_config  # type: ignore[import]
@@ -84,3 +85,13 @@ def stream_wrap() -> Iterator[None]:
 			print(err, file=sys.stderr)
 		else:
 			termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, attrs)
+
+
+@lru_cache
+def user_is_admin() -> bool:
+	try:
+		return os.geteuid() == 0
+	except AttributeError:
+		import ctypes  # pylint: disable=import-outside-toplevel
+
+		return ctypes.windll.shell32.IsUserAnAdmin() != 0  # type: ignore[attr-defined]

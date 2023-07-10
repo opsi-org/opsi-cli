@@ -24,7 +24,7 @@ from opsicli.config import ConfigValueSource, config
 from opsicli.io import get_console
 from opsicli.plugin import OPSICLIPlugin, plugin_manager
 from opsicli.types import File
-from opsicli.utils import add_to_env_variable
+from opsicli.utils import add_to_env_variable, user_is_admin
 
 __version__ = "0.1.1"
 
@@ -147,10 +147,10 @@ def setup_shell_completion(ctx: click.Context, shell: str, completion_file: Path
 
 @cli.command(short_help="Install opsi-cli locally")
 @click.option(
-	"--system",
+	"--system/--no-system",
 	is_flag=True,
 	help="Install system-wide.",
-	default=False,
+	default=user_is_admin(),
 	show_default=True,
 )
 @click.option(
@@ -195,10 +195,10 @@ def install(system: bool, binary_path: Path | None = None, no_add_to_path: bool 
 
 @cli.command(short_help="Uninstall opsi-cli locally")
 @click.option(
-	"--system",
+	"--system/--no-system",
 	is_flag=True,
 	help="Uninstall system-wide.",
-	default=False,
+	default=user_is_admin(),
 	show_default=True,
 )
 @click.option(
