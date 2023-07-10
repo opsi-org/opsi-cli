@@ -172,13 +172,18 @@ def install(system: bool, binary_path: Path | None = None, no_add_to_path: bool 
 	Installs opsi-cli binary and configuration files to the system.
 	"""
 	binary_path = binary_path or get_binary_path(system=system)
-	logger.notice("Copying %s to %s", sys.executable, binary_path)
+	src_binary = sys.executable
+	ziplauncher_binary = os.environ.get("ZIPLAUNCHER_BINARY")
+	if ziplauncher_binary and os.path.exists(ziplauncher_binary):
+		src_binary = ziplauncher_binary
+
+	logger.notice("Copying %s to %s", src_binary, binary_path)
 	if not binary_path.parent.exists():
 		binary_path.parent.mkdir(parents=True)
 	try:
-		shutil.copy(sys.executable, binary_path)
+		shutil.copy(src_binary, binary_path)
 	except shutil.SameFileError:
-		logger.warning("'%s' and '%s' are the same file", sys.executable, binary_path)
+		logger.warning("'%s' and '%s' are the same file", src_binary, binary_path)
 	source = ConfigValueSource.CONFIG_FILE_SYSTEM if system else ConfigValueSource.CONFIG_FILE_USER
 	config.write_config_files(sources=[source])
 	logger.debug("PATH is '%s'", os.environ.get("PATH", ""))
