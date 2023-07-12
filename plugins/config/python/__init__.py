@@ -214,6 +214,31 @@ def service_remove(
 			break
 
 
+@service.command(name="set-default", short_help="set opsi-service default")
+@click.argument("name", type=str, required=False)
+@click.option("--system", is_flag=True, type=bool, required=False, default=False)
+def service_set_default(
+	name: str | None = None,
+	system: bool = False,
+) -> None:
+	"""
+	opsi-cli config service set-default subcommand.
+	"""
+	source = ConfigValueSource.CONFIG_FILE_SYSTEM if system else ConfigValueSource.CONFIG_FILE_USER
+	config_item = config.get_config_item("services")
+	values = config_item.get_values(value_only=False, sources=[source])
+	names = sorted([val.value.name for val in values])
+
+	if name:
+		if name not in names:
+			raise ValueError(f"Service {name} not found in {'system' if system else 'user'} configuration")
+		config.get_config_item("service").set_value(name)
+	else:
+		# Name not specified: reset to default
+		config.get_config_item("service").set_value(config.get_config_item("service").get_default())
+	config.write_config_files(sources=[source])
+
+
 class ConfigPlugin(OPSICLIPlugin):
 	name: str = "Config"
 	description: str = "Manage opsi-cli configuration"

@@ -139,6 +139,30 @@ def test_service_config() -> None:
 		assert not any(service.name == "test" for service in config.get_values().get("services", []))
 
 
+def test_config_service_set_default() -> None:
+	config = Config()
+
+	with temp_context() as tempdir:
+		# config service add writes conffile. Explicitely set here to avoid wiping config file of the user.
+		conffile = Path(tempdir) / "conffile.conf"
+		config.config_file_user = conffile
+		(exit_code, _) = run_cli(
+			["config", "service", "add", "--name=test", "--username=testuser", "--password=testpassword", "https://testurl:4447"]
+		)
+
+		(exit_code, _) = run_cli(["config", "service", "set-default", "test"])
+		assert exit_code == 0
+		assert config.get_values().get("service") == "test"
+
+		(exit_code, _) = run_cli(["config", "service", "set-default"])
+		assert exit_code == 0
+		assert config.get_values().get("service") == "https://localhost:4447"
+
+		(exit_code, _) = run_cli(["config", "service", "set-default", "nonexisting"])
+		assert exit_code == 1
+		assert config.get_values().get("service") == "https://localhost:4447"
+
+
 @pytest.mark.parametrize(
 	"config_value, call_parameter",
 	(("true", "--no-metadata"), ("false", "--metadata")),
