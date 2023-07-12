@@ -46,12 +46,13 @@ def log_message(message: Message) -> None:
 	# logger.devel(debug_string)  # for test_messagebus.py
 
 
-class MessagebusConnection(MessagebusListener):
+class MessagebusConnection(MessagebusListener):  # pylint: disable=too-many-instance-attributes
 	terminal_id: str
 
 	def __init__(self) -> None:
 		MessagebusListener.__init__(self)
 		self.should_close = False
+		self.terminal_write_channel: str | None = None
 		self.channel_subscription_event = Event()
 		self.terminal_open_event = Event()
 		self.jsonrpc_response_event = Event()
@@ -69,6 +70,7 @@ class MessagebusConnection(MessagebusListener):
 		if isinstance(message, ChannelSubscriptionEventMessage):
 			self.channel_subscription_event.set()
 		elif isinstance(message, TerminalOpenEventMessage) and message.terminal_id == self.terminal_id:
+			self.terminal_write_channel = message.back_channel
 			self.terminal_open_event.set()
 		elif isinstance(message, TerminalDataReadMessage) and message.terminal_id == self.terminal_id:
 			sys.stdout.buffer.write(message.data)
@@ -133,9 +135,10 @@ class MessagebusConnection(MessagebusListener):
 
 		if open_new_terminal:
 			self.open_new_terminal(term_read_channel, term_write_channel)
-			if not self.terminal_open_event.wait(CHANNEL_SUB_TIMEOUT):
+			if not self.terminal_open_event.wait(CHANNEL_SUB_TIMEOUT) or self.terminal_write_channel is None:
 				raise ConnectionError("Could not open new terminal")
 			self.terminal_open_event.clear()  # prepare for catching the next terminal_open_event
+			term_write_channel = self.terminal_write_channel
 		else:
 			logger.notice("Requesting access to existing terminal with id %s ", self.terminal_id)
 		if not self.channel_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
