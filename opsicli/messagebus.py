@@ -46,12 +46,13 @@ def log_message(message: Message) -> None:
 	# logger.devel(debug_string)  # for test_messagebus.py
 
 
-class MessagebusConnection(MessagebusListener):
+class MessagebusConnection(MessagebusListener):  # pylint: disable=too-many-instance-attributes
 	terminal_id: str
 
 	def __init__(self) -> None:
 		MessagebusListener.__init__(self)
 		self.should_close = False
+		self.terminal_write_channel: str | None = None
 		self.channel_subscription_event = Event()
 		self.terminal_open_event = Event()
 		self.jsonrpc_response_event = Event()
@@ -69,6 +70,7 @@ class MessagebusConnection(MessagebusListener):
 		if isinstance(message, ChannelSubscriptionEventMessage):
 			self.channel_subscription_event.set()
 		elif isinstance(message, TerminalOpenEventMessage) and message.terminal_id == self.terminal_id:
+			self.terminal_write_channel = message.back_channel
 			self.terminal_open_event.set()
 		elif isinstance(message, TerminalDataReadMessage) and message.terminal_id == self.terminal_id:
 			sys.stdout.buffer.write(message.data)
@@ -102,47 +104,44 @@ class MessagebusConnection(MessagebusListener):
 				break
 			self.transmit_input(term_write_channel, data)
 
-	def open_new_terminal(self, term_read_channel: str, term_write_channel: str) -> None:
+	def open_new_terminal(self, term_request_channel: str) -> None:
 		if not self.channel_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
 			raise ConnectionError("Could not subscribe to terminal session channel")
 		self.channel_subscription_event.clear()  # prepare for catching the next channel_subscription_event
 		size = shutil.get_terminal_size()
 		tor = TerminalOpenRequestMessage(
 			sender="@",
-			channel=term_write_channel,
+			channel=term_request_channel,
 			terminal_id=self.terminal_id,
-			back_channel=term_read_channel,
+			back_channel=f"session:{self.terminal_id}",
 			rows=size.lines,
 			cols=size.columns,
 		)
-		logger.notice("Requesting to open new terminal with id %s ", self.terminal_id)
+		logger.notice("Requesting to open terminal with id %s ", self.terminal_id)
 		log_message(tor)
 		self.service_client.messagebus.send_message(tor)
 
-	def get_terminal_channel_pair(self, target: str, open_new_terminal: bool = True) -> tuple[str, str]:
+	def get_terminal_channel_pair(self, target: str) -> tuple[str, str]:
 		term_read_channel = f"session:{self.terminal_id}"
 		if target.lower() == "configserver":
-			term_write_channel = "service:config:terminal"
+			term_request_channel = "service:config:terminal"
 		else:
-			term_write_channel = f"host:{target}"
+			term_request_channel = f"host:{target}"
 
 		csr = ChannelSubscriptionRequestMessage(sender="@", operation="add", channels=[term_read_channel], channel="service:messagebus")
 		logger.notice("Requesting access to terminal session channel")
 		log_message(csr)
 		self.service_client.messagebus.send_message(csr)
 
-		if open_new_terminal:
-			self.open_new_terminal(term_read_channel, term_write_channel)
-			if not self.terminal_open_event.wait(CHANNEL_SUB_TIMEOUT):
-				raise ConnectionError("Could not open new terminal")
-			self.terminal_open_event.clear()  # prepare for catching the next terminal_open_event
-		else:
-			logger.notice("Requesting access to existing terminal with id %s ", self.terminal_id)
+		self.open_new_terminal(term_request_channel)
+		if not self.terminal_open_event.wait(CHANNEL_SUB_TIMEOUT) or self.terminal_write_channel is None:
+			raise ConnectionError("Could not open new terminal")
+		self.terminal_open_event.clear()  # prepare for catching the next terminal_open_event
 		if not self.channel_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
 			raise ConnectionError("Could not subscribe to terminal session channel")
 		self.channel_subscription_event.clear()  # prepare for catching the next terminal_open_event
 
-		return (term_read_channel, term_write_channel)
+		return (term_read_channel, self.terminal_write_channel)
 
 	@contextmanager
 	def connection(self) -> Generator[None, None, None]:
@@ -186,7 +185,7 @@ class MessagebusConnection(MessagebusListener):
 		else:
 			self.terminal_id = str(uuid4())
 		with self.connection():
-			(_, term_write_channel) = self.get_terminal_channel_pair(target, open_new_terminal=term_id is None)
+			(_, term_write_channel) = self.get_terminal_channel_pair(target)
 			logger.notice("Return to local shell with 'exit' or 'Ctrl+D'")
 			with stream_wrap():
 				self.transmit_input(term_write_channel)

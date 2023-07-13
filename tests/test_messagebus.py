@@ -100,4 +100,4 @@ def test_messagebus_with_two_connections() -> None:
 			first.get_terminal_channel_pair("configserver")
 
 			with second.connection():
-				second.get_terminal_channel_pair("configserver", open_new_terminal=False)
+				second.get_terminal_channel_pair("configserver")
