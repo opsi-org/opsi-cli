@@ -13,6 +13,12 @@ packages = [
 [[tool.poetry.source]]
 name = "uib"
 url = "http://pypi.uib.gmbh:8080/simple/"
+priority = "primary"
+
+
+[[tool.poetry.source]]
+name = "PyPI"
+priority = "primary"
 
 [tool.poetry.dependencies]
 "ruamel.yaml" = "^0.17"
