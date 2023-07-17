@@ -7,6 +7,7 @@ types
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Type
@@ -110,6 +111,10 @@ class Password(str):  # pylint: disable=too-few-public-methods
 
 class File(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public-methods
 	click_type = click.Path(dir_okay=False)
+
+	@classmethod
+	def cwd(cls) -> Path:
+		return Path(os.getcwd())
 
 	def __new__(cls: Type[File], *args: Any, **kwargs: Any) -> File:
 		path = super().__new__(cls, *args, **kwargs)
