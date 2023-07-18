@@ -20,7 +20,6 @@ from click import Command  # type: ignore[import]
 from opsicommon.logging import get_logger  # type: ignore[import]
 from opsicommon.utils import Singleton  # type: ignore[import]
 from packaging.version import parse
-from pipreqs import pipreqs  # type: ignore[import]
 
 from opsicli.config import IN_COMPLETION_MODE, config
 
@@ -228,6 +227,10 @@ def install_python_package(target_dir: Path, package: dict[str, str]) -> None:
 
 
 def install_dependencies(path: Path, target_dir: Path) -> None:
+	# Import is slow (python requests/urllib3)
+	# pylint: disable=import-outside-toplevel
+	from pipreqs import pipreqs  # type: ignore[import]
+
 	if (path / "requirements.txt").exists():
 		logger.debug("Reading requirements.txt from %s", path)
 		dependencies = pipreqs.parse_requirements(path / "requirements.txt")
