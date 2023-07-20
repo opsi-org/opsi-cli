@@ -6,6 +6,10 @@ general configuration
 """
 
 import os
+
+COMPLETION_MODE = bool(os.environ.get("_OPSI_CLI_COMPLETE"))
+
+# pylint: disable=wrong-import-position
 import platform
 import sys
 from copy import deepcopy
@@ -14,7 +18,12 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Callable
 
-import rich_click as click  # type: ignore[import]
+if COMPLETION_MODE:
+	# Loads faster
+	import click
+else:
+	import rich_click as click  # type: ignore[import,no-redef]
+
 from click.core import ParameterSource  # type: ignore[import]
 from opsicommon.logging import (  # type: ignore[import]
 	DEFAULT_COLORED_FORMAT,

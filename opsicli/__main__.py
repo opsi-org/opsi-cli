@@ -5,20 +5,31 @@ opsi-cli Basic command line interface for opsi
 Main command
 """
 
+import os
+
+COMPLETION_MODE = bool(os.environ.get("_OPSI_CLI_COMPLETE"))
+
+# pylint: disable=wrong-import-position
 import re
 import sys
 from typing import Any, Sequence
 
-import rich_click as click  # type: ignore[import]
-from click.exceptions import Abort, ClickException  # type: ignore[import]
-from click.shell_completion import CompletionItem  # type: ignore[import]
 from opsicommon.logging import get_logger  # type: ignore[import]
 from opsicommon.utils import monkeypatch_subprocess_for_frozen
-from rich_click.rich_click import (  # type: ignore[import]
-	rich_abort_error,
-	rich_format_error,
-	rich_format_help,
-)
+
+if not COMPLETION_MODE:
+	import rich_click as click  # type: ignore[import,no-redef]
+	from rich_click.rich_click import (  # type: ignore[import]
+		rich_abort_error,
+		rich_format_error,
+		rich_format_help,
+	)
+else:
+	# Loads faster
+	import click  # type: ignore[import,no-redef]
+
+from click.exceptions import Abort, ClickException  # type: ignore[import]
+from click.shell_completion import CompletionItem  # type: ignore[import]
 
 from opsicli import __version__, prepare_cli_paths
 from opsicli.cache import cache
@@ -26,34 +37,35 @@ from opsicli.config import config
 from opsicli.plugin import plugin_manager
 from opsicli.types import LogLevel as TypeLogLevel
 
-click.rich_click.USE_RICH_MARKUP = True
-click.rich_click.MAX_WIDTH = 140
+if not COMPLETION_MODE:
+	click.rich_click.USE_RICH_MARKUP = True
+	click.rich_click.MAX_WIDTH = 140
 
-# https://rich.readthedocs.io/en/stable/style.html
-# https://rich.readthedocs.io/en/stable/appendix/colors.html#appendix-colors
-click.rich_click.STYLE_USAGE = "bold cyan3"
-click.rich_click.STYLE_OPTION = "bold cyan"
-click.rich_click.STYLE_SWITCH = "bold light_sea_green"
-click.rich_click.STYLE_METAVAR = "cyan3"
-click.rich_click.STYLE_ERRORS_SUGGESTION = ""
+	# https://rich.readthedocs.io/en/stable/style.html
+	# https://rich.readthedocs.io/en/stable/appendix/colors.html#appendix-colors
+	click.rich_click.STYLE_USAGE = "bold cyan3"
+	click.rich_click.STYLE_OPTION = "bold cyan"
+	click.rich_click.STYLE_SWITCH = "bold light_sea_green"
+	click.rich_click.STYLE_METAVAR = "cyan3"
+	click.rich_click.STYLE_ERRORS_SUGGESTION = ""
 
-click.rich_click.OPTION_GROUPS = {"opsi-cli": []}
-for group, items in config.get_items_by_group().items():
-	if not group:
-		continue
-	options = []
-	for item in items:
-		if item.plugin:
+	click.rich_click.OPTION_GROUPS = {"opsi-cli": []}
+	for group, items in config.get_items_by_group().items():
+		if not group:
 			continue
-		options.append(f"--{item.name.replace('_', '-')}")
-	if group == "General":
-		options.extend(["--help", "--version"])
-	if options:
-		click.rich_click.OPTION_GROUPS["opsi-cli"].append({"name": f"{group} options", "options": options})
+		options = []
+		for item in items:
+			if item.plugin:
+				continue
+			options.append(f"--{item.name.replace('_', '-')}")
+		if group == "General":
+			options.extend(["--help", "--version"])
+		if options:
+			click.rich_click.OPTION_GROUPS["opsi-cli"].append({"name": f"{group} options", "options": options})
 
+	monkeypatch_subprocess_for_frozen()
 
 logger = get_logger("opsicli")
-monkeypatch_subprocess_for_frozen()
 
 
 # https://click.palletsprojects.com/en/7.x/commands/#custom-multi-commands
