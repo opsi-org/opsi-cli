@@ -9,7 +9,7 @@ from opsicommon.objects import ProductOnClient
 
 from opsicli.config import config
 
-from .client_action_worker import ClientActionWorker
+from .client_action_worker import ClientActionArgs, ClientActionWorker
 
 STATIC_EXCLUDE_PRODUCTS = [
 	"opsi-winst",
@@ -42,10 +42,10 @@ logger = get_logger("opsicli")
 
 
 class SetActionRequestWorker(ClientActionWorker):
-	def __init__(self, **kwargs: str) -> None:
-		super().__init__(
-			kwargs.get("clients"), kwargs.get("client_groups"), kwargs.get("exclude_clients"), kwargs.get("exclude_client_groups")
-		)
+	def __init__(
+		self, args: ClientActionArgs
+	) -> None:
+		super().__init__(args)
 		self.products: list[str] = []
 		self.products_with_only_uninstall: list[str] = []
 		self.depot_versions: dict[str, dict[str, str]] = {}
