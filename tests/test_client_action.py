@@ -33,7 +33,7 @@ def tmp_client(service: ServiceClient, name: str) -> Generator[None, None, None]
 def tmp_host_group(service: ServiceClient, name: str, clients: list[str] | None = None) -> Generator[None, None, None]:
 	try:
 		service.jsonrpc("group_createHostGroup", params=[name])
-		for client in clients:
+		for client in clients or []:
 			service.jsonrpc("objectToGroup_create", params=["HostGroup", name, client])
 		yield
 	finally:
@@ -44,7 +44,7 @@ def tmp_host_group(service: ServiceClient, name: str, clients: list[str] | None 
 def tmp_product_group(service: ServiceClient, name: str, products: list[str] | None = None) -> Generator[None, None, None]:
 	try:
 		service.jsonrpc("group_createObjects", params=[{"id": name, "type": "ProductGroup"}])
-		for product in products:
+		for product in products or []:
 			service.jsonrpc("objectToGroup_create", params=["ProductGroup", name, product])
 		yield
 	finally:
