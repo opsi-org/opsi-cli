@@ -204,5 +204,5 @@ def test_trigger_event() -> None:
 		connection = get_service_connection()
 		with tmp_client(connection, CLIENT1):
 			cmd = ["client-action", "--clients", CLIENT1, "trigger-event", "--wakeup"]
-			(code, _) = run_cli(cmd, return_stderr=True)
+			(code, _) = run_cli(cmd)
 			assert code == 0  # No way to actually trigger an event or wake up a client
