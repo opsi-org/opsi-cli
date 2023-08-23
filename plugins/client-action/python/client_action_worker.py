@@ -19,7 +19,7 @@ class ClientActionArgs:
 	client_groups: str | None = None
 	exclude_clients: str | None = None
 	exclude_client_groups: str | None = None
-	only_reachable: bool = False
+	only_online: bool = False
 
 
 class ClientActionWorker:
@@ -50,7 +50,7 @@ class ClientActionWorker:
 			for group in [entry.strip() for entry in args.exclude_client_groups.split(",")]:
 				exclude_clients_list.extend(self.client_ids_from_group(group))
 		self.clients = [entry for entry in self.clients if entry not in exclude_clients_list]
-		if args.only_reachable:
+		if args.only_online:
 			reachable = self.service.jsonrpc("host_getMessagebusConnectedIds")
 			self.clients = [entry for entry in self.clients if entry in reachable]
 		if not self.clients:

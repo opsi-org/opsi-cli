@@ -187,11 +187,11 @@ def test_set_action_request_unknown_type() -> None:
 
 
 @pytest.mark.requires_testcontainer
-def test_set_action_request_only_reachable() -> None:
+def test_set_action_request_only_online() -> None:
 	with container_connection():
 		connection = get_service_connection()
 		with tmp_client(connection, CLIENT1):
-			cmd = ["client-action", "--clients", CLIENT1, "--only-reachable", "set-action-request", "--products", PRODUCT1]
+			cmd = ["client-action", "--clients", CLIENT1, "--only-online", "set-action-request", "--products", PRODUCT1]
 			(code, _) = run_cli(cmd)
 			assert code == 1
 			pocs = connection.jsonrpc("productOnClient_getObjects", params=[[], {"clientId": CLIENT1, "productId": PRODUCT1}])
