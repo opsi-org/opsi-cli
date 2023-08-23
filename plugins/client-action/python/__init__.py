@@ -11,6 +11,7 @@ from opsicli.plugin import OPSICLIPlugin
 
 from .client_action_worker import ClientActionArgs
 from .set_action_request_worker import SetActionRequestWorker
+from .trigger_event_worker import TriggerEventWorker
 
 __version__ = "0.1.1"  # Use this field to track the current version number
 __description__ = "This command can be used to manage opsi client actions."
@@ -56,6 +57,18 @@ def set_action_request(ctx: click.Context, **kwargs: str) -> None:
 	"""
 	worker = SetActionRequestWorker(ctx.obj)
 	worker.set_action_request(**kwargs)
+
+
+@cli.command(name="trigger-event", short_help="Trigger an event for selected clients")
+@click.pass_context
+@click.option("--event", help="The type of event to trigger", show_default=True, default="on_demand")
+@click.option("--wakeup", help="Wakeup clients if not reachable (instead of event trigger)", is_flag=True, default=False)
+def trigger_event(ctx: click.Context, event: str, wakeup: bool) -> None:
+	"""
+	opsi-cli client-action trigger-event command
+	"""
+	worker = TriggerEventWorker(ctx.obj)
+	worker.trigger_event(event, wakeup)
 
 
 # This class keeps track of the plugins meta-information

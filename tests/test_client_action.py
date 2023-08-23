@@ -196,3 +196,15 @@ def test_set_action_request_only_reachable() -> None:
 			assert code == 1
 			pocs = connection.jsonrpc("productOnClient_getObjects", params=[[], {"clientId": CLIENT1, "productId": PRODUCT1}])
 			assert len(pocs) == 0
+
+
+@pytest.mark.requires_testcontainer
+def test_trigger_event() -> None:
+	with container_connection():
+		connection = get_service_connection()
+		with tmp_client(connection, CLIENT1):
+			cmd = ["client-action", "--clients", CLIENT1, "trigger-event"]
+			(code, output) = run_cli(cmd)
+			assert code == 0
+			print(output)
+			assert False

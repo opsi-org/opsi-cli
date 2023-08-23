@@ -51,7 +51,8 @@ class ClientActionWorker:
 				exclude_clients_list.extend(self.client_ids_from_group(group))
 		self.clients = [entry for entry in self.clients if entry not in exclude_clients_list]
 		if args.only_reachable:
-			self.clients = [entry for entry in self.clients if entry in self.service.jsonrpc("host_getMessagebusConnectedIds")]
+			reachable = self.service.jsonrpc("host_getMessagebusConnectedIds")
+			self.clients = [entry for entry in self.clients if entry in reachable]
 		if not self.clients:
 			raise ValueError("No clients selected")
 		logger.notice("Selected clients: %s", self.clients)
