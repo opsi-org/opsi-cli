@@ -18,8 +18,10 @@ from opsicli.config import config
 runner = CliRunner()
 
 
-def run_cli(args: Sequence[str], stdin: list[str] | None = None) -> tuple[int, str]:
+def run_cli(args: Sequence[str], stdin: list[str] | None = None, return_stderr: bool = False) -> tuple[int, str]:
 	result = runner.invoke(main, args, obj={}, catch_exceptions=False, input="\n".join(stdin or []))
+	if return_stderr:
+		return (result.exit_code, result.stderr)
 	return (result.exit_code, result.output)
 
 

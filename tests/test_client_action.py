@@ -204,8 +204,7 @@ def test_trigger_event() -> None:
 		connection = get_service_connection()
 		with tmp_client(connection, CLIENT1):
 			cmd = ["client-action", "--clients", CLIENT1, "trigger-event", "--wakeup"]
-			(code, output) = run_cli(cmd)
-			print(output)
+			(code, stderr) = run_cli(cmd, return_stderr=True)
 			assert code == 0
-			assert "Number of not reachable selected clients: 1" in output
-			assert "Failed to wake up 1 / 1 not reachable clients" in output
+			assert "Number of not reachable selected clients: 1" in stderr
+			assert "Failed to wake up 1 / 1 not reachable clients" in stderr
