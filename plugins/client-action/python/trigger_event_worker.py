@@ -80,6 +80,7 @@ class TriggerEventWorker(ClientActionWorker):
 
 		reachable, not_reachable = self.divide_clients_by_reachable()
 		wakeup_success = 0
+		event_trigger_success = 0
 		if not_reachable:
 			if wakeup:
 				wakeup_success = self.wakeup_clients(not_reachable)
