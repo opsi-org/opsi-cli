@@ -231,11 +231,11 @@ windows-pyinstaller:
     # Build opsi-cli binary
     - poetry run .\opsi-dev-cli.exe -l info pyinstaller build
     # Sign opsi-cli binary
-    - .\opsi-dev-tool -l info --signserver-sign  dist\opsicli\opsi-cli.exe
+    - .\opsi-dev-cli.exe -l info signserver sign dist\opsicli\opsi-cli.exe
     # Build ziplauncher
     - $out = dist\opsicli\opsi-cli.exe --version
     - $version = $out.split()[2]
-    - ((Get-Content -path .\ziplaunch_data\ziplaunch.ini -Raw) -replace "{version}",$version) | Set-Content -Path .\ziplaunch_data\ziplaunch.ini
+    - .\opsi-dev-cli.exe patch-file ziplaunch_data\ziplaunch.ini version=$version
     - .\ziplaunch\ziplaunch dist\opsicli .\ziplaunch_data\ziplaunch.ini opsi-cli.exe
     # Test opsi-cli binary
     - .\opsi-cli.exe --version
@@ -244,7 +244,7 @@ windows-pyinstaller:
     - .\opsi-cli.exe -l 7 plugin add cicdtest
     - powershell -command "Measure-Command { .\opsi-cli.exe --help }"
     # Sign ziplauncher binary
-    - .\opsi-dev-tool -l info --signserver-sign opsi-cli.exe
+    - .\opsi-dev-cli.exe -l info signserver sign opsi-cli.exe
     # Virus check opsi-cli binary and ziplauncher
     - .\opsi-dev-cli.exe -l info --output-format summary virustotal check dist\opsicli\opsi-cli.exe --allow-detections=10
     - .\opsi-dev-cli.exe -l info --output-format summary virustotal check opsi-cli.exe --allow-detections=10
