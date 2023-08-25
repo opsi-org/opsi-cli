@@ -4,6 +4,7 @@ test_config
 
 import sys
 from io import BufferedReader, BytesIO, TextIOWrapper
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -125,3 +126,16 @@ def test_input_output_file_raw(data: str | bytes) -> None:
 			assert read_input_raw_bin() == data
 		else:
 			assert read_input_raw_str() == data
+
+
+def test_input_output_file_cli() -> None:
+	with temp_context() as tempdir:
+		for outputfile in (tempdir / "output.txt", Path("relative-output.txt")):
+			try:
+				exit_code, _ = run_cli([f"--output-file={outputfile}", "config", "list"])
+				assert exit_code == 0
+				assert "log_level" in outputfile.read_text(encoding="utf-8")
+			finally:
+				outputfile.unlink()
+
+		# --input-file is only used in jsonrpc plugin which requires a server connection
