@@ -66,7 +66,7 @@ class MessagebusConnection(MessagebusListener):  # pylint: disable=too-many-inst
 				callback = getattr(self, callback_name)
 				callback(message)
 			else:
-				logger.debug("No available callback for event of message %s", type(message))
+				logger.debug("No available callback for event of message %r", message.type)
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
 
@@ -79,7 +79,7 @@ class MessagebusConnection(MessagebusListener):  # pylint: disable=too-many-inst
 				self.initial_subscription_event.set()
 
 	def _on_jsonrpc_response(self, message: JSONRPCResponseMessage) -> None:
-		logger.notice("received jsonrpc response message")
+		logger.notice("Received jsonrpc response message")
 		self.jsonrpc_response = message.error if message.error else message.result
 		self.jsonrpc_response_event.set()
 
@@ -89,7 +89,7 @@ class MessagebusConnection(MessagebusListener):  # pylint: disable=too-many-inst
 		try:
 			self.channel_subscription_locks[channel] = Event()
 			csr = ChannelSubscriptionRequestMessage(sender="@", operation="add", channels=[channel], channel="service:messagebus")
-			logger.notice("Requesting access to channel %s", channel)
+			logger.notice("Requesting access to channel %r", channel)
 			log_message(csr)
 			self.service_client.messagebus.send_message(csr)
 			if not self.channel_subscription_locks[channel].wait(CHANNEL_SUB_TIMEOUT):
