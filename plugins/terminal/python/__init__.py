@@ -2,17 +2,15 @@
 opsi-cli terminal plugin
 """
 
-from typing import Optional
-
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger  # type: ignore[import]
 
-from opsicli.messagebus import MessagebusConnection
+from opsicli.messagebus import TerminalMessagebusConnection
 from opsicli.plugin import OPSICLIPlugin
+from opsicli.utils import stream_wrap
 
-__version__ = "0.1.1"  # Use this field to track the current version number
+__version__ = "0.1.2"  # Use this field to track the current version number
 __description__ = "This plugin allows to open a remote terminal on a host."
-
 
 logger = get_logger("opsicli")
 
@@ -21,13 +19,13 @@ logger = get_logger("opsicli")
 @click.version_option(__version__, message="opsi-cli plugin terminal, version %(version)s")
 @click.argument("target", type=str, required=True)
 @click.option("--terminal-id", help="Connect to existing terminal session with this id.")
-def cli(target: str, terminal_id: Optional[str]) -> None:
+def cli(target: str, terminal_id: str | None) -> None:
 	"""
 	This command starts an interactive console session.
 	It connects to the specified target host-id (opsi Client, Depotserver or Configserver).
 	"""
 	logger.trace("terminal command")
-	messagebus = MessagebusConnection()
+	messagebus = TerminalMessagebusConnection()
 	messagebus.run_terminal(target, term_id=terminal_id)
 
 

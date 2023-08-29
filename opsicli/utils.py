@@ -95,3 +95,15 @@ def user_is_admin() -> bool:
 		import ctypes  # pylint: disable=import-outside-toplevel
 
 		return ctypes.windll.shell32.IsUserAnAdmin() != 0  # type: ignore[attr-defined]
+
+
+def evaluate_rpc_dict_result(result: dict[str, dict[str, str | None]], log_success: bool = True) -> int:
+	num_success = 0
+	for key, response in result.items():
+		if response.get("error"):
+			logger.warning("%s: ERROR %s", key, response["error"])
+		else:
+			if log_success:
+				logger.info("%s: SUCCESS", key)
+			num_success += 1
+	return num_success
