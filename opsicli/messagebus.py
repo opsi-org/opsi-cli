@@ -1,6 +1,7 @@
 """
 websocket functions
 """
+from __future__ import annotations
 
 import platform
 import shutil
@@ -98,39 +99,38 @@ class MessagebusConnection(MessagebusListener):  # pylint: disable=too-many-inst
 			del self.channel_subscription_locks[channel]
 
 	@contextmanager
-	def connection(self) -> Generator[None, None, None]:
+	def connection(self) -> Generator[MessagebusConnection, None, None]:
 		try:
 			if not self.service_client.messagebus_connected:
 				logger.debug("Connecting to messagebus.")
 				self.service_client.connect_messagebus()
 			with self.register(self.service_client.messagebus):
-				yield
+				if not self.initial_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
+					raise ConnectionError("Failed to subscribe to session channel.")
+				yield self
 		finally:
 			if self.service_client.messagebus_connected:
 				logger.debug("Disconnecting from messagebus.")
 				self.service_client.disconnect_messagebus()
 
 	def jsonrpc(self, channel: str, method: str, params: tuple | None = None) -> Any:
-		with self.connection():
-			if not self.initial_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
-				raise ConnectionError("Failed to subscribe to session channel.")
-			message = JSONRPCRequestMessage(
-				method=method,
-				params=params or (),
-				api_version="2.0",
-				sender="@",
-				channel=channel,
-			)
-			self.service_client.messagebus.send_message(message)
-			logger.notice("Sending jsonrpc-request, awaiting response...")
-			if not self.jsonrpc_response and not self.jsonrpc_response_event.wait(JSONRPC_TIMEOUT):
-				raise TimeoutError("Timed out waiting for jsonrpc response.")
-			self.jsonrpc_response_event.clear()
-			if not self.jsonrpc_response:
-				raise ConnectionError("Failed to receive jsonrpc response.")
-			result = self.jsonrpc_response
-			self.jsonrpc_response = None
-			return result
+		message = JSONRPCRequestMessage(
+			method=method,
+			params=params or (),
+			api_version="2.0",
+			sender="@",
+			channel=channel,
+		)
+		self.service_client.messagebus.send_message(message)
+		logger.notice("Sending jsonrpc-request, awaiting response...")
+		if not self.jsonrpc_response and not self.jsonrpc_response_event.wait(JSONRPC_TIMEOUT):
+			raise TimeoutError("Timed out waiting for jsonrpc response.")
+		self.jsonrpc_response_event.clear()
+		if not self.jsonrpc_response:
+			raise ConnectionError("Failed to receive jsonrpc response.")
+		result = self.jsonrpc_response
+		self.jsonrpc_response = None
+		return result
 
 
 class TerminalMessagebusConnection(MessagebusConnection):

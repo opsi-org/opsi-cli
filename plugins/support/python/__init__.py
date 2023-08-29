@@ -58,8 +58,8 @@ def client_logs(client: str, path: Path) -> None:
 	"""
 	if path.is_dir():
 		path = path / f"{client}.zip"
-	messagebus = MessagebusConnection()
-	result = messagebus.jsonrpc(f"host:{client}", "getLogs")
+	with MessagebusConnection().connection() as messagebus:
+		result = messagebus.jsonrpc(f"host:{client}", "getLogs")
 	if not result.get("file_id"):
 		raise ValueError(f"Did not get file id for download. Result: {result}")
 	service_client = get_service_connection()
