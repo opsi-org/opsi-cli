@@ -16,7 +16,8 @@ CLIENT1 = "pytest-client1.test.tld"
 CLIENT2 = "pytest-client2.test.tld"
 PRODUCT1 = "hwaudit"
 PRODUCT2 = "swaudit"
-H_GROUP = "pytest-test-client-group"
+H_GROUP1 = "pytest-test-host-group"
+H_GROUP2 = "pytest-nested-host-group"
 P_GROUP = "pytest-test-product-group"
 
 
@@ -30,9 +31,14 @@ def tmp_client(service: ServiceClient, name: str) -> Generator[None, None, None]
 
 
 @contextmanager
-def tmp_host_group(service: ServiceClient, name: str, clients: list[str] | None = None) -> Generator[None, None, None]:
+def tmp_host_group(
+	service: ServiceClient, name: str, clients: list[str] | None = None, parent: str | None = None
+) -> Generator[None, None, None]:
 	try:
-		service.jsonrpc("group_createHostGroup", params=[name])
+		params = [name]
+		if parent:
+			params.extend(["", "", parent])
+		service.jsonrpc("group_createHostGroup", params=params)
 		for client in clients or []:
 			service.jsonrpc("objectToGroup_create", params=["HostGroup", name, client])
 		yield
@@ -83,8 +89,8 @@ def test_set_action_request_group() -> None:
 	with container_connection():
 		connection = get_service_connection()
 		with tmp_client(connection, CLIENT1), tmp_client(connection, CLIENT2):
-			with tmp_host_group(connection, H_GROUP, [CLIENT1, CLIENT2]), tmp_product_group(connection, P_GROUP, [PRODUCT1, PRODUCT2]):
-				cmd = ["-l6", "client-action", "--client-groups", H_GROUP, "set-action-request", "--product-groups", P_GROUP]
+			with tmp_host_group(connection, H_GROUP1, [CLIENT1, CLIENT2]), tmp_product_group(connection, P_GROUP, [PRODUCT1, PRODUCT2]):
+				cmd = ["-l6", "client-action", "--client-groups", H_GROUP1, "set-action-request", "--product-groups", P_GROUP]
 
 				(code, _) = run_cli(cmd)
 				assert code == 0
@@ -140,12 +146,12 @@ def test_set_action_request_excludes() -> None:
 	with container_connection():
 		connection = get_service_connection()
 		with tmp_client(connection, CLIENT1), tmp_client(connection, CLIENT2):
-			with tmp_host_group(connection, H_GROUP, [CLIENT2]), tmp_product_group(connection, P_GROUP, [PRODUCT2]):
+			with tmp_host_group(connection, H_GROUP1, [CLIENT2]), tmp_product_group(connection, P_GROUP, [PRODUCT2]):
 				cmd = [
 					"client-action",
 					f"--clients={CLIENT1},{CLIENT2}",
 					"--exclude-clients=nonexistent.test.tld",
-					f"--exclude-client-groups={H_GROUP}",
+					f"--exclude-client-groups={H_GROUP1}",
 					"set-action-request",
 					f"--products={PRODUCT1},{PRODUCT2}",
 					"--exclude-products=nonexistent",
@@ -196,6 +202,24 @@ def test_set_action_request_only_online() -> None:
 			assert code == 1
 			pocs = connection.jsonrpc("productOnClient_getObjects", params=[[], {"clientId": CLIENT1, "productId": PRODUCT1}])
 			assert len(pocs) == 0
+
+
+@pytest.mark.requires_testcontainer
+def test_nested_groups_client_selection() -> None:
+	with container_connection():
+		connection = get_service_connection()
+		with tmp_client(connection, CLIENT1), tmp_client(connection, CLIENT2):
+			with tmp_host_group(connection, H_GROUP1, [CLIENT1]), tmp_host_group(connection, H_GROUP2, [CLIENT2], parent=H_GROUP1):
+				cmd = ["client-action", "--client-groups", H_GROUP1, "set-action-request", "--products", PRODUCT1]
+				(code, _) = run_cli(cmd)
+				assert code == 0
+				print(connection.jsonrpc("group_getObjects", params=[[], {"id": [H_GROUP2]}]))
+				print(connection.jsonrpc("objectToGroup_getObjects", params=[[], {"objectId": [CLIENT1, CLIENT2]}]))
+				pocs = connection.jsonrpc(
+					"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1]}]
+				)
+				print(pocs)
+				assert len(pocs) == 2
 
 
 @pytest.mark.requires_testcontainer
