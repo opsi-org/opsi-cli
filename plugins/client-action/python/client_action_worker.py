@@ -3,14 +3,21 @@ opsi-cli basic command line interface for opsi
 
 client_action_worker
 """
+from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from opsicommon.logging import get_logger
 
 from opsicli.opsiservice import get_service_connection
 
 logger = get_logger("opsicli")
+
+
+@dataclass
+class Group:
+	name: str
+	subgroups: list[Group] = field(default_factory=list)
 
 
 @dataclass
@@ -26,13 +33,30 @@ class ClientActionWorker:
 	def __init__(self, args: ClientActionArgs) -> None:
 		self.service = get_service_connection()
 		self.clients: list[str] = []
+		self.group_forest: dict[str, Group] = {}
 		self.determine_clients(args)
 
+	def create_group_forest(self) -> None:
+		groups = self.service.jsonrpc("group_getObjects", [[], {"type": "HostGroup"}])
+		for group in groups:
+			self.group_forest[group["id"]] = Group(name=group["id"])
+		for group in groups:
+			if group["parentGroupId"] not in (None, "null"):
+				self.group_forest[group["parentGroupId"]].subgroups.append(self.group_forest[group["id"]])
+
+	def get_entries_from_group(self, group: str) -> set[str]:
+		result = {mapping["objectId"] for mapping in self.service.jsonrpc("objectToGroup_getObjects", [[], {"groupId": group}])}
+		logger.debug("group %s has clients: %s", group, result)
+		if self.group_forest[group].subgroups:
+			for subgroup in self.group_forest[group].subgroups:
+				sub_result = self.get_entries_from_group(subgroup.name)
+				result = result.union(sub_result)
+		return result
+
 	def client_ids_from_group(self, group: str) -> list[str]:
-		result = self.service.jsonrpc("group_getObjects", [[], {"id": group, "type": "HostGroup"}])
-		if not result:
-			raise ValueError(f"Client group '{group}' not found")
-		return [mapping["objectId"] for mapping in self.service.jsonrpc("objectToGroup_getObjects", [[], {"groupId": result[0]["id"]}])]
+		if not self.group_forest:
+			self.create_group_forest()
+		return list(self.get_entries_from_group(group))
 
 	def determine_clients(self, args: ClientActionArgs) -> None:
 		self.clients = []
