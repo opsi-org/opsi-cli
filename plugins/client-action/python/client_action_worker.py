@@ -41,7 +41,7 @@ class ClientActionWorker:
 		for group in groups:
 			self.group_forest[group["id"]] = Group(name=group["id"])
 		for group in groups:
-			if group["parentGroupId"]:
+			if group["parentGroupId"] not in (None, "null"):
 				self.group_forest[group["parentGroupId"]].subgroups.append(self.group_forest[group["id"]])
 
 	def get_entries_from_group(self, group: str) -> set[str]:
