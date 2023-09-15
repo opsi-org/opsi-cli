@@ -7,7 +7,7 @@ Main command
 
 import os
 
-COMPLETION_MODE = bool(os.environ.get("_OPSI_CLI_COMPLETE"))
+COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ
 
 # pylint: disable=wrong-import-position
 import re

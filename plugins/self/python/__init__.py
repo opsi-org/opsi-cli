@@ -14,7 +14,13 @@ from pathlib import Path
 
 import psutil  # type: ignore[import]
 import rich_click as click  # type: ignore[import]
-from click.shell_completion import get_completion_class  # type: ignore[import]
+from click.shell_completion import (  # type: ignore[import]
+	CompletionItem,
+	ShellComplete,
+	add_completion_class,
+	get_completion_class,
+	split_arg_string,
+)
 from opsicommon.logging import get_logger  # type: ignore[import]
 from rich import print as rich_print
 from rich.tree import Tree
@@ -26,12 +32,39 @@ from opsicli.plugin import OPSICLIPlugin, plugin_manager
 from opsicli.types import File
 from opsicli.utils import add_to_env_variable, user_is_admin
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 START_MARKER = "### Added by opsi-cli ###"
 END_MARKER = "### /Added by opsi-cli ###"
 
 logger = get_logger("opsicli")
+
+
+@add_completion_class
+class PowershellComplete(ShellComplete):
+	_powershell_source = """\
+	$scriptBlock = {
+	param($wordToComplete, $commandAst, $cursorPosition)
+		Set-Variable -Name "COMP_WORDS" -Value $commandAst.ToString()
+		Set-Variable -Name "INCOMPLETE" -Value $wordToComplete
+		Set-Variable -Name "_OPSI_CLI_COMPLETE" -Value "powershell"
+		%(prog_name)s
+	}
+	Register-ArgumentCompleter -CommandName %(prog_name)s -ScriptBlock $scriptBlock
+	"""
+	name = "powershell"
+	source_template = _powershell_source
+
+	def get_completion_args(self) -> tuple[list[str], str]:
+		args = split_arg_string(os.environ["COMP_WORDS"])[1:-1]
+		try:
+			incomplete = os.environ["INCOMPLETE"]
+		except IndexError:
+			incomplete = ""
+		return args, incomplete
+
+	def format_completion(self, item: CompletionItem) -> str:
+		return f"{item.type}\n{item.value}\n{item.help if item.help else '_'}"
 
 
 def get_completion_config_path(shell: str) -> Path:
@@ -68,7 +101,7 @@ def cli() -> None:  # pylint: disable=unused-argument
 	logger.trace("self command")
 
 
-SUPPORTED_SHELLS = ["zsh", "bash", "fish"]
+SUPPORTED_SHELLS = ["zsh", "bash", "fish", "powershell"]
 
 
 def get_running_shell() -> str:

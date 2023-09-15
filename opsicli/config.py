@@ -7,7 +7,7 @@ general configuration
 
 import os
 
-COMPLETION_MODE = bool(os.environ.get("_OPSI_CLI_COMPLETE"))
+COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ
 
 # pylint: disable=wrong-import-position
 import platform
@@ -48,8 +48,6 @@ from opsicli.types import (
 	OutputFormat,
 	Password,
 )
-
-IN_COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ
 
 logger = get_logger("opsicli")
 
@@ -472,7 +470,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 		if param.name is None:
 			return
 		param_source = ctx.get_parameter_source(param.name)
-		if IN_COMPLETION_MODE:
+		if COMPLETION_MODE:
 			return
 		if param.name not in self._config:
 			return

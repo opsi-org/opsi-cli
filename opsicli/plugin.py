@@ -21,7 +21,7 @@ from opsicommon.logging import get_logger  # type: ignore[import]
 from opsicommon.utils import Singleton  # type: ignore[import]
 from packaging.version import parse
 
-from opsicli.config import IN_COMPLETION_MODE, config
+from opsicli.config import COMPLETION_MODE, config
 
 logger = get_logger("opsicli")
 
@@ -134,7 +134,7 @@ class PluginManager(metaclass=Singleton):
 			if isinstance(cls, type) and issubclass(cls, OPSICLIPlugin) and cls != OPSICLIPlugin:
 				logger.info("Loading plugin %r (name=%s, cli=%s)", plugin_dir.name, cls.name, cls.cli)
 				plugin = cls(plugin_dir)
-				if not IN_COMPLETION_MODE:
+				if not COMPLETION_MODE:
 					plugin.on_load()
 				# Only one class per module
 				return plugin
