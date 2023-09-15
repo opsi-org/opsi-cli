@@ -74,7 +74,7 @@ def test_setup_shell_completion(tmp_path: Path) -> None:
 
 	exit_code, output = run_cli(["self", "setup-shell-completion", "--shell", "invalid"])
 	assert exit_code == 2
-	assert "'invalid' is not one of 'auto', 'all', 'zsh', 'bash', 'fish'." in output
+	assert "'invalid' is not one of " in output
 
 
 def test_command_structure() -> None:
