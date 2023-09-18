@@ -39,29 +39,26 @@ END_MARKER = "### /Added by opsi-cli ###"
 
 logger = get_logger("opsicli")
 
+_powershell_source = """\
+$scriptBlock = {
+param($wordToComplete, $commandAst, $cursorPosition)
+	$env:COMP_WORDS" = $commandAst.ToString()
+	$env:INCOMPLETE" = $wordToComplete
+	$env:_OPSI_CLI_COMPLETE = "powershell"
+	%(prog_name)s
+}
+Register-ArgumentCompleter -CommandName %(prog_name)s -ScriptBlock $scriptBlock
+"""
+
 
 @add_completion_class
 class PowershellComplete(ShellComplete):
-	_powershell_source = """\
-	$scriptBlock = {
-	param($wordToComplete, $commandAst, $cursorPosition)
-		Set-Variable -Name "COMP_WORDS" -Value $commandAst.ToString()
-		Set-Variable -Name "INCOMPLETE" -Value $wordToComplete
-		Set-Variable -Name "_OPSI_CLI_COMPLETE" -Value "powershell"
-		%(prog_name)s
-	}
-	Register-ArgumentCompleter -CommandName %(prog_name)s -ScriptBlock $scriptBlock
-	"""
 	name = "powershell"
 	source_template = _powershell_source
 
 	def get_completion_args(self) -> tuple[list[str], str]:
-		args = split_arg_string(os.environ["COMP_WORDS"])[1:-1]
-		try:
-			incomplete = os.environ["INCOMPLETE"]
-		except IndexError:
-			incomplete = ""
-		return args, incomplete
+		args = split_arg_string(os.environ["COMP_WORDS"])[1:]
+		return args, os.environ.get("INCOMPLETE", "")
 
 	def format_completion(self, item: CompletionItem) -> str:
 		return f"{item.type}\n{item.value}\n{item.help if item.help else '_'}"
