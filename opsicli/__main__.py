@@ -5,10 +5,6 @@ opsi-cli Basic command line interface for opsi
 Main command
 """
 
-import os
-
-COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ
-
 # pylint: disable=wrong-import-position
 import re
 import sys
@@ -17,25 +13,30 @@ from typing import Any, Sequence
 from opsicommon.logging import get_logger  # type: ignore[import]
 from opsicommon.utils import monkeypatch_subprocess_for_frozen
 
-if not COMPLETION_MODE:
+from opsicli import __version__, prepare_cli_paths
+from opsicli.cache import cache
+from opsicli.config import COMPLETION_MODE, config
+from opsicli.plugin import plugin_manager
+from opsicli.types import LogLevel as TypeLogLevel
+
+if COMPLETION_MODE:
+	# Loads faster
+	import click  # type: ignore[import,no-redef]
+else:
 	import rich_click as click  # type: ignore[import,no-redef]
 	from rich_click.rich_click import (  # type: ignore[import]
 		rich_abort_error,
 		rich_format_error,
 		rich_format_help,
 	)
-else:
-	# Loads faster
-	import click  # type: ignore[import,no-redef]
 
-from click.exceptions import Abort, ClickException  # type: ignore[import]
-from click.shell_completion import CompletionItem  # type: ignore[import]
-
-from opsicli import __version__, prepare_cli_paths
-from opsicli.cache import cache
-from opsicli.config import config
-from opsicli.plugin import plugin_manager
-from opsicli.types import LogLevel as TypeLogLevel
+from click.exceptions import (  # pylint: disable=wrong-import order  # type: ignore[import]
+	Abort,
+	ClickException,
+)
+from click.shell_completion import (  # pylint: disable=wrong-import order  # type: ignore[import]
+	CompletionItem,
+)
 
 if not COMPLETION_MODE:
 	click.rich_click.USE_RICH_MARKUP = True
@@ -103,7 +104,7 @@ class OpsiCLI(click.MultiCommand):
 		# configs are evaluated lazily. Config files are only read on click processing option "config_file_system" and "config_file_user"
 		# This does not happen if click realizes an argument (command) is missing
 		config.read_config_files()
-		if not config.color:
+		if not config.color or "rich_format_help" not in globals():
 			return super().format_help(ctx, formatter)
 		return rich_format_help(self, ctx, formatter)
 

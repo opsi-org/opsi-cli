@@ -7,7 +7,7 @@ general configuration
 
 import os
 
-COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ
+COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE"
 
 # pylint: disable=wrong-import-position
 import platform
@@ -48,6 +48,42 @@ from opsicli.types import (
 	OutputFormat,
 	Password,
 )
+
+if platform.system().lower() == "windows":
+	from click.shell_completion import (  # type: ignore[import]
+		CompletionItem,
+		ShellComplete,
+		add_completion_class,
+		split_arg_string,
+	)
+
+	_POWERSHELL_SOURCE = """\
+$scriptBlock = {
+	param($wordToComplete, $commandAst, $cursorPosition)
+	$env:COMP_WORDS = $commandAst.ToString()
+	$env:INCOMPLETE = $wordToComplete
+	$env:_OPSI_CLI_EXE_COMPLETE = "powershell_complete"
+	%(prog_name)s | ForEach-Object {New-Object -Type System.Management.Automation.CompletionResult -ArgumentList $_,$_,"ParameterValue",$_}
+	rm env:_OPSI_CLI_EXE_COMPLETE
+}
+Register-ArgumentCompleter -CommandName %(prog_name)s -ScriptBlock $scriptBlock
+"""
+
+	@add_completion_class
+	class PowershellComplete(ShellComplete):
+		name = "powershell"
+		source_template = _POWERSHELL_SOURCE
+
+		def get_completion_args(self) -> tuple[list[str], str]:
+			args = split_arg_string(os.environ["COMP_WORDS"])[1:]
+			incomplete = os.environ.get("INCOMPLETE", "")
+			print("args:", args)
+			print("incomplete:", incomplete)
+			return args, incomplete
+
+		def format_completion(self, item: CompletionItem) -> str:
+			return f"{item.value}"  # full info: {item.type}\t{item.value}
+
 
 logger = get_logger("opsicli")
 
