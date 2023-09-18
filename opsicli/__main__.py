@@ -5,19 +5,16 @@ opsi-cli Basic command line interface for opsi
 Main command
 """
 
-# pylint: disable=wrong-import-position
+import os
+
+COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE"
+
 import re
 import sys
 from typing import Any, Sequence
 
 from opsicommon.logging import get_logger  # type: ignore[import]
 from opsicommon.utils import monkeypatch_subprocess_for_frozen
-
-from opsicli import __version__, prepare_cli_paths
-from opsicli.cache import cache
-from opsicli.config import COMPLETION_MODE, config
-from opsicli.plugin import plugin_manager
-from opsicli.types import LogLevel as TypeLogLevel
 
 if COMPLETION_MODE:
 	# Loads faster
@@ -30,13 +27,14 @@ else:
 		rich_format_help,
 	)
 
-from click.exceptions import (  # pylint: disable=wrong-import order  # type: ignore[import]
-	Abort,
-	ClickException,
-)
-from click.shell_completion import (  # pylint: disable=wrong-import order  # type: ignore[import]
-	CompletionItem,
-)
+from click.exceptions import Abort, ClickException  # type: ignore[import]
+from click.shell_completion import CompletionItem  # type: ignore[import]
+
+from opsicli import __version__, prepare_cli_paths
+from opsicli.cache import cache
+from opsicli.config import config
+from opsicli.plugin import plugin_manager
+from opsicli.types import LogLevel as TypeLogLevel
 
 if not COMPLETION_MODE:
 	click.rich_click.USE_RICH_MARKUP = True

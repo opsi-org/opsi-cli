@@ -25,6 +25,12 @@ else:
 	import rich_click as click  # type: ignore[import,no-redef]
 
 from click.core import ParameterSource  # type: ignore[import]
+from click.shell_completion import (  # type: ignore[import]
+	CompletionItem,
+	ShellComplete,
+	add_completion_class,
+	split_arg_string,
+)
 from opsicommon.logging import (  # type: ignore[import]
 	DEFAULT_COLORED_FORMAT,
 	DEFAULT_FORMAT,
@@ -50,13 +56,6 @@ from opsicli.types import (
 )
 
 if platform.system().lower() == "windows":
-	from click.shell_completion import (  # type: ignore[import]
-		CompletionItem,
-		ShellComplete,
-		add_completion_class,
-		split_arg_string,
-	)
-
 	_POWERSHELL_SOURCE = """\
 $scriptBlock = {
 	param($wordToComplete, $commandAst, $cursorPosition)
