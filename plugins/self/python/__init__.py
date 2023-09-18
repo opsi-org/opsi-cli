@@ -39,7 +39,7 @@ END_MARKER = "### /Added by opsi-cli ###"
 
 logger = get_logger("opsicli")
 
-_powershell_source = """\
+_POWERSHELL_SOURCE = """\
 $scriptBlock = {
 param($wordToComplete, $commandAst, $cursorPosition)
 	$env:COMP_WORDS" = $commandAst.ToString()
@@ -54,7 +54,7 @@ Register-ArgumentCompleter -CommandName %(prog_name)s -ScriptBlock $scriptBlock
 @add_completion_class
 class PowershellComplete(ShellComplete):
 	name = "powershell"
-	source_template = _powershell_source
+	source_template = _POWERSHELL_SOURCE
 
 	def get_completion_args(self) -> tuple[list[str], str]:
 		args = split_arg_string(os.environ["COMP_WORDS"])[1:]
