@@ -106,8 +106,18 @@ SUPPORTED_SHELLS = ["zsh", "bash", "fish", "powershell"]
 
 def get_running_shell() -> str:
 	running_shell = psutil.Process(os.getpid()).parent().name()
+	logger.debug("Parent process: %s", running_shell)
 	if not running_shell or running_shell not in SUPPORTED_SHELLS:
-		running_shell = Path(os.environ["SHELL"]).name
+		logger.info("Did not get shell from parent process.")
+		try:
+			running_shell = Path(os.environ["SHELL"]).name
+		except KeyError:
+			logger.warning("Did not get shell from environment.")
+			if platform.system().lower() == "windows":
+				logger.notice("Running on windows, assuming powershell")
+				running_shell = "powershell"
+	if running_shell not in SUPPORTED_SHELLS:
+		raise ValueError("Did not determine valid running shell")
 	return running_shell
 
 
