@@ -7,7 +7,7 @@ general configuration
 
 import os
 
-COMPLETION_MODE = bool(os.environ.get("_OPSI_CLI_COMPLETE"))
+COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE" in os.environ
 
 # pylint: disable=wrong-import-position
 import platform
@@ -25,6 +25,12 @@ else:
 	import rich_click as click  # type: ignore[import,no-redef]
 
 from click.core import ParameterSource  # type: ignore[import]
+from click.shell_completion import (  # type: ignore[import]
+	CompletionItem,
+	ShellComplete,
+	add_completion_class,
+	split_arg_string,
+)
 from opsicommon.logging import (  # type: ignore[import]
 	DEFAULT_COLORED_FORMAT,
 	DEFAULT_FORMAT,
@@ -49,7 +55,35 @@ from opsicli.types import (
 	Password,
 )
 
-IN_COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ
+if platform.system().lower() == "windows":
+	_POWERSHELL_SOURCE = """\
+$scriptBlock = {
+	param($wordToComplete, $commandAst, $cursorPosition)
+	$env:COMP_WORDS = $commandAst.ToString()
+	$env:INCOMPLETE = $wordToComplete
+	$env:_OPSI_CLI_EXE_COMPLETE = "powershell_complete"
+	%(prog_name)s | ForEach-Object {
+		[System.Management.Automation.CompletionResult]::new($_, $_, "ParameterValue" ,$_)
+	}
+	rm env:_OPSI_CLI_EXE_COMPLETE
+}
+Register-ArgumentCompleter -Native -CommandName %(prog_name)s -ScriptBlock $scriptBlock"""
+
+	@add_completion_class
+	class PowershellComplete(ShellComplete):
+		name = "powershell"
+		source_template = _POWERSHELL_SOURCE
+
+		def get_completion_args(self) -> tuple[list[str], str]:
+			args = split_arg_string(os.environ["COMP_WORDS"])[1:]
+			incomplete = os.environ.get("INCOMPLETE", "")
+			if args and incomplete:
+				args = args[:-1]  # The incomplete word should not be part of args
+			return args, incomplete
+
+		def format_completion(self, item: CompletionItem) -> str:
+			return f"{item.value}"  # full info: {item.type}\t{item.value}
+
 
 logger = get_logger("opsicli")
 
@@ -472,7 +506,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 		if param.name is None:
 			return
 		param_source = ctx.get_parameter_source(param.name)
-		if IN_COMPLETION_MODE:
+		if COMPLETION_MODE:
 			return
 		if param.name not in self._config:
 			return

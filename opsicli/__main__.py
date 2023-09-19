@@ -7,7 +7,7 @@ Main command
 
 import os
 
-COMPLETION_MODE = bool(os.environ.get("_OPSI_CLI_COMPLETE"))
+COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE" in os.environ
 
 # pylint: disable=wrong-import-position
 import re
@@ -103,7 +103,7 @@ class OpsiCLI(click.MultiCommand):
 		# configs are evaluated lazily. Config files are only read on click processing option "config_file_system" and "config_file_user"
 		# This does not happen if click realizes an argument (command) is missing
 		config.read_config_files()
-		if not config.color:
+		if not config.color or "rich_format_help" not in globals():
 			return super().format_help(ctx, formatter)
 		return rich_format_help(self, ctx, formatter)
 
