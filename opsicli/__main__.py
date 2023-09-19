@@ -17,16 +17,16 @@ from typing import Any, Sequence
 from opsicommon.logging import get_logger  # type: ignore[import]
 from opsicommon.utils import monkeypatch_subprocess_for_frozen
 
-if COMPLETION_MODE:
-	# Loads faster
-	import click  # type: ignore[import,no-redef]
-else:
+if not COMPLETION_MODE:
 	import rich_click as click  # type: ignore[import,no-redef]
 	from rich_click.rich_click import (  # type: ignore[import]
 		rich_abort_error,
 		rich_format_error,
 		rich_format_help,
 	)
+else:
+	# Loads faster
+	import click  # type: ignore[import,no-redef]
 
 from click.exceptions import Abort, ClickException  # type: ignore[import]
 from click.shell_completion import CompletionItem  # type: ignore[import]

@@ -62,11 +62,12 @@ $scriptBlock = {
 	$env:COMP_WORDS = $commandAst.ToString()
 	$env:INCOMPLETE = $wordToComplete
 	$env:_OPSI_CLI_EXE_COMPLETE = "powershell_complete"
-	%(prog_name)s | ForEach-Object {New-Object -Type System.Management.Automation.CompletionResult -ArgumentList $_,$_,"ParameterValue",$_}
+	%(prog_name)s | ForEach-Object {
+		[System.Management.Automation.CompletionResult]::new($_, $_, "ParameterValue" ,$_)
+	}
 	rm env:_OPSI_CLI_EXE_COMPLETE
 }
-Register-ArgumentCompleter -CommandName %(prog_name)s -ScriptBlock $scriptBlock
-"""
+Register-ArgumentCompleter -Native -CommandName %(prog_name)s -ScriptBlock $scriptBlock"""
 
 	@add_completion_class
 	class PowershellComplete(ShellComplete):
@@ -76,8 +77,8 @@ Register-ArgumentCompleter -CommandName %(prog_name)s -ScriptBlock $scriptBlock
 		def get_completion_args(self) -> tuple[list[str], str]:
 			args = split_arg_string(os.environ["COMP_WORDS"])[1:]
 			incomplete = os.environ.get("INCOMPLETE", "")
-			print("args:", args)
-			print("incomplete:", incomplete)
+			if args and incomplete:
+				args = args[:-1]  # The incomplete word should not be part of args
 			return args, incomplete
 
 		def format_completion(self, item: CompletionItem) -> str:
