@@ -188,6 +188,27 @@ def test_metafile_add_package(tmp_path: Path) -> None:
 		assert returncode == 1
 
 
+def test_metafile_add_package_same_version(tmp_path: Path) -> None:
+	repository_dir = tmp_path / "repository-dir"
+	formats = ["json", "msgpack", "msgpack.zstd"]
+
+	(repository_dir / "subdir").mkdir(parents=True)
+	shutil.copy(TEST_REPO / "localboot_new_1.0-1.opsi", repository_dir)
+	shutil.copy(TEST_REPO / "localboot_new_1.0-1.opsi", repository_dir / "subdir")
+	# same version in different paths -> same RepoMetaPackage instance with .url as list
+
+	cmd = ["-l6", "manage-repo", "metafile", "create", str(repository_dir), "--scan"] + [f"--format={f}" for f in formats]
+	returncode, _ = run_cli(cmd)
+	assert returncode == 0
+
+	for suffix in formats:
+		data = read_metafile(repository_dir / f"packages.{suffix}")
+		package = data["packages"]["localboot_new"]["1.0-1"]
+		assert isinstance(package["url"], list)
+		assert "localboot_new_1.0-1.opsi" in package["url"]
+		assert "subdir/localboot_new_1.0-1.opsi" in package["url"]
+
+
 def test_metafile_remove_package(tmp_path: Path) -> None:
 	repository_dir = tmp_path / "repository-dir"
 	formats = ["json", "msgpack", "msgpack.zstd"]
