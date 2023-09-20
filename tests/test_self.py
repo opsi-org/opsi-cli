@@ -38,7 +38,6 @@ def test_self_uninstall() -> None:
 		assert not config.config_file_user.exists()
 
 
-@pytest.mark.posix
 def test_setup_shell_completion(tmp_path: Path) -> None:
 	plugin = plugin_manager.load_plugin("self")
 	completion_config = tmp_path / "completion"
@@ -46,20 +45,11 @@ def test_setup_shell_completion(tmp_path: Path) -> None:
 	exit_code, output = run_cli(["self", "setup-shell-completion", "--completion-file", str(completion_config)])
 	print(exit_code, output)
 
-	if PLATFORM == "windows":
-		assert exit_code == 1
-		return
-
-	if PLATFORM == "darwin":
-		assert exit_code == 1
-		return
-
 	assert exit_code == 0
-	assert output == "Setting up auto completion for shell 'bash'.\nPlease restart your running shell for changes to take effect.\n"
+	assert "Setting up auto completion for shell" in output
 	assert completion_config.exists()
 	cont = completion_config.read_text()
 	assert cont.startswith(mod_self.START_MARKER + "\n")
-	assert "_opsi_cli_completion() {" in cont
 	assert cont.endswith(mod_self.END_MARKER + "\n")
 	completion_config.unlink()
 
