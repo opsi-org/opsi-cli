@@ -233,6 +233,11 @@ class ConfigItem:  # pylint: disable=too-many-instance-attributes
 			return self.default
 		return self._default
 
+	def is_default(self) -> bool:
+		if isinstance(self._value, ConfigValue) and self._value.source == ConfigValueSource.DEFAULT:
+			return True
+		return False
+
 	def as_dict(self) -> dict[str, Any]:
 		dict_ = asdict(self)
 		dict_["value"] = dict_.pop("_value")

@@ -179,6 +179,9 @@ def service_add(
 
 	source = ConfigValueSource.CONFIG_FILE_SYSTEM if system else ConfigValueSource.CONFIG_FILE_USER
 	config.get_config_item("services").add_value(new_service, source)
+	if config.get_config_item("service").is_default():
+		logger.info("Setting config service to %r as no value was set", name)
+		config.get_config_item("service").set_value(name, source)
 	config.write_config_files(sources=[source])
 
 

@@ -12,8 +12,10 @@ COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE"
 # pylint: disable=wrong-import-position
 import re
 import sys
+from pathlib import Path
 from typing import Any, Sequence
 
+from opsicommon.exceptions import OpsiServiceConnectionError
 from opsicommon.logging import get_logger  # type: ignore[import]
 from opsicommon.utils import monkeypatch_subprocess_for_frozen
 
@@ -34,6 +36,7 @@ from click.shell_completion import CompletionItem  # type: ignore[import]
 from opsicli import __version__, prepare_cli_paths
 from opsicli.cache import cache
 from opsicli.config import config
+from opsicli.io import get_console
 from opsicli.plugin import plugin_manager
 from opsicli.types import LogLevel as TypeLogLevel
 
@@ -70,7 +73,7 @@ logger = get_logger("opsicli")
 
 # https://click.palletsprojects.com/en/7.x/commands/#custom-multi-commands
 class OpsiCLI(click.MultiCommand):
-	def main(
+	def main(  # pylint: disable=inconsistent-return-statements
 		self,
 		args: Sequence[str] | None = None,
 		prog_name: str | None = None,
@@ -86,6 +89,13 @@ class OpsiCLI(click.MultiCommand):
 			else:
 				sys.stderr.write("Aborted.\n")
 			sys.exit(1)
+		except OpsiServiceConnectionError as error:
+			logger.error(error, exc_info=False)  # Avoid gigantic traceback here
+			if "localhost" in config.service and not Path("/etc/opsi/opsiconfd.conf").exists():
+				console = get_console()
+				console.print("Attempted connection to localhost even if not running on opsi server")
+				console.print("Configure connection with [bold cyan]opsi-cli config service add[/bold cyan]")
+				sys.exit(1)
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
 			if not isinstance(err, ClickException):
