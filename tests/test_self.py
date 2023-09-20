@@ -4,12 +4,9 @@ test_self
 
 from pathlib import Path
 
-import pytest
-
 from opsicli.config import config
 from opsicli.plugin import plugin_manager
 
-from .conftest import PLATFORM
 from .utils import run_cli, temp_context
 
 
