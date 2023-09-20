@@ -12,9 +12,9 @@ COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE"
 # pylint: disable=wrong-import-position
 import re
 import sys
-from pathlib import Path
 from typing import Any, Sequence
 
+from opsicommon.config.opsi import OpsiConfig
 from opsicommon.exceptions import OpsiServiceConnectionError
 from opsicommon.logging import get_logger  # type: ignore[import]
 from opsicommon.utils import monkeypatch_subprocess_for_frozen
@@ -91,7 +91,7 @@ class OpsiCLI(click.MultiCommand):
 			sys.exit(1)
 		except OpsiServiceConnectionError as error:
 			logger.error(error, exc_info=False)  # Avoid gigantic traceback here
-			if "localhost" in config.service and not Path("/etc/opsi/opsiconfd.conf").exists():
+			if "localhost" in config.service and OpsiConfig(upgrade_config=False).get("host", "server-role") != "configserver":
 				console = get_console()
 				console.print("Attempted connection to localhost even if not running on opsi server")
 				console.print("Configure connection with [bold cyan]opsi-cli config service add[/bold cyan]")

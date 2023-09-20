@@ -62,22 +62,10 @@ pytest-linux:
     OPSI_TFTPBOOT: "false"
     OPSICONFD_RESTORE_BACKUP_URL: "http://binaryindex.uib.gmbh/development/testbackup/all/all/testbackup_all_all_1.1.tar.gz"
   image:
-    name: docker.uib.gmbh/opsi/opsi-server:4.3-development
+    name: docker.uib.gmbh/opsi/dev/pyopsi:latest
     entrypoint: [""]
   script:
     - bash /entrypoint.sh &
-    - apt update
-    - apt --yes install --no-install-recommends curl build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev libsqlite3-dev wget libbz2-dev
-    - wget https://www.python.org/ftp/python/3.11.1/Python-3.11.1.tgz
-    - tar -xvf Python-3.11.1.tgz
-    - cd Python-3.11.1
-    - ./configure > /dev/null
-    - make -j 2 build_all > /dev/null
-    - make EXTRATESTOPTS=--list-tests altinstall
-    - cd ..
-    - python3.11 -m pip install certifi
-    - curl -sSL https://install.python-poetry.org | SSL_CERT_FILE=$(python3.11 -c "import certifi;print(certifi.where())") python3.11 -
-    - ln -s /root/.local/bin/poetry /usr/local/bin/poetry
     - while ! nc -v -z -w3 localhost 4447 > /dev/null 2>&1; do sleep 1; done
     - source /entrypoint.sh set_environment_vars # to set hosts for redis/grafana
     - poetry lock --no-update --no-cache
