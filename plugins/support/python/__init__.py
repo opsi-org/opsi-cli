@@ -12,9 +12,9 @@ from opsicli.messagebus import MessagebusConnection
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 
-from .worker import default_health_check
+from .worker import category_health_check, default_health_check
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 __description__ = "This command can be used to identify potential problems in an opsi environment"
 
 
@@ -29,22 +29,22 @@ def cli() -> None:
 
 
 @cli.command(short_help="Print server health check")
-def health_check() -> None:
+@click.argument("category", type=str, required=False)
+@click.option("--detailed", help="Enables display of subchecks in full health-health check", is_flag=True, default=False)
+def health_check(category: str | None = None, detailed: bool = False) -> None:
 	"""
 	This command triggers health checks on the server and prints output.
 	"""
 	metadata = Metadata(
 		attributes=[
-			Attribute(id="id", description=""),
-			Attribute(id="status", description=""),
-			Attribute(id="message", description=""),
-			Attribute(id="partial_results", description=""),
-			Attribute(id="partial_results_status", description=""),
-			Attribute(id="partial_results_message", description=""),
+			Attribute(id="id", description="category of the check - color gives hint of status"),
+			Attribute(id="details", description="detailed information of possible problems"),
 		],
 	)
-
-	data = default_health_check()
+	if category:
+		data = category_health_check(category)
+	else:
+		data = default_health_check(detailed=detailed)
 
 	write_output(data=data, metadata=metadata)
 
