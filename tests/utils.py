@@ -14,6 +14,7 @@ from click.testing import CliRunner  # type: ignore[import]
 
 from opsicli.__main__ import main
 from opsicli.config import config
+from opsicli.opsiservice import ServiceClient
 
 runner = CliRunner()
 
@@ -21,6 +22,42 @@ runner = CliRunner()
 def run_cli(args: Sequence[str], stdin: list[str] | None = None) -> tuple[int, str]:
 	result = runner.invoke(main, args, obj={}, catch_exceptions=False, input="\n".join(stdin or []))
 	return (result.exit_code, result.output)
+
+
+@contextmanager
+def tmp_client(service: ServiceClient, name: str) -> Generator[None, None, None]:
+	try:
+		service.jsonrpc("host_createOpsiClient", params=[name])
+		yield
+	finally:
+		service.jsonrpc("host_delete", params=[name])
+
+
+@contextmanager
+def tmp_host_group(
+	service: ServiceClient, name: str, clients: list[str] | None = None, parent: str | None = None
+) -> Generator[None, None, None]:
+	try:
+		params = [name]
+		if parent:
+			params.extend(["", "", parent])
+		service.jsonrpc("group_createHostGroup", params=params)
+		for client in clients or []:
+			service.jsonrpc("objectToGroup_create", params=["HostGroup", name, client])
+		yield
+	finally:
+		service.jsonrpc("group_deleteObjects", params=[{"id": name}])
+
+
+@contextmanager
+def tmp_product_group(service: ServiceClient, name: str, products: list[str] | None = None) -> Generator[None, None, None]:
+	try:
+		service.jsonrpc("group_createObjects", params=[{"id": name, "type": "ProductGroup"}])
+		for product in products or []:
+			service.jsonrpc("objectToGroup_create", params=["ProductGroup", name, product])
+		yield
+	finally:
+		service.jsonrpc("group_deleteObjects", params=[{"id": name}])
 
 
 @contextmanager
