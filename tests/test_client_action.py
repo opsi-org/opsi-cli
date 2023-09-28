@@ -2,15 +2,18 @@
 test_client_action
 """
 
-from contextlib import contextmanager
-from typing import Generator
-
 import pytest
 from opsicommon.objects import ProductOnClient
 
-from opsicli.opsiservice import ServiceClient, get_service_connection
+from opsicli.opsiservice import get_service_connection
 
-from .utils import container_connection, run_cli
+from .utils import (
+	container_connection,
+	run_cli,
+	tmp_client,
+	tmp_host_group,
+	tmp_product_group,
+)
 
 CLIENT1 = "pytest-client1.test.tld"
 CLIENT2 = "pytest-client2.test.tld"
@@ -19,42 +22,6 @@ PRODUCT2 = "swaudit"
 H_GROUP1 = "pytest-test-host-group"
 H_GROUP2 = "pytest-nested-host-group"
 P_GROUP = "pytest-test-product-group"
-
-
-@contextmanager
-def tmp_client(service: ServiceClient, name: str) -> Generator[None, None, None]:
-	try:
-		service.jsonrpc("host_createOpsiClient", params=[name])
-		yield
-	finally:
-		service.jsonrpc("host_delete", params=[name])
-
-
-@contextmanager
-def tmp_host_group(
-	service: ServiceClient, name: str, clients: list[str] | None = None, parent: str | None = None
-) -> Generator[None, None, None]:
-	try:
-		params = [name]
-		if parent:
-			params.extend(["", "", parent])
-		service.jsonrpc("group_createHostGroup", params=params)
-		for client in clients or []:
-			service.jsonrpc("objectToGroup_create", params=["HostGroup", name, client])
-		yield
-	finally:
-		service.jsonrpc("group_deleteObjects", params=[{"id": name}])
-
-
-@contextmanager
-def tmp_product_group(service: ServiceClient, name: str, products: list[str] | None = None) -> Generator[None, None, None]:
-	try:
-		service.jsonrpc("group_createObjects", params=[{"id": name, "type": "ProductGroup"}])
-		for product in products or []:
-			service.jsonrpc("objectToGroup_create", params=["ProductGroup", name, product])
-		yield
-	finally:
-		service.jsonrpc("group_deleteObjects", params=[{"id": name}])
 
 
 @pytest.mark.requires_testcontainer
