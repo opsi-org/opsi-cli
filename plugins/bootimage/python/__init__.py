@@ -88,7 +88,7 @@ def set_boot_parameter(ctx: click.Context, parameter: str, value: str | None = N
 	if ctx.obj["client"]:
 		logger.notice("Setting parameter %r for client %r", parameter, ctx.obj["client"])
 	else:
-		logger.notice("Setting language %r globally", parameter)
+		logger.notice("Setting parameter %r globally", parameter)
 	if value:
 		set_append_values(values={parameter: value}, client=ctx.obj["client"])
 	else:
