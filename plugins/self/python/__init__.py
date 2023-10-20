@@ -10,6 +10,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import psutil  # type: ignore[import]
@@ -24,9 +25,15 @@ from opsicli.config import ConfigValueSource, config
 from opsicli.io import get_console
 from opsicli.plugin import OPSICLIPlugin, plugin_manager
 from opsicli.types import File
-from opsicli.utils import add_to_env_variable, user_is_admin
+from opsicli.utils import (
+	add_to_env_variable,
+	download,
+	get_opsi_cli_filename,
+	replace_binary,
+	user_is_admin,
+)
 
-__version__ = "0.1.2"
+__version__ = "0.2.0"
 
 START_MARKER = "### Added by opsi-cli ###"
 END_MARKER = "### /Added by opsi-cli ###"
@@ -149,7 +156,10 @@ def setup_shell_completion(ctx: click.Context, shell: str, completion_file: Path
 		if not ctx or not ctx.parent or not ctx.parent.command:
 			raise RuntimeError("Invalid context for parent command")
 		comp = comp_cls(cli=ctx.parent.command, ctx_args={}, prog_name="opsi-cli", complete_var="_OPSI_CLI_COMPLETE")
-		conf_file.write_text(data + f"{START_MARKER}\n{comp.source()}\n{END_MARKER}\n", encoding="utf-8")
+		if config.dry_run:
+			logger.notice("Not writing completion files as --dry-run is set.")
+		else:
+			conf_file.write_text(data + f"{START_MARKER}\n{comp.source()}\n{END_MARKER}\n", encoding="utf-8")
 	if running_shell in shells:
 		# os.execvp(running_shell, [running_shell])
 		console.print("Please restart your running shell for changes to take effect.")
@@ -191,16 +201,62 @@ def install(system: bool, binary_path: Path | None = None, no_add_to_path: bool 
 	if not binary_path.parent.exists():
 		binary_path.parent.mkdir(parents=True)
 	try:
-		shutil.copy(src_binary, binary_path)
+		if config.dry_run:
+			logger.notice("Not writing binary as --dry-run is set.")
+		else:
+			shutil.copy(src_binary, binary_path)
 	except shutil.SameFileError:
 		logger.warning("'%s' and '%s' are the same file", src_binary, binary_path)
 	source = ConfigValueSource.CONFIG_FILE_SYSTEM if system else ConfigValueSource.CONFIG_FILE_USER
-	config.write_config_files(sources=[source])
-	logger.debug("PATH is '%s'", os.environ.get("PATH", ""))
-	if not no_add_to_path and str(binary_path.parent) not in os.environ.get("PATH", ""):
-		add_to_env_variable("PATH", str(binary_path.parent), system=system)
+	if config.dry_run:
+		logger.notice("Not writing config files as --dry-run is set.")
+	else:
+		config.write_config_files(sources=[source])
+		logger.debug("PATH is '%s'", os.environ.get("PATH", ""))
+		if not no_add_to_path and str(binary_path.parent) not in os.environ.get("PATH", ""):
+			add_to_env_variable("PATH", str(binary_path.parent), system=system)
 	rich_print(f"opsi-cli installed to '{binary_path}'.")
 	rich_print("Run 'opsi-cli self setup-shell-completion' to setup shell completion.")
+
+
+@cli.command(short_help="upgrade local opsi-cli instance")
+@click.option(
+	"--branch",
+	type=str,
+	help="Branch from which to pull.",
+	default="stable",
+	show_default=True,
+)
+@click.option(
+	"--source-url",
+	type=str,
+	help="Url from which to pull.",
+	default="https://tools.43.opsi.org",
+	show_default=True,
+)
+def upgrade(branch: str, source_url: str) -> None:
+	"""
+	opsi-cli self upgrade subcommand.
+
+	Upgrades opsi-cli binary from remote source.
+	"""
+	current_binary = Path(sys.executable)
+	ziplauncher_binary = os.environ.get("ZIPLAUNCHER_BINARY")
+	if ziplauncher_binary and os.path.exists(ziplauncher_binary):
+		current_binary = Path(ziplauncher_binary)
+	with tempfile.TemporaryDirectory() as tmpdir_name:
+		tmp_dir = Path(tmpdir_name)
+		new_binary = download(f"{source_url}/{branch}/{get_opsi_cli_filename()}", tmp_dir, make_executable=True)
+		try:
+			new_version = subprocess.check_output([str(new_binary), "--version"]).decode("utf-8").strip()
+		except subprocess.CalledProcessError as error:
+			logger.error("New binary not working: %s", error)
+			raise
+		if config.dry_run:
+			logger.notice("Not replacing current binary as --dry-run is set.")
+		else:
+			replace_binary(current=current_binary, new=new_binary)
+	rich_print(f"opsi-cli upgraded to '{new_version}'.")
 
 
 @cli.command(short_help="Uninstall opsi-cli locally")
@@ -224,12 +280,19 @@ def uninstall(system: bool, binary_path: Path | None = None) -> None:
 	"""
 	binary_path = binary_path or get_binary_path(system=system)
 	if binary_path.exists():
-		logger.notice("Removing binary from %s", binary_path)
-		binary_path.unlink()
+		if config.dry_run:
+			logger.notice("Not removing binary from %s as --dry-run is set.", binary_path)
+		else:
+			logger.notice("Removing binary from %s", binary_path)
+			binary_path.unlink()
 
 	config_file = config.config_file_system if system else config.config_file_user
 	if config_file and config_file.exists():
-		config_file.unlink()
+		if config.dry_run:
+			logger.notice("Not removing config file %s as --dry-run is set.", config_file)
+		else:
+			logger.debug("Removing config file %s", config_file)
+			config_file.unlink()
 	rich_print("opsi-cli uninstalled.")
 
 
