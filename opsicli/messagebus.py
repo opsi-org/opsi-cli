@@ -231,10 +231,3 @@ class TerminalMessagebusConnection(MessagebusConnection):
 			logger.notice("Return to local shell with 'exit' or 'Ctrl+D'")
 			with stream_wrap():
 				self.transmit_input(term_write_channel)
-
-
-"""
-		executor = ThreadPoolExecutor(MAX_THREAD_WORKERS)
-		loop = asyncio.new_event_loop()
-		tasks = []
-"""
