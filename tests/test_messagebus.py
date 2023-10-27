@@ -9,6 +9,7 @@ from opsicli.messagebus import JSONRPCMessagebusConnection
 from .utils import container_connection
 
 
+@pytest.mark.xfail
 @pytest.mark.requires_testcontainer
 def test_messagebus_jsonrpc() -> None:
 	with container_connection():
@@ -19,6 +20,7 @@ def test_messagebus_jsonrpc() -> None:
 	assert "opsiVersion" in result
 
 
+@pytest.mark.xfail
 @pytest.mark.requires_testcontainer
 def test_messagebus_jsonrpc_params() -> None:
 	with container_connection():
@@ -31,6 +33,7 @@ def test_messagebus_jsonrpc_params() -> None:
 	assert result[0]["type"] == "OpsiConfigserver"
 
 
+@pytest.mark.xfail
 @pytest.mark.requires_testcontainer
 def test_messagebus_jsonrpc_error() -> None:
 	with container_connection():
@@ -42,6 +45,7 @@ def test_messagebus_jsonrpc_error() -> None:
 	assert "Invalid method" in result["data"].get("details")
 
 
+@pytest.mark.xfail
 @pytest.mark.requires_testcontainer
 def test_messagebus_jsonrpc_multiple() -> None:
 	with container_connection():

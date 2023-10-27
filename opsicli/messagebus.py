@@ -140,6 +140,8 @@ class JSONRPCMessagebusConnection(MessagebusConnection):  # pylint: disable=too-
 				results[channel] = self.jsonrpc_responses[rpc_id]
 			if rpc_id in self.jsonrpc_responses:
 				del self.jsonrpc_responses[rpc_id]
+			if rpc_id in self.jsonrpc_response_events:
+				del self.jsonrpc_response_events[rpc_id]
 		return results
 
 

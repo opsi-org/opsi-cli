@@ -24,6 +24,8 @@ console = get_console()
 def print_output(data: Any, descriptor: str = "result") -> None:
 	if isinstance(data, list):
 		lines = data
+	elif isinstance(data, Exception):
+		lines = f"Error: {data}".splitlines()
 	else:
 		lines = str(data).splitlines()
 	if len(lines) > 1 and not lines[-1]:
@@ -52,6 +54,8 @@ class ExecuteWorker(ClientActionWorker):
 			if isinstance(result, dict) and (result.get("code") != 0 or "Error" in result.get("data", {}).get("class")):
 				fails.append(channel[5:])
 				output = f"Error: {result.get('message')}"
+			elif isinstance(result, OSError):
+				fails.append(channel[5:])
 			print_output(output, descriptor=channel[5:])
 		if fails:
 			logger.error("Command failed on hosts %r", fails)
