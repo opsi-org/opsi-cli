@@ -32,8 +32,8 @@ from opsicli.utils import stream_wrap
 if platform.system().lower() == "windows":
 	import msvcrt  # pylint: disable=import-error
 
-CHANNEL_SUB_TIMEOUT = 5
-JSONRPC_TIMEOUT = 10
+CHANNEL_SUB_TIMEOUT = 5.0
+JSONRPC_TIMEOUT = 15.0
 
 logger = get_logger("opsicli")
 
@@ -48,15 +48,11 @@ def log_message(message: Message) -> None:
 
 
 class MessagebusConnection(MessagebusListener):  # pylint: disable=too-many-instance-attributes
-	terminal_id: str
-
 	def __init__(self) -> None:
 		MessagebusListener.__init__(self)
 		self.channel_subscription_locks: dict[str, Event] = {}
 		self.subscribed_channels: list[str] = []
 		self.initial_subscription_event = Event()
-		self.jsonrpc_response_event = Event()
-		self.jsonrpc_response: Any | None = None
 		self.service_client = get_service_connection()
 
 	def message_received(self, message: Message) -> None:
@@ -78,11 +74,6 @@ class MessagebusConnection(MessagebusListener):  # pylint: disable=too-many-inst
 				self.channel_subscription_locks[channel].set()
 			else:
 				self.initial_subscription_event.set()
-
-	def _on_jsonrpc_response(self, message: JSONRPCResponseMessage) -> None:
-		logger.notice("Received jsonrpc response message")
-		self.jsonrpc_response = message.error if message.error else message.result
-		self.jsonrpc_response_event.set()
 
 	def subscribe_to_channel(self, channel: str) -> None:
 		if channel in self.subscribed_channels:
@@ -113,24 +104,43 @@ class MessagebusConnection(MessagebusListener):  # pylint: disable=too-many-inst
 				logger.debug("Disconnecting from messagebus.")
 				self.service_client.disconnect_messagebus()
 
-	def jsonrpc(self, channel: str, method: str, params: tuple | None = None) -> Any:
-		message = JSONRPCRequestMessage(
-			method=method,
-			params=params or (),
-			api_version="2.0",
-			sender="@",
-			channel=channel,
-		)
-		self.service_client.messagebus.send_message(message)
-		logger.notice("Sending jsonrpc-request, awaiting response...")
-		if not self.jsonrpc_response and not self.jsonrpc_response_event.wait(JSONRPC_TIMEOUT):
-			raise TimeoutError("Timed out waiting for jsonrpc response.")
-		self.jsonrpc_response_event.clear()
-		if not self.jsonrpc_response:
-			raise ConnectionError("Failed to receive jsonrpc response.")
-		result = self.jsonrpc_response
-		self.jsonrpc_response = None
-		return result
+
+class JSONRPCMessagebusConnection(MessagebusConnection):  # pylint: disable=too-many-instance-attributes
+	def __init__(self) -> None:
+		MessagebusConnection.__init__(self)
+		self.jsonrpc_response_events: dict[str, Event] = {}
+		self.jsonrpc_responses: dict[str, Any] = {}
+
+	def _on_jsonrpc_response(self, message: JSONRPCResponseMessage) -> None:
+		logger.notice("Received jsonrpc response message")
+		self.jsonrpc_responses[message.rpc_id] = message.error if message.error else message.result
+		self.jsonrpc_response_events[message.rpc_id].set()
+
+	def jsonrpc(self, channels: list[str], method: str, params: tuple | None = None, timeout: float = JSONRPC_TIMEOUT) -> dict[str, Any]:
+		results: dict[str, Any] = {}
+		rpc_ids: dict[str, str] = {}
+		for channel in channels:
+			message = JSONRPCRequestMessage(
+				method=method,
+				params=params or (),
+				api_version="2.0",
+				sender="@",
+				channel=channel,
+			)
+			self.jsonrpc_response_events[message.rpc_id] = Event()
+			rpc_ids[channel] = message.rpc_id
+			self.service_client.messagebus.send_message(message)
+		logger.notice("Sent jsonrpc-request, awaiting response...")
+		for channel, rpc_id in rpc_ids.items():
+			if not self.jsonrpc_response_events[rpc_id].wait(timeout):
+				results[channel] = TimeoutError("Timed out waiting for jsonrpc response.")
+			elif not self.jsonrpc_responses[rpc_id]:
+				results[channel] = ConnectionError("Failed to receive jsonrpc response.")
+			else:
+				results[channel] = self.jsonrpc_responses[rpc_id]
+			if rpc_id in self.jsonrpc_responses:
+				del self.jsonrpc_responses[rpc_id]
+		return results
 
 
 class TerminalMessagebusConnection(MessagebusConnection):
@@ -219,3 +229,10 @@ class TerminalMessagebusConnection(MessagebusConnection):
 			logger.notice("Return to local shell with 'exit' or 'Ctrl+D'")
 			with stream_wrap():
 				self.transmit_input(term_write_channel)
+
+
+"""
+		executor = ThreadPoolExecutor(MAX_THREAD_WORKERS)
+		loop = asyncio.new_event_loop()
+		tasks = []
+"""

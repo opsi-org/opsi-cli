@@ -10,6 +10,7 @@ from opsicommon.logging import get_logger
 from opsicli.plugin import OPSICLIPlugin
 
 from .client_action_worker import ClientActionArgs
+from .execute_worker import ExecuteWorker
 from .set_action_request_worker import SetActionRequestWorker
 from .trigger_event_worker import TriggerEventWorker
 
@@ -69,6 +70,17 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool) -> None:
 	"""
 	worker = TriggerEventWorker(ctx.obj)
 	worker.trigger_event(event, wakeup)
+
+
+@cli.command(name="execute", short_help="Execute shell-command on selected clients")
+@click.pass_context
+@click.argument("command", nargs=-1)
+def execute(ctx: click.Context, command: list[str]) -> None:
+	"""
+	opsi-cli client-action execute command
+	"""
+	worker = ExecuteWorker(ctx.obj)
+	worker.execute(command)
 
 
 # This class keeps track of the plugins meta-information
