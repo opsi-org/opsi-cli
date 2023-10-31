@@ -115,10 +115,11 @@ def evaluate_rpc_dict_result(result: dict[str, dict[str, str | None]], log_succe
 def download(url: str, destination: Path, make_executable: bool = False) -> Path:
 	import requests  # pylint: disable=import-outside-toplevel
 
-	new_file = destination / url.split("/")[-1]  # TODO: error handling
-	response = requests.get(url, timeout=30)
+	new_file = destination / url.split("/")[-1]
+	response = requests.get(url, stream=True, timeout=30)
 	with open(new_file, "wb") as filehandle:
-		filehandle.write(response.content)
+		shutil.copyfileobj(response.raw, filehandle)
+
 	if make_executable:
 		os.chmod(new_file, os.stat(new_file).st_mode | stat.S_IEXEC)
 	return new_file
