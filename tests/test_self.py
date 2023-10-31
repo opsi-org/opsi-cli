@@ -3,6 +3,7 @@ test_self
 """
 
 from pathlib import Path
+from unittest.mock import patch
 
 from opsicli.config import config
 from opsicli.plugin import plugin_manager
@@ -71,3 +72,11 @@ def test_command_structure() -> None:
 	assert exit_code == 0
 	assert output.startswith("opsi-cli")
 	assert f"self ({mod_self.__version__})\n" in output
+
+
+def test_self_upgrade() -> None:
+	with patch("opsicli.utils.replace_binary", lambda *args, **kwargs: None):
+		exit_code, output = run_cli(["--dry-run", "self", "upgrade"])
+		assert exit_code == 0
+		print(output)
+		assert "opsi-cli upgraded to" in output

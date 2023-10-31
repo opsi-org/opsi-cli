@@ -49,6 +49,9 @@ tan = "^23.3"
 [tool.poetry.scripts]
 opsi-cli = "opsicli.__main__:main"
 
+[tool.poetry.group.dev.dependencies]
+types-requests = "^2.31.0.10"
+
 [tool.black]
 line-length = 140
 target-version = ['py310']
