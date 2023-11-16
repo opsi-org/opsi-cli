@@ -4,6 +4,8 @@ opsi-cli basic command line interface for opsi
 client-action plugin
 """
 
+import shlex
+
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger
 
@@ -74,13 +76,16 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool) -> None:
 
 @cli.command(name="execute", short_help="Execute shell-command on selected clients")
 @click.pass_context
-@click.argument("command", nargs=-1)
-def execute(ctx: click.Context, command: list[str]) -> None:
+@click.argument(
+	"command",
+	nargs=1,
+)
+def execute(ctx: click.Context, command: str) -> None:
 	"""
 	opsi-cli client-action execute command
 	"""
 	worker = ExecuteWorker(ctx.obj)
-	worker.execute(command)
+	worker.execute(shlex.split(command))
 
 
 # This class keeps track of the plugins meta-information
@@ -89,4 +94,5 @@ class ClientActionPlugin(OPSICLIPlugin):
 	description: str = __description__
 	version: str = __version__
 	cli = cli
+	flags: list[str] = ["protected"]
 	flags: list[str] = ["protected"]

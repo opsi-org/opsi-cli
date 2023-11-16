@@ -19,6 +19,9 @@ from opsicommon.messagebus import (
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
 	Message,
+	ProcessDataReadMessage,
+	ProcessStartRequestMessage,
+	ProcessStopEventMessage,
 	TerminalCloseEventMessage,
 	TerminalDataReadMessage,
 	TerminalDataWriteMessage,
@@ -34,6 +37,7 @@ if platform.system().lower() == "windows":
 
 CHANNEL_SUB_TIMEOUT = 5.0
 JSONRPC_TIMEOUT = 15.0
+PROCESS_EXECUTE_TIMEOUT = 60.0
 
 logger = get_logger("opsicli")
 
@@ -142,6 +146,54 @@ class JSONRPCMessagebusConnection(MessagebusConnection):  # pylint: disable=too-
 				del self.jsonrpc_responses[rpc_id]
 			if rpc_id in self.jsonrpc_response_events:
 				del self.jsonrpc_response_events[rpc_id]
+		return results
+
+
+class ProcessMessagebusConnection(MessagebusConnection):  # pylint: disable=too-many-instance-attributes
+	def __init__(self) -> None:
+		MessagebusConnection.__init__(self)
+		self.process_stop_events: dict[str, Event] = {}
+		self.captured_process_messages: dict[str, list[ProcessDataReadMessage | ProcessStopEventMessage]] = {}
+
+	def _on_process_data_read(self, message: ProcessDataReadMessage) -> None:
+		logger.debug("Received process data read message")
+		self.captured_process_messages[message.process_id].append(message)
+
+	def _on_process_stop_event(self, message: ProcessStopEventMessage) -> None:
+		logger.debug("Received process stop event message")
+		self.captured_process_messages[message.process_id].append(message)
+		self.process_stop_events[message.process_id].set()
+
+	def execute_processes(
+		self, channels: list[str], command: tuple[str], timeout: float = PROCESS_EXECUTE_TIMEOUT, wait_for_ending: bool = True
+	) -> dict[str, list[ProcessDataReadMessage | ProcessStopEventMessage | Exception]]:
+		results: dict[str, list[ProcessDataReadMessage | ProcessStopEventMessage | Exception]] = {}
+		process_ids: dict[str, str] = {}
+		for channel in channels:
+			message = ProcessStartRequestMessage(
+				command=command,
+				sender="@",
+				channel=channel,
+			)
+			self.process_stop_events[message.process_id] = Event()
+			process_ids[channel] = message.process_id
+			self.captured_process_messages[message.process_id] = []
+			self.service_client.messagebus.send_message(message)
+		logger.notice("Sent process start request")
+		if not wait_for_ending:
+			return {}
+		logger.info("awaiting responses...")
+		for channel, process_id in process_ids.items():
+			if not self.process_stop_events[process_id].wait(timeout):
+				results[channel] = [TimeoutError("Timed out waiting for process stop event.")]
+			elif not self.captured_process_messages[process_id]:
+				results[channel] = [ConnectionError("Failed to receive messages from process.")]
+			else:
+				results[channel] = self.captured_process_messages[process_id]
+			if process_id in self.captured_process_messages:
+				del self.captured_process_messages[process_id]
+			if process_id in self.process_stop_events:
+				del self.process_stop_events[process_id]
 		return results
 
 

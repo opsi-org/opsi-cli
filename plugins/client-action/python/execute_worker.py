@@ -8,10 +8,11 @@ import sys
 from typing import Any
 
 from opsicommon.logging import get_logger
+from opsicommon.messagebus import Error, ProcessDataReadMessage, ProcessStopEventMessage
 
 from opsicli.config import config
 from opsicli.io import get_console
-from opsicli.messagebus import JSONRPCMessagebusConnection
+from opsicli.messagebus import ProcessMessagebusConnection
 
 from .client_action_worker import ClientActionArgs, ClientActionWorker
 
@@ -21,13 +22,8 @@ console = get_console()
 # Alternative Idea: work with Terminals derived from TerminalMessagebusConnection
 
 
-def print_output(data: Any, descriptor: str = "result") -> None:
-	if isinstance(data, list):
-		lines = data
-	elif isinstance(data, Exception):
-		lines = f"Error: {data}".splitlines()
-	else:
-		lines = str(data).splitlines()
+def print_output(data: list[str], descriptor: str = "result") -> None:
+	lines = "\n".join(data).splitlines()
 	if len(lines) > 1 and not lines[-1]:
 		del lines[-1]  # strip empty line at end
 	result = "\n".join((f"[purple]{descriptor}[/purple]: {line}" for line in lines))
@@ -37,25 +33,35 @@ def print_output(data: Any, descriptor: str = "result") -> None:
 class ExecuteWorker(ClientActionWorker):
 	def __init__(self, args: ClientActionArgs) -> None:
 		super().__init__(args)
-		self.mbus_connection = JSONRPCMessagebusConnection()
+		self.mbus_connection = ProcessMessagebusConnection()
 
-	def execute(self, command: list[str]) -> None:
+	def execute(self, command: tuple[str]) -> None:
 		if config.dry_run:
 			logger.notice("Operating in dry-run mode - not performing any actions")
 			return
 
-		cmd = (command, True, True, "utf-8", 60)
 		channels = [f"host:{client}" for client in self.clients]
 		fails: list[str] = []
 		with self.mbus_connection.connection():
-			results = self.mbus_connection.jsonrpc(channels, "execute", cmd)
+			results = self.mbus_connection.execute_processes(channels, command)  # TODO: timeout handling
 		for channel, result in results.items():
-			output = result
-			if isinstance(result, dict) and (result.get("code") != 0 or "Error" in result.get("data", {}).get("class")):
-				fails.append(channel[5:])
-				output = f"Error: {result.get('message')}"
-			elif isinstance(result, OSError):
-				fails.append(channel[5:])
+			output = []
+			for message in result:
+				if isinstance(message, ProcessDataReadMessage):
+					if message.stdout:
+						output.append(message.stdout.decode("utf-8"))
+					if message.stderr:
+						output.append(message.stderr.decode("utf-8"))
+				elif isinstance(message, ProcessStopEventMessage):
+					if message.exit_code != 0:
+						if message.error:
+							output.append(f"Error {message.error['code']}: {message.error['message']}")  # could use data['details']
+						if channel[5:] not in fails:
+							fails.append(channel[5:])
+				elif isinstance(message, Exception):
+					if channel[5:] not in fails:
+						output.append(f"Error: {message}")
+						fails.append(channel[5:])
 			print_output(output, descriptor=channel[5:])
 		if fails:
 			logger.error("Command failed on hosts %r", fails)
