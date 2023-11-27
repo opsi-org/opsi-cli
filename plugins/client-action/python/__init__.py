@@ -16,7 +16,7 @@ from .execute_worker import ExecuteWorker
 from .set_action_request_worker import SetActionRequestWorker
 from .trigger_event_worker import TriggerEventWorker
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 __description__ = "This command can be used to manage opsi client actions."
 
 logger = get_logger("opsicli")
@@ -74,18 +74,15 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool) -> None:
 	worker.trigger_event(event, wakeup)
 
 
-@cli.command(name="execute", short_help="Execute shell-command on selected clients")
+@cli.command(name="execute", short_help="Execute shell-command on selected clients", context_settings={"ignore_unknown_options": True})
 @click.pass_context
-@click.argument(
-	"command",
-	nargs=1,
-)
-def execute(ctx: click.Context, command: str) -> None:
+@click.argument("command", nargs=-1)
+def execute(ctx: click.Context, command: tuple[str]) -> None:
 	"""
 	opsi-cli client-action execute command
 	"""
 	worker = ExecuteWorker(ctx.obj)
-	worker.execute(shlex.split(command))
+	worker.execute(command)
 
 
 # This class keeps track of the plugins meta-information

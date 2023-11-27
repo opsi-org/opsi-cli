@@ -7,9 +7,8 @@ from opsicommon.logging import get_logger  # type: ignore[import]
 
 from opsicli.messagebus import TerminalMessagebusConnection
 from opsicli.plugin import OPSICLIPlugin
-from opsicli.utils import stream_wrap
 
-__version__ = "0.1.2"  # Use this field to track the current version number
+__version__ = "0.1.3"  # Use this field to track the current version number
 __description__ = "This plugin allows to open a remote terminal on a host."
 
 logger = get_logger("opsicli")

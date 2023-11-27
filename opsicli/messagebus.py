@@ -8,23 +8,27 @@ import shutil
 import sys
 from contextlib import contextmanager
 from threading import Event
-from typing import Any, Generator
+from typing import Any, Generator, cast
 from uuid import uuid4
 
 from opsicommon.client.opsiservice import MessagebusListener
 from opsicommon.logging import get_logger  # type: ignore[import]
 from opsicommon.messagebus import (
+	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
 	Message,
 	ProcessDataReadMessage,
+	ProcessErrorMessage,
+	ProcessMessage,
 	ProcessStartRequestMessage,
 	ProcessStopEventMessage,
 	TerminalCloseEventMessage,
 	TerminalDataReadMessage,
 	TerminalDataWriteMessage,
+	TerminalErrorMessage,
 	TerminalOpenEventMessage,
 	TerminalOpenRequestMessage,
 )
@@ -84,7 +88,9 @@ class MessagebusConnection(MessagebusListener):  # pylint: disable=too-many-inst
 			return
 		try:
 			self.channel_subscription_locks[channel] = Event()
-			csr = ChannelSubscriptionRequestMessage(sender="@", operation="add", channels=[channel], channel="service:messagebus")
+			csr = ChannelSubscriptionRequestMessage(
+				sender=CONNECTION_USER_CHANNEL, operation="add", channels=[channel], channel="service:messagebus"
+			)
 			logger.notice("Requesting access to channel %r", channel)
 			log_message(csr)
 			self.service_client.messagebus.send_message(csr)
@@ -112,8 +118,8 @@ class MessagebusConnection(MessagebusListener):  # pylint: disable=too-many-inst
 class JSONRPCMessagebusConnection(MessagebusConnection):  # pylint: disable=too-many-instance-attributes
 	def __init__(self) -> None:
 		MessagebusConnection.__init__(self)
-		self.jsonrpc_response_events: dict[str, Event] = {}
-		self.jsonrpc_responses: dict[str, Any] = {}
+		self.jsonrpc_response_events: dict[str | int, Event] = {}
+		self.jsonrpc_responses: dict[str | int, Any] = {}
 
 	def _on_jsonrpc_response(self, message: JSONRPCResponseMessage) -> None:
 		logger.notice("Received jsonrpc response message")
@@ -122,13 +128,13 @@ class JSONRPCMessagebusConnection(MessagebusConnection):  # pylint: disable=too-
 
 	def jsonrpc(self, channels: list[str], method: str, params: tuple | None = None, timeout: float = JSONRPC_TIMEOUT) -> dict[str, Any]:
 		results: dict[str, Any] = {}
-		rpc_ids: dict[str, str] = {}
+		rpc_ids: dict[str, str | int] = {}
 		for channel in channels:
 			message = JSONRPCRequestMessage(
 				method=method,
 				params=params or (),
 				api_version="2.0",
-				sender="@",
+				sender=CONNECTION_USER_CHANNEL,
 				channel=channel,
 			)
 			self.jsonrpc_response_events[message.rpc_id] = Event()
@@ -153,7 +159,7 @@ class ProcessMessagebusConnection(MessagebusConnection):  # pylint: disable=too-
 	def __init__(self) -> None:
 		MessagebusConnection.__init__(self)
 		self.process_stop_events: dict[str, Event] = {}
-		self.captured_process_messages: dict[str, list[ProcessDataReadMessage | ProcessStopEventMessage]] = {}
+		self.captured_process_messages: dict[str, list[ProcessMessage]] = {}
 
 	def _on_process_data_read(self, message: ProcessDataReadMessage) -> None:
 		logger.debug("Received process data read message")
@@ -164,15 +170,20 @@ class ProcessMessagebusConnection(MessagebusConnection):  # pylint: disable=too-
 		self.captured_process_messages[message.process_id].append(message)
 		self.process_stop_events[message.process_id].set()
 
+	def _on_process_error(self, message: ProcessErrorMessage) -> None:
+		logger.debug("Received process error message")
+		self.captured_process_messages[message.process_id].append(message)
+		self.process_stop_events[message.process_id].set()
+
 	def execute_processes(
 		self, channels: list[str], command: tuple[str], timeout: float = PROCESS_EXECUTE_TIMEOUT, wait_for_ending: bool = True
-	) -> dict[str, list[ProcessDataReadMessage | ProcessStopEventMessage | Exception]]:
-		results: dict[str, list[ProcessDataReadMessage | ProcessStopEventMessage | Exception]] = {}
+	) -> dict[str, list[ProcessMessage | Exception]]:
+		results: dict[str, list[ProcessMessage | Exception]] = {}
 		process_ids: dict[str, str] = {}
 		for channel in channels:
 			message = ProcessStartRequestMessage(
 				command=command,
-				sender="@",
+				sender=CONNECTION_USER_CHANNEL,
 				channel=channel,
 			)
 			self.process_stop_events[message.process_id] = Event()
@@ -189,7 +200,7 @@ class ProcessMessagebusConnection(MessagebusConnection):  # pylint: disable=too-
 			elif not self.captured_process_messages[process_id]:
 				results[channel] = [ConnectionError("Failed to receive messages from process.")]
 			else:
-				results[channel] = self.captured_process_messages[process_id]
+				results[channel] = cast(list[ProcessMessage | Exception], self.captured_process_messages[process_id])
 			if process_id in self.captured_process_messages:
 				del self.captured_process_messages[process_id]
 			if process_id in self.process_stop_events:
@@ -216,6 +227,13 @@ class TerminalMessagebusConnection(MessagebusConnection):
 			sys.stdout.buffer.write(message.data)
 			sys.stdout.flush()  # This actually pops the buffer to terminal (without waiting for '\n')
 
+	def _on_terminal_error(self, message: TerminalErrorMessage) -> None:
+		if message.terminal_id == self.terminal_id:
+			logger.notice("received terminal error event - shutting down")
+			sys.stdout.buffer.write(b"\nreceived terminal error event - press Enter to return to local shell")
+			sys.stdout.flush()  # This actually pops the buffer to terminal (without waiting for '\n')
+			self.should_close = True
+
 	def _on_terminal_close_event(self, message: TerminalCloseEventMessage) -> None:
 		if message.terminal_id == self.terminal_id:
 			logger.notice("received terminal close event - shutting down")
@@ -227,7 +245,9 @@ class TerminalMessagebusConnection(MessagebusConnection):
 		if not self.terminal_id:
 			raise ValueError("Terminal id not set.")
 		if data:
-			tdw = TerminalDataWriteMessage(sender="@", channel=term_write_channel, terminal_id=self.terminal_id, data=data)
+			tdw = TerminalDataWriteMessage(
+				sender=CONNECTION_USER_CHANNEL, channel=term_write_channel, terminal_id=self.terminal_id, data=data
+			)
 			log_message(tdw)
 			self.service_client.messagebus.send_message(tdw)
 			return
@@ -240,13 +260,14 @@ class TerminalMessagebusConnection(MessagebusConnection):
 			if not data:  # or data == b"\x03":  # Ctrl+C
 				self.should_close = True
 				break
-			self.transmit_input(term_write_channel, data)
+			if not self.should_close:
+				self.transmit_input(term_write_channel, data)
 
 	def open_new_terminal(self, term_request_channel: str) -> None:
 		self.subscribe_to_channel(f"session:{self.terminal_id}")
 		size = shutil.get_terminal_size()
 		tor = TerminalOpenRequestMessage(
-			sender="@",
+			sender=CONNECTION_USER_CHANNEL,
 			channel=term_request_channel,
 			terminal_id=self.terminal_id,
 			back_channel=f"session:{self.terminal_id}",

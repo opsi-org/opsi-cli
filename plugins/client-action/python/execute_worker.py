@@ -5,10 +5,13 @@ execute_worker
 """
 
 import sys
-from typing import Any
 
 from opsicommon.logging import get_logger
-from opsicommon.messagebus import Error, ProcessDataReadMessage, ProcessStopEventMessage
+from opsicommon.messagebus import (
+	ProcessDataReadMessage,
+	ProcessErrorMessage,
+	ProcessStopEventMessage,
+)
 
 from opsicli.config import config
 from opsicli.io import get_console
@@ -18,8 +21,6 @@ from .client_action_worker import ClientActionArgs, ClientActionWorker
 
 logger = get_logger("opsicli")
 console = get_console()
-
-# Alternative Idea: work with Terminals derived from TerminalMessagebusConnection
 
 
 def print_output(data: list[str], descriptor: str = "result") -> None:
@@ -54,10 +55,12 @@ class ExecuteWorker(ClientActionWorker):
 						output.append(message.stderr.decode("utf-8"))
 				elif isinstance(message, ProcessStopEventMessage):
 					if message.exit_code != 0:
-						if message.error:
-							output.append(f"Error {message.error['code']}: {message.error['message']}")  # could use data['details']
 						if channel[5:] not in fails:
 							fails.append(channel[5:])
+				elif isinstance(message, ProcessErrorMessage):
+					output.append(f"Error {message.error.code}: {message.error.message}")  # could use data['details']
+					if channel[5:] not in fails:
+						fails.append(channel[5:])
 				elif isinstance(message, Exception):
 					if channel[5:] not in fails:
 						output.append(f"Error: {message}")
