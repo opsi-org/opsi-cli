@@ -9,11 +9,14 @@ import base64
 import os
 import platform
 import random
+import shutil
+import stat
 import string
 import subprocess
 import sys
 from contextlib import contextmanager
 from functools import lru_cache
+from pathlib import Path
 from typing import Iterator
 
 from opsicommon.logging import get_logger, logging_config  # type: ignore[import]
@@ -107,3 +110,41 @@ def evaluate_rpc_dict_result(result: dict[str, dict[str, str | None]], log_succe
 				logger.info("%s: SUCCESS", key)
 			num_success += 1
 	return num_success
+
+
+def download(url: str, destination: Path, make_executable: bool = False) -> Path:
+	import requests  # pylint: disable=import-outside-toplevel
+
+	new_file = destination / url.split("/")[-1]
+	response = requests.get(url, stream=True, timeout=30)
+	with open(new_file, "wb") as filehandle:
+		shutil.copyfileobj(response.raw, filehandle)
+
+	if make_executable:
+		os.chmod(new_file, os.stat(new_file).st_mode | stat.S_IEXEC)
+	return new_file
+
+
+def get_opsi_cli_filename() -> str:
+	system = platform.system().lower()
+	if system == "windows":
+		return "opsi-cli-windows.exe"
+	if system == "linux":
+		return "opsi-cli-linux.run"
+	if system == "darwin":
+		return "opsi-cli-macos"
+	raise ValueError(f"Invalid platform {system}")
+
+
+def replace_binary(current: Path, new: Path) -> None:
+	backup_path = current.with_suffix(current.suffix + ".old")
+	if backup_path.exists():
+		backup_path.unlink()
+	shutil.move(current, backup_path)
+	try:
+		shutil.move(new, current)
+	except Exception as error:  # pylint: disable=broad-except
+		logger.error("Failed to move binary to '%s'.", error)
+		logger.warning("Restoring backup.")
+		shutil.move(backup_path, current)
+		raise

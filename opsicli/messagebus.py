@@ -8,7 +8,7 @@ import shutil
 import sys
 from contextlib import contextmanager
 from threading import Event
-from typing import Any, Generator, cast
+from typing import Any, Generator
 from uuid import uuid4
 
 from opsicommon.client.opsiservice import MessagebusListener
@@ -200,7 +200,7 @@ class ProcessMessagebusConnection(MessagebusConnection):  # pylint: disable=too-
 			elif not self.captured_process_messages[process_id]:
 				results[channel] = [ConnectionError("Failed to receive messages from process.")]
 			else:
-				results[channel] = cast(list[ProcessMessage | Exception], self.captured_process_messages[process_id])
+				results[channel] = list(self.captured_process_messages[process_id])
 			if process_id in self.captured_process_messages:
 				del self.captured_process_messages[process_id]
 			if process_id in self.process_stop_events:
