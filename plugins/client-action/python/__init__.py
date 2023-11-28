@@ -92,4 +92,3 @@ class ClientActionPlugin(OPSICLIPlugin):
 	version: str = __version__
 	cli = cli
 	flags: list[str] = ["protected"]
-	flags: list[str] = ["protected"]
