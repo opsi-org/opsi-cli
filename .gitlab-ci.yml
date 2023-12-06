@@ -253,7 +253,7 @@ makeopsipackage:
   stage: package
   script:
     # Disregard any information from OPSI and write controlfile according to pyproject.toml version and CI_JOB_ID
-    - version=$(cat pyproject.toml | grep -e "^version = " | cut -d \" -f 2)
+    - version=$(cat pyproject.toml | grep -e "^version = " | head -n 1 | cut -d \" -f 2)
     - newpackage="1"
     - '[ "$CI_COMMIT_TAG" = "" ] && newpackage="$package.$CI_JOB_ID"'
     - opsi-dev-cli opsi-package set-value packageVersion "$newpackage"
