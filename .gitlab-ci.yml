@@ -258,7 +258,6 @@ makeopsipackage:
     - '[ "$CI_COMMIT_TAG" = "" ] && newpackage="$package.$CI_JOB_ID"'
     - opsi-dev-cli opsi-package set-value packageVersion "$newpackage"
     - opsi-dev-cli opsi-package set-value productVersion "$version"
-    - '[ "$CI_COMMIT_TAG" = "" ] && opsi-dev-cli opsi-package set-value productVersion "$version" $package.$CI_JOB_ID/" OPSI/control'
     - opsi-dev-cli changelog from-git output
     - cp output/changelog.md OPSI/
     - opsi-makepackage --no-set-rights -l 6
