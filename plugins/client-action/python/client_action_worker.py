@@ -66,7 +66,7 @@ class ClientActionWorker:
 		network = ip_network(ip_string)  # can handle ipv4 and ipv6 addresses with and without subnet specification
 		result = []
 		for client in self.service.jsonrpc("host_getObjects", [[], {"type": "OpsiClient"}]):
-			if ip_address_in_network(client["ipAddress"], network):
+			if client["ipAddress"] and ip_address_in_network(client["ipAddress"], network):
 				result.append(client["id"])
 		logger.debug("Clients with ip %s: %s", ip_string, result)
 		return result
@@ -91,7 +91,7 @@ class ClientActionWorker:
 				exclude_clients_list.extend(self.client_ids_from_group(group))
 		if args.exclude_ip_addresses:
 			for ip_address in args.exclude_ip_addresses.split(","):
-				exclude_clients_list.extend(self.client_ids_with_ip(ip_address))
+				exclude_clients_list.extend(self.client_ids_with_ip(ip_address.strip()))
 		self.clients = [entry for entry in self.clients if entry not in exclude_clients_list]
 		if args.only_online:
 			reachable = self.service.jsonrpc("host_getMessagebusConnectedIds")
