@@ -67,8 +67,7 @@ def add_to_env_variable(key: str, value: str, system: bool = False) -> None:
 			f"add_to_env_variable is currently only implemented for windows - If necessary, manually add {value} to {key}"
 		)
 
-	key = key.upper()
-	if key != "PATH":
+	if key.upper() != "PATH":
 		raise NotImplementedError("Only PATH is currently supported")
 
 	import winreg  # pylint: disable=import-outside-toplevel,import-error
