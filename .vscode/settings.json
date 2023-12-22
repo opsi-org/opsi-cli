@@ -3,7 +3,7 @@
 	"editor.renderWhitespace": "all",
 	"editor.formatOnSave": true,
 	"editor.codeActionsOnSave": {
-		"source.organizeImports": true,
+		"source.organizeImports": "explicit"
 	},
 	"editor.formatOnType": true,
 	"python.formatting.provider": "black",

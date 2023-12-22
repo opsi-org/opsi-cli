@@ -74,3 +74,9 @@ version = ">=303,<304"
 
 [tool.poetry.group.dev.dependencies]
 types-requests = "^2.31.0.10"
+
+[tool.ruff]
+line-length = 140
+
+[tool.ruff.format]
+indent-style = "tab"
