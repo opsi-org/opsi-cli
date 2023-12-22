@@ -31,9 +31,6 @@ use-tabs = true
 profile = "black"
 indent = "\t"
 
-[tool.ruff.format]
-indent-style = "tab"
-
 [tool.mypy]
 disallow_untyped_calls = true
 disallow_untyped_defs = true
