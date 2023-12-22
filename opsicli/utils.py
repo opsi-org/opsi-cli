@@ -76,8 +76,10 @@ def add_to_env_variable(key: str, value: str, system: bool = False) -> None:
 	import win32process  # type: ignore[import] # pylint: disable=import-outside-toplevel,import-error
 
 	key_handle = winreg.CreateKey(  # type: ignore[attr-defined]
-		winreg.HKEY_LOCAL_MACHINE,  # type: ignore[attr-defined]
-		r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
+		winreg.HKEY_LOCAL_MACHINE if system else winreg.HKEY_CURRENT_USER,  # type: ignore[attr-defined]
+		r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"
+		if system
+		else r"Environment",
 	)
 	try:
 		if win32process.IsWow64Process():
