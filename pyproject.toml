@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "opsi-cli"
-version = "4.3.0.1"
+version = "4.3.0.2"
 description = "opsi command line interface"
 homepage = "https://www.opsi.org"
 license = "AGPL-3.0"
@@ -38,6 +38,9 @@ disallow_incomplete_defs = true
 follow_imports = "silent"
 incremental = false
 
+[tool.ruff]
+line-length = 140
+
 [tool.poetry.dependencies]
 "ruamel.yaml" = "^0.17"
 click = "^8.1"
@@ -65,15 +68,12 @@ tan = "^23.3"
 [tool.poetry.scripts]
 opsi-cli = "opsicli.__main__:main"
 
+[tool.ruff.format]
+indent-style = "tab"
+
 [tool.poetry.dependencies.pywin32]
 platform = "win32"
 version = ">=303,<304"
 
 [tool.poetry.group.dev.dependencies]
 types-requests = "^2.31.0.10"
-
-[tool.ruff]
-line-length = 140
-
-[tool.ruff.format]
-indent-style = "tab"
