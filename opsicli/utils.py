@@ -12,7 +12,6 @@ import random
 import shutil
 import stat
 import string
-import subprocess
 import sys
 from contextlib import contextmanager
 from functools import lru_cache
@@ -42,7 +41,9 @@ def encrypt(cleartext: str) -> str:
 	for num, char in enumerate(cleartext):
 		key_c = key[num % len(key)]
 		cipher += chr((ord(char) + ord(key_c)) % 256)
-	return "{crypt}" + base64.urlsafe_b64encode(f"{key}:{cipher}".encode("utf-8")).decode("ascii")
+	return "{crypt}" + base64.urlsafe_b64encode(
+		f"{key}:{cipher}".encode("utf-8")
+	).decode("ascii")
 
 
 def decrypt(cipher: str) -> str:
@@ -65,12 +66,51 @@ def add_to_env_variable(key: str, value: str, system: bool = False) -> None:
 		raise NotImplementedError(
 			f"add_to_env_variable is currently only implemented for windows - If necessary, manually add {value} to {key}"
 		)
-	if value in os.environ.get(key, ""):
-		logger.info("%s already in Environment Variable %s", value, key)
-		return
-	call = f'setx {key} "%{key}%;{value}" /M' if system else f'setx {key} "%{key}%;{value}"'
-	logger.notice("Adding %s to Environment Variable %s", value, key)
-	subprocess.check_output(call, shell=True)
+
+	key = key.upper()
+	if key != "PATH":
+		raise NotImplementedError("Only PATH is currently supported")
+
+	import winreg  # pylint: disable=import-outside-toplevel,import-error
+
+	import win32process  # type: ignore[import] # pylint: disable=import-outside-toplevel,import-error
+
+	key_handle = winreg.CreateKey(  # type: ignore[attr-defined]
+		winreg.HKEY_LOCAL_MACHINE,  # type: ignore[attr-defined]
+		r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
+	)
+	try:
+		if win32process.IsWow64Process():
+			winreg.DisableReflectionKey(key_handle)  # type: ignore[attr-defined]
+
+		try:
+			reg_value, value_type = winreg.QueryValueEx(key_handle, key)  # type: ignore[attr-defined]
+			cur_reg_values = reg_value.split(";")
+			# Do some cleanup also.
+			# Remove empty values and values containing "pywin32_system32" and "opsi"
+			reg_values = list(
+				dict.fromkeys(
+					v
+					for v in cur_reg_values
+					if v and not ("pywin32_system32" in v and "opsi" in v)
+				)
+			)
+			if value.lower() in (v.lower() for v in reg_values):
+				logger.info("%r already in environment variable %r", value, key)
+			else:
+				logger.notice("Adding %r to environment variable %r", value, key)
+				reg_values.append(value)
+
+			if reg_values == cur_reg_values:
+				# Unchanged
+				return
+
+			reg_value = ";".join(reg_values)
+			winreg.SetValueEx(key_handle, key, 0, value_type, reg_value)  # type: ignore[attr-defined]
+		except FileNotFoundError as err:
+			raise ValueError(f"Key {key!r} not found in registry") from err
+	finally:
+		winreg.CloseKey(key_handle)  # type: ignore[attr-defined]
 
 
 @contextmanager
@@ -100,7 +140,9 @@ def user_is_admin() -> bool:
 		return ctypes.windll.shell32.IsUserAnAdmin() != 0  # type: ignore[attr-defined]
 
 
-def evaluate_rpc_dict_result(result: dict[str, dict[str, str | None]], log_success: bool = True) -> int:
+def evaluate_rpc_dict_result(
+	result: dict[str, dict[str, str | None]], log_success: bool = True
+) -> int:
 	num_success = 0
 	for key, response in result.items():
 		if response.get("error"):
