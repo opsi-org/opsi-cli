@@ -39,6 +39,7 @@ from opsicli.config import config
 from opsicli.io import get_console
 from opsicli.plugin import plugin_manager
 from opsicli.types import LogLevel as TypeLogLevel
+from opsicli.types import OpsiCliRuntimeError
 
 if not COMPLETION_MODE:
 	click.rich_click.USE_RICH_MARKUP = True
@@ -96,6 +97,9 @@ class OpsiCLI(click.MultiCommand):
 				console.print("Attempted connection to localhost even if not running on opsi server")
 				console.print("Configure connection with [bold cyan]opsi-cli config service add[/bold cyan]")
 				sys.exit(1)
+		except OpsiCliRuntimeError as opsiclierror:
+			logger.error(opsiclierror, exc_info=False)  # Avoid gigantic traceback here
+			sys.exit(1)
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
 			if not isinstance(err, ClickException):
@@ -169,4 +173,5 @@ def main(*args: str, **kwargs: str) -> None:  # pylint: disable=unused-argument
 	Plugins are dynamically loaded from a subfolder
 	"""
 	logger.debug("Main called")
+	prepare_cli_paths()
 	prepare_cli_paths()

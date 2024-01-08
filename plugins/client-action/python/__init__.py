@@ -13,7 +13,7 @@ from .client_action_worker import ClientActionArgs
 from .set_action_request_worker import SetActionRequestWorker
 from .trigger_event_worker import TriggerEventWorker
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 __description__ = "This command can be used to manage opsi client actions."
 
 logger = get_logger("opsicli")
