@@ -12,6 +12,7 @@ from opsicommon.logging import get_logger
 from opsicommon.utils import ip_address_in_network
 
 from opsicli.opsiservice import get_service_connection
+from opsicli.types import OpsiCliRuntimeError
 
 logger = get_logger("opsicli")
 
@@ -31,6 +32,10 @@ class ClientActionArgs:
 	exclude_client_groups: str | None = None
 	exclude_ip_addresses: str | None = None
 	only_online: bool = False
+
+
+class NoClientsSelected(OpsiCliRuntimeError):
+	pass
 
 
 class ClientActionWorker:
@@ -97,5 +102,5 @@ class ClientActionWorker:
 			reachable = self.service.jsonrpc("host_getMessagebusConnectedIds")
 			self.clients = [entry for entry in self.clients if entry in reachable]
 		if not self.clients:
-			raise ValueError("No clients selected")
+			raise NoClientsSelected("No clients selected")
 		logger.notice("Selected clients: %s", self.clients)

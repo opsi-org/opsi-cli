@@ -162,3 +162,7 @@ class OPSIService:
 		if value.get("password"):
 			value["password"] = Password.from_yaml(value["password"])
 		return cls(**value)
+
+
+class OpsiCliRuntimeError(RuntimeError):
+	pass
