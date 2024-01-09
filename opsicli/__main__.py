@@ -174,4 +174,3 @@ def main(*args: str, **kwargs: str) -> None:  # pylint: disable=unused-argument
 	"""
 	logger.debug("Main called")
 	prepare_cli_paths()
-	prepare_cli_paths()
