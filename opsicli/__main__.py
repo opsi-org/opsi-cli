@@ -25,20 +25,20 @@ from opsicli.config import config
 from opsicli.io import get_console
 from opsicli.plugin import plugin_manager
 from opsicli.types import LogLevel as TypeLogLevel
+from opsicli.types import OpsiCliRuntimeError
 
 COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE" in os.environ
 
 if not COMPLETION_MODE:
 	import rich_click as click  # type: ignore[import,no-redef]
-	from rich_click.rich_click import (  # type: ignore[import]
-		rich_abort_error,
+	from rich_click.rich_click import (
+		rich_abort_error,  # type: ignore[import]
 		rich_format_error,
 		rich_format_help,
 	)
 else:
 	# Loads faster
 	import click  # type: ignore[import,no-redef]
-
 
 if not COMPLETION_MODE:
 	click.rich_click.USE_RICH_MARKUP = True
@@ -96,6 +96,9 @@ class OpsiCLI(click.MultiCommand):  # type: ignore
 				console.print("Attempted connection to localhost even if not running on opsi server")
 				console.print("Configure connection with [bold cyan]opsi-cli config service add[/bold cyan]")
 				sys.exit(1)
+		except OpsiCliRuntimeError as opsiclierror:
+			logger.error(opsiclierror, exc_info=False)  # Avoid gigantic traceback here
+			sys.exit(1)
 		except Exception as err:  # pylint: disable=broad-except
 			logger.error(err, exc_info=True)
 			if not isinstance(err, ClickException):

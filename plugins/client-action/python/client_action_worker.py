@@ -6,10 +6,13 @@ client_action_worker
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from ipaddress import ip_network
 
 from opsicommon.logging import get_logger
+from opsicommon.utils import ip_address_in_network
 
 from opsicli.opsiservice import get_service_connection
+from opsicli.types import OpsiCliRuntimeError
 
 logger = get_logger("opsicli")
 
@@ -24,9 +27,15 @@ class Group:
 class ClientActionArgs:
 	clients: str | None = None
 	client_groups: str | None = None
+	ip_addresses: str | None = None
 	exclude_clients: str | None = None
 	exclude_client_groups: str | None = None
+	exclude_ip_addresses: str | None = None
 	only_online: bool = False
+
+
+class NoClientsSelected(OpsiCliRuntimeError):
+	pass
 
 
 class ClientActionWorker:
@@ -58,6 +67,15 @@ class ClientActionWorker:
 			self.create_group_forest()
 		return list(self.get_entries_from_group(group))
 
+	def client_ids_with_ip(self, ip_string: str) -> list[str]:
+		network = ip_network(ip_string)  # can handle ipv4 and ipv6 addresses with and without subnet specification
+		result = []
+		for client in self.service.jsonrpc("host_getObjects", [[], {"type": "OpsiClient"}]):
+			if client["ipAddress"] and ip_address_in_network(client["ipAddress"], network):
+				result.append(client["id"])
+		logger.debug("Clients with ip %s: %s", ip_string, result)
+		return result
+
 	def determine_clients(self, args: ClientActionArgs) -> None:
 		self.clients = []
 		if args.clients:
@@ -65,7 +83,10 @@ class ClientActionWorker:
 		if args.client_groups:
 			for group in [entry.strip() for entry in args.client_groups.split(",")]:
 				self.clients.extend(self.client_ids_from_group(group))
-		if not args.clients and not args.client_groups or "all" in self.clients:  # select all clients
+		if args.ip_addresses:
+			for ip_address in args.ip_addresses.split(","):
+				self.clients.extend(self.client_ids_with_ip(ip_address))
+		if not args.clients and not args.client_groups and not args.ip_addresses or "all" in self.clients:  # select all clients
 			self.clients = [entry["id"] for entry in self.service.jsonrpc("host_getObjects", [[], {"type": "OpsiClient"}])]
 		exclude_clients_list = []
 		if args.exclude_clients:
@@ -73,10 +94,13 @@ class ClientActionWorker:
 		if args.exclude_client_groups:
 			for group in [entry.strip() for entry in args.exclude_client_groups.split(",")]:
 				exclude_clients_list.extend(self.client_ids_from_group(group))
+		if args.exclude_ip_addresses:
+			for ip_address in args.exclude_ip_addresses.split(","):
+				exclude_clients_list.extend(self.client_ids_with_ip(ip_address.strip()))
 		self.clients = [entry for entry in self.clients if entry not in exclude_clients_list]
 		if args.only_online:
 			reachable = self.service.jsonrpc("host_getMessagebusConnectedIds")
 			self.clients = [entry for entry in self.clients if entry in reachable]
 		if not self.clients:
-			raise ValueError("No clients selected")
+			raise NoClientsSelected("No clients selected")
 		logger.notice("Selected clients: %s", self.clients)

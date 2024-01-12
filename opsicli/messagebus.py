@@ -7,6 +7,7 @@ import platform
 import shutil
 import sys
 from contextlib import contextmanager
+from datetime import datetime
 from threading import Event
 from typing import Any, Generator
 from uuid import uuid4
@@ -25,6 +26,7 @@ from opsicommon.messagebus import (
 	ProcessMessage,
 	ProcessStartRequestMessage,
 	ProcessStopEventMessage,
+	ProcessStopRequestMessage,
 	TerminalCloseEventMessage,
 	TerminalDataReadMessage,
 	TerminalDataWriteMessage,
@@ -190,15 +192,20 @@ class ProcessMessagebusConnection(MessagebusConnection):  # pylint: disable=too-
 			process_ids[channel] = message.process_id
 			self.captured_process_messages[message.process_id] = []
 			self.service_client.messagebus.send_message(message)
+		start_time = datetime.now()
 		logger.notice("Sent process start request")
 		if not wait_for_ending:
 			return {}
 		logger.info("awaiting responses...")
 		for channel, process_id in process_ids.items():
-			if not self.process_stop_events[process_id].wait(timeout):
+			waiting_time = max(timeout - (datetime.now() - start_time).total_seconds(), 0)
+			logger.debug("Waiting for %s seconds until stopping", waiting_time)
+			if not self.process_stop_events[process_id].wait(waiting_time):
+				logger.warning("Timeout reached, terminating process at channel %s", channel)
+				self.service_client.messagebus.send_message(
+					ProcessStopRequestMessage(process_id=message.process_id, sender=CONNECTION_USER_CHANNEL, channel=channel)
+				)
 				results[channel] = [TimeoutError("Timed out waiting for process stop event.")]
-			elif not self.captured_process_messages[process_id]:
-				results[channel] = [ConnectionError("Failed to receive messages from process.")]
 			else:
 				results[channel] = list(self.captured_process_messages[process_id])
 			if process_id in self.captured_process_messages:
