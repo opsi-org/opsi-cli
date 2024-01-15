@@ -8,7 +8,7 @@ import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger  # type: ignore[import]
 
 from opsicli.io import Attribute, Metadata, write_output
-from opsicli.messagebus import MessagebusConnection
+from opsicli.messagebus import JSONRPCMessagebusConnection
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 
@@ -58,8 +58,9 @@ def client_logs(client: str, path: Path) -> None:
 	"""
 	if path.is_dir():
 		path = path / f"{client}.zip"
-	with MessagebusConnection().connection() as messagebus:
-		result = messagebus.jsonrpc(f"host:{client}", "getLogs")
+	messagebus = JSONRPCMessagebusConnection()
+	with messagebus.connection():
+		result = messagebus.jsonrpc([f"host:{client}"], "getLogs")[f"host:{client}"]
 	if not result.get("file_id"):
 		raise ValueError(f"Did not get file id for download. Result: {result}")
 	service_client = get_service_connection()

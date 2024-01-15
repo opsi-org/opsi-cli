@@ -197,3 +197,13 @@ def test_trigger_event() -> None:
 			cmd = ["client-action", "--clients", CLIENT1, "trigger-event", "--wakeup"]
 			(code, _) = run_cli(cmd)
 			assert code == 0  # No way to actually trigger an event or wake up a client
+
+
+@pytest.mark.requires_testcontainer
+def test_execute() -> None:
+	with container_connection():
+		connection = get_service_connection()
+		with tmp_client(connection, CLIENT1):
+			cmd = ["client-action", "--clients", CLIENT1, "execute", "pwd"]
+			(code, _) = run_cli(cmd)
+			assert code == 1  # No way to actually execute something on a client

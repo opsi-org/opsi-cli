@@ -7,6 +7,7 @@ import platform
 import shutil
 import sys
 from contextlib import contextmanager
+from datetime import datetime
 from threading import Event
 from typing import Any, Generator
 from uuid import uuid4
@@ -14,14 +15,22 @@ from uuid import uuid4
 from opsicommon.client.opsiservice import MessagebusListener
 from opsicommon.logging import get_logger  # type: ignore[import]
 from opsicommon.messagebus import (
+	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
 	Message,
+	ProcessDataReadMessage,
+	ProcessErrorMessage,
+	ProcessMessage,
+	ProcessStartRequestMessage,
+	ProcessStopEventMessage,
+	ProcessStopRequestMessage,
 	TerminalCloseEventMessage,
 	TerminalDataReadMessage,
 	TerminalDataWriteMessage,
+	TerminalErrorMessage,
 	TerminalOpenEventMessage,
 	TerminalOpenRequestMessage,
 )
@@ -32,8 +41,9 @@ from opsicli.utils import stream_wrap
 if platform.system().lower() == "windows":
 	import msvcrt  # pylint: disable=import-error
 
-CHANNEL_SUB_TIMEOUT = 5
-JSONRPC_TIMEOUT = 10
+CHANNEL_SUB_TIMEOUT = 5.0
+JSONRPC_TIMEOUT = 15.0
+PROCESS_EXECUTE_TIMEOUT = 60.0
 
 logger = get_logger("opsicli")
 
@@ -48,15 +58,11 @@ def log_message(message: Message) -> None:
 
 
 class MessagebusConnection(MessagebusListener):  # pylint: disable=too-many-instance-attributes
-	terminal_id: str
-
 	def __init__(self) -> None:
 		MessagebusListener.__init__(self)
 		self.channel_subscription_locks: dict[str, Event] = {}
 		self.subscribed_channels: list[str] = []
 		self.initial_subscription_event = Event()
-		self.jsonrpc_response_event = Event()
-		self.jsonrpc_response: Any | None = None
 		self.service_client = get_service_connection()
 
 	def message_received(self, message: Message) -> None:
@@ -79,17 +85,14 @@ class MessagebusConnection(MessagebusListener):  # pylint: disable=too-many-inst
 			else:
 				self.initial_subscription_event.set()
 
-	def _on_jsonrpc_response(self, message: JSONRPCResponseMessage) -> None:
-		logger.notice("Received jsonrpc response message")
-		self.jsonrpc_response = message.error if message.error else message.result
-		self.jsonrpc_response_event.set()
-
 	def subscribe_to_channel(self, channel: str) -> None:
 		if channel in self.subscribed_channels:
 			return
 		try:
 			self.channel_subscription_locks[channel] = Event()
-			csr = ChannelSubscriptionRequestMessage(sender="@", operation="add", channels=[channel], channel="service:messagebus")
+			csr = ChannelSubscriptionRequestMessage(
+				sender=CONNECTION_USER_CHANNEL, operation="add", channels=[channel], channel="service:messagebus"
+			)
 			logger.notice("Requesting access to channel %r", channel)
 			log_message(csr)
 			self.service_client.messagebus.send_message(csr)
@@ -113,24 +116,104 @@ class MessagebusConnection(MessagebusListener):  # pylint: disable=too-many-inst
 				logger.debug("Disconnecting from messagebus.")
 				self.service_client.disconnect_messagebus()
 
-	def jsonrpc(self, channel: str, method: str, params: tuple | None = None) -> Any:
-		message = JSONRPCRequestMessage(
-			method=method,
-			params=params or (),
-			api_version="2.0",
-			sender="@",
-			channel=channel,
-		)
-		self.service_client.messagebus.send_message(message)
-		logger.notice("Sending jsonrpc-request, awaiting response...")
-		if not self.jsonrpc_response and not self.jsonrpc_response_event.wait(JSONRPC_TIMEOUT):
-			raise TimeoutError("Timed out waiting for jsonrpc response.")
-		self.jsonrpc_response_event.clear()
-		if not self.jsonrpc_response:
-			raise ConnectionError("Failed to receive jsonrpc response.")
-		result = self.jsonrpc_response
-		self.jsonrpc_response = None
-		return result
+
+class JSONRPCMessagebusConnection(MessagebusConnection):  # pylint: disable=too-many-instance-attributes
+	def __init__(self) -> None:
+		MessagebusConnection.__init__(self)
+		self.jsonrpc_response_events: dict[str | int, Event] = {}
+		self.jsonrpc_responses: dict[str | int, Any] = {}
+
+	def _on_jsonrpc_response(self, message: JSONRPCResponseMessage) -> None:
+		logger.notice("Received jsonrpc response message")
+		self.jsonrpc_responses[message.rpc_id] = message.error if message.error else message.result
+		self.jsonrpc_response_events[message.rpc_id].set()
+
+	def jsonrpc(self, channels: list[str], method: str, params: tuple | None = None, timeout: float = JSONRPC_TIMEOUT) -> dict[str, Any]:
+		results: dict[str, Any] = {}
+		rpc_ids: dict[str, str | int] = {}
+		for channel in channels:
+			message = JSONRPCRequestMessage(
+				method=method,
+				params=params or (),
+				api_version="2.0",
+				sender=CONNECTION_USER_CHANNEL,
+				channel=channel,
+			)
+			self.jsonrpc_response_events[message.rpc_id] = Event()
+			rpc_ids[channel] = message.rpc_id
+			self.service_client.messagebus.send_message(message)
+		logger.notice("Sent jsonrpc-request, awaiting response...")
+		for channel, rpc_id in rpc_ids.items():
+			if not self.jsonrpc_response_events[rpc_id].wait(timeout):
+				results[channel] = TimeoutError("Timed out waiting for jsonrpc response.")
+			elif not self.jsonrpc_responses[rpc_id]:
+				results[channel] = ConnectionError("Failed to receive jsonrpc response.")
+			else:
+				results[channel] = self.jsonrpc_responses[rpc_id]
+			if rpc_id in self.jsonrpc_responses:
+				del self.jsonrpc_responses[rpc_id]
+			if rpc_id in self.jsonrpc_response_events:
+				del self.jsonrpc_response_events[rpc_id]
+		return results
+
+
+class ProcessMessagebusConnection(MessagebusConnection):  # pylint: disable=too-many-instance-attributes
+	def __init__(self) -> None:
+		MessagebusConnection.__init__(self)
+		self.process_stop_events: dict[str, Event] = {}
+		self.captured_process_messages: dict[str, list[ProcessMessage]] = {}
+
+	def _on_process_data_read(self, message: ProcessDataReadMessage) -> None:
+		logger.debug("Received process data read message")
+		self.captured_process_messages[message.process_id].append(message)
+
+	def _on_process_stop_event(self, message: ProcessStopEventMessage) -> None:
+		logger.debug("Received process stop event message")
+		self.captured_process_messages[message.process_id].append(message)
+		self.process_stop_events[message.process_id].set()
+
+	def _on_process_error(self, message: ProcessErrorMessage) -> None:
+		logger.debug("Received process error message")
+		self.captured_process_messages[message.process_id].append(message)
+		self.process_stop_events[message.process_id].set()
+
+	def execute_processes(
+		self, channels: list[str], command: tuple[str], timeout: float | None = None, wait_for_ending: bool = True
+	) -> dict[str, list[ProcessMessage | Exception]]:
+		timeout = timeout or PROCESS_EXECUTE_TIMEOUT
+		results: dict[str, list[ProcessMessage | Exception]] = {}
+		process_ids: dict[str, str] = {}
+		for channel in channels:
+			message = ProcessStartRequestMessage(
+				command=command,
+				sender=CONNECTION_USER_CHANNEL,
+				channel=channel,
+			)
+			self.process_stop_events[message.process_id] = Event()
+			process_ids[channel] = message.process_id
+			self.captured_process_messages[message.process_id] = []
+			self.service_client.messagebus.send_message(message)
+		start_time = datetime.now()
+		logger.notice("Sent process start request")
+		if not wait_for_ending:
+			return {}
+		logger.info("awaiting responses...")
+		for channel, process_id in process_ids.items():
+			waiting_time = max(timeout - (datetime.now() - start_time).total_seconds(), 0)
+			logger.debug("Waiting for %s seconds until stopping", waiting_time)
+			if not self.process_stop_events[process_id].wait(waiting_time):
+				logger.warning("Timeout reached, terminating process at channel %s", channel)
+				self.service_client.messagebus.send_message(
+					ProcessStopRequestMessage(process_id=message.process_id, sender=CONNECTION_USER_CHANNEL, channel=channel)
+				)
+				results[channel] = [TimeoutError("Timed out waiting for process stop event.")]
+			else:
+				results[channel] = list(self.captured_process_messages[process_id])
+			if process_id in self.captured_process_messages:
+				del self.captured_process_messages[process_id]
+			if process_id in self.process_stop_events:
+				del self.process_stop_events[process_id]
+		return results
 
 
 class TerminalMessagebusConnection(MessagebusConnection):
@@ -152,6 +235,13 @@ class TerminalMessagebusConnection(MessagebusConnection):
 			sys.stdout.buffer.write(message.data)
 			sys.stdout.flush()  # This actually pops the buffer to terminal (without waiting for '\n')
 
+	def _on_terminal_error(self, message: TerminalErrorMessage) -> None:
+		if message.terminal_id == self.terminal_id:
+			logger.notice("received terminal error event - shutting down")
+			sys.stdout.buffer.write(b"\nreceived terminal error event - press Enter to return to local shell")
+			sys.stdout.flush()  # This actually pops the buffer to terminal (without waiting for '\n')
+			self.should_close = True
+
 	def _on_terminal_close_event(self, message: TerminalCloseEventMessage) -> None:
 		if message.terminal_id == self.terminal_id:
 			logger.notice("received terminal close event - shutting down")
@@ -163,7 +253,9 @@ class TerminalMessagebusConnection(MessagebusConnection):
 		if not self.terminal_id:
 			raise ValueError("Terminal id not set.")
 		if data:
-			tdw = TerminalDataWriteMessage(sender="@", channel=term_write_channel, terminal_id=self.terminal_id, data=data)
+			tdw = TerminalDataWriteMessage(
+				sender=CONNECTION_USER_CHANNEL, channel=term_write_channel, terminal_id=self.terminal_id, data=data
+			)
 			log_message(tdw)
 			self.service_client.messagebus.send_message(tdw)
 			return
@@ -176,13 +268,14 @@ class TerminalMessagebusConnection(MessagebusConnection):
 			if not data:  # or data == b"\x03":  # Ctrl+C
 				self.should_close = True
 				break
-			self.transmit_input(term_write_channel, data)
+			if not self.should_close:
+				self.transmit_input(term_write_channel, data)
 
 	def open_new_terminal(self, term_request_channel: str) -> None:
 		self.subscribe_to_channel(f"session:{self.terminal_id}")
 		size = shutil.get_terminal_size()
 		tor = TerminalOpenRequestMessage(
-			sender="@",
+			sender=CONNECTION_USER_CHANNEL,
 			channel=term_request_channel,
 			terminal_id=self.terminal_id,
 			back_channel=f"session:{self.terminal_id}",

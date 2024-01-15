@@ -7,31 +7,17 @@ Main command
 
 import os
 
-COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE" in os.environ
-
 # pylint: disable=wrong-import-position
 import re
 import sys
 from typing import Any, Sequence
 
+from click.exceptions import Abort, ClickException  # type: ignore[import]
+from click.shell_completion import CompletionItem  # type: ignore[import]
 from opsicommon.config.opsi import OpsiConfig
 from opsicommon.exceptions import OpsiServiceConnectionError
 from opsicommon.logging import get_logger  # type: ignore[import]
 from opsicommon.utils import monkeypatch_subprocess_for_frozen
-
-if not COMPLETION_MODE:
-	import rich_click as click  # type: ignore[import,no-redef]
-	from rich_click.rich_click import (  # type: ignore[import]
-		rich_abort_error,
-		rich_format_error,
-		rich_format_help,
-	)
-else:
-	# Loads faster
-	import click  # type: ignore[import,no-redef]
-
-from click.exceptions import Abort, ClickException  # type: ignore[import]
-from click.shell_completion import CompletionItem  # type: ignore[import]
 
 from opsicli import __version__, prepare_cli_paths
 from opsicli.cache import cache
@@ -40,6 +26,16 @@ from opsicli.io import get_console
 from opsicli.plugin import plugin_manager
 from opsicli.types import LogLevel as TypeLogLevel
 from opsicli.types import OpsiCliRuntimeError
+
+COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE" in os.environ
+
+if not COMPLETION_MODE:
+	import rich_click as click  # type: ignore[import,no-redef]
+	from rich_click.rich_click import rich_abort_error  # type: ignore[import]
+	from rich_click.rich_click import rich_format_error, rich_format_help
+else:
+	# Loads faster
+	import click  # type: ignore[import,no-redef]
 
 if not COMPLETION_MODE:
 	click.rich_click.USE_RICH_MARKUP = True
@@ -72,8 +68,8 @@ if not COMPLETION_MODE:
 logger = get_logger("opsicli")
 
 
-# https://click.palletsprojects.com/en/7.x/commands/#custom-multi-commands
-class OpsiCLI(click.MultiCommand):
+# https://click.palletsprojects.com/en/8.1.x/commands/#custom-multi-commands
+class OpsiCLI(click.MultiCommand):  # type: ignore
 	def main(  # pylint: disable=inconsistent-return-statements
 		self,
 		args: Sequence[str] | None = None,
@@ -96,7 +92,7 @@ class OpsiCLI(click.MultiCommand):
 				console = get_console()
 				console.print("Attempted connection to localhost even if not running on opsi server")
 				console.print("Configure connection with [bold cyan]opsi-cli config service add[/bold cyan]")
-				sys.exit(1)
+			sys.exit(1)
 		except OpsiCliRuntimeError as opsiclierror:
 			logger.error(opsiclierror, exc_info=False)  # Avoid gigantic traceback here
 			sys.exit(1)
