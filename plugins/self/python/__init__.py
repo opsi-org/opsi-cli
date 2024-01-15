@@ -247,11 +247,6 @@ def upgrade(branch: str, source_url: str) -> None:
 	with tempfile.TemporaryDirectory() as tmpdir_name:
 		tmp_dir = Path(tmpdir_name)
 		new_binary = download(f"{source_url}/{branch}/{get_opsi_cli_filename()}", tmp_dir, make_executable=True)
-		new_binary_debugcopy = Path("/tmp/opsi-cli-debugcopy")
-		if platform.system().lower() == "windows":
-			new_binary_debugcopy = Path("C:\\Windows\\TEMP\\opsi-cli-debugcopy.exe")
-		logger.devel("Saving new_binary to %s for debugging", new_binary_debugcopy)
-		shutil.copy(new_binary, new_binary_debugcopy)
 		try:
 			new_version = subprocess.check_output([str(new_binary), "--version"]).decode("utf-8").strip()
 		except subprocess.CalledProcessError as error:
