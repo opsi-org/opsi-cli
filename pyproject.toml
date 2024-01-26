@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "opsi-cli"
-version = "4.3.0.3"
+version = "4.3.0.4"
 description = "opsi command line interface"
 homepage = "https://www.opsi.org"
 license = "AGPL-3.0"
