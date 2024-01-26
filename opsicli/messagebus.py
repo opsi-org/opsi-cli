@@ -178,7 +178,7 @@ class ProcessMessagebusConnection(MessagebusConnection):  # pylint: disable=too-
 		self.process_stop_events[message.process_id].set()
 
 	def execute_processes(
-		self, channels: list[str], command: tuple[str], timeout: float | None = None, wait_for_ending: bool = True
+		self, channels: list[str], command: tuple[str], shell: bool = False, timeout: float | None = None, wait_for_ending: bool = True
 	) -> dict[str, list[ProcessMessage | Exception]]:
 		timeout = timeout or PROCESS_EXECUTE_TIMEOUT
 		results: dict[str, list[ProcessMessage | Exception]] = {}
@@ -188,6 +188,7 @@ class ProcessMessagebusConnection(MessagebusConnection):  # pylint: disable=too-
 				command=command,
 				sender=CONNECTION_USER_CHANNEL,
 				channel=channel,
+				shell=shell,
 			)
 			self.process_stop_events[message.process_id] = Event()
 			process_ids[channel] = message.process_id

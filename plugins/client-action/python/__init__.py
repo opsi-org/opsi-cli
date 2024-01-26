@@ -119,13 +119,14 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool) -> None:
 @cli.command(name="execute", short_help="Execute shell-command on selected clients", context_settings={"ignore_unknown_options": True})
 @click.pass_context
 @click.argument("command", nargs=-1)
+@click.option("--shell", help="Start process in shell", is_flag=True, default=False)
 @click.option("--timeout", help="Number of seconds until command should be interrupted", type=float)
-def execute(ctx: click.Context, command: tuple[str], timeout: float | None = None) -> None:
+def execute(ctx: click.Context, command: tuple[str], shell: bool, timeout: float | None = None) -> None:
 	"""
 	opsi-cli client-action execute command
 	"""
 	worker = ExecuteWorker(ctx.obj)
-	worker.execute(command, timeout=timeout)
+	worker.execute(command, timeout=timeout, shell=shell)
 
 
 # This class keeps track of the plugins meta-information

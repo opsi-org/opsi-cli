@@ -7,7 +7,11 @@ execute_worker
 import sys
 
 from opsicommon.logging import get_logger
-from opsicommon.messagebus import ProcessDataReadMessage, ProcessErrorMessage, ProcessStopEventMessage
+from opsicommon.messagebus import (
+	ProcessDataReadMessage,
+	ProcessErrorMessage,
+	ProcessStopEventMessage,
+)
 
 from opsicli.config import config
 from opsicli.io import get_console
@@ -32,7 +36,7 @@ class ExecuteWorker(ClientActionWorker):
 		super().__init__(args)
 		self.mbus_connection = ProcessMessagebusConnection()
 
-	def execute(self, command: tuple[str], timeout: float | None = None) -> None:
+	def execute(self, command: tuple[str], shell: bool = False, timeout: float | None = None) -> None:
 		if config.dry_run:
 			logger.notice("Operating in dry-run mode - not performing any actions")
 			return
