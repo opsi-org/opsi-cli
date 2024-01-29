@@ -44,7 +44,7 @@ class ExecuteWorker(ClientActionWorker):
 		channels = [f"host:{client}" for client in self.clients]
 		fails: list[str] = []
 		with self.mbus_connection.connection():
-			results = self.mbus_connection.execute_processes(channels, command, timeout=timeout)
+			results = self.mbus_connection.execute_processes(channels, command, shell=shell, timeout=timeout)
 		for channel, result in results.items():
 			output = []
 			for message in result:
