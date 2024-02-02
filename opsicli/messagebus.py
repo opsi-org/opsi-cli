@@ -24,6 +24,7 @@ from opsicommon.messagebus import (
 	ProcessDataReadMessage,
 	ProcessErrorMessage,
 	ProcessMessage,
+	ProcessStartEventMessage,
 	ProcessStartRequestMessage,
 	ProcessStopEventMessage,
 	ProcessStopRequestMessage,
@@ -171,6 +172,10 @@ class ProcessMessagebusConnection(MessagebusConnection):  # pylint: disable=too-
 		logger.debug("Received process stop event message")
 		self.captured_process_messages[message.process_id].append(message)
 		self.process_stop_events[message.process_id].set()
+
+	def _on_process_start_event(self, message: ProcessStartEventMessage) -> None:
+		logger.debug("Received process start event message")
+		self.captured_process_messages[message.process_id].append(message)
 
 	def _on_process_error(self, message: ProcessErrorMessage) -> None:
 		logger.debug("Received process error message")
