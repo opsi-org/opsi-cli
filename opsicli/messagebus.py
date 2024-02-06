@@ -24,6 +24,7 @@ from opsicommon.messagebus import (
 	ProcessDataReadMessage,
 	ProcessErrorMessage,
 	ProcessMessage,
+	ProcessStartEventMessage,
 	ProcessStartRequestMessage,
 	ProcessStopEventMessage,
 	ProcessStopRequestMessage,
@@ -172,13 +173,17 @@ class ProcessMessagebusConnection(MessagebusConnection):  # pylint: disable=too-
 		self.captured_process_messages[message.process_id].append(message)
 		self.process_stop_events[message.process_id].set()
 
+	def _on_process_start_event(self, message: ProcessStartEventMessage) -> None:
+		logger.debug("Received process start event message")
+		self.captured_process_messages[message.process_id].append(message)
+
 	def _on_process_error(self, message: ProcessErrorMessage) -> None:
 		logger.debug("Received process error message")
 		self.captured_process_messages[message.process_id].append(message)
 		self.process_stop_events[message.process_id].set()
 
 	def execute_processes(
-		self, channels: list[str], command: tuple[str], timeout: float | None = None, wait_for_ending: bool = True
+		self, channels: list[str], command: tuple[str], shell: bool = False, timeout: float | None = None, wait_for_ending: bool = True
 	) -> dict[str, list[ProcessMessage | Exception]]:
 		timeout = timeout or PROCESS_EXECUTE_TIMEOUT
 		results: dict[str, list[ProcessMessage | Exception]] = {}
@@ -188,6 +193,7 @@ class ProcessMessagebusConnection(MessagebusConnection):  # pylint: disable=too-
 				command=command,
 				sender=CONNECTION_USER_CHANNEL,
 				channel=channel,
+				shell=shell,
 			)
 			self.process_stop_events[message.process_id] = Event()
 			process_ids[channel] = message.process_id
