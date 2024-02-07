@@ -51,7 +51,7 @@ pytest-linux:
     - name: redislabs/redistimeseries:latest
       alias: redis
     - name: docker.uib.gmbh/opsi/opsi-server:4.3-development
-      alias: opsiconfd  # entrypoint: [""]
+      alias: opsiconfd
   variables:
     FF_NETWORK_PER_BUILD: "1"  # Create a new network for each build
     MYSQL_ROOT_PASSWORD: "opsi"
@@ -64,10 +64,10 @@ pytest-linux:
     OPSI_HOST_ROLE: configserver
     OPSI_HOST_ID: "test.uib.gmbh"
     OPSI_TFTPBOOT: "false"
-    OPSICONFD_LOG_LEVEL: 6
+    OPSICONFD_LOG_LEVEL: 5
     OPSICONFD_RESTORE_BACKUP_URL: "http://binaryindex.uib.gmbh/development/testbackup/all/all/testbackup_all_all_1.1.tar.gz"
   script:
-    - while ! nc -v -z -w3 opsiconfd 4447 > /dev/null 2>&1; do sleep 1; done
+    - while ! nc -v -z -w3 opsiconfd 4447; do sleep 1; done
     - poetry lock --no-update --no-cache
     - poetry install
     - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_linux.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
