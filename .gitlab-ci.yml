@@ -53,6 +53,7 @@ pytest-linux:
     - name: docker.uib.gmbh/opsi/opsi-server:4.3-development
       alias: opsiconfd  # entrypoint: [""]
   variables:
+    FF_NETWORK_PER_BUILD: "1"  # Create a new network for each build
     MYSQL_ROOT_PASSWORD: "opsi"
     MYSQL_DATABASE: "opsitest"
     MYSQL_USER: "opsi"
