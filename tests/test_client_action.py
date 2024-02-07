@@ -196,7 +196,7 @@ def test_nested_groups_client_selection() -> None:
 			tmp_client(connection, CLIENT1),
 			tmp_client(connection, CLIENT2),
 			tmp_product(connection, PRODUCT1),
-			tmp_host_group(connection, H_GROUP1, [CLIENT2]),
+			tmp_host_group(connection, H_GROUP1, [CLIENT1]),
 			tmp_host_group(connection, H_GROUP2, [CLIENT2], parent=H_GROUP1),
 		):
 			cmd = ["client-action", "--client-groups", H_GROUP1, "set-action-request", "--products", PRODUCT1]
