@@ -50,25 +50,26 @@ pytest-linux:
         - --default-authentication-plugin=mysql_native_password
     - name: redislabs/redistimeseries:latest
       alias: redis
+    - name: docker.uib.gmbh/opsi/opsi-server:4.3-development
+      alias: opsiconfd
   variables:
+    FF_NETWORK_PER_BUILD: "1"  # Create a new network for each build
+    #CI_DEBUG_SERVICES: "true"  # Show debug information for services in ci
     MYSQL_ROOT_PASSWORD: "opsi"
     MYSQL_DATABASE: "opsitest"
     MYSQL_USER: "opsi"
     MYSQL_PASSWORD: "opsi"
     MYSQL_HOST: mysql
     REDIS_HOST: redis
+    OPSI_HOST: opsiconfd
     OPSI_ADMIN_PASSWORD: vhahd8usaz # also hardcoded in tests/utils.py
     OPSI_HOST_ROLE: configserver
     OPSI_HOST_ID: "test.uib.gmbh"
     OPSI_TFTPBOOT: "false"
-    OPSICONFD_RESTORE_BACKUP_URL: "http://binaryindex.uib.gmbh/development/testbackup/all/all/testbackup_all_all_1.1.tar.gz"
-  image:
-    name: docker.uib.gmbh/opsi/dev/pyopsi:latest
-    entrypoint: [""]
+    # when restoring the test backup, this job takes > 60 seconds to start, so gitlab-ci kills it
+    #OPSICONFD_RESTORE_BACKUP_URL: "http://binaryindex.uib.gmbh/development/testbackup/all/all/testbackup_all_all_1.1.tar.gz"
+    # issue for individually configurable timeouts https://gitlab.com/gitlab-org/gitlab/-/issues/30353
   script:
-    - bash /entrypoint.sh &
-    - while ! nc -v -z -w3 localhost 4447 > /dev/null 2>&1; do sleep 1; done
-    - source /entrypoint.sh set_environment_vars # to set hosts for redis/grafana
     - poetry lock --no-update --no-cache
     - poetry install
     - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_linux.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests

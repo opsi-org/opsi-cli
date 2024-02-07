@@ -20,6 +20,8 @@ from _pytest.config import Config as PytestConfig
 from _pytest.logging import LogCaptureHandler
 from _pytest.nodes import Item
 
+from . import OPSI_HOSTNAME
+
 
 def emit(*args: Any, **kwargs: Any) -> None:  # pylint: disable=unused-argument
 	pass
@@ -64,7 +66,7 @@ def admin_permissions() -> bool:
 
 def testcontainer_running() -> bool:
 	try:
-		result = requests.get("https://localhost:4447/public", timeout=5, verify=False)
+		result = requests.get(f"https://{OPSI_HOSTNAME}:4447/public", timeout=5, verify=False)
 		return result.status_code == 200
 	except requests.exceptions.ConnectionError:
 		return False

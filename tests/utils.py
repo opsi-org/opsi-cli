@@ -16,6 +16,8 @@ from opsicli.__main__ import main
 from opsicli.config import config
 from opsicli.opsiservice import ServiceClient
 
+from . import OPSI_HOSTNAME
+
 runner = CliRunner()
 
 
@@ -31,6 +33,26 @@ def tmp_client(service: ServiceClient, name: str) -> Generator[None, None, None]
 		yield
 	finally:
 		service.jsonrpc("host_delete", params=[name])
+
+
+@contextmanager
+def tmp_product(service: ServiceClient, name: str) -> Generator[None, None, None]:
+	try:
+		product_dict = {
+			"id": name,
+			"type": "LocalbootProduct",
+			"productVersion": "1",
+			"packageVersion": "1",
+			"setupScript": "setup.opsiscript",
+		}
+		depot_id = service.jsonrpc("host_getObjects", [[], {"type": "OpsiConfigserver"}])[0]["id"]
+		service.jsonrpc("product_createObjects", params=[product_dict])
+		pod_dict = {"productId": name, "depotId": depot_id, "productType": "LocalbootProduct", "productVersion": "1", "packageVersion": "1"}
+		service.jsonrpc("productOnDepot_createObjects", params=[pod_dict])
+		yield
+	finally:
+		service.jsonrpc("productOnDepot_delete", params=[name, depot_id])
+		service.jsonrpc("product_delete", params=[name])
 
 
 @contextmanager
@@ -97,7 +119,7 @@ def container_connection() -> Generator[None, None, None]:
 	try:
 		config.set_values({"username": "adminuser"})
 		config.set_values({"password": "vhahd8usaz"})
-		config.set_values({"service": "https://localhost:4447"})
+		config.set_values({"service": f"https://{OPSI_HOSTNAME}:4447"})
 		yield
 	finally:
 		config.set_values({"username": old_username})

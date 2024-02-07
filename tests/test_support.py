@@ -22,10 +22,10 @@ def test_healthcheck_detailed() -> None:
 	with container_connection():
 		exit_code, output = run_cli(["--output-format=json", "support", "health-check", "--detailed"])
 		assert exit_code == 0
-		assert "is outdated on depot" in output
+		assert "No problems detected" in output
 		exit_code, output = run_cli(["--output-format=json", "support", "health-check", "mysql"])
 		assert exit_code == 0
-		assert "Connection to MySQL is working." in output
+		assert "Connection to MySQL is working" in output
 
 
 # test_support_client_logs requires live client
