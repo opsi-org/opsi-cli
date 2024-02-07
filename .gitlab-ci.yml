@@ -60,6 +60,7 @@ pytest-linux:
     MYSQL_PASSWORD: "opsi"
     MYSQL_HOST: mysql
     REDIS_HOST: redis
+    OPSI_HOST: opsiconfd
     OPSI_ADMIN_PASSWORD: vhahd8usaz # also hardcoded in tests/utils.py
     OPSI_HOST_ROLE: configserver
     OPSI_HOST_ID: "test.uib.gmbh"
