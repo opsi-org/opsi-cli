@@ -38,7 +38,7 @@ def tmp_client(service: ServiceClient, name: str) -> Generator[None, None, None]
 @contextmanager
 def tmp_product(service: ServiceClient, name: str) -> Generator[None, None, None]:
 	try:
-		product_dict = {"name": name, "type": "LocalbootProduct", "productVersion": "1", "packageVersion": "1"}
+		product_dict = {"id": name, "type": "LocalbootProduct", "productVersion": "1", "packageVersion": "1"}
 		service.jsonrpc("product_createObjects", params=[product_dict])
 		yield
 	finally:
