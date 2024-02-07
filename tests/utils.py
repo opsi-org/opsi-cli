@@ -39,7 +39,7 @@ def tmp_client(service: ServiceClient, name: str) -> Generator[None, None, None]
 def tmp_product(service: ServiceClient, name: str) -> Generator[None, None, None]:
 	try:
 		product_dict = {"name": name, "type": "LocalbootProduct", "productVersion": "1", "packageVersion": "1"}
-		service.jsonrpc("product_createObject", params=[product_dict])
+		service.jsonrpc("product_createObjects", params=[product_dict])
 		yield
 	finally:
 		service.jsonrpc("product_delete", params=[name])
