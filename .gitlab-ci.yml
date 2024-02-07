@@ -67,6 +67,8 @@ pytest-linux:
     OPSICONFD_LOG_LEVEL: 5
     OPSICONFD_RESTORE_BACKUP_URL: "http://binaryindex.uib.gmbh/development/testbackup/all/all/testbackup_all_all_1.1.tar.gz"
   script:
+    - apt update
+    - apt install -y netcat
     - while ! nc -v -z -w3 opsiconfd 4447; do sleep 1; done
     - poetry lock --no-update --no-cache
     - poetry install
