@@ -54,7 +54,7 @@ pytest-linux:
       alias: opsiconfd
   variables:
     FF_NETWORK_PER_BUILD: "1"  # Create a new network for each build
-    CI_DEBUG_SERVICES: "true"  # Show debug information for services in ci
+    #CI_DEBUG_SERVICES: "true"  # Show debug information for services in ci
     MYSQL_ROOT_PASSWORD: "opsi"
     MYSQL_DATABASE: "opsitest"
     MYSQL_USER: "opsi"
@@ -66,11 +66,10 @@ pytest-linux:
     OPSI_HOST_ROLE: configserver
     OPSI_HOST_ID: "test.uib.gmbh"
     OPSI_TFTPBOOT: "false"
+    # when restoring the test backup, this job takes > 60 seconds to start, so gitlab-ci kills it
     #OPSICONFD_RESTORE_BACKUP_URL: "http://binaryindex.uib.gmbh/development/testbackup/all/all/testbackup_all_all_1.1.tar.gz"
+    # issue for individually configurable timeouts https://gitlab.com/gitlab-org/gitlab/-/issues/30353
   script:
-    - apt update
-    - apt install -y netcat
-    - while ! nc -z opsiconfd 4447; do sleep 1; done
     - poetry lock --no-update --no-cache
     - poetry install
     - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_linux.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
