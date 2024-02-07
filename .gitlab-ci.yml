@@ -54,6 +54,7 @@ pytest-linux:
       alias: opsiconfd
   variables:
     FF_NETWORK_PER_BUILD: "1"  # Create a new network for each build
+    CI_DEBUG_SERVICES: "true"  # Show debug information for services in ci
     MYSQL_ROOT_PASSWORD: "opsi"
     MYSQL_DATABASE: "opsitest"
     MYSQL_USER: "opsi"
@@ -67,9 +68,9 @@ pytest-linux:
     OPSI_TFTPBOOT: "false"
     OPSICONFD_RESTORE_BACKUP_URL: "http://binaryindex.uib.gmbh/development/testbackup/all/all/testbackup_all_all_1.1.tar.gz"
   script:
-    - ping -c 5 opsiconfd
-    - sleep 30
-    - ping -c 5 opsiconfd
+    - apt update
+    - apt install -y netcat
+    - while ! nc -z opsiconfd 4447; do sleep 1; done
     - poetry lock --no-update --no-cache
     - poetry install
     - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_linux.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
