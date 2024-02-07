@@ -105,7 +105,7 @@ def set_boot_password(ctx: click.Context, password: str) -> None:
 	logger.trace("bootimage set-boot-password subcommand")
 	hashed_password = ""
 	while not hashed_password or "." in hashed_password:
-		hashed_password = passlib.hash.sha512_crypt.encrypt(password)
+		hashed_password = passlib.hash.sha512_crypt.hash(password)
 	logger.notice("Setting pwh append parameter")
 	print("Hashed password is:", hashed_password)
 	set_append_values(values={"pwh": hashed_password}, client=ctx.obj["client"])
