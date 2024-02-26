@@ -51,13 +51,16 @@ def get_attributes(data: list[dict[str, Any]], all_elements: bool = True) -> lis
 		attributes_set |= set(element)
 		if not all_elements:
 			break
-	attributes = sorted(list(attributes_set))
-	if len(attributes) > 1:
-		try:
-			# Move attribute id to first position
-			attributes.insert(0, attributes.pop(attributes.index("id")))
-		except ValueError:
-			pass
+	if config.attributes:
+		attributes = [attr for attr in config.attributes if attr in attributes_set]
+	else:
+		attributes = sorted(list(attributes_set))
+		if len(attributes) > 1:
+			try:
+				# Move attribute id to first position
+				attributes.insert(0, attributes.pop(attributes.index("id")))
+			except ValueError:
+				pass
 	return attributes
 
 
