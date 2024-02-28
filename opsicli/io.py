@@ -51,16 +51,13 @@ def get_attributes(data: list[dict[str, Any]], all_elements: bool = True) -> lis
 		attributes_set |= set(element)
 		if not all_elements:
 			break
-	if config.attributes:
-		attributes = [attr for attr in config.attributes if attr in attributes_set]
-	else:
-		attributes = sorted(list(attributes_set))
-		if len(attributes) > 1:
-			try:
-				# Move attribute id to first position
-				attributes.insert(0, attributes.pop(attributes.index("id")))
-			except ValueError:
-				pass
+	attributes = sorted(list(attributes_set))
+	if len(attributes) > 1:
+		try:
+			# Move attribute id to first position
+			attributes.insert(0, attributes.pop(attributes.index("id")))
+		except ValueError:
+			pass
 	return attributes
 
 
@@ -259,6 +256,11 @@ def write_output(data: Any, metadata: Metadata | None = None, default_output_for
 			metadata = Metadata(attributes=[Attribute(id=key) for key in get_attributes(data)])
 		else:
 			raise RuntimeError(f"Output-format {config.output_format!r} does not support stucture {stt!r}")
+
+	if config.attributes and config.attributes != ['all']:
+		ordered_list = [attr for config_attribute in config.attributes for attr in metadata.attributes if attr.id == config_attribute]
+		remaining_list = [attr for attr in metadata.attributes if attr.id not in config.attributes]
+		metadata.attributes = ordered_list + remaining_list
 
 	if output_format in ("table"):
 		assert metadata
