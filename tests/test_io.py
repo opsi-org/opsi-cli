@@ -61,7 +61,7 @@ def test_output(output_format: str, string: str, data: Any, capsys: CaptureFixtu
 	(["b", "c", "a"], ["c", "a", "b"]),
 	(["b", "c", "a"], ["a", "b", "c"])
 ])
-def test_attributes_ordering(config_attributes:list[str], initial_order:list[str]):
+def test_attributes_ordering(config_attributes: list[str], initial_order: list[str]):
 	data = [{"a": "testdata1_a", "b": "testdata1_b", "c": "testdata1_c"}, {"a": "testdata2_a", "b": "testdata2_b", "c": "testdata2_c"}]
 	old_config_attribute = config.get_values().get("attributes")
 	config.set_values({"attributes": config_attributes})
