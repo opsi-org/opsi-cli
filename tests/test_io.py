@@ -22,6 +22,8 @@ from opsicli.io import (
 	read_input_raw_str,
 	write_output,
 	write_output_raw,
+	Metadata,
+	Attribute
 )
 from tests.utils import run_cli, temp_context
 
@@ -52,6 +54,24 @@ def test_output(output_format: str, string: str, data: Any, capsys: CaptureFixtu
 	config.set_values({"output_format": old_output_format})
 	captured = capsys.readouterr()
 	assert captured.out == string
+
+
+@pytest.mark.parametrize("config_attributes, initial_order", [
+	(["all"], ["c", "a", "b"]),
+	(["b", "c", "a"], ["c", "a", "b"]),
+	(["b", "c", "a"], ["a", "b", "c"])
+])
+def test_attributes_ordering(config_attributes:list[str], initial_order:list[str]):
+	data = [{"a": "testdata1_a", "b": "testdata1_b", "c": "testdata1_c"}, {"a": "testdata2_a", "b": "testdata2_b", "c": "testdata2_c"}]
+	old_config_attribute = config.get_values().get("attributes")
+	config.set_values({"attributes": config_attributes})
+	metadata = Metadata(attributes=[Attribute(id=id) for id in initial_order])
+	write_output(data, metadata)
+	if config_attributes == ["all"]:
+		assert [attr.id for attr in metadata.attributes] == initial_order
+	else:
+		assert [attr.id for attr in metadata.attributes] == config_attributes
+	config.set_values({"attributes": old_config_attribute})
 
 
 # msgpack output is not encoded to be read in terminal -> not tested here!
