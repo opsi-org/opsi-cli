@@ -57,7 +57,6 @@ passlib = "^1.7.4"
 pydantic = "^2.5.1"
 
 [tool.poetry.dev-dependencies]
-flake8 = "^6.0"
 isort = "^5.10"
 mypy = "^1.4"
 pyinstaller = "^5.5"
