@@ -257,7 +257,7 @@ def write_output(data: Any, metadata: Metadata | None = None, default_output_for
 		else:
 			raise RuntimeError(f"Output-format {config.output_format!r} does not support stucture {stt!r}")
 
-	if config.attributes and config.attributes != ['all']:
+	if metadata is not None and config.attributes and config.attributes != ["all"]:
 		ordered_list = [attr for config_attribute in config.attributes for attr in metadata.attributes if attr.id == config_attribute]
 		remaining_list = [attr for attr in metadata.attributes if attr.id not in config.attributes]
 		metadata.attributes = ordered_list + remaining_list

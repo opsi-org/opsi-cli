@@ -12,6 +12,8 @@ from _pytest.capture import CaptureFixture
 
 from opsicli.config import config
 from opsicli.io import (
+	Attribute,
+	Metadata,
 	input_file_bin,
 	input_file_str,
 	output_file_bin,
@@ -22,8 +24,6 @@ from opsicli.io import (
 	read_input_raw_str,
 	write_output,
 	write_output_raw,
-	Metadata,
-	Attribute
 )
 from tests.utils import run_cli, temp_context
 
@@ -56,12 +56,10 @@ def test_output(output_format: str, string: str, data: Any, capsys: CaptureFixtu
 	assert captured.out == string
 
 
-@pytest.mark.parametrize("config_attributes, initial_order", [
-	(["all"], ["c", "a", "b"]),
-	(["b", "c", "a"], ["c", "a", "b"]),
-	(["b", "c", "a"], ["a", "b", "c"])
-])
-def test_attributes_ordering(config_attributes: list[str], initial_order: list[str]):
+@pytest.mark.parametrize(
+	"config_attributes, initial_order", [(["all"], ["c", "a", "b"]), (["b", "c", "a"], ["c", "a", "b"]), (["b", "c", "a"], ["a", "b", "c"])]
+)
+def test_attributes_ordering(config_attributes: list[str], initial_order: list[str]) -> None:
 	data = [{"a": "testdata1_a", "b": "testdata1_b", "c": "testdata1_c"}, {"a": "testdata2_a", "b": "testdata2_b", "c": "testdata2_c"}]
 	old_config_attribute = config.get_values().get("attributes")
 	config.set_values({"attributes": config_attributes})
