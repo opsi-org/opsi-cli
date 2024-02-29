@@ -197,8 +197,8 @@ def install_python_package(target_dir: Path, package: dict[str, str]) -> None:
 	)
 
 	def monkeypatched_make_multiple(
-		self: ScriptMaker,
-		specifications: list[str],
+		self: ScriptMaker,  # pylint: disable=unused-argument
+		specifications: list[str],  # pylint: disable=unused-argument
 		options: dict[str, Any] | None = None,  # pylint: disable=unused-argument
 	) -> list:
 		return []
