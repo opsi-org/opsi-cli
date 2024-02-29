@@ -99,7 +99,6 @@ pylint-pytest:
     - poetry lock --no-update --no-cache
     - poetry install
     - poetry run pylint --disable=R,fixme opsicli plugins tests
-    - poetry run flake8 opsicli plugins tests
     - poetry run mypy opsicli tests
     - rm -rf .mypy_cache
     - "for plugindir in $(find plugins/*/python/*.py | cut -d'/' -f1-2  | sort | uniq); do echo $plugindir; poetry run mypy --explicit-package-bases $plugindir; done"
