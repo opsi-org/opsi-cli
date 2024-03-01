@@ -18,7 +18,7 @@ from opsicli.config import config
 logger = get_logger("opsicli")
 
 
-class Cache(metaclass=Singleton):  # pylint: disable=too-few-public-methods
+class Cache(metaclass=Singleton):
 	def __init__(self) -> None:
 		self._cache_file: Path = config.user_lib_dir / "cache.json"
 		self._data: dict[str, Any] = {}
@@ -38,8 +38,8 @@ class Cache(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 		if self._cache_file.exists():
 			with open(self._cache_file, "rb") as file:
 				try:
-					self._data = orjson.loads(file.read()) or {}  # pylint: disable=no-member
-				except orjson.JSONDecodeError:  # pylint: disable=no-member
+					self._data = orjson.loads(file.read()) or {}
+				except orjson.JSONDecodeError:
 					self._data = {}
 		self._loaded = True
 		self._modified = False
@@ -50,7 +50,7 @@ class Cache(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 			self._cache_file.parent.mkdir(parents=True)
 		with open(self._cache_file, "wb") as file:
 			self._cache_file.chmod(0o600)
-			file.write(orjson.dumps(self._data))  # pylint: disable=no-member
+			file.write(orjson.dumps(self._data))
 		self._modified = False
 
 	def get(self, name: str, default: Any = None) -> Any:

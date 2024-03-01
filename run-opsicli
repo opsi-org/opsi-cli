@@ -15,7 +15,7 @@ except SystemExit as err:
 except KeyboardInterrupt:
 	print("Interrupted", file=sys.stderr)
 	sys.exit(1)
-except Exception:  # pylint: disable=broad-except
+except Exception:
 	# Do not let pyinstaller handle exceptions and print:
 	# "Failed to execute script run-opsiconfd"
 	traceback.print_exc()

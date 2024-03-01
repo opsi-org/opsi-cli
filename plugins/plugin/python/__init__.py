@@ -32,7 +32,7 @@ logger = get_logger("opsicli")
 
 @click.group(name="plugin", short_help="Manage opsi-cli plugins")
 @click.version_option(__version__, message="opsi plugin, version %(version)s")
-def cli() -> None:  # pylint: disable=unused-argument
+def cli() -> None:
 	"""
 	opsi-cli plugin command.
 	This command is used to add, remove, list or export plugins to opsi-cli.

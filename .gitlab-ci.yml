@@ -82,7 +82,7 @@ pytest-linux:
       - coverage_linux
     expire_in: 3 days
 
-pylint-pytest:
+lint-pytest:
   stage: test_python
   needs:
     # We want to combine test coverage from all test jobs
@@ -98,7 +98,7 @@ pylint-pytest:
     - apt-get --yes install sqlite3
     - poetry lock --no-update --no-cache
     - poetry install
-    - poetry run pylint --disable=R,fixme opsicli plugins tests
+    - poetry run ruff check opsicli tests
     - poetry run mypy opsicli tests
     - rm -rf .mypy_cache
     - "for plugindir in $(find plugins/*/python/*.py | cut -d'/' -f1-2  | sort | uniq); do echo $plugindir; poetry run mypy --explicit-package-bases $plugindir; done"

@@ -22,7 +22,7 @@ logger = get_logger("opsicli")
 
 @click.group(name="config", short_help="Manage opsi-cli configuration")
 @click.version_option(__version__, message="config plugin, version %(version)s")
-def cli() -> None:  # pylint: disable=unused-argument
+def cli() -> None:
 	"""
 	opsi-cli config command.
 	This command is used to manage opsi-cli configuration.
@@ -50,9 +50,7 @@ def config_list() -> None:
 	write_output(data, metadata)
 
 
-def complete_config_item_name(
-	ctx: click.Context, param: click.Parameter, incomplete: str  # pylint: disable=unused-argument
-) -> list[CompletionItem]:
+def complete_config_item_name(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
 	items = []
 	for item in config.get_config_items():
 		if item.name.startswith(incomplete):

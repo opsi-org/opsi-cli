@@ -77,7 +77,7 @@ option_scan = click.option(
 )
 
 
-def _metafile_update(  # pylint: disable=redefined-builtin
+def _metafile_update(
 	directory: Path, read: bool, format: list[str] | None = None, repository_name: str | None = None, scan: bool = False
 ) -> None:
 	current_meta_files = list(directory.glob("packages.*"))
@@ -108,7 +108,7 @@ def _metafile_update(  # pylint: disable=redefined-builtin
 @option_format
 @option_repository_name
 @option_scan
-def metafile_create(directory: Path, format: list[str], repository_name: str, scan: bool) -> None:  # pylint: disable=redefined-builtin
+def metafile_create(directory: Path, format: list[str], repository_name: str, scan: bool) -> None:
 	"""
 	This command creates metadata files in the specified directory.
 	"""
@@ -120,7 +120,7 @@ def metafile_create(directory: Path, format: list[str], repository_name: str, sc
 @option_format
 @option_repository_name
 @option_scan
-def metafile_update(directory: Path, format: list[str], repository_name: str, scan: bool) -> None:  # pylint: disable=redefined-builtin
+def metafile_update(directory: Path, format: list[str], repository_name: str, scan: bool) -> None:
 	"""
 	This command updates metadata files in the specified directory.
 	"""
@@ -129,7 +129,7 @@ def metafile_update(directory: Path, format: list[str], repository_name: str, sc
 
 @metafile.command(short_help="Scan for opsi packages and update repository metadata files.", name="scan-packages")
 @argument_directory
-def metafile_scan_packages(directory: Path) -> None:  # pylint: disable=redefined-builtin
+def metafile_scan_packages(directory: Path) -> None:
 	"""
 	This command scans for opsi packages in the specified directory and updates the metadata files.
 	"""

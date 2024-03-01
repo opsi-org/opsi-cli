@@ -31,8 +31,11 @@ COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE"
 
 if not COMPLETION_MODE:
 	import rich_click as click  # type: ignore[import,no-redef]
-	from rich_click.rich_click import rich_abort_error  # type: ignore[import]
-	from rich_click.rich_click import rich_format_error, rich_format_help
+	from rich_click.rich_click import (
+		rich_abort_error,  # type: ignore[import]
+		rich_format_error,
+		rich_format_help,
+	)
 else:
 	# Loads faster
 	import click  # type: ignore[import,no-redef]
@@ -70,7 +73,7 @@ logger = get_logger("opsicli")
 
 # https://click.palletsprojects.com/en/8.1.x/commands/#custom-multi-commands
 class OpsiCLI(click.MultiCommand):  # type: ignore
-	def main(  # pylint: disable=inconsistent-return-statements
+	def main(
 		self,
 		args: Sequence[str] | None = None,
 		prog_name: str | None = None,
@@ -96,7 +99,7 @@ class OpsiCLI(click.MultiCommand):  # type: ignore
 		except OpsiCliRuntimeError as opsiclierror:
 			logger.error(opsiclierror, exc_info=False)  # Avoid gigantic traceback here
 			sys.exit(1)
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.error(err, exc_info=True)
 			if not isinstance(err, ClickException):
 				err = ClickException(str(err))
@@ -163,7 +166,7 @@ class LogLevel(click.ParamType):
 @config.get_click_option("username", short_option="-u")
 @config.get_click_option("password", short_option="-p")
 @config.get_click_option("dry_run", long_option="--dry-run/--no-dry-run")
-def main(*args: str, **kwargs: str) -> None:  # pylint: disable=unused-argument
+def main(*args: str, **kwargs: str) -> None:
 	"""
 	opsi command line interface\n
 	Plugins are dynamically loaded from a subfolder

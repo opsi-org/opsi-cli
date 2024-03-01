@@ -28,7 +28,7 @@ logger = get_logger("opsicli")
 
 @dataclass
 class Attribute:
-	id: str  # pylint: disable=invalid-name
+	id: str
 	description: str | None = None
 	identifier: bool = False
 	selected: bool = True
@@ -115,7 +115,7 @@ def get_console(file: IO[str] | None = None) -> Console:
 	return Console(file=file, color_system="auto" if config.color else None)
 
 
-def prompt(  # pylint: disable=too-many-arguments
+def prompt(
 	text: str,
 	return_type: type = str,
 	password: bool = False,
@@ -216,9 +216,9 @@ def write_output_json(data: Any, metadata: Metadata | None = None, pretty: bool 
 
 	option = 0
 	if pretty and not output_file_is_a_tty():
-		option |= orjson.OPT_APPEND_NEWLINE | orjson.OPT_INDENT_2  # pylint: disable=no-member
+		option |= orjson.OPT_APPEND_NEWLINE | orjson.OPT_INDENT_2
 
-	json = orjson.dumps(  # pylint: disable=no-member
+	json = orjson.dumps(
 		{"metadata": metadata.as_dict(), "data": data} if config.metadata and metadata else data, default=to_string, option=option
 	)
 
@@ -343,7 +343,7 @@ def read_input_msgpack(data: bytes) -> Any:
 
 
 def read_input_json(data: bytes) -> Any:
-	data = orjson.loads(data)  # pylint: disable=no-member
+	data = orjson.loads(data)
 	if isinstance(data, dict) and "metadata" in data and "data" in data and not config.metadata:
 		return data["data"]
 	return data
@@ -381,6 +381,6 @@ def read_input() -> Any:
 		try:
 			logger.debug("Trying json")
 			return read_input_json(data)
-		except orjson.JSONDecodeError:  # pylint: disable=no-member
+		except orjson.JSONDecodeError:
 			logger.debug("Trying csv")
 			return read_input_csv(data)

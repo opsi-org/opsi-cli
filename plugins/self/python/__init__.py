@@ -67,7 +67,7 @@ def get_binary_path(system: bool = False) -> Path:
 
 @click.group(name="self", short_help="Manage opsi-cli")
 @click.version_option(__version__, message="self plugin, version %(version)s")
-def cli() -> None:  # pylint: disable=unused-argument
+def cli() -> None:
 	"""
 	opsi-cli self command.
 	This command is used to manage opsi-cli.
@@ -116,7 +116,7 @@ def get_running_shell() -> str:
 	hidden=True,
 )
 @click.pass_context
-def setup_shell_completion(ctx: click.Context, shell: str, completion_file: Path) -> None:  # pylint: disable=too-many-branches
+def setup_shell_completion(ctx: click.Context, shell: str, completion_file: Path) -> None:
 	"""
 	opsi-cli self setup_shell_completion subcommand.
 	"""

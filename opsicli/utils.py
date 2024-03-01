@@ -41,9 +41,7 @@ def encrypt(cleartext: str) -> str:
 	for num, char in enumerate(cleartext):
 		key_c = key[num % len(key)]
 		cipher += chr((ord(char) + ord(key_c)) % 256)
-	return "{crypt}" + base64.urlsafe_b64encode(
-		f"{key}:{cipher}".encode("utf-8")
-	).decode("ascii")
+	return "{crypt}" + base64.urlsafe_b64encode(f"{key}:{cipher}".encode("utf-8")).decode("ascii")
 
 
 def decrypt(cipher: str) -> str:
@@ -70,15 +68,13 @@ def add_to_env_variable(key: str, value: str, system: bool = False) -> None:
 	if key.upper() != "PATH":
 		raise NotImplementedError("Only PATH is currently supported")
 
-	import winreg  # pylint: disable=import-outside-toplevel,import-error
+	import winreg
 
 	import win32process  # type: ignore[import] # pylint: disable=import-outside-toplevel,import-error
 
 	key_handle = winreg.CreateKey(  # type: ignore[attr-defined]
 		winreg.HKEY_LOCAL_MACHINE if system else winreg.HKEY_CURRENT_USER,  # type: ignore[attr-defined]
-		r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment"
-		if system
-		else r"Environment",
+		r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment" if system else r"Environment",
 	)
 	try:
 		if win32process.IsWow64Process():
@@ -89,13 +85,7 @@ def add_to_env_variable(key: str, value: str, system: bool = False) -> None:
 			cur_reg_values = reg_value.split(";")
 			# Do some cleanup also.
 			# Remove empty values and values containing "pywin32_system32" and "opsi"
-			reg_values = list(
-				dict.fromkeys(
-					v
-					for v in cur_reg_values
-					if v and not ("pywin32_system32" in v and "opsi" in v)
-				)
-			)
+			reg_values = list(dict.fromkeys(v for v in cur_reg_values if v and not ("pywin32_system32" in v and "opsi" in v)))
 			if value.lower() in (v.lower() for v in reg_values):
 				logger.info("%r already in environment variable %r", value, key)
 			else:
@@ -124,7 +114,7 @@ def stream_wrap() -> Iterator[None]:
 		try:
 			tty.setraw(sys.stdin.fileno())  # Set raw mode to access char by char
 			yield
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, attrs)
 			print(err, file=sys.stderr)
 		else:
@@ -136,14 +126,12 @@ def user_is_admin() -> bool:
 	try:
 		return os.geteuid() == 0
 	except AttributeError:
-		import ctypes  # pylint: disable=import-outside-toplevel
+		import ctypes
 
 		return ctypes.windll.shell32.IsUserAnAdmin() != 0  # type: ignore[attr-defined]
 
 
-def evaluate_rpc_dict_result(
-	result: dict[str, dict[str, str | None]], log_success: bool = True
-) -> int:
+def evaluate_rpc_dict_result(result: dict[str, dict[str, str | None]], log_success: bool = True) -> int:
 	num_success = 0
 	for key, response in result.items():
 		if response.get("error"):
@@ -156,7 +144,7 @@ def evaluate_rpc_dict_result(
 
 
 def download(url: str, destination: Path, make_executable: bool = False) -> Path:
-	import requests  # pylint: disable=import-outside-toplevel
+	import requests
 
 	new_file = destination / url.split("/")[-1]
 	response = requests.get(url, stream=True, timeout=30)
@@ -186,7 +174,7 @@ def replace_binary(current: Path, new: Path) -> None:
 	shutil.move(current, backup_path)
 	try:
 		shutil.move(new, current)
-	except Exception as error:  # pylint: disable=broad-except
+	except Exception as error:
 		logger.error("Failed to move binary to '%s'.", error)
 		logger.warning("Restoring backup.")
 		shutil.move(backup_path, current)

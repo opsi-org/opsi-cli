@@ -23,7 +23,7 @@ from _pytest.nodes import Item
 from . import OPSI_HOSTNAME
 
 
-def emit(*args: Any, **kwargs: Any) -> None:  # pylint: disable=unused-argument
+def emit(*args: Any, **kwargs: Any) -> None:
 	pass
 
 
@@ -59,7 +59,7 @@ def admin_permissions() -> bool:
 	try:
 		return os.geteuid() == 0
 	except AttributeError:
-		import ctypes  # pylint: disable=import-outside-toplevel
+		import ctypes
 
 		return ctypes.windll.shell32.IsUserAnAdmin() != 0  # type: ignore[attr-defined]
 

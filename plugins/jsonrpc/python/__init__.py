@@ -36,7 +36,7 @@ def cache_interface(interface: list[dict[str, Any]]) -> None:
 
 @click.group(name="jsonrpc", short_help="opsi JSONRPC client")
 @click.version_option(__version__, message="jsonrpc plugin, version %(version)s")
-def cli() -> None:  # pylint: disable=unused-argument
+def cli() -> None:
 	"""
 	opsi-cli jsonrpc command.
 	This command is used to execute JSONRPC requests on an opsi service.
@@ -68,9 +68,7 @@ def methods() -> None:
 	write_output(cache.get("jsonrpc-interface-raw"), metadata=metadata, default_output_format="table")
 
 
-def complete_methods(
-	ctx: click.Context, param: click.Parameter, incomplete: str  # pylint: disable=unused-argument
-) -> list[CompletionItem]:
+def complete_methods(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
 	interface = cache.get("jsonrpc-interface")
 	if not interface:
 		return []
@@ -81,7 +79,7 @@ def complete_methods(
 	return items
 
 
-def complete_params(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:  # pylint: disable=unused-argument
+def complete_params(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
 	interface = cache.get("jsonrpc-interface")
 	if not interface:
 		return []
@@ -101,7 +99,7 @@ def complete_params(ctx: click.Context, param: click.Parameter, incomplete: str)
 @cli.command(short_help="Execute JSONRPC")
 @click.argument("method", type=str, shell_complete=complete_methods)
 @click.argument("params", type=str, nargs=-1, shell_complete=complete_params)
-def execute(method: str, params: list[str] | None = None) -> None:  # pylint: disable=too-many-branches
+def execute(method: str, params: list[str] | None = None) -> None:
 	"""
 	opsi-cli jsonrpc execute subcommand.
 	"""
@@ -110,9 +108,9 @@ def execute(method: str, params: list[str] | None = None) -> None:  # pylint: di
 		params = list(params)
 		for idx, param in enumerate(params):
 			try:
-				params[idx] = orjson.loads(param)  # pylint: disable=no-member
-			except orjson.JSONDecodeError:  # pylint: disable=no-member
-				params[idx] = orjson.loads(f'"{param}"')  # pylint: disable=no-member
+				params[idx] = orjson.loads(param)
+			except orjson.JSONDecodeError:
+				params[idx] = orjson.loads(f'"{param}"')
 	else:
 		params = []
 
