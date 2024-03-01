@@ -16,7 +16,7 @@ from opsicli.__main__ import main
 from opsicli.config import config
 from opsicli.opsiservice import ServiceClient
 
-from . import OPSI_HOSTNAME
+from . import OPSI_HOSTNAME, OPSI_PASSWORD, OPSI_USERNAME
 
 runner = CliRunner()
 
@@ -117,8 +117,8 @@ def container_connection() -> Generator[None, None, None]:
 	old_password = config.get_values().get("password")
 	old_service = config.get_values().get("service")
 	try:
-		config.set_values({"username": "adminuser"})
-		config.set_values({"password": "vhahd8usaz"})
+		config.set_values({"username": OPSI_USERNAME})
+		config.set_values({"password": OPSI_PASSWORD})
 		config.set_values({"service": f"https://{OPSI_HOSTNAME}:4447"})
 		yield
 	finally:

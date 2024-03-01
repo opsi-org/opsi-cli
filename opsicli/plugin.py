@@ -125,7 +125,7 @@ class PluginManager(metaclass=Singleton):
 			if (plugin_base_dir / name).exists():
 				logger.debug("Found plugin %s at %s", name, plugin_base_dir / name)
 				return plugin_base_dir / name
-		raise FileNotFoundError(f"Did not find plugin {str}")
+		raise FileNotFoundError(f"Did not find plugin '{name}'.")
 
 	def load_plugin(self, name: str) -> OPSICLIPlugin:
 		plugin_dir = self.get_plugin_dir(name)
@@ -138,7 +138,7 @@ class PluginManager(metaclass=Singleton):
 					plugin.on_load()
 				# Only one class per module
 				return plugin
-		raise RuntimeError(f"Failed to load plugin {name}.")
+		raise RuntimeError(f"Failed to load plugin '{name}'.")
 
 
 plugin_manager = PluginManager()
@@ -197,7 +197,9 @@ def install_python_package(target_dir: Path, package: dict[str, str]) -> None:
 	)
 
 	def monkeypatched_make_multiple(
-		self: ScriptMaker, specifications: list[str], options: dict[str, Any] | None = None  # pylint: disable=unused-argument
+		self: ScriptMaker,  # pylint: disable=unused-argument
+		specifications: list[str],  # pylint: disable=unused-argument
+		options: dict[str, Any] | None = None,  # pylint: disable=unused-argument
 	) -> list:
 		return []
 
