@@ -42,9 +42,7 @@ logger = get_logger("opsicli")
 
 
 class SetActionRequestWorker(ClientActionWorker):
-	def __init__(
-		self, args: ClientActionArgs
-	) -> None:
+	def __init__(self, args: ClientActionArgs) -> None:
 		super().__init__(args)
 		self.products: list[str] = []
 		self.products_with_only_uninstall: list[str] = []
@@ -74,7 +72,7 @@ class SetActionRequestWorker(ClientActionWorker):
 			raise ValueError(f"Product group '{group}' not found")
 		return [mapping["objectId"] for mapping in self.service.jsonrpc("objectToGroup_getObjects", [[], {"groupId": result[0]["id"]}])]
 
-	def determine_products(  # pylint: disable=too-many-arguments
+	def determine_products(
 		self,
 		*,
 		products_string: str | None = None,
@@ -191,7 +189,7 @@ class SetActionRequestWorker(ClientActionWorker):
 				new_pocs.extend(self.set_single_action_request(poc, request_type or self.request_type, force=force))
 		return new_pocs
 
-	def set_action_request(self, **kwargs: str) -> None:  # pylint: disable=too-many-branches
+	def set_action_request(self, **kwargs: str) -> None:
 		if config.dry_run:
 			logger.notice("Operating in dry-run mode - not performing any actions")
 

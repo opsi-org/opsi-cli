@@ -40,7 +40,7 @@ from opsicli.opsiservice import get_service_connection
 from opsicli.utils import stream_wrap
 
 if platform.system().lower() == "windows":
-	import msvcrt  # pylint: disable=import-error
+	import msvcrt
 
 CHANNEL_SUB_TIMEOUT = 5.0
 JSONRPC_TIMEOUT = 15.0
@@ -58,7 +58,7 @@ def log_message(message: Message) -> None:
 	# logger.devel(debug_string)  # for test_messagebus.py
 
 
-class MessagebusConnection(MessagebusListener):  # pylint: disable=too-many-instance-attributes
+class MessagebusConnection(MessagebusListener):
 	def __init__(self) -> None:
 		MessagebusListener.__init__(self)
 		self.channel_subscription_locks: dict[str, Event] = {}
@@ -75,7 +75,7 @@ class MessagebusConnection(MessagebusListener):  # pylint: disable=too-many-inst
 				callback(message)
 			else:
 				logger.debug("No available callback for event of message %r", message.type)
-		except Exception as err:  # pylint: disable=broad-except
+		except Exception as err:
 			logger.error(err, exc_info=True)
 
 	def _on_channel_subscription_event(self, message: ChannelSubscriptionEventMessage) -> None:
@@ -118,7 +118,7 @@ class MessagebusConnection(MessagebusListener):  # pylint: disable=too-many-inst
 				self.service_client.disconnect_messagebus()
 
 
-class JSONRPCMessagebusConnection(MessagebusConnection):  # pylint: disable=too-many-instance-attributes
+class JSONRPCMessagebusConnection(MessagebusConnection):
 	def __init__(self) -> None:
 		MessagebusConnection.__init__(self)
 		self.jsonrpc_response_events: dict[str | int, Event] = {}
@@ -158,7 +158,7 @@ class JSONRPCMessagebusConnection(MessagebusConnection):  # pylint: disable=too-
 		return results
 
 
-class ProcessMessagebusConnection(MessagebusConnection):  # pylint: disable=too-many-instance-attributes
+class ProcessMessagebusConnection(MessagebusConnection):
 	def __init__(self) -> None:
 		MessagebusConnection.__init__(self)
 		self.process_stop_events: dict[str, Event] = {}

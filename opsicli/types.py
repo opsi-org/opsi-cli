@@ -63,7 +63,7 @@ class Attributes(list):
 		super().__init__(value)
 
 
-class Bool:  # pylint: disable=too-few-public-methods
+class Bool:
 	click_type = bool
 
 	def __new__(cls: Type[Bool], value: Any) -> bool:  # type: ignore[misc]
@@ -72,7 +72,7 @@ class Bool:  # pylint: disable=too-few-public-methods
 		return bool(value)
 
 
-class OPSIServiceUrl(str):  # pylint: disable=too-few-public-methods
+class OPSIServiceUrl(str):
 	def __new__(cls: Type[OPSIServiceUrl], value: str) -> OPSIServiceUrl:
 		value = str(value)
 		if "://" not in value:
@@ -85,14 +85,14 @@ class OPSIServiceUrl(str):  # pylint: disable=too-few-public-methods
 		return super().__new__(cls, value)
 
 
-class OPSIServiceUrlOrServiceName(str):  # pylint: disable=too-few-public-methods
+class OPSIServiceUrlOrServiceName(str):
 	def __new__(cls: Type[OPSIServiceUrlOrServiceName], value: str) -> OPSIServiceUrl | str:  # type: ignore[misc]
 		if value.startswith("http://") or value.startswith("https://"):
 			return OPSIServiceUrl(value)
 		return value
 
 
-class Password(str):  # pylint: disable=too-few-public-methods
+class Password(str):
 	def __new__(cls: Type[Password], value: str | None) -> Password:
 		return super().__new__(cls, value or "")
 

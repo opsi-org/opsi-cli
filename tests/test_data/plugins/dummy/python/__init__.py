@@ -37,7 +37,7 @@ def libtest() -> None:
 
 
 class DummyPlugin(OPSICLIPlugin):
-	id: str = "dummy"  # pylint: disable=invalid-name
+	id: str = "dummy"
 	name: str = "Dummy"
 	description: str = "A dummy plugin"
 	version: str = __version__

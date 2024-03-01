@@ -6,10 +6,6 @@ general configuration
 """
 
 import os
-
-COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE" in os.environ
-
-# pylint: disable=wrong-import-position
 import platform
 import sys
 from copy import deepcopy
@@ -18,20 +14,22 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Callable
 
+COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE" in os.environ
+
 if COMPLETION_MODE:
 	# Loads faster
 	import click
 else:
 	import rich_click as click  # type: ignore[import,no-redef]
 
-from click.core import ParameterSource  # type: ignore[import]
-from click.shell_completion import (  # type: ignore[import]
+from click.core import ParameterSource  # noqa: E402
+from click.shell_completion import (  # noqa: E402
 	CompletionItem,
 	ShellComplete,
 	add_completion_class,
 	split_arg_string,
 )
-from opsicommon.logging import (  # type: ignore[import]
+from opsicommon.logging import (  # noqa: E402
 	DEFAULT_COLORED_FORMAT,
 	DEFAULT_FORMAT,
 	LOG_ESSENTIAL,
@@ -40,10 +38,10 @@ from opsicommon.logging import (  # type: ignore[import]
 	logging_config,
 	secret_filter,
 )
-from opsicommon.utils import Singleton  # type: ignore[import]
-from ruamel.yaml import YAML  # type: ignore[import]
+from opsicommon.utils import Singleton  # noqa: E402
+from ruamel.yaml import YAML  # noqa: E402  # type: ignore[import]
 
-from opsicli.types import (
+from opsicli.types import (  # noqa: E402
 	Attributes,
 	Bool,
 	Directory,
@@ -101,7 +99,7 @@ logging_config(stderr_level=LOG_ESSENTIAL, file_level=LOG_NONE)
 
 
 @dataclass
-class ConfigValue:  # pylint: disable=too-many-instance-attributes
+class ConfigValue:
 	type: Any
 	value: Any
 	source: ConfigValueSource | None = None
@@ -125,7 +123,7 @@ class ConfigValue:  # pylint: disable=too-many-instance-attributes
 
 
 @dataclass
-class ConfigItem:  # pylint: disable=too-many-instance-attributes
+class ConfigItem:
 	name: str
 	type: Any
 	multiple: bool = False
@@ -178,10 +176,10 @@ class ConfigItem:  # pylint: disable=too-many-instance-attributes
 			self.__dict__[name] = value
 
 	def set_value(self, value: Any, source: ConfigValueSource | None = None) -> None:
-		self._set_value("value", value, source)  # pylint: disable=unnecessary-dunder-call
+		self._set_value("value", value, source)
 
 	def set_default(self, value: Any) -> None:
-		self._set_value("default", value, ConfigValueSource.DEFAULT)  # pylint: disable=unnecessary-dunder-call
+		self._set_value("default", value, ConfigValueSource.DEFAULT)
 
 	def _add_value(self, attribute: str, value: Any, source: ConfigValueSource | None = None) -> None:
 		if attribute not in ("default", "value"):
@@ -332,7 +330,7 @@ if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
 else:
 	_plugin_bundle_dir = Path("plugins").resolve()
 
-_plugin_system_dir = None  # pylint: disable=invalid-name
+_plugin_system_dir = None
 if platform.system().lower() == "linux":
 	_plugin_system_dir = Path("/var/lib/opsi-cli/plugins")
 
@@ -344,8 +342,8 @@ CONFIG_ITEMS.extend(
 	]
 )
 
-_config_file_system = None  # pylint: disable=invalid-name
-_config_file_user = None  # pylint: disable=invalid-name
+_config_file_system = None
+_config_file_user = None
 if platform.system().lower() == "windows":
 	# APPDATA points to ...\AppData\Roaming
 	_config_file_user = Path(os.getenv("APPDATA") or ".") / "opsi-cli" / "opsi-cli.yaml"
@@ -373,7 +371,7 @@ CONFIG_ITEMS.extend(
 )
 
 
-class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
+class Config(metaclass=Singleton):
 	def __init__(self) -> None:
 		self._options_processed: set[str] = set()
 		self._config: dict[str, ConfigItem] = {}
@@ -435,9 +433,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 							value = config_item.type.from_yaml(value)
 						config_item.set_value(value, source)
 
-	def write_config_files(  # pylint: disable=too-many-branches
-		self, sources: list[ConfigValueSource] | None = None, skip_keys: list[str] | None = None
-	) -> None:
+	def write_config_files(self, sources: list[ConfigValueSource] | None = None, skip_keys: list[str] | None = None) -> None:
 		logger.info("Writing config files")
 		for file_type in ("config_file_system", "config_file_user"):
 			config_file = getattr(self, file_type, None)
@@ -507,7 +503,7 @@ class Config(metaclass=Singleton):  # pylint: disable=too-few-public-methods
 		_kwargs.update(kwargs)
 		return click.option(*_args, **_kwargs)
 
-	def process_option(self, ctx: click.Context, param: click.Option, value: Any) -> None:  # pylint: disable=unused-argument
+	def process_option(self, ctx: click.Context, param: click.Option, value: Any) -> None:
 		if param.name is None:
 			return
 		param_source = ctx.get_parameter_source(param.name)

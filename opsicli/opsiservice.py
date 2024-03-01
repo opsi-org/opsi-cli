@@ -23,7 +23,7 @@ from opsicli.config import config
 from opsicli.io import prompt
 
 logger = get_logger("opsicli")
-jsonrpc_client = None  # pylint: disable=invalid-name
+jsonrpc_client = None
 SESSION_LIFETIME = 15  # seconds
 
 
@@ -49,7 +49,7 @@ def get_service_credentials_from_backend() -> tuple[str, str]:
 	else:
 		mysql_conf = Path("/etc/opsi/backends/mysql.conf")
 		loc: dict[str, Any] = {}
-		exec(compile(mysql_conf.read_bytes(), "<string>", "exec"), None, loc)  # pylint: disable=exec-used
+		exec(compile(mysql_conf.read_bytes(), "<string>", "exec"), None, loc)
 		cfg = loc["config"]
 		with subprocess.Popen(
 			[
@@ -79,7 +79,7 @@ def get_service_credentials_from_backend() -> tuple[str, str]:
 
 
 def get_service_connection() -> ServiceClient:
-	global jsonrpc_client  # pylint: disable=invalid-name,global-statement
+	global jsonrpc_client
 	if not jsonrpc_client:
 		address = config.service
 		username = config.username
@@ -99,12 +99,12 @@ def get_service_connection() -> ServiceClient:
 				try:
 					username = opsiconf.get("host", "id")
 					password = opsiconf.get("host", "key")
-				except Exception as error:  # pylint: disable=broad-except
+				except Exception as error:
 					logger.info("Failed to get credentials from opsi config file: %s", error)
 			if not username or not password and urlparse(address).hostname in ("localhost", "::1", "127.0.0.1"):
 				try:
 					username, password = get_service_credentials_from_backend()
-				except Exception as err:  # pylint: disable=broad-except
+				except Exception as err:
 					logger.warning(err)
 
 		if username and not password and config.interactive:

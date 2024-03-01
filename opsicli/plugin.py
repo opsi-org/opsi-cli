@@ -35,11 +35,11 @@ class OPSICLIPlugin:
 	cli: Command | None = None
 	flags: list[str] = []
 
-	def __init__(self, path: Path) -> None:  # pylint: disable=redefined-builtin
+	def __init__(self, path: Path) -> None:
 		self.path = path
 		self.data_path = self.path / "data"
 
-	def on_load(self) -> None:  # pylint: disable=unused-argument
+	def on_load(self) -> None:
 		"""Called after loading the plugin"""
 		return
 
@@ -189,17 +189,17 @@ def install_plugin(source_dir: Path, name: str, system: bool = False) -> Path:
 
 def install_python_package(target_dir: Path, package: dict[str, str]) -> None:
 	# These imports take ~0.25s
-	from pip._internal.commands.install import (  # pylint: disable=import-outside-toplevel
+	from pip._internal.commands.install import (
 		InstallCommand,
 	)
-	from pip._vendor.distlib.scripts import (  # pylint: disable=import-outside-toplevel
+	from pip._vendor.distlib.scripts import (
 		ScriptMaker,
 	)
 
 	def monkeypatched_make_multiple(
-		self: ScriptMaker,  # pylint: disable=unused-argument
-		specifications: list[str],  # pylint: disable=unused-argument
-		options: dict[str, Any] | None = None,  # pylint: disable=unused-argument
+		self: ScriptMaker,
+		specifications: list[str],
+		options: dict[str, Any] | None = None,
 	) -> list:
 		return []
 
