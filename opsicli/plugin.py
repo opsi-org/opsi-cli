@@ -4,6 +4,7 @@ opsi-cli Basic command line interface for opsi
 
 plugin handling
 """
+
 import importlib
 import os
 import shutil
