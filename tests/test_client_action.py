@@ -67,7 +67,7 @@ def test_set_action_request_group() -> None:
 			tmp_product(connection, PRODUCT1),
 			tmp_product(connection, PRODUCT2),
 		):
-			with tmp_host_group(connection, H_GROUP1, [CLIENT1, CLIENT2]), tmp_product_group(connection, P_GROUP, [PRODUCT1, PRODUCT2]):
+			with tmp_host_group(connection, H_GROUP1, {CLIENT1, CLIENT2}), tmp_product_group(connection, P_GROUP, [PRODUCT1, PRODUCT2]):
 				cmd = ["-l6", "client-action", "--client-groups", H_GROUP1, "set-action-request", "--product-groups", P_GROUP]
 
 				(code, _) = run_cli(cmd)
@@ -128,7 +128,7 @@ def test_set_action_request_excludes() -> None:
 			tmp_client(connection, CLIENT2),
 			tmp_product(connection, PRODUCT1),
 			tmp_product(connection, PRODUCT2),
-			tmp_host_group(connection, H_GROUP1, [CLIENT2]),
+			tmp_host_group(connection, H_GROUP1, {CLIENT2}),
 			tmp_product_group(connection, P_GROUP, [PRODUCT2]),
 		):
 			cmd = [
@@ -196,8 +196,8 @@ def test_nested_groups_client_selection() -> None:
 			tmp_client(connection, CLIENT1),
 			tmp_client(connection, CLIENT2),
 			tmp_product(connection, PRODUCT1),
-			tmp_host_group(connection, H_GROUP1, [CLIENT1]),
-			tmp_host_group(connection, H_GROUP2, [CLIENT2], parent=H_GROUP1),
+			tmp_host_group(connection, H_GROUP1, {CLIENT1}),
+			tmp_host_group(connection, H_GROUP2, {CLIENT2}, parent=H_GROUP1),
 		):
 			cmd = ["client-action", "--client-groups", H_GROUP1, "set-action-request", "--products", PRODUCT1]
 			(code, _) = run_cli(cmd)

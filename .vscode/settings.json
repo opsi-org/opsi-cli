@@ -20,7 +20,7 @@
 	"python.testing.pytestPath": ".venv/bin/pytest",
 	"python.testing.pytestArgs": [
 		"--cov-append",
-		"--cov=opsi-cli",
+		"--cov=opsicli",
 		"--cov-report=xml",
 		"tests"
 	],
