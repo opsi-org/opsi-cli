@@ -3,6 +3,10 @@ pyinstaller-poetry:
   #app_bundle: yes
   #bundle_identifier: org.opsi.opsi-cli
   strip: yes
+  extra_args:
+    # Do not use contents-directory for now
+    - "--contents-directory"
+    - "."
   before_script:
     - find plugins -name __pycache__ -exec rm -rf {} +
   hidden_imports:
