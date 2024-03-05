@@ -23,7 +23,7 @@ WAKEUP_TIMEOUT = 60.0
 class WakeupHostsMessagebusConnection(MessagebusConnection):
 	def __init__(self) -> None:
 		MessagebusConnection.__init__(self)
-		self.waiting_for_hosts: list[str] = []
+		self.waiting_for_hosts: set[str] = set()
 		self.hosts_found_event = Event()
 
 	# TerminalOpenEventMessage is not subclass of EventMessage!
@@ -35,7 +35,7 @@ class WakeupHostsMessagebusConnection(MessagebusConnection):
 			if not self.waiting_for_hosts:
 				self.hosts_found_event.set()
 
-	def wait_for_hosts(self, hosts: list[str], timeout: float | None = None, wakeup: bool = False) -> int:
+	def wait_for_hosts(self, hosts: set[str], timeout: float | None = None, wakeup: bool = False) -> int:
 		try:
 			self.waiting_for_hosts = hosts.copy()
 			with self.connection():
@@ -62,27 +62,27 @@ class WakeupHostsMessagebusConnection(MessagebusConnection):
 					logger.warning("%s: ERROR Did not respond in time", client)
 				return len(hosts) - len(not_reached)
 		finally:
-			self.waiting_for_hosts = []
+			self.waiting_for_hosts = set()
 			self.hosts_found_event.clear()
 
 
 class TriggerEventWorker(ClientActionWorker):
-	def divide_clients_by_reachable(self) -> tuple[list[str], list[str]]:
-		all_reachable = self.service.jsonrpc("host_getMessagebusConnectedIds")
-		selected_reachable = [entry for entry in self.clients if entry in all_reachable]
-		selected_unreachable = [entry for entry in self.clients if entry not in all_reachable]
+	def divide_clients_by_reachable(self) -> tuple[set[str], set[str]]:
+		all_reachable = set(self.service.jsonrpc("host_getMessagebusConnectedIds"))
+		selected_reachable = self.clients.intersection(all_reachable)
+		selected_unreachable = self.clients - selected_reachable
 		logger.info("Number of reachable selected clients: %s", len(selected_reachable))
 		logger.info("Number of not reachable selected clients: %s", len(selected_unreachable))
 		return selected_reachable, selected_unreachable
 
-	def trigger_event_on_clients(self, event: str, clients: list[str]) -> int:
+	def trigger_event_on_clients(self, event: str, clients: set[str]) -> int:
 		logger.notice("Triggering event %r on clients %s", event, clients)
 		if config.dry_run:
 			return 0
 		result = self.service.jsonrpc("hostControlSafe_fireEvent", [event, clients])
 		return evaluate_rpc_dict_result(result)
 
-	def wakeup_clients(self, clients: list[str]) -> int:
+	def wakeup_clients(self, clients: set[str]) -> int:
 		logger.notice("Waking up clients %s", clients)
 		if config.dry_run:
 			return 0

@@ -3,6 +3,7 @@ opsi-cli basic command line interface for opsi
 
 client_action_worker
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -10,6 +11,7 @@ from ipaddress import ip_network
 
 from opsicommon.logging import get_logger
 from opsicommon.utils import ip_address_in_network
+from opsicommon.types import forceHostId
 
 from opsicli.opsiservice import get_service_connection
 from opsicli.types import OpsiCliRuntimeError
@@ -41,7 +43,7 @@ class NoClientsSelected(OpsiCliRuntimeError):
 class ClientActionWorker:
 	def __init__(self, args: ClientActionArgs) -> None:
 		self.service = get_service_connection()
-		self.clients: list[str] = []
+		self.clients: set[str] = set()
 		self.group_forest: dict[str, Group] = {}
 		self.determine_clients(args)
 
@@ -77,32 +79,35 @@ class ClientActionWorker:
 		return result
 
 	def determine_clients(self, args: ClientActionArgs) -> None:
-		self.clients = []
-		if args.clients and "all" in args.clients:
-			self.clients = [entry["id"] for entry in self.service.jsonrpc("host_getObjects", [[], {"type": "OpsiClient"}])]
+		self.clients = set()
+		args.clients = (args.clients or "").lower()
+		if "all" in args.clients:
+			self.clients = {entry["id"] for entry in self.service.jsonrpc("host_getObjects", [[], {"type": "OpsiClient"}])}
 		else:
 			if args.clients:
-				self.clients.extend([entry.strip() for entry in args.clients.split(",")])
+				self.clients.update(forceHostId(entry.strip()) for entry in args.clients.split(","))
 			if args.client_groups:
 				for group in [entry.strip() for entry in args.client_groups.split(",")]:
-					self.clients.extend(self.client_ids_from_group(group))
+					self.clients.update(self.client_ids_from_group(group))
 			if args.ip_addresses:
 				for ip_address in args.ip_addresses.split(","):
-					self.clients.extend(self.client_ids_with_ip(ip_address))
+					self.clients.update(self.client_ids_with_ip(ip_address))
 
-		exclude_clients_list = []
+		exclude_clients = set()
 		if args.exclude_clients:
-			exclude_clients_list = [exclude.strip() for exclude in args.exclude_clients.split(",")]
+			exclude_clients = {forceHostId(exclude.strip()) for exclude in args.exclude_clients.split(",")}
 		if args.exclude_client_groups:
 			for group in [entry.strip() for entry in args.exclude_client_groups.split(",")]:
-				exclude_clients_list.extend(self.client_ids_from_group(group))
+				exclude_clients.update(self.client_ids_from_group(group))
 		if args.exclude_ip_addresses:
 			for ip_address in args.exclude_ip_addresses.split(","):
-				exclude_clients_list.extend(self.client_ids_with_ip(ip_address.strip()))
-		self.clients = [entry for entry in self.clients if entry not in exclude_clients_list]
+				exclude_clients.update(self.client_ids_with_ip(ip_address.strip()))
+		self.clients -= exclude_clients
 		if args.only_online:
-			reachable = self.service.jsonrpc("host_getMessagebusConnectedIds")
-			self.clients = [entry for entry in self.clients if entry in reachable]
+			reachable = set(self.service.jsonrpc("host_getMessagebusConnectedIds"))
+			self.clients.intersection_update(reachable)
+
 		if not self.clients:
 			raise NoClientsSelected("No clients selected")
+
 		logger.notice("Selected clients: %s", self.clients)
