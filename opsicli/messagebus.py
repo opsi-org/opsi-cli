@@ -7,12 +7,12 @@ from __future__ import annotations
 import platform
 import shutil
 import sys
-from contextlib import contextmanager
-from threading import Event, Lock
 import time
-from typing import Any, Generator, Literal
-from uuid import uuid4
+from contextlib import contextmanager
 from dataclasses import dataclass
+from threading import Event, Lock
+from typing import Any, Generator, Literal, cast
+from uuid import uuid4
 
 from opsicommon.client.opsiservice import MessagebusListener
 from opsicommon.logging import get_logger  # type: ignore[import]
@@ -37,9 +37,10 @@ from opsicommon.messagebus import (
 	TerminalOpenRequestMessage,
 )
 from opsicommon.system.info import is_windows
+
+from opsicli.io import get_console
 from opsicli.opsiservice import get_service_connection
 from opsicli.utils import stream_wrap
-from opsicli.io import get_console
 
 if platform.system().lower() == "windows":
 	import msvcrt
@@ -163,7 +164,7 @@ class JSONRPCMessagebusConnection(MessagebusConnection):
 
 @dataclass
 class MessagebusProcess:
-	start_request: ProcessStartRequestMessage | None = None
+	start_request: ProcessStartRequestMessage
 	start_event: ProcessStartEventMessage | None = None
 	stop_event: ProcessStopEventMessage | None = None
 	error: ProcessErrorMessage | None = None
@@ -192,8 +193,8 @@ class ProcessMessagebusConnection(MessagebusConnection):
 		self.output_encoding = "cp437" if is_windows() else "utf-8"
 		self.processes: dict[str, MessagebusProcess] = {}
 		self.process_state_lock = Lock()
-		self.process_wait_start = []
-		self.process_wait_stop = []
+		self.process_wait_start: list[str] = []
+		self.process_wait_stop: list[str] = []
 		self.max_buffer_size = 100_000
 		MessagebusConnection.__init__(self)
 
@@ -211,7 +212,7 @@ class ProcessMessagebusConnection(MessagebusConnection):
 				if idx == -1 and len(buffer) > self.max_buffer_size:
 					idx = self.max_buffer_size
 				if idx != -1:
-					self.write_out(process_id, buffer[: idx + 1], stream, process.locale_encoding)
+					self.write_out(process_id, buffer[: idx + 1], cast(Literal["stdout", "stderr"], stream), process.locale_encoding)
 					buffer = buffer[idx + 1 :]
 		except Exception as err:
 			logger.error(err, exc_info=True)
@@ -265,7 +266,7 @@ class ProcessMessagebusConnection(MessagebusConnection):
 			if self.show_host_names:
 				line_prefix = f"{self.get_host_name(process_id)}: ".encode(use_encoding or self.output_encoding)
 				data = b"\n".join(line_prefix + line if line else line for line in data.split(b"\n"))
-			if not raw_output:
+			if not raw_output and use_encoding:
 				data = data.decode(use_encoding).encode(self.output_encoding)
 			write(data)
 			flush()
