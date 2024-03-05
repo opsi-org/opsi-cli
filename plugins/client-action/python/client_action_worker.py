@@ -78,16 +78,18 @@ class ClientActionWorker:
 
 	def determine_clients(self, args: ClientActionArgs) -> None:
 		self.clients = []
-		if args.clients:
-			self.clients.extend([entry.strip() for entry in args.clients.split(",")])
-		if args.client_groups:
-			for group in [entry.strip() for entry in args.client_groups.split(",")]:
-				self.clients.extend(self.client_ids_from_group(group))
-		if args.ip_addresses:
-			for ip_address in args.ip_addresses.split(","):
-				self.clients.extend(self.client_ids_with_ip(ip_address))
-		if not args.clients and not args.client_groups and not args.ip_addresses or "all" in self.clients:  # select all clients
+		if args.clients and "all" in args.clients:
 			self.clients = [entry["id"] for entry in self.service.jsonrpc("host_getObjects", [[], {"type": "OpsiClient"}])]
+		else:
+			if args.clients:
+				self.clients.extend([entry.strip() for entry in args.clients.split(",")])
+			if args.client_groups:
+				for group in [entry.strip() for entry in args.client_groups.split(",")]:
+					self.clients.extend(self.client_ids_from_group(group))
+			if args.ip_addresses:
+				for ip_address in args.ip_addresses.split(","):
+					self.clients.extend(self.client_ids_with_ip(ip_address))
+
 		exclude_clients_list = []
 		if args.exclude_clients:
 			exclude_clients_list = [exclude.strip() for exclude in args.exclude_clients.split(",")]
