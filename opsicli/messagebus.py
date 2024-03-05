@@ -203,7 +203,7 @@ class ProcessMessagebusConnection(MessagebusConnection):
 		logger.notice("Sent process start request")
 		if not wait_for_ending:
 			return {}
-		logger.info("awaiting responses...")
+		logger.info("Awaiting responses...")
 		for channel, process_id in process_ids.items():
 			waiting_time = max(timeout - (datetime.now() - start_time).total_seconds(), 0)
 			logger.debug("Waiting for %s seconds until stopping", waiting_time)
@@ -212,7 +212,7 @@ class ProcessMessagebusConnection(MessagebusConnection):
 				self.service_client.messagebus.send_message(
 					ProcessStopRequestMessage(process_id=message.process_id, sender=CONNECTION_USER_CHANNEL, channel=channel)
 				)
-				results[channel] = [TimeoutError("Timed out waiting for process stop event.")]
+				results[channel] = [TimeoutError("Timed out waiting for process to stop")]
 			else:
 				results[channel] = list(self.captured_process_messages[process_id])
 			if process_id in self.captured_process_messages:
