@@ -17,7 +17,7 @@ from click.shell_completion import CompletionItem  # type: ignore[import]
 from opsicommon.config.opsi import OpsiConfig
 from opsicommon.exceptions import OpsiServiceConnectionError
 from opsicommon.logging import get_logger  # type: ignore[import]
-from opsicommon.utils import monkeypatch_subprocess_for_frozen
+from opsicommon.utils import patch_popen
 
 from opsicli import __version__, prepare_cli_paths
 from opsicli.cache import cache
@@ -31,8 +31,8 @@ COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE"
 
 if not COMPLETION_MODE:
 	import rich_click as click  # type: ignore[import,no-redef]
-	from rich_click.rich_click import (
-		rich_abort_error,  # type: ignore[import]
+	from rich_click.rich_click import (  # type: ignore[import]
+		rich_abort_error,
 		rich_format_error,
 		rich_format_help,
 	)
@@ -66,7 +66,7 @@ if not COMPLETION_MODE:
 		if options:
 			click.rich_click.OPTION_GROUPS["opsi-cli"].append({"name": f"{group} options", "options": options})
 
-	monkeypatch_subprocess_for_frozen()
+	patch_popen()
 
 logger = get_logger("opsicli")
 
