@@ -9,7 +9,7 @@ import shutil
 import sys
 import time
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from threading import Event, Lock
 from typing import Any, Generator, Literal, cast
 from uuid import uuid4
@@ -168,8 +168,8 @@ class MessagebusProcess:
 	start_event: ProcessStartEventMessage | None = None
 	stop_event: ProcessStopEventMessage | None = None
 	error: ProcessErrorMessage | None = None
-	stderr_buffer: bytes = b""
-	stdout_buffer: bytes = b""
+	stderr_buffer: bytearray = field(default_factory=bytearray)
+	stdout_buffer: bytearray = field(default_factory=bytearray)
 
 	@property
 	def locale_encoding(self) -> str | None:
@@ -208,13 +208,16 @@ class ProcessMessagebusConnection(MessagebusConnection):
 				(process.stdout_buffer, message.stdout, "stdout"),
 				(process.stderr_buffer, message.stderr, "stderr"),
 			):
-				buffer += data
+				buffer.extend(data)
 				idx = buffer.rfind(b"\n")
 				if idx == -1 and len(buffer) > self.max_buffer_size:
 					idx = self.max_buffer_size
 				if idx != -1:
 					self.write_out(process_id, buffer[: idx + 1], cast(Literal["stdout", "stderr"], stream), process.locale_encoding)
-					buffer = buffer[idx + 1 :]
+					if buffer == process.stdout_buffer:
+						process.stdout_buffer = buffer[idx + 1 :]
+					else:
+						process.stderr_buffer = buffer[idx + 1 :]
 		except Exception as err:
 			logger.error(err, exc_info=True)
 
@@ -310,7 +313,7 @@ class ProcessMessagebusConnection(MessagebusConnection):
 				)
 				self.processes[message.process_id] = MessagebusProcess(start_request=message)
 				self.process_wait_start.append(message.process_id)
-				self.max_host_name_length = max(self.max_host_name_length, len(self.get_host_name(message.process_id)))
+				self.max_host_name_length = max(self.max_host_name_length, len(self.get_host_name(message.process_id) or ""))
 
 		logger.notice("Sending process start requests")
 		for process in self.processes.values():
