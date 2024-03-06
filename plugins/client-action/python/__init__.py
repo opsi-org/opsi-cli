@@ -5,6 +5,7 @@ client-action plugin
 """
 
 import sys
+
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger
 
@@ -127,7 +128,7 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool) -> None:
 @click.pass_context
 @click.argument("command", nargs=-1, required=True)
 @click.option("--shell", help="Start process in shell", is_flag=True, default=False)
-@click.option("--show-host-names", help="Prepend the host name on output", is_flag=True, default=False)
+@click.option("--show-host-names/--hide-host-names", help="Prepend the host name on output", is_flag=True, default=True)
 @click.option(
 	"--encoding",
 	help=(
