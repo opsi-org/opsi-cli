@@ -200,10 +200,12 @@ def retry(
 				try:
 					return func(*args, **kwargs)
 				except Exception as exc:
-					logger.warning("Attempt %d of %d failed with %s", attempt, attempts, exc)
+					logger.warning("Attempt %d of %d failed with [%s] %s", attempt, attempts, exc.__class__.__name__, exc)
 					if attempt == attempts:
+						logger.debug("No retry because the maximum number of %d attempts has been reached", attempts)
 						raise
 					if exceptions and not any(isinstance(exc, exc_type) for exc_type in exceptions):
+						logger.debug("No retry because excetion type %s is not in %s", exc.__class__.__name__, exceptions)
 						raise
 					if caught_exceptions is not None:
 						caught_exceptions.append(exc)
