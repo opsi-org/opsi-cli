@@ -25,7 +25,7 @@ class ExecuteWorker(ClientActionWorker):
 		shell: bool = False,
 		concurrent: int = 100,
 		show_host_names: bool = True,
-		timeout: float = 0.0,
+		timeout: int = 0,
 		encoding: str = "auto",
 	) -> int:
 		if config.dry_run:

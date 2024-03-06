@@ -139,7 +139,7 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool) -> None:
 	type=str,
 	default="auto",
 )
-@click.option("--timeout", help="Number of seconds until command should be interrupted (0 = no timeout)", type=float, default=0.0)
+@click.option("--timeout", help="Number of seconds until command should be interrupted (0 = no timeout)", type=int, default=0)
 @click.option("--concurrent", help="Maximum number of concurrent executions", type=int, default=100)
 def execute(
 	ctx: click.Context, command: tuple[str], shell: bool, show_host_names: bool, encoding: str, timeout: float, concurrent: int
