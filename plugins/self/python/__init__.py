@@ -25,13 +25,7 @@ from opsicli.config import ConfigValueSource, config
 from opsicli.io import get_console
 from opsicli.plugin import OPSICLIPlugin, plugin_manager
 from opsicli.types import File
-from opsicli.utils import (
-	add_to_env_variable,
-	download,
-	get_opsi_cli_filename,
-	replace_binary,
-	user_is_admin,
-)
+from opsicli.utils import add_to_env_variable, download, get_opsi_cli_filename, replace_binary, retry, user_is_admin
 
 __version__ = "0.2.0"
 
@@ -246,12 +240,18 @@ def upgrade(branch: str, source_url: str) -> None:
 		current_binary = Path(ziplauncher_binary)
 	with tempfile.TemporaryDirectory() as tmpdir_name:
 		tmp_dir = Path(tmpdir_name)
-		new_binary = download(f"{source_url}/{branch}/{get_opsi_cli_filename()}", tmp_dir, make_executable=True)
-		try:
-			new_version = subprocess.check_output([str(new_binary), "--version"]).decode("utf-8").strip()
-		except subprocess.CalledProcessError as error:
-			logger.error("New binary not working: %s", error)
-			raise
+
+		@retry(retries=2, wait=1.0, exceptions=[OSError])
+		def download_binary() -> tuple[Path, str]:
+			new_binary = download(f"{source_url}/{branch}/{get_opsi_cli_filename()}", tmp_dir, make_executable=True)
+			try:
+				new_version = subprocess.check_output([str(new_binary), "--version"]).decode("utf-8").strip()
+				return new_binary, new_version
+			except subprocess.CalledProcessError as error:
+				logger.error("New binary not working: %s", error)
+				raise
+
+		new_binary, new_version = download_binary()
 		if config.dry_run:
 			logger.notice("Not replacing current binary as --dry-run is set.")
 		else:

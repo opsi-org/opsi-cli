@@ -2,11 +2,12 @@
 test_plugins
 """
 
+import time
 from pathlib import Path
 
 import pytest
 
-from opsicli.utils import decrypt, encrypt, replace_binary
+from opsicli.utils import decrypt, encrypt, replace_binary, retry
 
 
 @pytest.mark.parametrize(
@@ -44,3 +45,35 @@ def test_replace_binary(tmp_path: Path) -> None:
 	replace_binary(current=current, new=new)
 	assert current.exists()
 	assert current.with_suffix(current.suffix + ".old").exists()
+
+
+def test_retry() -> None:
+	caught_exceptions: list[Exception] = []
+
+	@retry(retries=2, wait=0.5, exceptions=(ValueError,), caught_exceptions=caught_exceptions)
+	def failing_function() -> None:
+		raise ValueError("Test")
+
+	start = time.time()
+	with pytest.raises(ValueError):
+		failing_function()
+	assert time.time() - start >= 1
+
+	assert len(caught_exceptions) == 2
+	assert isinstance(caught_exceptions[0], ValueError)
+	assert isinstance(caught_exceptions[1], ValueError)
+
+	caught_exceptions = []
+
+	@retry(retries=10, exceptions=(PermissionError, ValueError), caught_exceptions=caught_exceptions)
+	def failing_function2() -> None:
+		if len(caught_exceptions) < 2:
+			raise PermissionError("Test")
+		if len(caught_exceptions) < 4:
+			raise ValueError("Test")
+		raise RuntimeError("Test")
+
+	with pytest.raises(RuntimeError):
+		failing_function2()
+
+	assert len(caught_exceptions) == 4
