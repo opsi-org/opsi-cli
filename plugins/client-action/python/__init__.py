@@ -139,9 +139,10 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool) -> None:
 	type=str,
 	default="auto",
 )
-@click.option("--timeout", help="Number of seconds until command should be interrupted", type=float)
+@click.option("--timeout", help="Number of seconds until command should be interrupted (0 = no timeout)", type=float, default=0.0)
+@click.option("--concurrent", help="Maximum number of concurrent executions", type=int, default=100)
 def execute(
-	ctx: click.Context, command: tuple[str], shell: bool, show_host_names: bool, encoding: str, timeout: float | None = None
+	ctx: click.Context, command: tuple[str], shell: bool, show_host_names: bool, encoding: str, timeout: float, concurrent: int
 ) -> None:
 	"""
 	opsi-cli client-action execute command
@@ -149,7 +150,9 @@ def execute(
 	exit_code = 0
 	try:
 		worker = ExecuteWorker(ctx.obj)
-		exit_code = worker.execute(command, timeout=timeout, shell=shell, show_host_names=show_host_names, encoding=encoding)
+		exit_code = worker.execute(
+			command, timeout=timeout, shell=shell, concurrent=concurrent, show_host_names=show_host_names, encoding=encoding
+		)
 	except Exception as err:
 		raise click.ClickException(str(err)) from err
 	sys.exit(exit_code)

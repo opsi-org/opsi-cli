@@ -48,7 +48,6 @@ if platform.system().lower() == "windows":
 CHANNEL_SUB_TIMEOUT = 5.0
 JSONRPC_TIMEOUT = 15.0
 PROCESS_START_TIMEOUT = 10.0
-PROCESS_EXECUTE_TIMEOUT = 60.0
 
 logger = get_logger("opsicli")
 
@@ -291,13 +290,13 @@ class ProcessMessagebusConnection(MessagebusConnection):
 		channels: list[str],
 		command: tuple[str],
 		shell: bool = False,
-		show_host_names: bool = False,
-		timeout: float | None = None,
+		concurrent: int = 100,
+		show_host_names: bool = True,
+		timeout: float = 0.0,
 		encoding: str = "auto",
 	) -> int:
 		self.show_host_names = show_host_names
 		self.data_encoding = encoding
-		timeout = timeout or PROCESS_EXECUTE_TIMEOUT
 		start_timeout = min(PROCESS_START_TIMEOUT, timeout)
 		self.processes = {}
 		with self.process_state_lock:

@@ -16,11 +16,17 @@ logger = get_logger("opsicli")
 
 class ExecuteWorker(ClientActionWorker):
 	def __init__(self, args: ClientActionArgs) -> None:
-		super().__init__(args)
+		super().__init__(args, default_all=False)
 		self.mbus_connection = ProcessMessagebusConnection()
 
 	def execute(
-		self, command: tuple[str], shell: bool = False, show_host_names: bool = False, timeout: float | None = None, encoding: str = "auto"
+		self,
+		command: tuple[str],
+		shell: bool = False,
+		concurrent: int = 100,
+		show_host_names: bool = True,
+		timeout: float = 0.0,
+		encoding: str = "auto",
 	) -> int:
 		if config.dry_run:
 			logger.notice("Operating in dry-run mode - not performing any actions")
@@ -31,5 +37,11 @@ class ExecuteWorker(ClientActionWorker):
 
 		with self.mbus_connection.connection():
 			return self.mbus_connection.execute_processes(
-				channels=channels, command=command, shell=shell, show_host_names=show_host_names, timeout=timeout, encoding=encoding
+				channels=channels,
+				command=command,
+				shell=shell,
+				concurrent=concurrent,
+				show_host_names=show_host_names,
+				timeout=timeout,
+				encoding=encoding,
 			)
