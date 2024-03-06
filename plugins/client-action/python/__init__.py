@@ -4,6 +4,7 @@ opsi-cli basic command line interface for opsi
 client-action plugin
 """
 
+import sys
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger
 
@@ -90,8 +91,11 @@ def set_action_request(ctx: click.Context, **kwargs: str) -> None:
 	"""
 	opsi-cli client-action set-action-request command
 	"""
-	worker = SetActionRequestWorker(ctx.obj)
-	worker.set_action_request(**kwargs)
+	try:
+		worker = SetActionRequestWorker(ctx.obj)
+		worker.set_action_request(**kwargs)
+	except Exception as err:
+		raise click.ClickException(str(err)) from err
 
 
 @cli.command(name="trigger-event", short_help="Trigger an event for selected clients")
@@ -112,22 +116,42 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool) -> None:
 	"""
 	opsi-cli client-action trigger-event command
 	"""
-	worker = TriggerEventWorker(ctx.obj)
-	worker.trigger_event(event, wakeup)
+	try:
+		worker = TriggerEventWorker(ctx.obj)
+		worker.trigger_event(event, wakeup)
+	except Exception as err:
+		raise click.ClickException(str(err)) from err
 
 
 @cli.command(name="execute", short_help="Execute shell-command on selected clients", context_settings={"ignore_unknown_options": True})
 @click.pass_context
-@click.argument("command", nargs=-1)
+@click.argument("command", nargs=-1, required=True)
 @click.option("--shell", help="Start process in shell", is_flag=True, default=False)
-@click.option("--encoding", help="encoding to assume for incomming data. 'suggested' is default.", type=str, default="suggested")
+@click.option("--show-host-names", help="Prepend the host name on output", is_flag=True, default=False)
+@click.option(
+	"--encoding",
+	help=(
+		"Encoding to be used for decoding incoming data. "
+		"'auto' automatically attempts to find the correct encoding (default). "
+		"'raw' does not decode the data at all."
+	),
+	type=str,
+	default="auto",
+)
 @click.option("--timeout", help="Number of seconds until command should be interrupted", type=float)
-def execute(ctx: click.Context, command: tuple[str], shell: bool, encoding: str, timeout: float | None = None) -> None:
+def execute(
+	ctx: click.Context, command: tuple[str], shell: bool, show_host_names: bool, encoding: str, timeout: float | None = None
+) -> None:
 	"""
 	opsi-cli client-action execute command
 	"""
-	worker = ExecuteWorker(ctx.obj)
-	worker.execute(command, timeout=timeout, shell=shell, encoding=encoding)
+	exit_code = 0
+	try:
+		worker = ExecuteWorker(ctx.obj)
+		exit_code = worker.execute(command, timeout=timeout, shell=shell, show_host_names=show_host_names, encoding=encoding)
+	except Exception as err:
+		raise click.ClickException(str(err)) from err
+	sys.exit(exit_code)
 
 
 # This class keeps track of the plugins meta-information

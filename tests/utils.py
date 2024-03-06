@@ -57,15 +57,16 @@ def tmp_product(service: ServiceClient, name: str) -> Generator[None, None, None
 
 @contextmanager
 def tmp_host_group(
-	service: ServiceClient, name: str, clients: list[str] | None = None, parent: str | None = None
+	service: ServiceClient, name: str, clients: set[str] | None = None, parent: str | None = None
 ) -> Generator[None, None, None]:
 	try:
 		params = [name]
 		if parent:
 			params.extend(["", "", parent])
 		service.jsonrpc("group_createHostGroup", params=params)
-		for client in clients or []:
-			service.jsonrpc("objectToGroup_create", params=["HostGroup", name, client])
+		if clients:
+			for client in clients:
+				service.jsonrpc("objectToGroup_create", params=["HostGroup", name, client])
 		yield
 	finally:
 		service.jsonrpc("group_deleteObjects", params=[{"id": name}])

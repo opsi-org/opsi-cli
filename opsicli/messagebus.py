@@ -1,15 +1,17 @@
 """
 websocket functions
 """
+
 from __future__ import annotations
 
 import platform
 import shutil
 import sys
+import time
 from contextlib import contextmanager
-from datetime import datetime
-from threading import Event
-from typing import Any, Generator
+from dataclasses import dataclass
+from threading import Event, Lock
+from typing import Any, Generator, Literal, cast
 from uuid import uuid4
 
 from opsicommon.client.opsiservice import MessagebusListener
@@ -23,7 +25,6 @@ from opsicommon.messagebus import (
 	Message,
 	ProcessDataReadMessage,
 	ProcessErrorMessage,
-	ProcessMessage,
 	ProcessStartEventMessage,
 	ProcessStartRequestMessage,
 	ProcessStopEventMessage,
@@ -35,7 +36,9 @@ from opsicommon.messagebus import (
 	TerminalOpenEventMessage,
 	TerminalOpenRequestMessage,
 )
+from opsicommon.system.info import is_windows
 
+from opsicli.io import get_console
 from opsicli.opsiservice import get_service_connection
 from opsicli.utils import stream_wrap
 
@@ -44,6 +47,7 @@ if platform.system().lower() == "windows":
 
 CHANNEL_SUB_TIMEOUT = 5.0
 JSONRPC_TIMEOUT = 15.0
+PROCESS_START_TIMEOUT = 10.0
 PROCESS_EXECUTE_TIMEOUT = 60.0
 
 logger = get_logger("opsicli")
@@ -158,68 +162,214 @@ class JSONRPCMessagebusConnection(MessagebusConnection):
 		return results
 
 
+@dataclass
+class MessagebusProcess:
+	start_request: ProcessStartRequestMessage
+	start_event: ProcessStartEventMessage | None = None
+	stop_event: ProcessStopEventMessage | None = None
+	error: ProcessErrorMessage | None = None
+	stderr_buffer: bytes = b""
+	stdout_buffer: bytes = b""
+
+	@property
+	def locale_encoding(self) -> str | None:
+		if self.start_event and self.start_event.locale_encoding:
+			return self.start_event.locale_encoding
+		return None
+
+	@property
+	def host_name(self) -> str | None:
+		if self.start_request:
+			return self.start_request.channel.removeprefix("host:")
+		return None
+
+
 class ProcessMessagebusConnection(MessagebusConnection):
 	def __init__(self) -> None:
+		self.console = get_console()
+		self.console_lock = Lock()
+		self.show_host_names = False
+		self.data_encoding = "auto"
+		self.output_encoding = "cp437" if is_windows() else "utf-8"
+		self.processes: dict[str, MessagebusProcess] = {}
+		self.process_state_lock = Lock()
+		self.process_wait_start: list[str] = []
+		self.process_wait_stop: list[str] = []
+		self.max_buffer_size = 100_000
 		MessagebusConnection.__init__(self)
-		self.process_stop_events: dict[str, Event] = {}
-		self.captured_process_messages: dict[str, list[ProcessMessage]] = {}
 
 	def _on_process_data_read(self, message: ProcessDataReadMessage) -> None:
 		logger.debug("Received process data read message")
-		self.captured_process_messages[message.process_id].append(message)
+		process_id = message.process_id
+		process = self.processes[message.process_id]
+		try:
+			for buffer, data, stream in (
+				(process.stdout_buffer, message.stdout, "stdout"),
+				(process.stderr_buffer, message.stderr, "stderr"),
+			):
+				buffer += data
+				idx = buffer.rfind(b"\n")
+				if idx == -1 and len(buffer) > self.max_buffer_size:
+					idx = self.max_buffer_size
+				if idx != -1:
+					self.write_out(process_id, buffer[: idx + 1], cast(Literal["stdout", "stderr"], stream), process.locale_encoding)
+					buffer = buffer[idx + 1 :]
+		except Exception as err:
+			logger.error(err, exc_info=True)
 
 	def _on_process_stop_event(self, message: ProcessStopEventMessage) -> None:
 		logger.debug("Received process stop event message")
-		self.captured_process_messages[message.process_id].append(message)
-		self.process_stop_events[message.process_id].set()
+		self.processes[message.process_id].stop_event = message
+		with self.process_state_lock:
+			if message.process_id in self.process_wait_stop:
+				self.process_wait_stop.remove(message.process_id)
 
 	def _on_process_start_event(self, message: ProcessStartEventMessage) -> None:
 		logger.debug("Received process start event message")
-		self.captured_process_messages[message.process_id].append(message)
+		self.processes[message.process_id].start_event = message
+		with self.process_state_lock:
+			if message.process_id in self.process_wait_start:
+				self.process_wait_start.remove(message.process_id)
+			if message.process_id not in self.process_wait_stop:
+				self.process_wait_stop.append(message.process_id)
 
 	def _on_process_error(self, message: ProcessErrorMessage) -> None:
 		logger.debug("Received process error message")
-		self.captured_process_messages[message.process_id].append(message)
-		self.process_stop_events[message.process_id].set()
+		self.processes[message.process_id].error = message
+		self.print_error(message.process_id, message.error.message)
+		with self.process_state_lock:
+			if message.process_id in self.process_wait_start:
+				self.process_wait_start.remove(message.process_id)
+
+	def get_host_name(self, process_id: str) -> str | None:
+		if process := self.processes.get(process_id):
+			return process.host_name
+		return None
+
+	def write_out(self, process_id: str, data: bytes, stream: Literal["stdout", "stderr"], data_encoding: str | None) -> None:
+		if not data:
+			return
+
+		use_encoding = None
+		if self.data_encoding == "raw":
+			use_encoding = None
+		elif self.data_encoding == "auto":
+			use_encoding = data_encoding or "utf-8"
+		else:
+			use_encoding = self.data_encoding
+
+		raw_output = use_encoding in (None, self.output_encoding)
+		write = sys.stdout.buffer.write if stream == "stdout" else sys.stderr.buffer.write
+		flush = sys.stdout.flush if stream == "stdout" else sys.stderr.flush
+
+		with self.console_lock:
+			if self.show_host_names:
+				line_prefix = f"{self.get_host_name(process_id)}: ".encode(use_encoding or self.output_encoding)
+				data = b"\n".join(line_prefix + line if line else line for line in data.split(b"\n"))
+			if not raw_output and use_encoding:
+				data = data.decode(use_encoding).encode(self.output_encoding)
+			write(data)
+			flush()
+
+	def print_error(self, process_id: str, error: str) -> None:
+		if self.show_host_names:
+			error = f"{self.get_host_name(process_id)}: {error}"
+		with self.console_lock:
+			self.console.print(f"[red]{error}[/red]")
 
 	def execute_processes(
-		self, channels: list[str], command: tuple[str], shell: bool = False, timeout: float | None = None, wait_for_ending: bool = True
-	) -> dict[str, list[ProcessMessage | Exception]]:
+		self,
+		*,
+		channels: list[str],
+		command: tuple[str],
+		shell: bool = False,
+		show_host_names: bool = False,
+		timeout: float | None = None,
+		encoding: str = "auto",
+	) -> int:
+		self.show_host_names = show_host_names
+		self.data_encoding = encoding
 		timeout = timeout or PROCESS_EXECUTE_TIMEOUT
-		results: dict[str, list[ProcessMessage | Exception]] = {}
-		process_ids: dict[str, str] = {}
-		for channel in channels:
-			message = ProcessStartRequestMessage(
-				command=command,
-				sender=CONNECTION_USER_CHANNEL,
-				channel=channel,
-				shell=shell,
-			)
-			self.process_stop_events[message.process_id] = Event()
-			process_ids[channel] = message.process_id
-			self.captured_process_messages[message.process_id] = []
-			self.service_client.messagebus.send_message(message)
-		start_time = datetime.now()
-		logger.notice("Sent process start request")
-		if not wait_for_ending:
-			return {}
-		logger.info("awaiting responses...")
-		for channel, process_id in process_ids.items():
-			waiting_time = max(timeout - (datetime.now() - start_time).total_seconds(), 0)
-			logger.debug("Waiting for %s seconds until stopping", waiting_time)
-			if not self.process_stop_events[process_id].wait(waiting_time):
-				logger.warning("Timeout reached, terminating process at channel %s", channel)
-				self.service_client.messagebus.send_message(
-					ProcessStopRequestMessage(process_id=message.process_id, sender=CONNECTION_USER_CHANNEL, channel=channel)
+		start_timeout = min(PROCESS_START_TIMEOUT, timeout)
+		self.processes = {}
+		with self.process_state_lock:
+			self.process_wait_start = []
+			self.process_wait_stop = []
+
+			for channel in channels:
+				message = ProcessStartRequestMessage(
+					command=command,
+					sender=CONNECTION_USER_CHANNEL,
+					channel=channel,
+					shell=shell,
 				)
-				results[channel] = [TimeoutError("Timed out waiting for process stop event.")]
-			else:
-				results[channel] = list(self.captured_process_messages[process_id])
-			if process_id in self.captured_process_messages:
-				del self.captured_process_messages[process_id]
-			if process_id in self.process_stop_events:
-				del self.process_stop_events[process_id]
-		return results
+				self.processes[message.process_id] = MessagebusProcess(start_request=message)
+				self.process_wait_start.append(message.process_id)
+
+		logger.notice("Sending process start requests")
+		for process in self.processes.values():
+			self.service_client.messagebus.send_message(process.start_request)
+
+		start_timestamp = time.time()
+		logger.info("Waiting for processes to start")
+		while True:
+			with self.process_state_lock:
+				if not self.process_wait_start:
+					logger.debug("Finished waiting for processes to start")
+					break
+				wait_time = time.time() - start_timestamp
+				if wait_time >= start_timeout:
+					for process_id in self.process_wait_start:
+						logger.warning(
+							"Timeout reached after %0.2f seconds while waiting for process to start on %r",
+							wait_time,
+							self.get_host_name(process_id),
+						)
+						self.print_error(process_id, "Failed to start process")
+					break
+			time.sleep(0.1)
+
+		start_timestamp = time.time()
+		logger.info("Waiting for processes to stop")
+		while True:
+			with self.process_state_lock:
+				if not self.process_wait_stop:
+					logger.debug("Finished waiting for processes to stop")
+					break
+				wait_time = time.time() - start_timestamp
+				if wait_time >= timeout:
+					for process_id in self.process_wait_stop:
+						logger.warning(
+							"Timeout reached after %0.2f seconds while waiting for process to end on %r",
+							wait_time,
+							self.get_host_name(process_id),
+						)
+						self.print_error(process_id, "Process timeout")
+						self.service_client.messagebus.send_message(
+							ProcessStopRequestMessage(
+								process_id=process_id,
+								sender=CONNECTION_USER_CHANNEL,
+								channel=self.processes[process_id].start_request.channel,
+							)
+						)
+					self.process_wait_stop = []
+					break
+			time.sleep(0.1)
+
+		exit_code = 0
+		errors = []
+		for process in self.processes.values():
+			if process.stdout_buffer:
+				self.write_out(process.start_request.process_id, process.stdout_buffer, "stdout", process.locale_encoding)
+			if process.stderr_buffer:
+				self.write_out(process.start_request.process_id, process.stderr_buffer, "stderr", process.locale_encoding)
+			if exit_code == 0 and process.stop_event and process.stop_event.exit_code != 0:
+				exit_code = process.stop_event.exit_code
+			if process.error:
+				errors.append(process.error)
+		if exit_code == 0 and errors:
+			exit_code = 1
+		return exit_code
 
 
 class TerminalMessagebusConnection(MessagebusConnection):

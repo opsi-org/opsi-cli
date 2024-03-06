@@ -51,7 +51,7 @@ class SetActionRequestWorker(ClientActionWorker):
 		self.client_to_depot: dict[str, str] = {}
 		self.depending_products: set[str] = set()
 		self.request_type = "setup"
-		for single_client_to_depot in self.service.jsonrpc("configState_getClientToDepotserver", [[], self.clients]):
+		for single_client_to_depot in self.service.jsonrpc("configState_getClientToDepotserver", [[], list(self.clients)]):
 			self.client_to_depot[single_client_to_depot["clientId"]] = single_client_to_depot["depotId"]
 		logger.trace("ClientToDepot mapping: %s", self.client_to_depot)
 		for entry in self.service.jsonrpc("productOnDepot_getObjects"):
@@ -163,13 +163,13 @@ class SetActionRequestWorker(ClientActionWorker):
 		return [product_on_client]
 
 	def set_action_requests_for_all(
-		self, clients: list[str], products: list[str], request_type: str | None = None, force: bool = False
+		self, clients: set[str], products: list[str], request_type: str | None = None, force: bool = False
 	) -> list[dict[str, str]]:
 		new_pocs = []
 		existing_pocs: dict[str, dict[str, dict[str, str]]] = {}
 		for poc in self.service.jsonrpc(
 			"productOnClient_getObjects",
-			[[], {"clientId": self.clients or None, "productType": "LocalbootProduct", "productId": self.products}],
+			[[], {"clientId": list(self.clients), "productType": "LocalbootProduct", "productId": self.products}],
 		):
 			if poc["clientId"] not in existing_pocs:
 				existing_pocs[poc["clientId"]] = {}
@@ -211,7 +211,7 @@ class SetActionRequestWorker(ClientActionWorker):
 			modified_clients = set()
 			for entry in self.service.jsonrpc(
 				"productOnClient_getObjects",
-				[[], {"clientId": self.clients or None, "productType": "LocalbootProduct", "productId": self.products}],
+				[[], {"clientId": list(self.clients), "productType": "LocalbootProduct", "productId": self.products}],
 			):
 				logger.debug(
 					"Checking %s (%s) on %s",
@@ -240,7 +240,7 @@ class SetActionRequestWorker(ClientActionWorker):
 			if kwargs.get("setup_on_action") and modified_clients:
 				setup_on_action_products = [entry.strip() for entry in str(kwargs.get("setup_on_action")).split(",")]
 				logger.notice("Setting setup for all modified clients and products: %s", setup_on_action_products)
-				new_pocs.extend(self.set_action_requests_for_all(list(modified_clients), setup_on_action_products, "setup"))
+				new_pocs.extend(self.set_action_requests_for_all(modified_clients, setup_on_action_products, "setup"))
 		# if neither where_failed nor where_outdated nor uninstall_where_only_uninstall is set, set action request for every selected client
 		else:
 			if not kwargs.get("products") and not kwargs.get("product_groups"):

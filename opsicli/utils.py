@@ -4,6 +4,7 @@ opsi-cli - command line interface for opsi
 
 utils
 """
+from __future__ import annotations
 
 import base64
 import os
@@ -13,10 +14,11 @@ import shutil
 import stat
 import string
 import sys
+import time
 from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
-from typing import Iterator
+from typing import Any, Callable, Iterable, Iterator, Type
 
 from opsicommon.logging import get_logger, logging_config  # type: ignore[import]
 
@@ -179,3 +181,37 @@ def replace_binary(current: Path, new: Path) -> None:
 		logger.warning("Restoring backup.")
 		shutil.move(backup_path, current)
 		raise
+
+
+def retry(
+	retries: int = 3, wait: float = 0, exceptions: Iterable[Type[Exception]] | None = None, caught_exceptions: list[Exception] | None = None
+) -> Callable:
+	"""
+	Decorator to retry a function.
+	:param retries: Number of retries
+	:param wait: Time to wait between retries
+	:param exceptions: Exception to catch, if None catch all exceptions
+	"""
+	attempts = 1 + retries
+
+	def decorator(func: Callable) -> Callable:
+		def wrapper(*args: Any, **kwargs: Any) -> Any:
+			for attempt in range(1, attempts + 1):
+				try:
+					return func(*args, **kwargs)
+				except Exception as exc:
+					logger.warning("Attempt %d of %d failed with [%s] %s", attempt, attempts, exc.__class__.__name__, exc)
+					if attempt == attempts:
+						logger.debug("No retry because the maximum number of %d attempts has been reached", attempts)
+						raise
+					if exceptions and not any(isinstance(exc, exc_type) for exc_type in exceptions):
+						logger.debug("No retry because excetion type %s is not in %s", exc.__class__.__name__, exceptions)
+						raise
+					if caught_exceptions is not None:
+						caught_exceptions.append(exc)
+					if wait > 0:
+						time.sleep(wait)
+
+		return wrapper
+
+	return decorator

@@ -4,7 +4,6 @@ opsi-cli basic command line interface for opsi
 plugin subcommand
 """
 
-
 import os
 import shutil
 import tempfile
