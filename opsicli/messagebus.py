@@ -189,6 +189,7 @@ class ProcessMessagebusConnection(MessagebusConnection):
 		self.console = get_console()
 		self.console_lock = Lock()
 		self.show_host_names = False
+		self.max_host_name_length = 0
 		self.data_encoding = "auto"
 		self.output_encoding = "cp437" if is_windows() else "utf-8"
 		self.processes: dict[str, MessagebusProcess] = {}
@@ -241,9 +242,12 @@ class ProcessMessagebusConnection(MessagebusConnection):
 			if message.process_id in self.process_wait_start:
 				self.process_wait_start.remove(message.process_id)
 
-	def get_host_name(self, process_id: str) -> str | None:
+	def get_host_name(self, process_id: str, padded: bool = False) -> str | None:
 		if process := self.processes.get(process_id):
-			return process.host_name
+			host_name = process.host_name
+			if host_name and padded:
+				host_name = host_name.ljust(self.max_host_name_length)
+			return host_name
 		return None
 
 	def write_out(self, process_id: str, data: bytes, stream: Literal["stdout", "stderr"], data_encoding: str | None) -> None:
@@ -264,7 +268,7 @@ class ProcessMessagebusConnection(MessagebusConnection):
 
 		with self.console_lock:
 			if self.show_host_names:
-				line_prefix = f"{self.get_host_name(process_id)}: ".encode(use_encoding or self.output_encoding)
+				line_prefix = f"{self.get_host_name(process_id, padded=True)}: ".encode(use_encoding or self.output_encoding)
 				data = b"\n".join(line_prefix + line if line else line for line in data.split(b"\n"))
 			if not raw_output and use_encoding:
 				data = data.decode(use_encoding).encode(self.output_encoding)
@@ -272,10 +276,11 @@ class ProcessMessagebusConnection(MessagebusConnection):
 			flush()
 
 	def print_error(self, process_id: str, error: str) -> None:
+		error = f"[red]{error}[/red]"
 		if self.show_host_names:
-			error = f"{self.get_host_name(process_id)}: {error}"
+			error = f"{self.get_host_name(process_id, padded=True)}: {error}"
 		with self.console_lock:
-			self.console.print(f"[red]{error}[/red]")
+			self.console.print(error)
 
 	def execute_processes(
 		self,
@@ -305,6 +310,7 @@ class ProcessMessagebusConnection(MessagebusConnection):
 				)
 				self.processes[message.process_id] = MessagebusProcess(start_request=message)
 				self.process_wait_start.append(message.process_id)
+				self.max_host_name_length = max(self.max_host_name_length, len(self.get_host_name(message.process_id)))
 
 		logger.notice("Sending process start requests")
 		for process in self.processes.values():
