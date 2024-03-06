@@ -51,9 +51,52 @@ def test_output(output_format: str, string: str, data: Any, capsys: CaptureFixtu
 	old_output_format = config.get_values().get("output_format")
 	config.set_values({"output_format": output_format})
 	write_output(data)
+
 	config.set_values({"output_format": old_output_format})
 	captured = capsys.readouterr()
 	assert captured.out == string
+
+
+@pytest.mark.parametrize(
+	"data,expected,sort_by",
+	[
+		(
+			[{"a": "test_1", "b": "dummy", "c": "string"}, {"a": "test_2", "b": "aaaa", "c": "boolean"}],  # Test list[dict]
+			'[{"a":"test_2","b":"aaaa","c":"boolean"},{"a":"test_1","b":"dummy","c":"string"}]',
+			"b",
+		),
+		(
+			[["test_1", "dummy", "string"], ["test_2", "aaaa", "boolean"]],  # Test list[list]
+			'[["test_2","aaaa","boolean"],["test_1","dummy","string"]]',
+			"value1",
+		),
+		(
+			["test_1", "test_2"],  # Test list
+			'["test_1","test_2"]',
+			"value0",
+		),
+	],
+)
+def test_output_sort(capsys: CaptureFixture[str], data, expected, sort_by) -> None:
+	old_config_values = config.get_values()
+	try:
+		config.set_values({"sort_by": sort_by, "output_format": "json"})
+		write_output(data)
+		captured = capsys.readouterr()
+		assert captured.out.strip() == expected
+	finally:
+		config.set_values(old_config_values)
+
+
+def test_output_sort_unsupported_data_type() -> None:
+	old_config_values = config.get_values()
+	try:
+		data = {"a": "test_1", "b": "dummy", "c": "string"}
+		config.set_values({"sort_by": "b", "output_format": "json"})
+		with pytest.raises(RuntimeError):
+			write_output(data)
+	finally:
+		config.set_values(old_config_values)
 
 
 @pytest.mark.parametrize(
