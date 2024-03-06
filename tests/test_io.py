@@ -77,7 +77,7 @@ def test_output(output_format: str, string: str, data: Any, capsys: CaptureFixtu
 		),
 	],
 )
-def test_output_sort(capsys: CaptureFixture[str], data, expected, sort_by) -> None:
+def test_output_sort(capsys: CaptureFixture[str], data: Any, expected: Any, sort_by: str) -> None:
 	old_config_values = config.get_values()
 	try:
 		config.set_values({"sort_by": sort_by, "output_format": "json"})
