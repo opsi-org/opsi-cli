@@ -40,24 +40,24 @@ def test_plugin_add() -> None:
 
 def test_plugin_fail() -> None:
 	with temp_context():
-		exit_code, stdout, _stderr = run_cli(["plugin", "add", str(FAULTYPLUGIN)])
+		exit_code, _stdout, stderr = run_cli(["plugin", "add", str(FAULTYPLUGIN)])
 		assert exit_code == 1
-		assert "Invalid path given" in stdout
+		assert "Invalid path given" in stderr
 
-		exit_code, stdout, _stderr = run_cli(["plugin", "add", str(MISSINGPLUGIN)])
+		exit_code, _stdout, stderr = run_cli(["plugin", "add", str(MISSINGPLUGIN)])
 		assert exit_code == 2
-		assert "does not exist" in stdout
+		assert "does not exist" in stderr
 
 		run_cli(["plugin", "add", str(TESTPLUGIN)])
-		exit_code, stdout, _stderr = run_cli(["dummy", "libtest"])
+		exit_code, _stdout, stderr = run_cli(["dummy", "libtest"])
 		assert exit_code == 0
 
 		# Break dummy plugin
 		(config.plugin_user_dir / "dummy" / "python" / "__init__.py").unlink()
-		exit_code, stdout, _stderr = run_cli(["dummy", "libtest"])
-		print(stdout)
+		exit_code, _stdout, stderr = run_cli(["dummy", "libtest"])
+		print(stderr)
 		assert exit_code == 1
-		assert "Invalid command" in stdout
+		assert "Invalid command" in stderr
 
 
 def test_plugin_remove() -> None:

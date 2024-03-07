@@ -60,9 +60,9 @@ def test_setup_shell_completion(tmp_path: Path) -> None:
 	assert cont.endswith(mod_self.END_MARKER + "\n")
 	completion_config.unlink()
 
-	exit_code, stdout, _stderr = run_cli(["self", "setup-shell-completion", "--shell", "invalid"])
+	exit_code, stdout, stderr = run_cli(["self", "setup-shell-completion", "--shell", "invalid"])
 	assert exit_code == 2
-	assert "'invalid' is not one of " in stdout
+	assert "'invalid' is not one of " in stderr
 
 
 def test_command_structure() -> None:

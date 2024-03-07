@@ -102,9 +102,9 @@ def test_metafile_scan_packages(tmp_path: Path) -> None:
 
 	# Update must create metafiles if they do not exist
 	cmd = ["-l6", "manage-repo", "metafile", "scan-packages", str(repository_dir)]
-	exit_code, stdout, _stderr = run_cli(cmd)
+	exit_code, _stdout, stderr = run_cli(cmd)
 	assert exit_code == 1
-	assert "No metadata files" in stdout
+	assert "No metadata files" in stderr
 
 	cmd = ["-l6", "manage-repo", "metafile", "create", str(repository_dir)] + [f"--format={f}" for f in formats]
 	exit_code, stdout, _stderr = run_cli(cmd)
