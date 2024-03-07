@@ -295,6 +295,13 @@ CONFIG_ITEMS = [
 		description="Select data attributes ([metavar]all[/metavar] selects all available attributes).",
 	),
 	ConfigItem(
+		name="sort_by",
+		type=str,
+		group="IO",
+		default=None,
+		description="Sort the output data by the specified attribute(s).",
+	),
+	ConfigItem(
 		name="service",
 		type=OPSIServiceUrlOrServiceName,
 		group="Opsi service",
