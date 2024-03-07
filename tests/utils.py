@@ -22,7 +22,7 @@ runner = CliRunner()
 
 
 def run_cli(args: Sequence[str], stdin: list[str] | None = None) -> tuple[int, str, str]:
-	result = runner.invoke(main, args, obj={}, catch_exceptions=False, input="\n".join(stdin or []))
+	result = runner.invoke(main, args, obj={}, catch_exceptions=False, mix_stderr=False, input="\n".join(stdin or []))
 	return (result.exit_code, result.stdout, result.stderr)
 
 
