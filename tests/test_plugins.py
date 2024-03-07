@@ -49,7 +49,7 @@ def test_plugin_fail() -> None:
 		assert "does not exist" in stderr
 
 		run_cli(["plugin", "add", str(TESTPLUGIN)])
-		exit_code, _stdout, stderr = run_cli(["dummy", "libtest"])
+		exit_code, _stdout, _stderr = run_cli(["dummy", "libtest"])
 		assert exit_code == 0
 
 		# Break dummy plugin

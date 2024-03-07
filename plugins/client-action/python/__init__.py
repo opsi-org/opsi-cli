@@ -92,11 +92,8 @@ def set_action_request(ctx: click.Context, **kwargs: str) -> None:
 	"""
 	opsi-cli client-action set-action-request command
 	"""
-	try:
-		worker = SetActionRequestWorker(ctx.obj)
-		worker.set_action_request(**kwargs)
-	except Exception as err:
-		raise click.ClickException(str(err)) from err
+	worker = SetActionRequestWorker(ctx.obj)
+	worker.set_action_request(**kwargs)
 
 
 @cli.command(name="trigger-event", short_help="Trigger an event for selected clients")
@@ -117,11 +114,8 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool) -> None:
 	"""
 	opsi-cli client-action trigger-event command
 	"""
-	try:
-		worker = TriggerEventWorker(ctx.obj)
-		worker.trigger_event(event, wakeup)
-	except Exception as err:
-		raise click.ClickException(str(err)) from err
+	worker = TriggerEventWorker(ctx.obj)
+	worker.trigger_event(event, wakeup)
 
 
 @cli.command(
@@ -149,14 +143,8 @@ def execute(ctx: click.Context, command: tuple[str], shell: bool, host_names: bo
 	"""
 	opsi-cli client-action execute command
 	"""
-	exit_code = 0
-	try:
-		worker = ExecuteWorker(ctx.obj)
-		exit_code = worker.execute(
-			command, timeout=timeout, shell=shell, concurrent=concurrent, show_host_names=host_names, encoding=encoding
-		)
-	except Exception as err:
-		raise click.ClickException(str(err)) from err
+	worker = ExecuteWorker(ctx.obj)
+	exit_code = worker.execute(command, timeout=timeout, shell=shell, concurrent=concurrent, show_host_names=host_names, encoding=encoding)
 	sys.exit(exit_code)
 
 

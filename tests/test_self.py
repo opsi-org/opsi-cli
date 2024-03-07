@@ -40,8 +40,8 @@ def test_setup_shell_completion(tmp_path: Path) -> None:
 	plugin = plugin_manager.load_plugin("self")
 	completion_config = tmp_path / "completion"
 	mod_self = plugin.get_module()
-	exit_code, stdout, _stderr = run_cli(["self", "setup-shell-completion", "--completion-file", str(completion_config)])
-	print(exit_code, stdout, _stderr)
+	exit_code, stdout, stderr = run_cli(["self", "setup-shell-completion", "--completion-file", str(completion_config)])
+	print(exit_code, stdout, stderr)
 
 	assert exit_code == 0
 	assert "Setting up auto completion for shell" in stdout
@@ -51,9 +51,9 @@ def test_setup_shell_completion(tmp_path: Path) -> None:
 	assert cont.endswith(mod_self.END_MARKER + "\n")
 	completion_config.unlink()
 
-	exit_code, stdout, _stderr = run_cli(["self", "setup-shell-completion", "--shell", "zsh", "--completion-file", str(completion_config)])
+	exit_code, stdout, stderr = run_cli(["self", "setup-shell-completion", "--shell", "zsh", "--completion-file", str(completion_config)])
 	assert exit_code == 0
-	assert stdout == "Setting up auto completion for shell 'zsh'.\n"
+	assert stdout == "Setting up auto completion for shell 'zsh'.\nPlease restart your running shell for changes to take effect.\n"
 	cont = completion_config.read_text()
 	assert cont.startswith(mod_self.START_MARKER + "\n")
 	assert "#compdef opsi-cli" in cont

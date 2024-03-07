@@ -32,6 +32,7 @@ COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE"
 if not COMPLETION_MODE:
 	import rich_click as click  # type: ignore[import,no-redef]
 	from rich_click.rich_click import (  # type: ignore[import]
+		_get_rich_formatter,
 		rich_abort_error,
 		rich_format_error,
 		rich_format_help,
@@ -83,32 +84,43 @@ class OpsiCLI(click.MultiCommand):  # type: ignore
 	) -> Any:
 		try:
 			return super().main(args, prog_name, complete_var, standalone_mode, **extra)
-		except Abort:
-			if config.color:
-				rich_abort_error()
-			else:
-				sys.stderr.write("Aborted.\n")
-			sys.exit(1)
-		except OpsiServiceConnectionError as error:
-			logger.error(error, exc_info=False)  # Avoid gigantic traceback here
-			if "localhost" in config.service and OpsiConfig(upgrade_config=False).get("host", "server-role") != "configserver":
-				console = get_console()
-				console.print("Attempted connection to localhost even if not running on opsi server")
-				console.print("Configure connection with [bold cyan]opsi-cli config service add[/bold cyan]")
-			sys.exit(1)
-		except OpsiCliRuntimeError as opsiclierror:
-			logger.error(opsiclierror, exc_info=False)  # Avoid gigantic traceback here
-			sys.exit(1)
 		except Exception as err:
-			logger.error(err, exc_info=True)
+			# Avoid gigantic traceback for known errors
+			exc_type = type(err)
+			exc_info = not issubclass(exc_type, (OpsiCliRuntimeError, OpsiServiceConnectionError))
+			logger.error(err, exc_info=exc_info)
+
+			additional_info = ""
+			if (
+				issubclass(exc_type, OpsiServiceConnectionError)
+				and "localhost" in config.service
+				and OpsiConfig(upgrade_config=False).get("host", "server-role") != "configserver"
+			):
+				additional_info = (
+					"\nAttempted connection to localhost even if not running on opsi server."
+					"\nConfigure connection with [bold cyan]opsi-cli config service add[/bold cyan]"
+				)
+
 			if not isinstance(err, ClickException):
 				err = ClickException(str(err))
+			err.message += additional_info
+
+			err_console = get_console(file=sys.stderr)
 			if config.color:
 				err.message = re.sub(r"\[/?metavar\]", "", err.message)
-				rich_format_error(err)
+				_get_rich_formatter()._console = err_console
+				if issubclass(exc_type, Abort):
+					rich_abort_error()
+				else:
+					rich_format_error(err)
 			else:
-				sys.stderr.write(f"Error: {err}\n")
+				if issubclass(exc_type, Abort):
+					err_console.print("Aborted.")
+				else:
+					err_console.print(f"Error: {err}")
+
 			sys.exit(err.exit_code)
+
 		finally:
 			cache.exit()
 
