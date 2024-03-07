@@ -74,6 +74,18 @@ def get_structure_type(data: list | dict) -> type[list] | type[dict] | None:
 	return None
 
 
+def sort_data(data: Any) -> Any:
+	data_type = get_structure_type(data)
+	if data_type == list[dict]:
+		return sorted(data, key=lambda x: str(x.get(config.sort_by)))
+	elif data_type in (list[list], list):
+		# Extract index from sort_by value in "valueX" format
+		index = int(config.sort_by.replace("value", "")) if config.sort_by.startswith("value") else 0
+		return sorted(data, key=lambda x: str(x[index]) if data_type == list[list] else x)
+	else:
+		raise RuntimeError(f"Sort-By {config.sort_by!r} does not support stucture {data_type!r}")
+
+
 def output_file_is_stdout() -> bool:
 	return str(config.output_file) in ("-", "")
 
@@ -262,6 +274,9 @@ def write_output(data: Any, metadata: Metadata | None = None, default_output_for
 		ordered_list = [attr for config_attribute in config.attributes for attr in metadata.attributes if attr.id == config_attribute]
 		remaining_list = [attr for attr in metadata.attributes if attr.id not in config.attributes]
 		metadata.attributes = ordered_list + remaining_list
+
+	if config.sort_by:
+		data = sort_data(data)
 
 	if output_format in ("table"):
 		assert metadata

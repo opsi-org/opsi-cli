@@ -5,6 +5,7 @@ client-action plugin
 """
 
 import sys
+
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger
 
@@ -91,11 +92,8 @@ def set_action_request(ctx: click.Context, **kwargs: str) -> None:
 	"""
 	opsi-cli client-action set-action-request command
 	"""
-	try:
-		worker = SetActionRequestWorker(ctx.obj)
-		worker.set_action_request(**kwargs)
-	except Exception as err:
-		raise click.ClickException(str(err)) from err
+	worker = SetActionRequestWorker(ctx.obj)
+	worker.set_action_request(**kwargs)
 
 
 @cli.command(name="trigger-event", short_help="Trigger an event for selected clients")
@@ -116,18 +114,19 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool) -> None:
 	"""
 	opsi-cli client-action trigger-event command
 	"""
-	try:
-		worker = TriggerEventWorker(ctx.obj)
-		worker.trigger_event(event, wakeup)
-	except Exception as err:
-		raise click.ClickException(str(err)) from err
+	worker = TriggerEventWorker(ctx.obj)
+	worker.trigger_event(event, wakeup)
 
 
-@cli.command(name="execute", short_help="Execute shell-command on selected clients", context_settings={"ignore_unknown_options": True})
+@cli.command(
+	name="execute",
+	short_help="Execute a command on selected clients",
+	context_settings={"ignore_unknown_options": True, "allow_interspersed_args": False},
+)
 @click.pass_context
 @click.argument("command", nargs=-1, required=True)
-@click.option("--shell", help="Start process in shell", is_flag=True, default=False)
-@click.option("--show-host-names", help="Prepend the host name on output", is_flag=True, default=False)
+@click.option("--shell", help="Execute command in a shell", is_flag=True, default=False)
+@click.option("--host-names/--no-host-names", help="Prepend the host name on output", is_flag=True, default=True)
 @click.option(
 	"--encoding",
 	help=(
@@ -138,19 +137,14 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool) -> None:
 	type=str,
 	default="auto",
 )
-@click.option("--timeout", help="Number of seconds until command should be interrupted", type=float)
-def execute(
-	ctx: click.Context, command: tuple[str], shell: bool, show_host_names: bool, encoding: str, timeout: float | None = None
-) -> None:
+@click.option("--timeout", help="Number of seconds until command should be interrupted (0 = no timeout)", type=int, default=0)
+@click.option("--concurrent", help="Maximum number of concurrent executions", type=int, default=100)
+def execute(ctx: click.Context, command: tuple[str], shell: bool, host_names: bool, encoding: str, timeout: int, concurrent: int) -> None:
 	"""
 	opsi-cli client-action execute command
 	"""
-	exit_code = 0
-	try:
-		worker = ExecuteWorker(ctx.obj)
-		exit_code = worker.execute(command, timeout=timeout, shell=shell, show_host_names=show_host_names, encoding=encoding)
-	except Exception as err:
-		raise click.ClickException(str(err)) from err
+	worker = ExecuteWorker(ctx.obj)
+	exit_code = worker.execute(command, timeout=timeout, shell=shell, concurrent=concurrent, show_host_names=host_names, encoding=encoding)
 	sys.exit(exit_code)
 
 

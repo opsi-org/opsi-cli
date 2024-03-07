@@ -29,8 +29,8 @@ def test_metafile_create(tmp_path: Path) -> None:
 	shutil.copytree(TEST_REPO, repository_dir)
 
 	cmd = ["-l6", "manage-repo", "metafile", "create", str(repository_dir), "--scan"] + [f"--format={f}" for f in formats]
-	returncode, _ = run_cli(cmd)
-	assert returncode == 0
+	exit_code, stdout, _stderr = run_cli(cmd)
+	assert exit_code == 0
 
 	for suffix in formats:
 		data = read_metafile(repository_dir / f"packages.{suffix}")
@@ -42,8 +42,8 @@ def test_metafile_create(tmp_path: Path) -> None:
 
 	# Recreate without scanning, other name and formats
 	cmd = ["-l6", "manage-repo", "metafile", "create", str(repository_dir), "--format=json", "--repository-name=myrepo"]
-	returncode, _ = run_cli(cmd)
-	assert returncode == 0
+	exit_code, stdout, _stderr = run_cli(cmd)
+	assert exit_code == 0
 
 	for suffix in formats:
 		metafile = repository_dir / f"packages.{suffix}"
@@ -66,8 +66,8 @@ def test_metafile_update(tmp_path: Path) -> None:
 	cmd = ["-l6", "manage-repo", "metafile", "update", str(repository_dir), "--repository-name=myrepo", "--scan"] + [
 		f"--format={f}" for f in formats
 	]
-	returncode, _ = run_cli(cmd)
-	assert returncode == 0
+	exit_code, stdout, _stderr = run_cli(cmd)
+	assert exit_code == 0
 
 	for suffix in formats:
 		data = read_metafile(repository_dir / f"packages.{suffix}")
@@ -79,8 +79,8 @@ def test_metafile_update(tmp_path: Path) -> None:
 
 	# Update without scanning, keep name and change formats
 	cmd = ["-l6", "manage-repo", "metafile", "update", str(repository_dir), "--format=json"]
-	returncode, _ = run_cli(cmd)
-	assert returncode == 0
+	exit_code, stdout, _stderr = run_cli(cmd)
+	assert exit_code == 0
 
 	for suffix in formats:
 		metafile = repository_dir / f"packages.{suffix}"
@@ -102,21 +102,21 @@ def test_metafile_scan_packages(tmp_path: Path) -> None:
 
 	# Update must create metafiles if they do not exist
 	cmd = ["-l6", "manage-repo", "metafile", "scan-packages", str(repository_dir)]
-	returncode, out = run_cli(cmd)
-	assert returncode == 1
-	assert "No metadata files" in out
+	exit_code, _stdout, stderr = run_cli(cmd)
+	assert exit_code == 1
+	assert "No metadata files" in stderr
 
 	cmd = ["-l6", "manage-repo", "metafile", "create", str(repository_dir)] + [f"--format={f}" for f in formats]
-	returncode, _ = run_cli(cmd)
-	assert returncode == 0
+	exit_code, stdout, _stderr = run_cli(cmd)
+	assert exit_code == 0
 
 	for suffix in formats:
 		data = read_metafile(repository_dir / f"packages.{suffix}")
 		assert not data["packages"]
 
 	cmd = ["-l6", "manage-repo", "metafile", "scan-packages", str(repository_dir)]
-	returncode, out = run_cli(cmd)
-	assert returncode == 0
+	exit_code, _stdout, _stderr = run_cli(cmd)
+	assert exit_code == 0
 
 	for suffix in formats:
 		data = read_metafile(repository_dir / f"packages.{suffix}")
@@ -133,13 +133,13 @@ def test_metafile_add_package(tmp_path: Path) -> None:
 	shutil.copy(TEST_REPO / "localboot_new_2.0-1.opsi", repository_dir)
 
 	cmd = ["-l6", "manage-repo", "metafile", "create", str(repository_dir), "--scan"] + [f"--format={f}" for f in formats]
-	returncode, _ = run_cli(cmd)
-	assert returncode == 0
+	exit_code, _stdout, _stderr = run_cli(cmd)
+	assert exit_code == 0
 
 	# Check if update adds new package and deletes other entries for same package
 	cmd = ["-l6", "manage-repo", "metafile", "add-package", str(repository_dir), str(repository_dir / "localboot_new_2.0-1.opsi")]
-	returncode, _ = run_cli(cmd)
-	assert returncode == 0
+	exit_code, _stdout, _stderr = run_cli(cmd)
+	assert exit_code == 0
 
 	for suffix in formats:
 		data = read_metafile(repository_dir / f"packages.{suffix}")
@@ -160,8 +160,8 @@ def test_metafile_add_package(tmp_path: Path) -> None:
 		str(repository_dir),
 		str(repository_dir / "localboot_new_1.0-1.opsi"),
 	]
-	returncode, _ = run_cli(cmd)
-	assert returncode == 0
+	exit_code, _stdout, _stderr = run_cli(cmd)
+	assert exit_code == 0
 
 	for suffix in formats:
 		data = read_metafile(repository_dir / f"packages.{suffix}")
@@ -184,8 +184,8 @@ def test_metafile_add_package(tmp_path: Path) -> None:
 			str(repository_dir / "localboot_new_2.0-1.opsi"),
 			f"--compatibility={compatibility}",
 		]
-		returncode, _ = run_cli(cmd)
-		assert returncode == 1
+		exit_code, _stdout, _stderr = run_cli(cmd)
+		assert exit_code == 1
 
 
 def test_metafile_add_package_same_version(tmp_path: Path) -> None:
@@ -198,8 +198,8 @@ def test_metafile_add_package_same_version(tmp_path: Path) -> None:
 	# same version in different paths -> same RepoMetaPackage instance with .url as list
 
 	cmd = ["-l6", "manage-repo", "metafile", "create", str(repository_dir), "--scan"] + [f"--format={f}" for f in formats]
-	returncode, _ = run_cli(cmd)
-	assert returncode == 0
+	exit_code, _stdout, _stderr = run_cli(cmd)
+	assert exit_code == 0
 
 	for suffix in formats:
 		data = read_metafile(repository_dir / f"packages.{suffix}")
@@ -218,12 +218,12 @@ def test_metafile_remove_package(tmp_path: Path) -> None:
 	shutil.copy(TEST_REPO / "localboot_new_2.0-1.opsi", repository_dir)
 
 	cmd = ["-l6", "manage-repo", "metafile", "create", str(repository_dir), "--scan"] + [f"--format={f}" for f in formats]
-	returncode, _ = run_cli(cmd)
-	assert returncode == 0
+	exit_code, _stdout, _stderr = run_cli(cmd)
+	assert exit_code == 0
 
 	cmd = ["-l6", "manage-repo", "metafile", "remove-package", str(repository_dir), "localboot_new", "2.0-1"]
-	returncode, _ = run_cli(cmd)
-	assert returncode == 0
+	exit_code, _stdout, _stderr = run_cli(cmd)
+	assert exit_code == 0
 
 	for suffix in formats:
 		data = read_metafile(repository_dir / f"packages.{suffix}")
@@ -231,8 +231,8 @@ def test_metafile_remove_package(tmp_path: Path) -> None:
 		assert data["packages"]["localboot_new"]["1.0-1"]
 
 	cmd = ["-l6", "manage-repo", "metafile", "remove-package", str(repository_dir), "localboot_new", "1.0-1"]
-	returncode, _ = run_cli(cmd)
-	assert returncode == 0
+	exit_code, _stdout, _stderr = run_cli(cmd)
+	assert exit_code == 0
 
 	for suffix in formats:
 		data = read_metafile(repository_dir / f"packages.{suffix}")

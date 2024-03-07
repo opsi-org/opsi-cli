@@ -6,13 +6,15 @@ client_action_worker
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
 from ipaddress import ip_network
 
 from opsicommon.logging import get_logger
-from opsicommon.utils import ip_address_in_network
 from opsicommon.types import forceHostId
+from opsicommon.utils import ip_address_in_network
 
+from opsicli.io import get_console
 from opsicli.opsiservice import get_service_connection
 from opsicli.types import OpsiCliRuntimeError
 
@@ -41,10 +43,11 @@ class NoClientsSelected(OpsiCliRuntimeError):
 
 
 class ClientActionWorker:
-	def __init__(self, args: ClientActionArgs) -> None:
+	def __init__(self, args: ClientActionArgs, default_all: bool = True) -> None:
 		self.service = get_service_connection()
 		self.clients: set[str] = set()
 		self.group_forest: dict[str, Group] = {}
+		self.default_all = default_all
 		self.determine_clients(args)
 
 	def create_group_forest(self) -> None:
@@ -81,6 +84,13 @@ class ClientActionWorker:
 	def determine_clients(self, args: ClientActionArgs) -> None:
 		self.clients = set()
 		args.clients = (args.clients or "").lower()
+		if not args.clients and not args.client_groups and not args.ip_addresses and self.default_all:
+			console = get_console(file=sys.stderr)
+			console.print(
+				"[bright_yellow]No clients selected, defaulting to all clients.\n"
+				"This is deprecated, please use `--clients all` to select all clients.[/bright_yellow]"
+			)
+			args.clients = "all"
 		if "all" in args.clients:
 			self.clients = {entry["id"] for entry in self.service.jsonrpc("host_getObjects", [[], {"type": "OpsiClient"}])}
 		else:
