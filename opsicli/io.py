@@ -32,6 +32,7 @@ class Attribute:
 	description: str | None = None
 	identifier: bool = False
 	selected: bool = True
+	type: str | None = None
 
 	def as_dict(self) -> dict[str, str | bool]:
 		return asdict(self)
@@ -384,3 +385,16 @@ def read_input() -> Any:
 		except orjson.JSONDecodeError:
 			logger.debug("Trying csv")
 			return read_input_csv(data)
+
+
+def list_attributes(metadata: Any) -> None:
+	table = Table(show_header=False)
+	table.add_column("Name")
+	table.add_column("Type")
+
+	for attribute in metadata.attributes:
+		if attribute.selected is not False:
+			table.add_row(attribute.id, attribute.type.upper())
+
+	console = get_console()
+	console.print(table)
