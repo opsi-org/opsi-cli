@@ -37,8 +37,8 @@ def test_set_action_request_single() -> None:
 		):
 			cmd = ["client-action", "--clients", f"{CLIENT1},{CLIENT2}", "set-action-request", "--products", f"{PRODUCT1},{PRODUCT2}"]
 
-			(code, _) = run_cli(cmd)
-			assert code == 0
+			exit_code, _stdout, _stderr = run_cli(cmd)
+			assert exit_code == 0
 			pocs = connection.jsonrpc(
 				"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
 			)
@@ -47,8 +47,8 @@ def test_set_action_request_single() -> None:
 				assert poc.get("actionRequest") == "setup"
 
 			cmd += ["--request-type", "none"]
-			(code, _) = run_cli(cmd)
-			assert code == 0
+			exit_code, _stdout, _stderr = run_cli(cmd)
+			assert exit_code == 0
 			pocs = connection.jsonrpc(
 				"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
 			)
@@ -70,8 +70,8 @@ def test_set_action_request_group() -> None:
 			with tmp_host_group(connection, H_GROUP1, {CLIENT1, CLIENT2}), tmp_product_group(connection, P_GROUP, [PRODUCT1, PRODUCT2]):
 				cmd = ["-l6", "client-action", "--client-groups", H_GROUP1, "set-action-request", "--product-groups", P_GROUP]
 
-				(code, _) = run_cli(cmd)
-				assert code == 0
+				exit_code, _stdout, _stderr = run_cli(cmd)
+				assert exit_code == 0
 				pocs = connection.jsonrpc(
 					"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
 				)
@@ -80,8 +80,8 @@ def test_set_action_request_group() -> None:
 					assert poc.get("actionRequest") == "setup"
 
 				cmd += ["--request-type", "none"]
-				(code, _) = run_cli(cmd)
-				assert code == 0
+				exit_code, _stdout, _stderr = run_cli(cmd)
+				assert exit_code == 0
 				pocs = connection.jsonrpc(
 					"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
 				)
@@ -109,10 +109,10 @@ def test_set_action_request_where_failed() -> None:
 				],
 			)
 
-			(code, _) = run_cli(
+			exit_code, _stdout, _stderr = run_cli(
 				["client-action", "--clients", CLIENT1, "set-action-request", "--where-failed", "--setup-on-action", PRODUCT2]
 			)
-			assert code == 0
+			assert exit_code == 0
 			pocs = connection.jsonrpc("productOnClient_getObjects", params=[[], {"clientId": CLIENT1, "productId": [PRODUCT1, PRODUCT2]}])
 			assert len(pocs) == 2
 			for poc in pocs:
@@ -142,9 +142,9 @@ def test_set_action_request_excludes() -> None:
 				f"--exclude-product-groups={P_GROUP}",
 			]
 
-			(code, output) = run_cli(cmd)
-			print(output)
-			assert code == 0
+			exit_code, stdout, _stderr = run_cli(cmd)
+			print(stdout)
+			assert exit_code == 0
 			pocs = connection.jsonrpc(
 				"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
 			)
@@ -155,8 +155,8 @@ def test_set_action_request_excludes() -> None:
 					assert poc.get("actionRequest") in (None, "none")
 
 			cmd += ["--request-type", "none"]
-			(code, _) = run_cli(cmd)
-			assert code == 0
+			exit_code, _stdout, _stderr = run_cli(cmd)
+			assert exit_code == 0
 			pocs = connection.jsonrpc(
 				"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
 			)
@@ -170,8 +170,8 @@ def test_set_action_request_unknown_type() -> None:
 		connection = get_service_connection()
 		with tmp_client(connection, CLIENT1), tmp_product(connection, PRODUCT1):
 			cmd = ["client-action", "--clients", CLIENT1, "set-action-request", "--products", PRODUCT1, "--request-type", "nonexistent"]
-			(code, _) = run_cli(cmd)
-			assert code == 0
+			exit_code, _stdout, _stderr = run_cli(cmd)
+			assert exit_code == 0
 			pocs = connection.jsonrpc("productOnClient_getObjects", params=[[], {"clientId": CLIENT1, "productId": PRODUCT1}])
 			assert len(pocs) == 0
 
@@ -182,8 +182,8 @@ def test_set_action_request_only_online() -> None:
 		connection = get_service_connection()
 		with tmp_client(connection, CLIENT1), tmp_product(connection, PRODUCT1):
 			cmd = ["client-action", "--clients", CLIENT1, "--only-online", "set-action-request", "--products", PRODUCT1]
-			(code, _) = run_cli(cmd)
-			assert code == 1
+			exit_code, _stdout, _stderr = run_cli(cmd)
+			assert exit_code == 1
 			pocs = connection.jsonrpc("productOnClient_getObjects", params=[[], {"clientId": CLIENT1, "productId": PRODUCT1}])
 			assert len(pocs) == 0
 
@@ -200,8 +200,8 @@ def test_nested_groups_client_selection() -> None:
 			tmp_host_group(connection, H_GROUP2, {CLIENT2}, parent=H_GROUP1),
 		):
 			cmd = ["client-action", "--client-groups", H_GROUP1, "set-action-request", "--products", PRODUCT1]
-			(code, _) = run_cli(cmd)
-			assert code == 0
+			exit_code, _stdout, _stderr = run_cli(cmd)
+			assert exit_code == 0
 			print(connection.jsonrpc("group_getObjects", params=[[], {"id": [H_GROUP2]}]))
 			print(connection.jsonrpc("objectToGroup_getObjects", params=[[], {"objectId": [CLIENT1, CLIENT2]}]))
 			pocs = connection.jsonrpc("productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1]}])
@@ -215,5 +215,5 @@ def test_trigger_event() -> None:
 		connection = get_service_connection()
 		with tmp_client(connection, CLIENT1):
 			cmd = ["client-action", "--clients", CLIENT1, "trigger-event", "--wakeup"]
-			(code, _) = run_cli(cmd)
-			assert code == 0  # No way to actually trigger an event or wake up a client
+			exit_code, _stdout, _stderr = run_cli(cmd)
+			assert exit_code == 0  # No way to actually trigger an event or wake up a client

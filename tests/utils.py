@@ -21,9 +21,9 @@ from . import OPSI_HOSTNAME, OPSI_PASSWORD, OPSI_USERNAME
 runner = CliRunner()
 
 
-def run_cli(args: Sequence[str], stdin: list[str] | None = None) -> tuple[int, str]:
+def run_cli(args: Sequence[str], stdin: list[str] | None = None) -> tuple[int, str, str]:
 	result = runner.invoke(main, args, obj={}, catch_exceptions=False, input="\n".join(stdin or []))
-	return (result.exit_code, result.output)
+	return (result.exit_code, result.stdout, result.stderr)
 
 
 @contextmanager

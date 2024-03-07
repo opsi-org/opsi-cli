@@ -84,10 +84,10 @@ def test_attributes_ordering(config_attributes: list[str], initial_order: list[s
 	),
 )
 def test_output_config(output_format: str, startstrings: list[str]) -> None:
-	exit_code, output = run_cli(["--output-format", output_format, "config", "list"])
-	print(output)
+	exit_code, stdout, _stderr = run_cli(["--output-format", output_format, "config", "list"])
+	print(stdout)
 	assert exit_code == 0
-	assert any(output.startswith(startstring) for startstring in startstrings)
+	assert any(stdout.startswith(startstring) for startstring in startstrings)
 	print("\n\n")
 	config.set_values({"output_format": "auto"})  # To not affect following tests
 
@@ -150,7 +150,7 @@ def test_input_output_file_cli() -> None:
 	with temp_context() as tempdir:
 		for outputfile in (tempdir / "output.txt", Path("relative-output.txt")):
 			try:
-				exit_code, _ = run_cli([f"--output-file={outputfile}", "config", "list"])
+				exit_code, _stdout, _stderr = run_cli([f"--output-file={outputfile}", "config", "list"])
 				assert exit_code == 0
 				assert "log_level" in outputfile.read_text(encoding="utf-8")
 			finally:
