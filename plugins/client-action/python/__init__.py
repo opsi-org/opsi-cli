@@ -124,11 +124,15 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool) -> None:
 		raise click.ClickException(str(err)) from err
 
 
-@cli.command(name="execute", short_help="Execute shell-command on selected clients", context_settings={"ignore_unknown_options": True})
+@cli.command(
+	name="execute",
+	short_help="Execute a command on selected clients",
+	context_settings={"ignore_unknown_options": True, "allow_interspersed_args": False},
+)
 @click.pass_context
 @click.argument("command", nargs=-1, required=True)
-@click.option("--shell", help="Start process in shell", is_flag=True, default=False)
-@click.option("--show-host-names/--hide-host-names", help="Prepend the host name on output", is_flag=True, default=True)
+@click.option("--shell", help="Execute command in a shell", is_flag=True, default=False)
+@click.option("--host-names/--no-host-names", help="Prepend the host name on output", is_flag=True, default=True)
 @click.option(
 	"--encoding",
 	help=(
@@ -141,9 +145,7 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool) -> None:
 )
 @click.option("--timeout", help="Number of seconds until command should be interrupted (0 = no timeout)", type=int, default=0)
 @click.option("--concurrent", help="Maximum number of concurrent executions", type=int, default=100)
-def execute(
-	ctx: click.Context, command: tuple[str], shell: bool, show_host_names: bool, encoding: str, timeout: float, concurrent: int
-) -> None:
+def execute(ctx: click.Context, command: tuple[str], shell: bool, host_names: bool, encoding: str, timeout: int, concurrent: int) -> None:
 	"""
 	opsi-cli client-action execute command
 	"""
@@ -151,7 +153,7 @@ def execute(
 	try:
 		worker = ExecuteWorker(ctx.obj)
 		exit_code = worker.execute(
-			command, timeout=timeout, shell=shell, concurrent=concurrent, show_host_names=show_host_names, encoding=encoding
+			command, timeout=timeout, shell=shell, concurrent=concurrent, show_host_names=host_names, encoding=encoding
 		)
 	except Exception as err:
 		raise click.ClickException(str(err)) from err

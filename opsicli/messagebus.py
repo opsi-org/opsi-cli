@@ -172,6 +172,7 @@ class MessagebusProcess:
 	stop_event: ProcessStopEventMessage | None = None
 	stop_time: float = 0.0
 	error: ProcessErrorMessage | str | None = None
+	last_data_created = 0
 	stderr_buffer: bytearray = field(default_factory=bytearray)
 	stdout_buffer: bytearray = field(default_factory=bytearray)
 	max_buffer_size: int = 100_000
@@ -218,6 +219,10 @@ class MessagebusProcess:
 			)
 
 	def on_data_read(self, message: ProcessDataReadMessage) -> None:
+		if message.created < self.last_data_created:
+			raise ValueError("Received ProcessDataReadMessage with older timestamp than previous ProcessDataReadMessage.")
+		self.last_data_created = message.created
+
 		with self.process_lock:
 			for buffer, data, stream in (
 				(self.stdout_buffer, message.stdout, "stdout"),
@@ -317,7 +322,9 @@ class ProcessMessagebusConnection(MessagebusConnection):
 			if self.show_host_names and host_name:
 				host_name = host_name.ljust(self.max_host_name_length)
 				line_prefix = f"{host_name}: ".encode(use_encoding or self.output_encoding)
-				data = b"\n".join(line_prefix + line if line else line for line in data.split(b"\n"))
+				lines = data.split(b"\n")
+				last_idx = len(lines) - 1
+				data = b"\n".join(line_prefix + line if idx != last_idx else line for idx, line in enumerate(lines))
 
 			if is_error and use_encoding:
 				self.console.print(f"[red]{data.decode(use_encoding)}[/red]", end="")
