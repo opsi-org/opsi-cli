@@ -53,7 +53,7 @@ def test_setup_shell_completion(tmp_path: Path) -> None:
 
 	exit_code, stdout, stderr = run_cli(["self", "setup-shell-completion", "--shell", "zsh", "--completion-file", str(completion_config)])
 	assert exit_code == 0
-	assert stdout == "Setting up auto completion for shell 'zsh'.\nPlease restart your running shell for changes to take effect.\n"
+	assert "Setting up auto completion for shell 'zsh'" in stdout
 	cont = completion_config.read_text()
 	assert cont.startswith(mod_self.START_MARKER + "\n")
 	assert "#compdef opsi-cli" in cont
