@@ -13,7 +13,7 @@ from opsicli.config import config
 from opsicli.messagebus import MessagebusConnection
 from opsicli.utils import evaluate_rpc_dict_result
 
-from .client_action_worker import ClientActionWorker
+from .client_action_worker import ClientActionArgs, ClientActionWorker
 
 logger = get_logger("opsicli")
 
@@ -67,6 +67,9 @@ class WakeupHostsMessagebusConnection(MessagebusConnection):
 
 
 class TriggerEventWorker(ClientActionWorker):
+	def __init__(self, args: ClientActionArgs) -> None:
+		super().__init__(args, default_all=False)
+
 	def divide_clients_by_reachable(self) -> tuple[set[str], set[str]]:
 		all_reachable = set(self.service.jsonrpc("host_getMessagebusConnectedIds"))
 		selected_reachable = self.clients.intersection(all_reachable)
