@@ -12,6 +12,7 @@ from pathlib import Path
 
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger  # type: ignore[import]
+from rich.table import Table
 
 from opsicli.config import config
 from opsicli.io import Attribute, Metadata, get_console, prompt, write_output
@@ -29,8 +30,39 @@ __version__ = "0.1.2"
 logger = get_logger("opsicli")
 
 
+def list_attributes(ctx: click.Context, param: str, value: bool) -> None:
+	if not value:
+		return
+	console = get_console()
+	for command in cli.commands.values():
+		console.print(" ")
+		console.print(f"{command.name}", style="bold cyan")
+		if command.params:
+			table = Table(show_header=False)
+			table.add_column("Name", style="bold", width=20)
+			table.add_column("Type", width=20)
+			for param in command.params:
+				param_type = param.type
+				if isinstance(param_type, click.types.Path):
+					param_type = "PATH / [PATH, ...]"
+				table.add_row(param.name, str(param_type))
+			console.print(table)
+		else:
+			console.print("	No parameters found.")
+	console.print(" ")
+	ctx.exit()
+
+
 @click.group(name="plugin", short_help="Manage opsi-cli plugins")
 @click.version_option(__version__, message="opsi plugin, version %(version)s")
+@click.option(
+	"--list-attributes",
+	is_flag=True,
+	default=False,
+	expose_value=False,
+	help="List all attributes of the commands",
+	callback=list_attributes,
+)
 def cli() -> None:
 	"""
 	opsi-cli plugin command.
