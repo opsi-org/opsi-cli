@@ -34,16 +34,16 @@ def cli(ctx: click.Context) -> None:
 
 	if config.list_attributes:
 		command = ctx.invoked_subcommand
-		command_obj = ctx.command.commands.get(command)
+		command_obj = ctx.command.commands.get(command) if command is not None else None
 
 		# Check if the command is a group
-		if isinstance(command_obj, click.Group):
+		if command is not None and isinstance(command_obj, click.Group):
 			args = sys.argv[sys.argv.index(command) + 1 :]
 			subcommand = args[0] if args else None
 			if subcommand is not None:
 				command = f"{command}_{subcommand}"
 
-		metadata = command_metadata.get(command)
+		metadata = command_metadata.get(command) if command is not None else None
 		if metadata is not None:
 			list_attributes(metadata)
 			ctx.exit()
