@@ -34,7 +34,7 @@ def cli(ctx: click.Context) -> None:
 
 	if config.list_attributes:
 		command = ctx.invoked_subcommand
-		command_obj = ctx.command.commands.get(command) if command is not None else None
+		command_obj = ctx.command
 
 		# Check if the command is a group
 		if command is not None and isinstance(command_obj, click.Group):
