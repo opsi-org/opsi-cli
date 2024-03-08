@@ -12,10 +12,9 @@ from click.shell_completion import CompletionItem  # type: ignore[import]
 from opsicommon.logging import get_logger  # type: ignore[import]
 
 from opsicli.config import ConfigValueSource, config
-from opsicli.io import prompt, write_output
+from opsicli.io import list_attributes, prompt, write_output
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.types import OPSIService, Password
-from opsicli.utils import list_attributes
 from plugins.config.python.metadata import command_metadata
 
 __version__ = "0.1.0"

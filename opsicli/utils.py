@@ -22,8 +22,6 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Type
 
 from opsicommon.logging import get_logger, logging_config  # type: ignore[import]
-from rich.console import Console
-from rich.table import Table
 
 if platform.system().lower() != "windows":
 	import termios
@@ -62,19 +60,6 @@ def decrypt(cipher: str) -> str:
 		key_c = key[num % len(key)]
 		cleartext += chr((ord(char) - ord(key_c) + 256) % 256)
 	return cleartext
-
-
-def list_attributes(metadata: Any) -> None:
-	table = Table(show_header=False)
-	table.add_column("Name")
-	table.add_column("Type")
-
-	for attribute in metadata.attributes:
-		if attribute.selected is not False:
-			table.add_row(f"[cyan]{attribute.id}[/cyan]", attribute.data_type.upper())
-
-	console = Console()
-	console.print(table)
 
 
 def add_to_env_variable(key: str, value: str, system: bool = False) -> None:

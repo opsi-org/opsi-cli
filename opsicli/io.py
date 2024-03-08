@@ -400,3 +400,8 @@ def read_input() -> Any:
 		except orjson.JSONDecodeError:
 			logger.debug("Trying csv")
 			return read_input_csv(data)
+
+
+def list_attributes(metadata: Metadata) -> None:
+	new_list = [{"id": attribute.id, "type": attribute.data_type} for attribute in metadata.attributes]
+	write_output(new_list, None, "table")
