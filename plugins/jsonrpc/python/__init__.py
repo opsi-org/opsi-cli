@@ -4,6 +4,7 @@ opsi-cli basic command line interface for opsi
 jsonrpc plugin
 """
 
+import sys
 from typing import Any
 
 import orjson
@@ -12,15 +13,11 @@ from click.shell_completion import CompletionItem  # type: ignore[import]
 from opsicommon.logging import get_logger  # type: ignore[import]
 
 from opsicli.cache import cache
-from opsicli.io import (
-	Attribute,
-	Metadata,
-	output_file_is_stdout,
-	read_input,
-	write_output,
-)
+from opsicli.config import config
+from opsicli.io import list_attributes, output_file_is_stdout, read_input, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
+from plugins.jsonrpc.python.metadata import command_metadata
 
 __version__ = "0.1.0"
 
@@ -36,12 +33,30 @@ def cache_interface(interface: list[dict[str, Any]]) -> None:
 
 @click.group(name="jsonrpc", short_help="opsi JSONRPC client")
 @click.version_option(__version__, message="jsonrpc plugin, version %(version)s")
-def cli() -> None:
+@click.pass_context
+def cli(ctx: click.Context) -> None:
 	"""
 	opsi-cli jsonrpc command.
 	This command is used to execute JSONRPC requests on an opsi service.
 	"""
 	logger.trace("jsonrpc command")
+
+	if config.list_attributes:
+		command = ctx.invoked_subcommand
+		command_obj = ctx.command
+
+		# Check if the command is a group
+		if command is not None and isinstance(command_obj, click.Group):
+			args = sys.argv[sys.argv.index(command) + 1 :]
+			subcommand = args[0] if args else None
+			if subcommand is not None:
+				command = f"{command}_{subcommand}"
+
+		metadata = command_metadata.get(command) if command is not None else None
+		if metadata is not None:
+			list_attributes(metadata)
+			ctx.exit()
+
 	# Cache interface for later
 	client = get_service_connection()
 	interface = client.jsonrpc("backend_getInterface")
@@ -53,18 +68,7 @@ def methods() -> None:
 	"""
 	opsi-cli jsonrpc methods subcommand.
 	"""
-	metadata = Metadata(
-		attributes=[
-			Attribute(id="name", description="Method name", identifier=True),
-			Attribute(id="params", description="Method params"),
-			Attribute(id="deprecated", description="If the method is deprectated"),
-			Attribute(id="alternative_method", description="Alternative method, if deprecated"),
-			Attribute(id="args", description="Args", selected=False),
-			Attribute(id="varargs", description="Varargs", selected=False),
-			Attribute(id="keywords", description="Keywords", selected=False),
-			Attribute(id="defaults", description="Defaults", selected=False),
-		]
-	)
+	metadata = command_metadata["methods"]
 	write_output(cache.get("jsonrpc-interface-raw"), metadata=metadata, default_output_format="table")
 
 
