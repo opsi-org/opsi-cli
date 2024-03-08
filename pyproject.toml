@@ -54,7 +54,7 @@ pydantic = "^2.5.1"
 types-requests = "^2.31"
 ruff = "^0.3"
 mypy = "^1.4"
-pyinstaller = "^6.0"
+pyinstaller = "5.13"  # pinned for macos codesigning (restructured with 6.0)
 pytest = "^8.0"
 pytest-cov = "^4.0"
 
