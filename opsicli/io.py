@@ -32,7 +32,7 @@ class Attribute:
 	description: str | None = None
 	identifier: bool = False
 	selected: bool = True
-	type: str | None = None
+	data_type: str | None = None
 
 	def as_dict(self) -> dict[str, str | bool]:
 		return asdict(self)

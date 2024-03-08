@@ -71,7 +71,7 @@ def list_attributes(metadata: Any) -> None:
 
 	for attribute in metadata.attributes:
 		if attribute.selected is not False:
-			table.add_row(f"[cyan]{attribute.id}[/cyan]", attribute.type.upper())
+			table.add_row(f"[cyan]{attribute.id}[/cyan]", attribute.data_type.upper())
 
 	console = Console()
 	console.print(table)
