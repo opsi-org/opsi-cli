@@ -27,7 +27,7 @@ pyinstaller-poetry:
     - --exclude-module=flake8
     - --exclude-module=isort
     - --exclude-module=mypy
-    - --contents-directory=.
+    #- --contents-directory=.
   scripts:
     - script: run-opsicli
       binaries:
