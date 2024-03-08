@@ -1,4 +1,8 @@
-# metadata.py
+"""
+opsi-cli basic command line interface for opsi
+
+This module contains the metadata for the config plugin. The metadata includes information about the subcommands and their attributes.
+"""
 
 from opsicli.io import Attribute, Metadata
 
