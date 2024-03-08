@@ -241,7 +241,7 @@ def upgrade(branch: str, source_url: str) -> None:
 	with tempfile.TemporaryDirectory() as tmpdir_name:
 		tmp_dir = Path(tmpdir_name)
 
-		@retry(retries=2, wait=1.0, exceptions=[OSError, PermissionError])
+		@retry(retries=2, wait=1.0, exceptions=[OSError, PermissionError, subprocess.CalledProcessError])
 		def download_binary() -> tuple[Path, str]:
 			new_binary = download(f"{source_url}/{branch}/{get_opsi_cli_filename()}", tmp_dir, make_executable=True)
 			try:
