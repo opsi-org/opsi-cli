@@ -4,7 +4,6 @@ opsi-cli basic command line interface for opsi
 config plugin
 """
 
-import sys
 from urllib.parse import urlparse
 
 import rich_click as click  # type: ignore[import]
@@ -15,6 +14,7 @@ from opsicli.config import ConfigValueSource, config
 from opsicli.io import list_attributes, prompt, write_output
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.types import OPSIService, Password
+from opsicli.utils import get_command_with_subcommand
 from plugins.config.python.metadata import command_metadata
 
 __version__ = "0.1.0"
@@ -33,16 +33,7 @@ def cli(ctx: click.Context) -> None:
 	logger.trace("config command")
 
 	if config.list_attributes:
-		command = ctx.invoked_subcommand
-		command_obj = ctx.command
-
-		# Check if the command is a group
-		if command is not None and isinstance(command_obj, click.Group):
-			args = sys.argv[sys.argv.index(command) + 1 :]
-			subcommand = args[0] if args else None
-			if subcommand is not None:
-				command = f"{command}_{subcommand}"
-
+		command = get_command_with_subcommand(ctx)
 		metadata = command_metadata.get(command) if command is not None else None
 		if metadata is not None:
 			list_attributes(metadata)

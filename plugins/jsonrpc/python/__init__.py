@@ -4,7 +4,6 @@ opsi-cli basic command line interface for opsi
 jsonrpc plugin
 """
 
-import sys
 from typing import Any
 
 import orjson
@@ -17,6 +16,7 @@ from opsicli.config import config
 from opsicli.io import list_attributes, output_file_is_stdout, read_input, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
+from opsicli.utils import get_command_with_subcommand
 from plugins.jsonrpc.python.metadata import command_metadata
 
 __version__ = "0.1.0"
@@ -42,16 +42,7 @@ def cli(ctx: click.Context) -> None:
 	logger.trace("jsonrpc command")
 
 	if config.list_attributes:
-		command = ctx.invoked_subcommand
-		command_obj = ctx.command
-
-		# Check if the command is a group
-		if command is not None and isinstance(command_obj, click.Group):
-			args = sys.argv[sys.argv.index(command) + 1 :]
-			subcommand = args[0] if args else None
-			if subcommand is not None:
-				command = f"{command}_{subcommand}"
-
+		command = get_command_with_subcommand(ctx)
 		metadata = command_metadata.get(command) if command is not None else None
 		if metadata is not None:
 			list_attributes(metadata)
