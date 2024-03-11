@@ -219,7 +219,7 @@ def retry(
 	return decorator
 
 
-def get_command_with_subcommand(ctx: click.Context) -> str:
+def get_command_with_subcommand(ctx: click.Context) -> str | None:
 	command = ctx.invoked_subcommand
 	command_obj = ctx.command
 
