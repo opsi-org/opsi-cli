@@ -68,7 +68,7 @@ def methods() -> None:
 	"""
 	opsi-cli jsonrpc methods subcommand.
 	"""
-	metadata = command_metadata["methods"]
+	metadata = command_metadata.get("methods")
 	write_output(cache.get("jsonrpc-interface-raw"), metadata=metadata, default_output_format="table")
 
 

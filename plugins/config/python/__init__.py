@@ -54,7 +54,7 @@ def config_list() -> None:
 	"""
 	opsi-cli config list subcommand.
 	"""
-	metadata = command_metadata["list"]
+	metadata = command_metadata.get("list")
 
 	data = []
 	for item in sorted(config.get_config_items(), key=lambda x: x.name):
@@ -77,7 +77,7 @@ def config_show(name: str) -> None:
 	"""
 	opsi-cli config show subcommand.
 	"""
-	metadata = command_metadata["show"]
+	metadata = command_metadata.get("show")
 
 	data = []
 	item = config.get_config_item(name).as_dict()
@@ -131,7 +131,7 @@ def service_list() -> None:
 	"""
 	opsi-cli config service list subcommand.
 	"""
-	metadata = command_metadata["service_list"]
+	metadata = command_metadata.get("service_list")
 
 	data = []
 	for item in sorted(config.services, key=lambda x: x.name):
