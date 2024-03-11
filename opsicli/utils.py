@@ -21,6 +21,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Type
 
+import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger, logging_config  # type: ignore[import]
 
 if platform.system().lower() != "windows":
@@ -216,3 +217,17 @@ def retry(
 		return wrapper
 
 	return decorator
+
+
+def get_command_with_subcommand(ctx: click.Context) -> str:
+	command = ctx.invoked_subcommand
+	command_obj = ctx.command
+
+	# Check if the command is a group
+	if command is not None and isinstance(command_obj, click.Group):
+		args = sys.argv[sys.argv.index(command) + 1 :]
+		subcommand = args[0] if args else None
+		if subcommand is not None:
+			command = f"{command}_{subcommand}"
+
+	return command
