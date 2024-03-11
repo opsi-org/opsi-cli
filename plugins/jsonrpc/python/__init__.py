@@ -131,7 +131,10 @@ def execute(method: str, params: list[str] | None = None) -> None:
 	client = get_service_connection()
 	logger.info("Calling method %s with params %s", method, params)
 	data = client.jsonrpc(method, params)
-	write_output(data, default_output_format=default_output_format)
+	if config.list_attributes and data is not None:
+		list_attributes(data, is_data_in_metadata_format=False)
+	else:
+		write_output(data, default_output_format=default_output_format)
 
 
 class JSONRPCPlugin(OPSICLIPlugin):

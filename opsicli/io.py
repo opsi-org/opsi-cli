@@ -83,7 +83,7 @@ def sort_data(data: Any) -> Any:
 		index = int(config.sort_by.replace("value", "")) if config.sort_by.startswith("value") else 0
 		return sorted(data, key=lambda x: str(x[index]) if data_type == list[list] else x)
 	else:
-		raise RuntimeError(f"Sort-By {config.sort_by!r} does not support stucture {data_type!r}")
+		raise RuntimeError(f"Sort-By {config.sort_by!r} does not support structure {data_type!r}")
 
 
 def output_file_is_stdout() -> bool:
@@ -402,8 +402,15 @@ def read_input() -> Any:
 			return read_input_csv(data)
 
 
-def list_attributes(metadata: Metadata) -> None:
-	data_from_metadata = [
-		{"id": attribute.id, "type": attribute.data_type} for attribute in metadata.attributes if attribute.selected is not False
-	]
-	write_output(data_from_metadata, None, "table")
+def list_attributes(data: Any, is_data_in_metadata_format: bool = True) -> None:
+	if is_data_in_metadata_format:
+		attributes_list = [
+			{"id": attribute.id, "type": attribute.data_type} for attribute in data.attributes if attribute.selected is not False
+		]
+	else:
+		data_type = get_structure_type(data)
+		if data_type == list[dict]:
+			attributes_list = [{"id": key, "type": type(value).__name__} for key, value in data[0].items()]
+		else:
+			raise RuntimeError(f"'--list-attributes' does not support structure {data_type!r}")
+	write_output(attributes_list, None, "table")
