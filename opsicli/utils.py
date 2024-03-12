@@ -150,6 +150,7 @@ def download(url: str, destination: Path, make_executable: bool = False) -> Path
 
 	new_file = destination / url.split("/")[-1]
 	response = requests.get(url, stream=True, timeout=30)
+	response.raise_for_status()
 	with open(new_file, "wb") as filehandle:
 		shutil.copyfileobj(response.raw, filehandle)
 
