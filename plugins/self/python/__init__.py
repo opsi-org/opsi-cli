@@ -224,7 +224,7 @@ def install(system: bool, binary_path: Path | None = None, no_add_to_path: bool 
 @click.option(
 	"--source-url",
 	type=str,
-	help="Url from which to pull.",
+	help="URL from which to pull.",
 	default="https://tools.43.opsi.org",
 	show_default=True,
 )
