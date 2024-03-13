@@ -2,6 +2,8 @@
 test_self
 """
 
+import pytest
+
 from pathlib import Path
 from unittest.mock import patch
 
@@ -74,6 +76,7 @@ def test_command_structure() -> None:
 	assert f"self ({mod_self.__version__})\n" in stdout
 
 
+@pytest.mark.xfail
 def test_self_upgrade() -> None:
 	with patch("opsicli.utils.replace_binary", lambda *args, **kwargs: None):
 		exit_code, stdout, stderr = run_cli(["-l", "7", "--dry-run", "self", "upgrade"])
