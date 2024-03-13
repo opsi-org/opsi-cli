@@ -15,9 +15,9 @@ from typing import Any, Callable, Generator, Literal, cast
 from uuid import uuid4
 
 from opsicommon.client.opsiservice import MessagebusListener
-from opsicommon.logging import get_logger  # type: ignore[import]
-from opsicommon.messagebus import (
-	CONNECTION_USER_CHANNEL,
+from opsicommon.logging import get_logger
+from opsicommon.messagebus import CONNECTION_USER_CHANNEL
+from opsicommon.messagebus.message import (
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
 	JSONRPCRequestMessage,
