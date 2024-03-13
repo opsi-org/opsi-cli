@@ -402,8 +402,8 @@ def read_input() -> Any:
 			return read_input_csv(data)
 
 
-def list_attributes(data: Any, is_data_in_metadata_format: bool = True) -> None:
-	if is_data_in_metadata_format:
+def list_attributes(data: Any) -> None:
+	if isinstance(data, Metadata):
 		attributes_list = [
 			{"id": attribute.id, "type": attribute.data_type} for attribute in data.attributes if attribute.selected is not False
 		]

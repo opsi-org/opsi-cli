@@ -123,7 +123,7 @@ def execute(method: str, params: list[str] | None = None) -> None:
 	logger.info("Calling method %s with params %s", method, params)
 	data = client.jsonrpc(method, params)
 	if config.list_attributes and data is not None:
-		list_attributes(data, is_data_in_metadata_format=False)
+		list_attributes(data)
 	else:
 		write_output(data, default_output_format=default_output_format)
 

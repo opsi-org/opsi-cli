@@ -6,7 +6,7 @@ import sys
 from io import BufferedReader, BytesIO, TextIOWrapper
 from pathlib import Path
 from typing import Any
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 from _pytest.capture import CaptureFixture
@@ -205,18 +205,18 @@ def test_input_output_file_cli() -> None:
 
 
 @pytest.mark.parametrize(
-	"data, is_data_in_metadata_format, expected_output, expected_exception",
+	"data, expected_output, expected_exception",
 	[
-		(Mock(attributes=[Mock(id="id", data_type="type", selected=True)]), True, [{"id": "id", "type": "type"}], None),
-		([{"id": "value"}], False, [{"id": "id", "type": "str"}], None),
-		("unsupported_data_type", False, None, RuntimeError),
+		(Metadata(attributes=[Attribute(id="id", data_type="type", selected=True)]), [{"id": "id", "type": "type"}], None),
+		([{"id": "value"}], [{"id": "id", "type": "str"}], None),
+		("unsupported_data_type", None, RuntimeError),
 	],
 )
-def test_list_attributes(data: Any, is_data_in_metadata_format: bool, expected_output: Any, expected_exception: Any) -> None:
+def test_list_attributes(data: Any, expected_output: Any, expected_exception: Any) -> None:
 	with patch("opsicli.io.write_output") as mock_write_output:
 		if expected_exception is not None:
 			with pytest.raises(expected_exception):
-				list_attributes(data, is_data_in_metadata_format)
+				list_attributes(data)
 		else:
-			list_attributes(data, is_data_in_metadata_format)
+			list_attributes(data)
 			mock_write_output.assert_called_once_with(expected_output, None, "table")
