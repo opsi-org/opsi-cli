@@ -4,11 +4,13 @@ test_plugins
 
 import time
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 import pytest
+import rich_click as click  # type: ignore[import]
 from opsicommon.logging import LOG_WARNING, use_logging_config
 
-from opsicli.utils import decrypt, encrypt, replace_binary, retry
+from opsicli.utils import decrypt, encrypt, get_command_with_subcommand, replace_binary, retry
 
 
 @pytest.mark.parametrize(
@@ -79,3 +81,13 @@ def test_retry() -> None:
 			failing_function2()
 
 		assert len(caught_exceptions) == 4
+
+
+def test_get_command_with_subcommand() -> None:
+	ctx = Mock(spec=click.Context)
+	ctx.invoked_subcommand = "testcommand"
+	ctx.command = click.Group()
+
+	with patch("sys.argv", ["test_plugin", "testcommand", "subcommand"]):
+		result = get_command_with_subcommand(ctx)
+		assert result == "testcommand_subcommand"

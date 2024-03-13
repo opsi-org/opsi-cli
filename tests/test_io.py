@@ -6,6 +6,7 @@ import sys
 from io import BufferedReader, BytesIO, TextIOWrapper
 from pathlib import Path
 from typing import Any
+from unittest.mock import Mock, patch
 
 import pytest
 from _pytest.capture import CaptureFixture
@@ -16,6 +17,7 @@ from opsicli.io import (
 	Metadata,
 	input_file_bin,
 	input_file_str,
+	list_attributes,
 	output_file_bin,
 	output_file_str,
 	prompt,
@@ -200,3 +202,21 @@ def test_input_output_file_cli() -> None:
 				outputfile.unlink()
 
 		# --input-file is only used in jsonrpc plugin which requires a server connection
+
+
+@pytest.mark.parametrize(
+	"data, is_data_in_metadata_format, expected_output, expected_exception",
+	[
+		(Mock(attributes=[Mock(id="id", data_type="type", selected=True)]), True, [{"id": "id", "type": "type"}], None),
+		([{"id": "value"}], False, [{"id": "id", "type": "str"}], None),
+		("unsupported_data_type", False, None, RuntimeError),
+	],
+)
+def test_list_attributes(data: Any, is_data_in_metadata_format: bool, expected_output: Any, expected_exception: Any) -> None:
+	with patch("opsicli.io.write_output") as mock_write_output:
+		if expected_exception is not None:
+			with pytest.raises(expected_exception):
+				list_attributes(data, is_data_in_metadata_format)
+		else:
+			list_attributes(data, is_data_in_metadata_format)
+			mock_write_output.assert_called_once_with(expected_output, None, "table")
