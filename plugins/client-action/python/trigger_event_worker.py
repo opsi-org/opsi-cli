@@ -7,7 +7,7 @@ trigger_event_worker
 from threading import Event
 
 from opsicommon.logging import get_logger
-from opsicommon.messagebus import EventMessage
+from opsicommon.messagebus.message import EventMessage
 
 from opsicli.config import config
 from opsicli.messagebus import MessagebusConnection

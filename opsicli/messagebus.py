@@ -15,9 +15,9 @@ from typing import Any, Callable, Generator, Literal, cast
 from uuid import uuid4
 
 from opsicommon.client.opsiservice import MessagebusListener
-from opsicommon.logging import get_logger  # type: ignore[import]
-from opsicommon.messagebus import (
-	CONNECTION_USER_CHANNEL,
+from opsicommon.logging import get_logger
+from opsicommon.messagebus import CONNECTION_USER_CHANNEL
+from opsicommon.messagebus.message import (
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
 	JSONRPCRequestMessage,
@@ -347,7 +347,10 @@ class ProcessMessagebusConnection(MessagebusConnection):
 	) -> int:
 		self.show_host_names = show_host_names
 		self.data_encoding = encoding
-		start_timeout = min(PROCESS_START_TIMEOUT, timeout)
+		start_timeout = PROCESS_START_TIMEOUT
+		if timeout > 0 and timeout < start_timeout:
+			start_timeout = timeout
+
 		self.processes = {}
 
 		uniq_channels = list(set(channels))

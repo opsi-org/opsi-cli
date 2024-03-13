@@ -5,18 +5,17 @@ opsi-cli Basic command line interface for opsi
 opsi service
 """
 
+import json
+import os
 import re
 import subprocess
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from opsicommon.client.opsiservice import (  # type: ignore[import]
-	ServiceClient,
-	ServiceVerificationFlags,
-)
-from opsicommon.config import OpsiConfig  # type: ignore[import]
-from opsicommon.logging import get_logger  # type: ignore[import]
+from opsicommon.client.opsiservice import ServiceClient, ServiceVerificationFlags
+from opsicommon.config import OpsiConfig
+from opsicommon.logging import get_logger, secret_filter
 
 from opsicli import __version__
 from opsicli.config import config
@@ -78,12 +77,29 @@ def get_service_credentials_from_backend() -> tuple[str, str]:
 	raise RuntimeError("Failed to get service credentials")
 
 
+def get_opsiconfd_config() -> dict[str, str]:
+	config = {"ssl_server_key": "", "ssl_server_cert": "", "ssl_server_key_passphrase": ""}
+	try:
+		proc = subprocess.run(["opsiconfd", "get-config"], shell=False, check=True, capture_output=True, text=True, encoding="utf-8")
+		for attr, value in json.loads(proc.stdout).items():
+			if attr in config.keys() and value is not None:
+				config[attr] = value
+				if attr == "ssl_server_key_passphrase":
+					secret_filter.add_secrets(value)
+	except Exception as err:
+		logger.debug("Failed to get opsiconfd config %s", err)
+	return config
+
+
 def get_service_connection() -> ServiceClient:
 	global jsonrpc_client
 	if not jsonrpc_client:
 		address = config.service
 		username = config.username
 		password = config.password
+		client_cert_file = None
+		client_key_file = None
+		client_key_password = None
 		service = config.get_service_by_name(config.service)
 
 		if service:
@@ -99,6 +115,17 @@ def get_service_connection() -> ServiceClient:
 				try:
 					username = opsiconf.get("host", "id")
 					password = opsiconf.get("host", "key")
+					cfg = get_opsiconfd_config()
+					logger.debug("opsiconfd config: %r", cfg)
+					if (
+						cfg["ssl_server_key"]
+						and os.path.exists(cfg["ssl_server_key"])
+						and cfg["ssl_server_cert"]
+						and os.path.exists(cfg["ssl_server_cert"])
+					):
+						client_cert_file = cfg["ssl_server_cert"]
+						client_key_file = cfg["ssl_server_key"]
+						client_key_password = cfg["ssl_server_key_passphrase"]
 				except Exception as error:
 					logger.info("Failed to get credentials from opsi config file: %s", error)
 			if not username or not password and urlparse(address).hostname in ("localhost", "::1", "127.0.0.1"):
@@ -117,5 +144,8 @@ def get_service_connection() -> ServiceClient:
 			user_agent=f"opsi-cli/{__version__}",
 			session_lifetime=SESSION_LIFETIME,
 			verify=ServiceVerificationFlags.ACCEPT_ALL,
+			client_cert_file=client_cert_file,
+			client_key_file=client_key_file,
+			client_key_password=client_key_password,
 		)
 	return jsonrpc_client
