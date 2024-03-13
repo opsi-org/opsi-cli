@@ -17,8 +17,13 @@ EndFunc
 
 DefFunc install_macos() : void
 	Message "installing opsi-cli on macos"
-	ShellCall('"%ScriptPath%/opsi-cli-macos" -l 7 self install --system --no-add-to-path')
+	files_copy_to_temp
+	ShellCall('chmod 755 /tmp/opsi-cli-macos')
+	ShellCall("/tmp/opsi-cli-macos -l 7 self install --system --no-add-to-path")
 	ShellCall('chmod 755 /usr/local/bin/opsi-cli')
+
+	[files_copy_to_temp]
+	copy "%ScriptPath%\opsi-cli-macos" "/tmp/"
 EndFunc
 
 
