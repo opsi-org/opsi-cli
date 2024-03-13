@@ -64,11 +64,3 @@ indent-style = "tab"
 [tool.poetry.dependencies.pywin32]
 platform = "win32"
 version = ">=303,<304"
-
-[tool.poetry.group.dev.dependencies]
-types-requests = "^2.31"
-ruff = "^0.3"
-mypy = "^1.4"
-pyinstaller = "5.13"
-pytest = "^8.0"
-pytest-cov = "^4.0"
