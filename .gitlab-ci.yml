@@ -180,6 +180,7 @@ macos-pyinstaller:
     - mv opsi-dev-tool opsi-dev-cli
     - ./opsi-dev-cli binary pull ziplaunch
     - poetry run ./opsi-dev-cli -l info pyinstaller build
+    #- ./opsi-dev-cli -l info apple sign dist/opsicli
 
     - version=$(./dist/opsicli/opsi-cli --version | cut -d ' ' -f3)
     - mkdir ziplaunch-build
@@ -187,9 +188,12 @@ macos-pyinstaller:
     - cp ./ziplaunch_data/macos-start.sh ziplaunch-build/opsi-cli.app/Contents/MacOS/opsi-cli
     - chmod +x ziplaunch-build/opsi-cli.app/Contents/MacOS/opsi-cli
     - mv dist/opsicli ziplaunch-build/opsi-cli.app/Contents/Resources/
-    - ./opsi-dev-cli -l info apple sign-and-notarize --print-log ziplaunch-build/opsi-cli.app
+    - ziplaunch-build/opsi-cli.app/Contents/Resources/opsicli/opsi-cli --version
+    #- ./opsi-dev-cli -l info apple sign-and-notarize --print-log ziplaunch-build/opsi-cli.app
+    #- ziplaunch-build/opsi-cli.app/Contents/Resources/opsicli/opsi-cli --version
 
     - ./ziplaunch/ziplaunch ziplaunch-build ./ziplaunch_data/ziplaunch.ini opsi-cli
+    #- ./opsi-cli --version  # is unsigned, will not be allowed to run
     - ./opsi-dev-cli -l info apple sign-and-notarize --macho-fix --print-log opsi-cli
 
     - ./opsi-cli --version

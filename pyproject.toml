@@ -47,6 +47,14 @@ prompt-toolkit = "^3.0.33"
 passlib = "^1.7.4"
 pydantic = "^2.5.1"
 
+[tool.poetry.group.dev.dependencies]
+types-requests = "^2.31"
+ruff = "^0.3"
+mypy = "^1.4"
+pyinstaller = "^6.0"
+pytest = "^8.0"
+pytest-cov = "^4.0"
+
 [tool.poetry.scripts]
 opsi-cli = "opsicli.__main__:main"
 
