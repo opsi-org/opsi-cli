@@ -16,7 +16,7 @@ from opsicli.config import config
 from opsicli.io import list_attributes, output_file_is_stdout, read_input, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
-from opsicli.utils import get_command_with_subcommand
+from opsicli.utils import get_subcommand_sequence
 from plugins.jsonrpc.python.metadata import command_metadata
 
 __version__ = "0.1.0"
@@ -42,7 +42,7 @@ def cli(ctx: click.Context) -> None:
 	logger.trace("jsonrpc command")
 
 	if config.list_attributes:
-		command = get_command_with_subcommand(ctx)
+		command = get_subcommand_sequence(ctx)
 		metadata = command_metadata.get(command) if command is not None else None
 		if metadata is not None:
 			list_attributes(metadata)

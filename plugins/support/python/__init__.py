@@ -12,7 +12,7 @@ from opsicli.io import list_attributes, write_output
 from opsicli.messagebus import JSONRPCMessagebusConnection
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
-from opsicli.utils import get_command_with_subcommand
+from opsicli.utils import get_subcommand_sequence
 from plugins.support.python.metadata import command_metadata
 
 from .worker import category_health_check, default_health_check
@@ -32,7 +32,7 @@ def cli(ctx: click.Context) -> None:
 	logger.trace("support command")
 
 	if config.list_attributes:
-		command = get_command_with_subcommand(ctx)
+		command = get_subcommand_sequence(ctx)
 		metadata = command_metadata.get(command) if command is not None else None
 		if metadata is not None:
 			list_attributes(metadata)

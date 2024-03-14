@@ -22,7 +22,8 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Type
 
 import rich_click as click  # type: ignore[import]
-from opsicommon.logging import get_logger, logging_config  # type: ignore[import]
+from opsicommon.logging import get_logger  # type: ignore[import]
+from opsicommon.logging import logging_config
 
 if platform.system().lower() != "windows":
 	import termios
@@ -220,15 +221,14 @@ def retry(
 	return decorator
 
 
-def get_command_with_subcommand(ctx: click.Context) -> str | None:
-	command = ctx.invoked_subcommand
-	command_obj = ctx.command
+def get_subcommand_sequence(ctx: click.Context) -> str | None:
+	subcommand = ctx.invoked_subcommand
 
-	# Check if the command is a group
-	if command is not None and isinstance(command_obj, click.Group):
-		args = sys.argv[sys.argv.index(command) + 1 :]
-		subcommand = args[0] if args else None
-		if subcommand is not None:
-			command = f"{command}_{subcommand}"
+	if subcommand is not None and isinstance(ctx.command, click.Group):
+		try:
+			sub_subcommand = sys.argv[sys.argv.index(subcommand) + 1]
+			subcommand = f"{subcommand}_{sub_subcommand}"
+		except (ValueError, IndexError):
+			pass
 
-	return command
+	return subcommand

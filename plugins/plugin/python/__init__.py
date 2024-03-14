@@ -15,15 +15,8 @@ from opsicommon.logging import get_logger  # type: ignore[import]
 
 from opsicli.config import config
 from opsicli.io import get_console, list_attributes, prompt, write_output
-from opsicli.plugin import (
-	PLUGIN_EXTENSION,
-	OPSICLIPlugin,
-	install_plugin,
-	plugin_manager,
-	prepare_plugin,
-	replace_data,
-)
-from opsicli.utils import get_command_with_subcommand
+from opsicli.plugin import PLUGIN_EXTENSION, OPSICLIPlugin, install_plugin, plugin_manager, prepare_plugin, replace_data
+from opsicli.utils import get_subcommand_sequence
 from plugins.plugin.python.metadata import command_metadata
 
 __version__ = "0.1.2"
@@ -42,7 +35,7 @@ def cli(ctx: click.Context) -> None:
 	logger.trace("plugin command")
 
 	if config.list_attributes:
-		command = get_command_with_subcommand(ctx)
+		command = get_subcommand_sequence(ctx)
 		metadata = command_metadata.get(command) if command is not None else None
 		if metadata is not None:
 			list_attributes(metadata)

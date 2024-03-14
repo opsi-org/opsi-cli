@@ -14,7 +14,7 @@ from opsicli.config import ConfigValueSource, config
 from opsicli.io import list_attributes, prompt, write_output
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.types import OPSIService, Password
-from opsicli.utils import get_command_with_subcommand
+from opsicli.utils import get_subcommand_sequence
 from plugins.config.python.metadata import command_metadata
 
 __version__ = "0.1.0"
@@ -33,7 +33,7 @@ def cli(ctx: click.Context) -> None:
 	logger.trace("config command")
 
 	if config.list_attributes:
-		command = get_command_with_subcommand(ctx)
+		command = get_subcommand_sequence(ctx)
 		metadata = command_metadata.get(command) if command is not None else None
 		if metadata is not None:
 			list_attributes(metadata)

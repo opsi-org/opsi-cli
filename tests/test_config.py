@@ -200,4 +200,4 @@ def test_header_bool_flag(config_value: str, call_parameter: str) -> None:
 
 def test_list_attributes_flag() -> None:
 	exit_code, stdout, _stderr = run_cli(["--list-attributes", "config", "list"])
-	assert exit_code == 1
+	assert exit_code == 0
