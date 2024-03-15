@@ -22,8 +22,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Type
 
 import rich_click as click  # type: ignore[import]
-from opsicommon.logging import get_logger  # type: ignore[import]
-from opsicommon.logging import logging_config
+from opsicommon.logging import get_logger, logging_config  # type: ignore[import]
 
 if platform.system().lower() != "windows":
 	import termios
