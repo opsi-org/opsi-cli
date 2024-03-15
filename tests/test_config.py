@@ -199,5 +199,11 @@ def test_header_bool_flag(config_value: str, call_parameter: str) -> None:
 
 
 def test_list_attributes_flag() -> None:
-	exit_code, stdout, _stderr = run_cli(["--list-attributes", "config", "list"])
-	assert exit_code == 0
+	config = Config()
+	try:
+		exit_code, _stdout, _stderr = run_cli(["--list-attributes", "config", "list"])
+		assert exit_code == 0
+		exit_code, _stdout, _stderr = run_cli(["--list-attributes", "config", "service", "list"])
+		assert exit_code == 0
+	finally:
+		config.list_attributes = False
