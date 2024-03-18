@@ -52,7 +52,7 @@ class DepotExecuteWorker:
 			logger.notice("Operating in dry-run mode - not performing any actions")
 			return 0
 
-		channels = [f"host:{depot}" for depot in self.depots]  # Should we use a different channel here?
+		channels = [f"service:depot:{depot}:process" for depot in self.depots]  # Should we use a different channel here?
 		logger.debug("Executing %s with shell=%s on %d hosts", command, shell, len(channels))
 
 		with self.mbus_connection.connection():
