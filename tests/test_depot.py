@@ -13,7 +13,7 @@ from .utils import (
 
 
 @pytest.mark.requires_testcontainer
-def test_trigger_event() -> None:
+def test_docker_execute() -> None:
 	with container_connection():
 		connection = get_service_connection()
 		configserver = connection.jsonrpc("host_getObjects", params=[[], {"type": "OpsiConfigserver"}])[0]["id"]
