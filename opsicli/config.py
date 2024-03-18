@@ -295,6 +295,13 @@ CONFIG_ITEMS = [
 		description="Select data attributes ([metavar]all[/metavar] selects all available attributes).",
 	),
 	ConfigItem(
+		name="list_attributes",
+		type=Bool,
+		group="General",
+		default=False,
+		description="List attributes of the command.",
+	),
+	ConfigItem(
 		name="sort_by",
 		type=str,
 		group="IO",

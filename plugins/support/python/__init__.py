@@ -7,10 +7,12 @@ from pathlib import Path
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger  # type: ignore[import]
 
-from opsicli.io import Attribute, Metadata, write_output
+from opsicli.decorators import handle_list_attributes
+from opsicli.io import write_output
 from opsicli.messagebus import JSONRPCMessagebusConnection
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
+from plugins.support.data.metadata import command_metadata
 
 from .worker import category_health_check, default_health_check
 
@@ -23,7 +25,9 @@ logger = get_logger("opsicli")
 
 @click.group(name="support", short_help="Custom plugin support")
 @click.version_option(__version__, message="opsi-cli plugin support, version %(version)s")
-def cli() -> None:
+@click.pass_context
+@handle_list_attributes
+def cli(ctx: click.Context) -> None:
 	""" """
 	logger.trace("support command")
 
@@ -35,12 +39,7 @@ def health_check(category: str | None = None, detailed: bool = False) -> None:
 	"""
 	This command triggers health checks on the server and prints output.
 	"""
-	metadata = Metadata(
-		attributes=[
-			Attribute(id="id", description="category of the check - color gives hint of status"),
-			Attribute(id="details", description="detailed information of possible problems"),
-		],
-	)
+	metadata = command_metadata.get("support_health-check")
 	if category:
 		data = category_health_check(category)
 	else:

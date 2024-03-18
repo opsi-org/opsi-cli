@@ -14,15 +14,10 @@ import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger  # type: ignore[import]
 
 from opsicli.config import config
-from opsicli.io import Attribute, Metadata, get_console, prompt, write_output
-from opsicli.plugin import (
-	PLUGIN_EXTENSION,
-	OPSICLIPlugin,
-	install_plugin,
-	plugin_manager,
-	prepare_plugin,
-	replace_data,
-)
+from opsicli.decorators import handle_list_attributes
+from opsicli.io import get_console, prompt, write_output
+from opsicli.plugin import PLUGIN_EXTENSION, OPSICLIPlugin, install_plugin, plugin_manager, prepare_plugin, replace_data
+from plugins.plugin.data.metadata import command_metadata
 
 __version__ = "0.1.2"
 
@@ -31,7 +26,9 @@ logger = get_logger("opsicli")
 
 @click.group(name="plugin", short_help="Manage opsi-cli plugins")
 @click.version_option(__version__, message="opsi plugin, version %(version)s")
-def cli() -> None:
+@click.pass_context
+@handle_list_attributes
+def cli(ctx: click.Context) -> None:
 	"""
 	opsi-cli plugin command.
 	This command is used to add, remove, list or export plugins to opsi-cli.
@@ -158,16 +155,7 @@ def list_() -> None:
 	opsi-cli plugin list subcommand.
 	This subcommand lists all installed opsi-cli plugins.
 	"""
-
-	metadata = Metadata(
-		attributes=[
-			Attribute(id="id", description="Plugin ID", identifier=True),
-			Attribute(id="name", description="Name of the Plugin"),
-			Attribute(id="description", description="Plugin description"),
-			Attribute(id="version", description="Version of the plugin"),
-			Attribute(id="path", description="Location of the plugin"),
-		]
-	)
+	metadata = command_metadata.get("plugin_list")
 	data = []
 	for plugin_id in sorted(plugin_manager.plugins):
 		plugin = plugin_manager.load_plugin(plugin_id)
