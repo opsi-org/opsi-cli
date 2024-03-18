@@ -7,7 +7,7 @@ This module contains the metadata for the plugin subcommand. The metadata includ
 from opsicli.io import Attribute, Metadata
 
 command_metadata = {
-	"list": Metadata(
+	"plugin_list": Metadata(
 		attributes=[
 			Attribute(id="id", description="Plugin ID", identifier=True, data_type="str"),
 			Attribute(id="name", description="Name of the Plugin", data_type="str"),

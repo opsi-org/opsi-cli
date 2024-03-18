@@ -7,7 +7,7 @@ This module contains the metadata for the support plugin. The metadata includes 
 from opsicli.io import Attribute, Metadata
 
 command_metadata = {
-	"health-check": Metadata(
+	"support_health-check": Metadata(
 		attributes=[
 			Attribute(id="id", description="category of the check - color gives hint of status", data_type="str"),
 			Attribute(id="details", description="detailed information of possible problems", data_type="str"),

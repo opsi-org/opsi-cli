@@ -7,7 +7,7 @@ This module contains the metadata for the jsonrpc plugin. The metadata includes 
 from opsicli.io import Attribute, Metadata
 
 command_metadata = {
-	"methods": Metadata(
+	"jsonrpc_methods": Metadata(
 		attributes=[
 			Attribute(id="name", description="Method name", identifier=True, data_type="str"),
 			Attribute(id="params", description="Method params", data_type="str"),

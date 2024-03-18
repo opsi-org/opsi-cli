@@ -11,11 +11,11 @@ from click.shell_completion import CompletionItem  # type: ignore[import]
 from opsicommon.logging import get_logger  # type: ignore[import]
 
 from opsicli.config import ConfigValueSource, config
-from opsicli.io import list_attributes, prompt, write_output
+from opsicli.decorators import handle_list_attributes
+from opsicli.io import prompt, write_output
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.types import OPSIService, Password
-from opsicli.utils import get_subcommand_sequence
-from plugins.config.python.metadata import command_metadata
+from plugins.config.data.metadata import command_metadata
 
 __version__ = "0.1.0"
 
@@ -25,6 +25,7 @@ logger = get_logger("opsicli")
 @click.group(name="config", short_help="Manage opsi-cli configuration")
 @click.version_option(__version__, message="config plugin, version %(version)s")
 @click.pass_context
+@handle_list_attributes
 def cli(ctx: click.Context) -> None:
 	"""
 	opsi-cli config command.
@@ -32,20 +33,13 @@ def cli(ctx: click.Context) -> None:
 	"""
 	logger.trace("config command")
 
-	if config.list_attributes:
-		command = get_subcommand_sequence(ctx)
-		metadata = command_metadata.get(command) if command is not None else None
-		if metadata is not None:
-			list_attributes(metadata)
-			ctx.exit()
-
 
 @cli.command(name="list", short_help="List configuration items")
 def config_list() -> None:
 	"""
 	opsi-cli config list subcommand.
 	"""
-	metadata = command_metadata.get("list")
+	metadata = command_metadata.get("config_list")
 
 	data = []
 	for item in sorted(config.get_config_items(), key=lambda x: x.name):
@@ -68,7 +62,7 @@ def config_show(name: str) -> None:
 	"""
 	opsi-cli config show subcommand.
 	"""
-	metadata = command_metadata.get("show")
+	metadata = command_metadata.get("config_show")
 
 	data = []
 	item = config.get_config_item(name).as_dict()
@@ -111,7 +105,9 @@ def config_unset(key: str, system: bool) -> None:
 
 
 @cli.group(short_help="Configuration of opsi services")
-def service() -> None:
+@click.pass_context
+@handle_list_attributes
+def service(ctx: click.Context) -> None:
 	"""
 	opsi-cli config service subcommand.
 	"""
@@ -122,7 +118,7 @@ def service_list() -> None:
 	"""
 	opsi-cli config service list subcommand.
 	"""
-	metadata = command_metadata.get("service_list")
+	metadata = command_metadata.get("config_service_list")
 
 	data = []
 	for item in sorted(config.services, key=lambda x: x.name):

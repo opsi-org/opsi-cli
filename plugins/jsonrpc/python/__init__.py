@@ -13,11 +13,11 @@ from opsicommon.logging import get_logger  # type: ignore[import]
 
 from opsicli.cache import cache
 from opsicli.config import config
+from opsicli.decorators import handle_list_attributes
 from opsicli.io import list_attributes, output_file_is_stdout, read_input, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
-from opsicli.utils import get_subcommand_sequence
-from plugins.jsonrpc.python.metadata import command_metadata
+from plugins.jsonrpc.data.metadata import command_metadata
 
 __version__ = "0.1.0"
 
@@ -34,19 +34,13 @@ def cache_interface(interface: list[dict[str, Any]]) -> None:
 @click.group(name="jsonrpc", short_help="opsi JSONRPC client")
 @click.version_option(__version__, message="jsonrpc plugin, version %(version)s")
 @click.pass_context
+@handle_list_attributes
 def cli(ctx: click.Context) -> None:
 	"""
 	opsi-cli jsonrpc command.
 	This command is used to execute JSONRPC requests on an opsi service.
 	"""
 	logger.trace("jsonrpc command")
-
-	if config.list_attributes:
-		command = get_subcommand_sequence(ctx)
-		metadata = command_metadata.get(command) if command is not None else None
-		if metadata is not None:
-			list_attributes(metadata)
-			ctx.exit()
 
 	# Cache interface for later
 	client = get_service_connection()
@@ -59,7 +53,7 @@ def methods() -> None:
 	"""
 	opsi-cli jsonrpc methods subcommand.
 	"""
-	metadata = command_metadata.get("methods")
+	metadata = command_metadata.get("jsonrpc_methods")
 	write_output(cache.get("jsonrpc-interface-raw"), metadata=metadata, default_output_format="table")
 
 

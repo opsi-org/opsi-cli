@@ -14,10 +14,10 @@ import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger  # type: ignore[import]
 
 from opsicli.config import config
-from opsicli.io import get_console, list_attributes, prompt, write_output
+from opsicli.decorators import handle_list_attributes
+from opsicli.io import get_console, prompt, write_output
 from opsicli.plugin import PLUGIN_EXTENSION, OPSICLIPlugin, install_plugin, plugin_manager, prepare_plugin, replace_data
-from opsicli.utils import get_subcommand_sequence
-from plugins.plugin.python.metadata import command_metadata
+from plugins.plugin.data.metadata import command_metadata
 
 __version__ = "0.1.2"
 
@@ -27,19 +27,13 @@ logger = get_logger("opsicli")
 @click.group(name="plugin", short_help="Manage opsi-cli plugins")
 @click.version_option(__version__, message="opsi plugin, version %(version)s")
 @click.pass_context
+@handle_list_attributes
 def cli(ctx: click.Context) -> None:
 	"""
 	opsi-cli plugin command.
 	This command is used to add, remove, list or export plugins to opsi-cli.
 	"""
 	logger.trace("plugin command")
-
-	if config.list_attributes:
-		command = get_subcommand_sequence(ctx)
-		metadata = command_metadata.get(command) if command is not None else None
-		if metadata is not None:
-			list_attributes(metadata)
-			ctx.exit()
 
 
 @cli.command(short_help=f"Add new plugin (python package or .{PLUGIN_EXTENSION})")
@@ -161,7 +155,7 @@ def list_() -> None:
 	opsi-cli plugin list subcommand.
 	This subcommand lists all installed opsi-cli plugins.
 	"""
-	metadata = command_metadata.get("list")
+	metadata = command_metadata.get("plugin_list")
 	data = []
 	for plugin_id in sorted(plugin_manager.plugins):
 		plugin = plugin_manager.load_plugin(plugin_id)
