@@ -402,15 +402,8 @@ def read_input() -> Any:
 			return read_input_csv(data)
 
 
-def list_attributes(data: Any) -> None:
-	if isinstance(data, Metadata):
-		attributes_list = [
-			{"id": attribute.id, "type": attribute.data_type} for attribute in data.attributes if attribute.selected is not False
-		]
-	else:
-		data_type = get_structure_type(data)
-		if data_type == list[dict]:
-			attributes_list = [{"id": key, "type": type(value).__name__} for key, value in data[0].items()]
-		else:
-			raise RuntimeError(f"'--list-attributes' does not support structure {data_type!r}")
+def list_attributes(data: Metadata) -> None:
+	attributes_list = [
+		{"id": attribute.id, "type": attribute.data_type} for attribute in data.attributes if attribute.selected is not False
+	]
 	write_output(attributes_list, None, "table")

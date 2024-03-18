@@ -14,7 +14,7 @@ from opsicommon.logging import get_logger  # type: ignore[import]
 from opsicli.cache import cache
 from opsicli.config import config
 from opsicli.decorators import handle_list_attributes
-from opsicli.io import list_attributes, output_file_is_stdout, read_input, write_output
+from opsicli.io import output_file_is_stdout, read_input, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 from plugins.jsonrpc.data.metadata import command_metadata
@@ -92,6 +92,9 @@ def execute(method: str, params: list[str] | None = None) -> None:
 	"""
 	opsi-cli jsonrpc execute subcommand.
 	"""
+	if config.list_attributes:
+		raise RuntimeWarning("'--list-attributes' does not support command 'execute'")
+
 	if params:
 		logger.debug("Raw parameters: %s", params)
 		params = list(params)
@@ -116,10 +119,7 @@ def execute(method: str, params: list[str] | None = None) -> None:
 	client = get_service_connection()
 	logger.info("Calling method %s with params %s", method, params)
 	data = client.jsonrpc(method, params)
-	if config.list_attributes and data is not None:
-		list_attributes(data)
-	else:
-		write_output(data, default_output_format=default_output_format)
+	write_output(data, default_output_format=default_output_format)
 
 
 class JSONRPCPlugin(OPSICLIPlugin):

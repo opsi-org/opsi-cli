@@ -204,19 +204,9 @@ def test_input_output_file_cli() -> None:
 		# --input-file is only used in jsonrpc plugin which requires a server connection
 
 
-@pytest.mark.parametrize(
-	"data, expected_output, expected_exception",
-	[
-		(Metadata(attributes=[Attribute(id="id", data_type="type", selected=True)]), [{"id": "id", "type": "type"}], None),
-		([{"id": "value"}], [{"id": "id", "type": "str"}], None),
-		("unsupported_data_type", None, RuntimeError),
-	],
-)
-def test_list_attributes(data: Any, expected_output: Any, expected_exception: Any) -> None:
+def test_list_attributes() -> None:
 	with patch("opsicli.io.write_output") as mock_write_output:
-		if expected_exception is not None:
-			with pytest.raises(expected_exception):
-				list_attributes(data)
-		else:
-			list_attributes(data)
-			mock_write_output.assert_called_once_with(expected_output, None, "table")
+		data = Metadata(attributes=[Attribute(id="id", data_type="type", selected=True)])
+		expected_output = [{"id": "id", "type": "type"}]
+		list_attributes(data)
+		mock_write_output.assert_called_once_with(expected_output, None, "table")
