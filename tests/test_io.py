@@ -6,6 +6,7 @@ import sys
 from io import BufferedReader, BytesIO, TextIOWrapper
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from _pytest.capture import CaptureFixture
@@ -16,6 +17,7 @@ from opsicli.io import (
 	Metadata,
 	input_file_bin,
 	input_file_str,
+	list_attributes,
 	output_file_bin,
 	output_file_str,
 	prompt,
@@ -200,3 +202,11 @@ def test_input_output_file_cli() -> None:
 				outputfile.unlink()
 
 		# --input-file is only used in jsonrpc plugin which requires a server connection
+
+
+def test_list_attributes() -> None:
+	with patch("opsicli.io.write_output") as mock_write_output:
+		data = Metadata(attributes=[Attribute(id="id", data_type="type", selected=True)])
+		expected_output = [{"id": "id", "type": "type"}]
+		list_attributes(data)
+		mock_write_output.assert_called_once_with(expected_output, None, "table")

@@ -12,15 +12,12 @@ from click.shell_completion import CompletionItem  # type: ignore[import]
 from opsicommon.logging import get_logger  # type: ignore[import]
 
 from opsicli.cache import cache
-from opsicli.io import (
-	Attribute,
-	Metadata,
-	output_file_is_stdout,
-	read_input,
-	write_output,
-)
+from opsicli.config import config
+from opsicli.decorators import handle_list_attributes
+from opsicli.io import output_file_is_stdout, read_input, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
+from plugins.jsonrpc.data.metadata import command_metadata
 
 __version__ = "0.1.0"
 
@@ -36,12 +33,15 @@ def cache_interface(interface: list[dict[str, Any]]) -> None:
 
 @click.group(name="jsonrpc", short_help="opsi JSONRPC client")
 @click.version_option(__version__, message="jsonrpc plugin, version %(version)s")
-def cli() -> None:
+@click.pass_context
+@handle_list_attributes
+def cli(ctx: click.Context) -> None:
 	"""
 	opsi-cli jsonrpc command.
 	This command is used to execute JSONRPC requests on an opsi service.
 	"""
 	logger.trace("jsonrpc command")
+
 	# Cache interface for later
 	client = get_service_connection()
 	interface = client.jsonrpc("backend_getInterface")
@@ -53,18 +53,7 @@ def methods() -> None:
 	"""
 	opsi-cli jsonrpc methods subcommand.
 	"""
-	metadata = Metadata(
-		attributes=[
-			Attribute(id="name", description="Method name", identifier=True),
-			Attribute(id="params", description="Method params"),
-			Attribute(id="deprecated", description="If the method is deprectated"),
-			Attribute(id="alternative_method", description="Alternative method, if deprecated"),
-			Attribute(id="args", description="Args", selected=False),
-			Attribute(id="varargs", description="Varargs", selected=False),
-			Attribute(id="keywords", description="Keywords", selected=False),
-			Attribute(id="defaults", description="Defaults", selected=False),
-		]
-	)
+	metadata = command_metadata.get("jsonrpc_methods")
 	write_output(cache.get("jsonrpc-interface-raw"), metadata=metadata, default_output_format="table")
 
 
@@ -103,6 +92,9 @@ def execute(method: str, params: list[str] | None = None) -> None:
 	"""
 	opsi-cli jsonrpc execute subcommand.
 	"""
+	if config.list_attributes:
+		raise RuntimeWarning("'--list-attributes' does not support command 'execute'")
+
 	if params:
 		logger.debug("Raw parameters: %s", params)
 		params = list(params)
