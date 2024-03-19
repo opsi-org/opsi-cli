@@ -56,7 +56,10 @@ class ClientActionWorker:
 			self.group_forest[group["id"]] = Group(name=group["id"])
 		for group in groups:
 			if group["parentGroupId"] not in (None, "null"):
-				self.group_forest[group["parentGroupId"]].subgroups.append(self.group_forest[group["id"]])
+				try:
+					self.group_forest[group["parentGroupId"]].subgroups.append(self.group_forest[group["id"]])
+				except KeyError:
+					logger.error("Error in Backend: Group %s has parent %s which does not exist", group["id"], group["parentGroupId"])
 
 	def get_entries_from_group(self, group: str) -> set[str]:
 		result = {mapping["objectId"] for mapping in self.service.jsonrpc("objectToGroup_getObjects", [[], {"groupId": group}])}
