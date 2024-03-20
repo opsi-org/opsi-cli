@@ -4,6 +4,7 @@ opsi-cli - command line interface for opsi
 
 utils
 """
+
 from __future__ import annotations
 
 import base64

@@ -32,6 +32,7 @@ class Attribute:
 	description: str | None = None
 	identifier: bool = False
 	selected: bool = True
+	data_type: str | None = None
 
 	def as_dict(self) -> dict[str, str | bool]:
 		return asdict(self)
@@ -82,7 +83,7 @@ def sort_data(data: Any) -> Any:
 		index = int(config.sort_by.replace("value", "")) if config.sort_by.startswith("value") else 0
 		return sorted(data, key=lambda x: str(x[index]) if data_type == list[list] else x)
 	else:
-		raise RuntimeError(f"Sort-By {config.sort_by!r} does not support stucture {data_type!r}")
+		raise RuntimeError(f"Sort-By {config.sort_by!r} does not support structure {data_type!r}")
 
 
 def output_file_is_stdout() -> bool:
@@ -399,3 +400,10 @@ def read_input() -> Any:
 		except orjson.JSONDecodeError:
 			logger.debug("Trying csv")
 			return read_input_csv(data)
+
+
+def list_attributes(data: Metadata) -> None:
+	attributes_list = [
+		{"id": attribute.id, "type": attribute.data_type} for attribute in data.attributes if attribute.selected is not False
+	]
+	write_output(attributes_list, None, "table")

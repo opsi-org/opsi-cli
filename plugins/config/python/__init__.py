@@ -11,9 +11,11 @@ from click.shell_completion import CompletionItem  # type: ignore[import]
 from opsicommon.logging import get_logger  # type: ignore[import]
 
 from opsicli.config import ConfigValueSource, config
-from opsicli.io import Attribute, Metadata, prompt, write_output
+from opsicli.decorators import handle_list_attributes
+from opsicli.io import prompt, write_output
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.types import OPSIService, Password
+from plugins.config.data.metadata import command_metadata
 
 __version__ = "0.1.0"
 
@@ -22,7 +24,9 @@ logger = get_logger("opsicli")
 
 @click.group(name="config", short_help="Manage opsi-cli configuration")
 @click.version_option(__version__, message="config plugin, version %(version)s")
-def cli() -> None:
+@click.pass_context
+@handle_list_attributes
+def cli(ctx: click.Context) -> None:
 	"""
 	opsi-cli config command.
 	This command is used to manage opsi-cli configuration.
@@ -35,14 +39,8 @@ def config_list() -> None:
 	"""
 	opsi-cli config list subcommand.
 	"""
-	metadata = Metadata(
-		attributes=[
-			Attribute(id="name", description="Name of configuration item", identifier=True),
-			Attribute(id="type", description="Data type"),
-			Attribute(id="default", description="Default value"),
-			Attribute(id="value", description="Current value"),
-		]
-	)
+	metadata = command_metadata.get("config_list")
+
 	data = []
 	for item in sorted(config.get_config_items(), key=lambda x: x.name):
 		data.append({"name": item.name, "type": item.type, "default": item.default, "value": item.value})
@@ -64,12 +62,8 @@ def config_show(name: str) -> None:
 	"""
 	opsi-cli config show subcommand.
 	"""
-	metadata = Metadata(
-		attributes=[
-			Attribute(id="attribute", description="Name of the configuration item attribute", identifier=True),
-			Attribute(id="value", description="Attribute value"),
-		]
-	)
+	metadata = command_metadata.get("config_show")
+
 	data = []
 	item = config.get_config_item(name).as_dict()
 	for attribute in ("name", "type", "multiple", "default", "description", "plugin", "group", "value"):
@@ -111,7 +105,9 @@ def config_unset(key: str, system: bool) -> None:
 
 
 @cli.group(short_help="Configuration of opsi services")
-def service() -> None:
+@click.pass_context
+@handle_list_attributes
+def service(ctx: click.Context) -> None:
 	"""
 	opsi-cli config service subcommand.
 	"""
@@ -122,14 +118,8 @@ def service_list() -> None:
 	"""
 	opsi-cli config service list subcommand.
 	"""
-	metadata = Metadata(
-		attributes=[
-			Attribute(id="name", description="The service identifier", identifier=True),
-			Attribute(id="url", description="The base url of the opsi service"),
-			Attribute(id="username", description="Username to use for authentication"),
-			Attribute(id="password", description="Password to use for authentication"),
-		]
-	)
+	metadata = command_metadata.get("config_service_list")
+
 	data = []
 	for item in sorted(config.services, key=lambda x: x.name):
 		data.append({"name": item.name, "url": item.url, "username": item.username, "password": "*****" if item.password else ""})
