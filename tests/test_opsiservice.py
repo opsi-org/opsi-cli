@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from opsicli.cache import Cache
 from opsicli.config import OPSIService, config
 from opsicli.opsiservice import (
 	get_service_connection,
@@ -42,6 +43,21 @@ def test_get_service_connection_half_configured_service() -> None:
 	result = connection.jsonrpc("backend_getInterface")
 	print(result)
 	assert "host_getObjects" in str(result)
+
+
+@pytest.mark.skipif(not Path("/etc/opsi/backends").exists(), reason="need local backend for this test")
+def test_get_service_connection_session_handling() -> None:
+	cache = Cache()
+	del cache._data["opsicli-session"]
+
+	get_service_connection()  # first connection
+	session_cookie1 = cache.get("opsicli-session")
+	assert session_cookie1
+
+	get_service_connection()  # second connection
+	session_cookie2 = cache.get("opsicli-session")
+
+	assert session_cookie1 == session_cookie2
 
 
 @pytest.mark.requires_testcontainer
