@@ -1,4 +1,4 @@
-image: docker.uib.gmbh/opsi/dev/pybuilder:uib-python-3.11
+image: docker.uib.gmbh/opsi/dev/pybuilder:deb9-py3.11
 
 stages:
   - test_python
@@ -274,8 +274,8 @@ makeopsipackage:
       - OPSI/control
 
 .runtest: &runtest |
-  version=$(grep OPSI/control -A 10 -e "\[Product\]" | grep "version:" | tr -d "^a-zA-Z :")
-  package=$(grep OPSI/control -A 5 -e "\[Package\]" | grep "version:" | tr -d "^a-zA-Z :")
+  version=$(opsi-dev-cli opsi-package get-value productVersion)
+  package=$(opsi-dev-cli opsi-package get-value packageVersion)
   version="$version-$(echo $package | tr '.' '~')"
   opsi-dev-cli -l info jenkins test --versions="$version,$version,$version,$version,$version"
 
