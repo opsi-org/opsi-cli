@@ -9,6 +9,7 @@ import json
 import os
 import re
 import subprocess
+import uuid
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -18,6 +19,7 @@ from opsicommon.config import OpsiConfig
 from opsicommon.logging import get_logger, secret_filter
 
 from opsicli import __version__
+from opsicli.cache import cache
 from opsicli.config import config
 from opsicli.io import prompt
 
@@ -137,15 +139,23 @@ def get_service_connection() -> ServiceClient:
 		if username and not password and config.interactive:
 			password = str(prompt(f"Please enter the password for {username}@{address}", password=True))
 
+		session_cookie = cache.get("opsicli-session")
+		if session_cookie is None:
+			session_id = uuid.uuid4()
+			cache.set("opsicli-session", f"opsicli-session={session_id}")
+			logger.info("New session started")
+
 		jsonrpc_client = ServiceClient(
 			address=address,
 			username=username,
 			password=password,
 			user_agent=f"opsi-cli/{__version__}",
 			session_lifetime=SESSION_LIFETIME,
+			session_cookie=cache.get("opsicli-session"),
 			verify=ServiceVerificationFlags.ACCEPT_ALL,
 			client_cert_file=client_cert_file,
 			client_key_file=client_key_file,
 			client_key_password=client_key_password,
 		)
+
 	return jsonrpc_client
