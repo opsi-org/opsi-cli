@@ -27,6 +27,7 @@ logger = get_logger("opsicli")
 @click.pass_context
 @click.option("--clients", help="Comma-separated list of clients or 'all'")
 @click.option("--client-groups", help="Comma-separated list of host groups")
+@click.option("--clients-from-depots", help="Comma-separated list of depots to get associated clients")
 @click.option("--exclude-clients", help="Do not perform actions for these clients")
 @click.option("--exclude-client-groups", help="Do not perform actions for these client groups")
 @click.option(
