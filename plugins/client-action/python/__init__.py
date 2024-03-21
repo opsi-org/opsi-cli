@@ -111,12 +111,18 @@ def set_action_request(ctx: click.Context, **kwargs: str) -> None:
 	is_flag=True,
 	default=False,
 )
-def trigger_event(ctx: click.Context, event: str, wakeup: bool) -> None:
+@click.option(
+	"--wakeup-timeout",
+	help="Number of seconds to wait for client to wake up",
+	type=float,
+	default=60.0,
+)
+def trigger_event(ctx: click.Context, event: str, wakeup: bool, wakeup_timeout: float) -> None:
 	"""
 	opsi-cli client-action trigger-event command
 	"""
 	worker = TriggerEventWorker(ctx.obj)
-	worker.trigger_event(event, wakeup)
+	worker.trigger_event(event, wakeup, wakeup_timeout=wakeup_timeout)
 
 
 @cli.command(
