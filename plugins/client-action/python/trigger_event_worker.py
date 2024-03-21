@@ -85,14 +85,14 @@ class TriggerEventWorker(ClientActionWorker):
 		result = self.service.jsonrpc("hostControlSafe_fireEvent", [event, clients])
 		return evaluate_rpc_dict_result(result)
 
-	def wakeup_clients(self, clients: set[str]) -> int:
+	def wakeup_clients(self, clients: set[str], timeout: float = WAKEUP_TIMEOUT) -> int:
 		logger.notice("Waking up clients %s", clients)
 		if config.dry_run:
 			return 0
 		mbus_connection = WakeupHostsMessagebusConnection()
-		return mbus_connection.wait_for_hosts(clients, timeout=WAKEUP_TIMEOUT, wakeup=True)
+		return mbus_connection.wait_for_hosts(clients, timeout=timeout, wakeup=True)
 
-	def trigger_event(self, event: str = "on_demand", wakeup: bool = False) -> None:
+	def trigger_event(self, event: str = "on_demand", wakeup: bool = False, wakeup_timeout: float = WAKEUP_TIMEOUT) -> None:
 		if config.dry_run:
 			logger.notice("Operating in dry-run mode - not performing any actions")
 
@@ -101,7 +101,7 @@ class TriggerEventWorker(ClientActionWorker):
 		event_trigger_success = 0
 		if not_reachable:
 			if wakeup:
-				wakeup_success = self.wakeup_clients(not_reachable)
+				wakeup_success = self.wakeup_clients(not_reachable, timeout=wakeup_timeout)
 			else:
 				logger.error("Could not reach %s clients: %s", len(not_reachable), not_reachable)
 		if reachable:

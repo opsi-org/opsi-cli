@@ -189,6 +189,22 @@ def test_set_action_request_only_online() -> None:
 
 
 @pytest.mark.requires_testcontainer
+def test_set_action_request_clients_from_depot() -> None:
+	with container_connection():
+		connection = get_service_connection()
+		configserver = connection.jsonrpc("host_getObjects", params=[[], {"type": "OpsiConfigserver"}])[0]["id"]
+		with tmp_client(connection, CLIENT1), tmp_product(connection, PRODUCT1):
+			cmd = ["client-action", "--clients-from-depots", configserver, "set-action-request", "--products", PRODUCT1]
+			exit_code, _stdout, _stderr = run_cli(cmd)
+			assert exit_code == 0
+			pocs = connection.jsonrpc("productOnClient_getObjects", params=[[], {"clientId": CLIENT1, "productId": PRODUCT1}])
+			assert len(pocs) == 1
+			assert pocs[0].get("actionRequest") == "setup"
+			assert pocs[0].get("productId") == PRODUCT1
+			assert pocs[0].get("clientId") == CLIENT1
+
+
+@pytest.mark.requires_testcontainer
 def test_nested_groups_client_selection() -> None:
 	with container_connection():
 		connection = get_service_connection()
@@ -214,6 +230,6 @@ def test_trigger_event() -> None:
 	with container_connection():
 		connection = get_service_connection()
 		with tmp_client(connection, CLIENT1):
-			cmd = ["client-action", "--clients", CLIENT1, "trigger-event", "--wakeup"]
+			cmd = ["client-action", "--clients", CLIENT1, "trigger-event", "--wakeup", "--wakeup-timeout", "0.5"]
 			exit_code, _stdout, _stderr = run_cli(cmd)
 			assert exit_code == 0  # No way to actually trigger an event or wake up a client

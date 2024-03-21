@@ -31,6 +31,7 @@ class Group:
 class ClientActionArgs:
 	clients: str | None = None
 	client_groups: str | None = None
+	clients_from_depots: str | None = None
 	ip_addresses: str | None = None
 	exclude_clients: str | None = None
 	exclude_client_groups: str | None = None
@@ -75,6 +76,9 @@ class ClientActionWorker:
 			self.create_group_forest()
 		return list(self.get_entries_from_group(group))
 
+	def client_ids_from_depot(self, depot: str) -> list[str]:
+		return [entry["clientId"] for entry in self.service.jsonrpc("configState_getClientToDepotserver", [depot])]
+
 	def client_ids_with_ip(self, ip_string: str) -> list[str]:
 		network = ip_network(ip_string)  # can handle ipv4 and ipv6 addresses with and without subnet specification
 		result = []
@@ -87,7 +91,7 @@ class ClientActionWorker:
 	def determine_clients(self, args: ClientActionArgs) -> None:
 		self.clients = set()
 		args.clients = (args.clients or "").lower()
-		if not args.clients and not args.client_groups and not args.ip_addresses and self.default_all:
+		if not args.clients and not args.client_groups and not args.ip_addresses and not args.clients_from_depots and self.default_all:
 			console = get_console(file=sys.stderr)
 			console.print(
 				"[bright_yellow]No clients selected, defaulting to all clients.\n"
@@ -105,6 +109,9 @@ class ClientActionWorker:
 			if args.ip_addresses:
 				for ip_address in args.ip_addresses.split(","):
 					self.clients.update(self.client_ids_with_ip(ip_address))
+			if args.clients_from_depots:
+				for depot in args.clients_from_depots.split(","):
+					self.clients.update(self.client_ids_from_depot(depot))
 
 		exclude_clients = set()
 		if args.exclude_clients:

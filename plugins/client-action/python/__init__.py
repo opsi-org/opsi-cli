@@ -27,6 +27,7 @@ logger = get_logger("opsicli")
 @click.pass_context
 @click.option("--clients", help="Comma-separated list of clients or 'all'")
 @click.option("--client-groups", help="Comma-separated list of host groups")
+@click.option("--clients-from-depots", help="Comma-separated list of depots to get associated clients")
 @click.option("--exclude-clients", help="Do not perform actions for these clients")
 @click.option("--exclude-client-groups", help="Do not perform actions for these client groups")
 @click.option(
@@ -110,12 +111,18 @@ def set_action_request(ctx: click.Context, **kwargs: str) -> None:
 	is_flag=True,
 	default=False,
 )
-def trigger_event(ctx: click.Context, event: str, wakeup: bool) -> None:
+@click.option(
+	"--wakeup-timeout",
+	help="Number of seconds to wait for client to wake up",
+	type=float,
+	default=60.0,
+)
+def trigger_event(ctx: click.Context, event: str, wakeup: bool, wakeup_timeout: float) -> None:
 	"""
 	opsi-cli client-action trigger-event command
 	"""
 	worker = TriggerEventWorker(ctx.obj)
-	worker.trigger_event(event, wakeup)
+	worker.trigger_event(event, wakeup, wakeup_timeout=wakeup_timeout)
 
 
 @cli.command(
