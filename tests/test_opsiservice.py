@@ -2,6 +2,7 @@
 test_opsiservice
 """
 
+import time
 from pathlib import Path
 
 import pytest
@@ -57,6 +58,22 @@ def test_get_service_connection_session_handling() -> None:
 	session_cookie2 = cache.get("opsiconfd-session")
 
 	assert session_cookie1 == session_cookie2
+
+
+@pytest.mark.skipif(not Path("/etc/opsi/backends").exists(), reason="need local backend for this test")
+def test_get_service_connection_session_expired() -> None:
+	session_lifetime = 1
+	session_cookie = "aDummySessionCookie"
+	cache.set("opsiconfd-session", f"opsiconfd-session={session_cookie}", session_lifetime)
+
+	wait_time = session_lifetime + 1
+	time.sleep(wait_time)
+	connection = get_service_connection()
+	assert connection
+
+	session_cookie_new = cache.get("opsiconfd-session")
+
+	assert session_cookie_new != session_cookie
 
 
 @pytest.mark.requires_testcontainer
