@@ -13,17 +13,26 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from opsicommon.client.opsiservice import ServiceClient, ServiceVerificationFlags
+from opsicommon.client.opsiservice import ServiceClient, ServiceConnectionListener, ServiceVerificationFlags
 from opsicommon.config import OpsiConfig
 from opsicommon.logging import get_logger, secret_filter
 
 from opsicli import __version__
+from opsicli.cache import cache
 from opsicli.config import config
 from opsicli.io import prompt
 
 logger = get_logger("opsicli")
 jsonrpc_client = None
 SESSION_LIFETIME = 15  # seconds
+
+
+class OpsiCliConnectionListener(ServiceConnectionListener):
+	def connection_established(self, service_client: ServiceClient) -> None:
+		logger.trace("Connection has been established, cookies: %s", service_client._session.cookies)
+		session_cookie = service_client._session.cookies.get_dict().get("opsiconfd-session")  # type: ignore[no-untyped-call]
+		if session_cookie:
+			cache.set("opsiconfd-session", f"opsiconfd-session={session_cookie}", SESSION_LIFETIME)
 
 
 def get_service_credentials_from_backend() -> tuple[str, str]:
@@ -143,9 +152,12 @@ def get_service_connection() -> ServiceClient:
 			password=password,
 			user_agent=f"opsi-cli/{__version__}",
 			session_lifetime=SESSION_LIFETIME,
+			session_cookie=cache.get("opsiconfd-session"),  # None if previous session expired
 			verify=ServiceVerificationFlags.ACCEPT_ALL,
 			client_cert_file=client_cert_file,
 			client_key_file=client_key_file,
 			client_key_password=client_key_password,
 		)
+		jsonrpc_client.register_connection_listener(OpsiCliConnectionListener())
+
 	return jsonrpc_client
