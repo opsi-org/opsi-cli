@@ -161,7 +161,15 @@ def service_add(
 		username = str(prompt("Enter the username to use for authentication (optional)")) or None
 
 	if not password and interactive:
-		password = str(prompt("Enter the password to use for authentication (optional)", password=True)) or None
+		password = (
+			str(
+				prompt(
+					"Enter the password (optional). For 2FA, do not append TOTP to the password; use --totp flag instead",
+					password=True,
+				)
+			)
+			or None
+		)
 
 	new_service = OPSIService(name=name, url=url, username=username, password=Password(password))
 

@@ -316,7 +316,19 @@ CONFIG_ITEMS = [
 		description="URL or name of a configured service to connect.",
 	),
 	ConfigItem(name="username", type=str, group="Opsi service", description="Username for opsi service connection."),
-	ConfigItem(name="password", type=Password, group="Opsi service", description="Password for opsi service connection."),
+	ConfigItem(
+		name="password",
+		type=Password,
+		group="Opsi service",
+		description="Password for opsi service connection. For 2FA, append TOTP to the password",
+	),
+	ConfigItem(
+		name="totp",
+		type=Bool,
+		group="Opsi service",
+		default=False,
+		description="This flag triggers an interactive prompt to enter TOTP, assuming the password is stored in the configuration.",
+	),
 	ConfigItem(name="services", type=OPSIService, description="Configured opsi services.", multiple=True, key="name"),
 	ConfigItem(
 		name="dry_run",
