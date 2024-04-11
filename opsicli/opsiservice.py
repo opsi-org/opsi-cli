@@ -110,13 +110,16 @@ def get_service_connection() -> ServiceClient:
 		client_key_file = None
 		client_key_password = None
 		service = config.get_service_by_name(config.service)
+		totp = None
+		if config.totp:
+			totp = str(prompt("Enter the TOTP", password=True))
 
 		if service:
 			address = service.url
 			if service.username:
 				username = service.username
 			if service.password:
-				password = service.password
+				password = service.password + (totp if totp else "")
 		else:
 			opsiconf = OpsiConfig(upgrade_config=False)
 			if not username or not password:
