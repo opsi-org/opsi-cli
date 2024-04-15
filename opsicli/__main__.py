@@ -108,7 +108,9 @@ class OpsiCLI(click.MultiCommand):  # type: ignore
 			err_console = get_console(file=sys.stderr)
 			if config.color:
 				err.message = re.sub(r"\[/?metavar\]", "", err.message)
-				_get_rich_formatter()._console = err_console
+				formatter = _get_rich_formatter()
+				formatter._console = err_console
+				formatter.config.highlighter = lambda x: x
 				if issubclass(exc_type, Abort):
 					rich_abort_error()
 				else:
