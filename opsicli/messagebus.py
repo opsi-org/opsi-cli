@@ -4,7 +4,6 @@ websocket functions
 
 from __future__ import annotations
 
-import fcntl
 import os
 import selectors
 import shutil
@@ -47,6 +46,8 @@ from opsicli.utils import raw_terminal
 
 if is_windows():
 	import msvcrt
+else:
+	import fcntl
 
 CHANNEL_SUB_TIMEOUT = 15.0
 JSONRPC_TIMEOUT = 15.0
