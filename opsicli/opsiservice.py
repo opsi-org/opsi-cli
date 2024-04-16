@@ -24,7 +24,7 @@ from opsicli.io import prompt
 
 logger = get_logger("opsicli")
 jsonrpc_client = None
-SESSION_LIFETIME = 15  # seconds
+SESSION_LIFETIME = 150  # seconds
 
 
 class OpsiCliConnectionListener(ServiceConnectionListener):
@@ -32,7 +32,7 @@ class OpsiCliConnectionListener(ServiceConnectionListener):
 		logger.trace("Connection has been established, cookies: %s", service_client._session.cookies)
 		session_cookie = service_client._session.cookies.get_dict().get("opsiconfd-session")  # type: ignore[no-untyped-call]
 		if session_cookie:
-			cache.set("opsiconfd-session", f"opsiconfd-session={session_cookie}", SESSION_LIFETIME)
+			cache.set("opsiconfd-session", f"opsiconfd-session={session_cookie}", SESSION_LIFETIME - 10)
 
 
 def get_service_credentials_from_backend() -> tuple[str, str]:
@@ -149,13 +149,16 @@ def get_service_connection() -> ServiceClient:
 		if username and not password and config.interactive:
 			password = str(prompt(f"Please enter the password for {username}@{address}", password=True))
 
+		session_cookie = cache.get("opsiconfd-session")  # None if previous session expired
+		if session_cookie:
+			logger.info("Reusing session cookie from cache")
 		jsonrpc_client = ServiceClient(
 			address=address,
 			username=username,
 			password=password,
 			user_agent=f"opsi-cli/{__version__}",
 			session_lifetime=SESSION_LIFETIME,
-			session_cookie=cache.get("opsiconfd-session"),  # None if previous session expired
+			session_cookie=session_cookie,
 			verify=ServiceVerificationFlags.ACCEPT_ALL,
 			client_cert_file=client_cert_file,
 			client_key_file=client_key_file,

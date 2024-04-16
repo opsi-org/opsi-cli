@@ -21,7 +21,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Type
 
-from opsicommon.logging import get_logger, logging_config  # type: ignore[import]
+from opsicommon.logging import get_logger, use_logging_config  # type: ignore[import]
 
 if platform.system().lower() != "windows":
 	import termios
@@ -108,20 +108,21 @@ def add_to_env_variable(key: str, value: str, system: bool = False) -> None:
 
 
 @contextmanager
-def stream_wrap() -> Iterator[None]:
-	logging_config(stderr_level=0)  # Restore?
-	if platform.system().lower() == "windows":
-		yield
-	else:
-		attrs = termios.tcgetattr(sys.stdin.fileno())
-		try:
-			tty.setraw(sys.stdin.fileno())  # Set raw mode to access char by char
+def raw_terminal() -> Iterator[None]:
+	with use_logging_config(stderr_level=0):
+		if platform.system().lower() == "windows":
 			yield
-		except Exception as err:
-			termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, attrs)
-			print(err, file=sys.stderr)
 		else:
-			termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, attrs)
+			attrs = termios.tcgetattr(sys.stdin.fileno())
+			try:
+				tty.setraw(sys.stdin.fileno())  # Set raw mode to access char by char
+				yield
+			except Exception as err:
+				logger.error(err, exc_info=True)
+				termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, attrs)
+				print(err, file=sys.stderr)
+			else:
+				termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, attrs)
 
 
 @lru_cache
