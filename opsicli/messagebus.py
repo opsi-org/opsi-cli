@@ -12,6 +12,7 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from threading import Event, Lock
+from types import FrameType
 from typing import Any, Callable, Generator, Literal, cast
 from uuid import uuid4
 
@@ -37,6 +38,7 @@ from opsicommon.messagebus.message import (
 	TerminalErrorMessage,
 	TerminalOpenEventMessage,
 	TerminalOpenRequestMessage,
+	TerminalResizeRequestMessage,
 )
 from opsicommon.system.info import is_windows
 
@@ -48,6 +50,7 @@ if is_windows():
 	import msvcrt
 else:
 	import fcntl
+	from signal import SIGWINCH, signal
 
 CHANNEL_SUB_TIMEOUT = 15.0
 JSONRPC_TIMEOUT = 15.0
@@ -490,10 +493,23 @@ class TerminalMessagebusConnection(MessagebusConnection):
 		logger.notice("Received terminal close event - shutting down")
 		self.close("Terminal closed by remote")
 
+	def _on_resize(self, signum: int, frame: FrameType | None) -> None:
+		size = shutil.get_terminal_size()
+		message = TerminalResizeRequestMessage(
+			sender=CONNECTION_USER_CHANNEL,
+			channel=self.terminal_write_channel,
+			terminal_id=self.terminal_id,
+			rows=size.lines,
+			cols=size.columns,
+		)
+		logger.notice("Requesting to resize terminal with id %s (rows=%d, cols=%d)", self.terminal_id, size.lines, size.columns)
+		log_message(message)
+		self.service_client.messagebus.send_message(message)
+
 	def open_new_terminal(self, term_request_channel: str) -> None:
 		self.subscribe_to_channel(f"session:{self.terminal_id}")
 		size = shutil.get_terminal_size()
-		tor = TerminalOpenRequestMessage(
+		message = TerminalOpenRequestMessage(
 			sender=CONNECTION_USER_CHANNEL,
 			channel=term_request_channel,
 			terminal_id=self.terminal_id,
@@ -501,9 +517,9 @@ class TerminalMessagebusConnection(MessagebusConnection):
 			rows=size.lines,
 			cols=size.columns,
 		)
-		logger.notice("Requesting to open terminal with id %s ", self.terminal_id)
-		log_message(tor)
-		self.service_client.messagebus.send_message(tor)
+		logger.notice("Requesting to open terminal with id %s", self.terminal_id)
+		log_message(message)
+		self.service_client.messagebus.send_message(message)
 
 	def get_terminal_channel_pair(self, target: str) -> tuple[str, str]:
 		term_read_channel = f"session:{self.terminal_id}"
@@ -523,7 +539,7 @@ class TerminalMessagebusConnection(MessagebusConnection):
 
 	def close(self, message: str) -> None:
 		self._should_close.set()
-		sys.stdout.write(f"\r\n<{message}>\r\n")
+		sys.stdout.write(f"\r\n> {message} <\r\n")
 
 	def run_terminal(self, target: str, term_id: str | None = None) -> None:
 		self.terminal_id = term_id or str(uuid4())
@@ -534,6 +550,8 @@ class TerminalMessagebusConnection(MessagebusConnection):
 			fcntl.fcntl(sys.stdin, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 			selector = selectors.DefaultSelector()
 			selector.register(sys.stdin, selectors.EVENT_READ)
+
+			signal(SIGWINCH, self._on_resize)
 
 		with self.connection():
 			(_, term_write_channel) = self.get_terminal_channel_pair(target)
@@ -547,9 +565,9 @@ class TerminalMessagebusConnection(MessagebusConnection):
 							continue
 						data = msvcrt.getch()  # type: ignore[attr-defined]
 					else:
-						if not selector.select(0.01):
+						if not selector.select(0.005):
 							continue
-						data = sys.stdin.read(1).encode("utf-8")
+						data = sys.stdin.read().encode("utf-8")
 
 					if not data:
 						self._should_close.set()
