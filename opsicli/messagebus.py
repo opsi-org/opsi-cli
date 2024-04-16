@@ -76,6 +76,10 @@ class MessagebusConnection(MessagebusListener):
 		self.initial_subscription_event = Event()
 		self.service_client = get_service_connection()
 
+	def send_message(self, message: Message) -> None:
+		log_message(message)
+		self.service_client.messagebus.send_message(message)
+
 	def message_received(self, message: Message) -> None:
 		log_message(message)
 		try:
@@ -101,12 +105,11 @@ class MessagebusConnection(MessagebusListener):
 			return
 		try:
 			self.channel_subscription_locks[channel] = Event()
-			csr = ChannelSubscriptionRequestMessage(
+			message = ChannelSubscriptionRequestMessage(
 				sender=CONNECTION_USER_CHANNEL, operation="add", channels=[channel], channel="service:messagebus"
 			)
 			logger.notice("Requesting access to channel %r", channel)
-			log_message(csr)
-			self.service_client.messagebus.send_message(csr)
+			self.send_message(message)
 			if not self.channel_subscription_locks[channel].wait(CHANNEL_SUB_TIMEOUT):
 				raise ConnectionError(f"Could not subscribe to channel {channel}")
 		finally:
@@ -152,7 +155,7 @@ class JSONRPCMessagebusConnection(MessagebusConnection):
 			)
 			self.jsonrpc_response_events[message.rpc_id] = Event()
 			rpc_ids[channel] = message.rpc_id
-			self.service_client.messagebus.send_message(message)
+			self.send_message(message)
 		logger.notice("Sent jsonrpc-request, awaiting response...")
 		for channel, rpc_id in rpc_ids.items():
 			if not self.jsonrpc_response_events[rpc_id].wait(timeout):
@@ -397,7 +400,7 @@ class ProcessMessagebusConnection(MessagebusConnection):
 						process.host_name,
 					)
 					process.on_error("Process timeout")
-					self.service_client.messagebus.send_message(
+					self.send_message(
 						ProcessStopRequestMessage(
 							process_id=process.process_id,
 							sender=CONNECTION_USER_CHANNEL,
@@ -433,7 +436,7 @@ class ProcessMessagebusConnection(MessagebusConnection):
 					raise RuntimeError("Start request already sent")
 				logger.debug("Sending process start request")
 				waiting_processes[idx].start_request_time = time.time()
-				self.service_client.messagebus.send_message(waiting_processes[idx].start_request)
+				self.send_message(waiting_processes[idx].start_request)
 
 			time.sleep(0.5)
 
@@ -456,6 +459,7 @@ class TerminalMessagebusConnection(MessagebusConnection):
 		MessagebusConnection.__init__(self)
 		self._should_close = Event()
 		self.terminal_write_channel: str | None = None
+		self.terminal_read_channel: str | None = None
 		self.terminal_open_event = Event()
 		self._ctrl_c_times: list[float] = []
 
@@ -494,6 +498,7 @@ class TerminalMessagebusConnection(MessagebusConnection):
 		self.close("Terminal closed by remote")
 
 	def _on_resize(self, signum: int, frame: FrameType | None) -> None:
+		assert self.terminal_write_channel
 		size = shutil.get_terminal_size()
 		message = TerminalResizeRequestMessage(
 			sender=CONNECTION_USER_CHANNEL,
@@ -503,39 +508,27 @@ class TerminalMessagebusConnection(MessagebusConnection):
 			cols=size.columns,
 		)
 		logger.notice("Requesting to resize terminal with id %s (rows=%d, cols=%d)", self.terminal_id, size.lines, size.columns)
-		log_message(message)
-		self.service_client.messagebus.send_message(message)
+		self.send_message(message)
 
-	def open_new_terminal(self, term_request_channel: str) -> None:
-		self.subscribe_to_channel(f"session:{self.terminal_id}")
+	def open_terminal(self, target: str) -> None:
+		self.terminal_read_channel = f"session:{self.terminal_id}"
+		self.subscribe_to_channel(self.terminal_read_channel)
+		term_request_channel = "service:config:terminal" if target.lower() == "configserver" else f"host:{target}"
 		size = shutil.get_terminal_size()
 		message = TerminalOpenRequestMessage(
 			sender=CONNECTION_USER_CHANNEL,
 			channel=term_request_channel,
 			terminal_id=self.terminal_id,
-			back_channel=f"session:{self.terminal_id}",
+			back_channel=self.terminal_read_channel,
 			rows=size.lines,
 			cols=size.columns,
 		)
 		logger.notice("Requesting to open terminal with id %s", self.terminal_id)
-		log_message(message)
-		self.service_client.messagebus.send_message(message)
+		self.send_message(message)
 
-	def get_terminal_channel_pair(self, target: str) -> tuple[str, str]:
-		term_read_channel = f"session:{self.terminal_id}"
-		self.subscribe_to_channel(term_read_channel)
-
-		if target.lower() == "configserver":
-			term_request_channel = "service:config:terminal"
-		else:
-			term_request_channel = f"host:{target}"
-
-		self.open_new_terminal(term_request_channel)
 		if not self.terminal_open_event.wait(CHANNEL_SUB_TIMEOUT) or self.terminal_write_channel is None:
 			raise ConnectionError("Timed out waiting for terminal to open")
 		self.terminal_open_event.clear()  # Prepare for catching the next terminal_open_event
-
-		return (term_read_channel, self.terminal_write_channel)
 
 	def close(self, message: str) -> None:
 		self._should_close.set()
@@ -554,7 +547,8 @@ class TerminalMessagebusConnection(MessagebusConnection):
 			signal(SIGWINCH, self._on_resize)
 
 		with self.connection():
-			(_, term_write_channel) = self.get_terminal_channel_pair(target)
+			self.open_terminal(target)
+			assert self.terminal_write_channel
 			logger.notice("Return to local shell with 'exit' or 'Ctrl+D'")
 			with raw_terminal():
 				# If no data is given, transmit from stdin until EOF
@@ -582,8 +576,10 @@ class TerminalMessagebusConnection(MessagebusConnection):
 							self._should_close.set()
 							break
 
-					tdw = TerminalDataWriteMessage(
-						sender=CONNECTION_USER_CHANNEL, channel=term_write_channel, terminal_id=self.terminal_id, data=data
+					message = TerminalDataWriteMessage(
+						sender=CONNECTION_USER_CHANNEL,
+						channel=self.terminal_write_channel,
+						terminal_id=self.terminal_id,
+						data=data,
 					)
-					log_message(tdw)
-					self.service_client.messagebus.send_message(tdw)
+					self.send_message(message)
