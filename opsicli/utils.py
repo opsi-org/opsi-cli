@@ -21,9 +21,13 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Type
 
-from opsicommon.logging import get_logger, use_logging_config  # type: ignore[import]
+from opsicommon.logging import get_logger  # type: ignore[import]
+from opsicommon.logging import use_logging_config
+from opsicommon.system.info import is_windows
 
-if platform.system().lower() != "windows":
+if is_windows():
+	import ctypes
+else:
 	import termios
 	import tty
 
@@ -63,7 +67,7 @@ def decrypt(cipher: str) -> str:
 
 
 def add_to_env_variable(key: str, value: str, system: bool = False) -> None:
-	if platform.system().lower() != "windows":
+	if not is_windows():
 		raise NotImplementedError(
 			f"add_to_env_variable is currently only implemented for windows - If necessary, manually add {value} to {key}"
 		)
@@ -110,7 +114,9 @@ def add_to_env_variable(key: str, value: str, system: bool = False) -> None:
 @contextmanager
 def raw_terminal() -> Iterator[None]:
 	with use_logging_config(stderr_level=0):
-		if platform.system().lower() == "windows":
+		if is_windows():
+			kernel32 = ctypes.windll.kernel32
+			kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
 			yield
 		else:
 			attrs = termios.tcgetattr(sys.stdin.fileno())
