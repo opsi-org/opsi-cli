@@ -21,8 +21,10 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Type
 
-from opsicommon.logging import get_logger  # type: ignore[import]
-from opsicommon.logging import use_logging_config
+from opsicommon.logging import (
+	get_logger,  # type: ignore[import]
+	use_logging_config,
+)
 from opsicommon.system.info import is_windows
 
 if is_windows():
@@ -115,7 +117,7 @@ def add_to_env_variable(key: str, value: str, system: bool = False) -> None:
 def raw_terminal() -> Iterator[None]:
 	with use_logging_config(stderr_level=0):
 		if is_windows():
-			kernel32 = ctypes.windll.kernel32
+			kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
 			kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
 			yield
 		else:

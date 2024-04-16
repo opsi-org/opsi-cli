@@ -19,24 +19,27 @@ from uuid import uuid4
 from opsicommon.client.opsiservice import MessagebusListener
 from opsicommon.logging import get_logger
 from opsicommon.messagebus import CONNECTION_USER_CHANNEL
-from opsicommon.messagebus.message import (ChannelSubscriptionEventMessage,
-                                           ChannelSubscriptionRequestMessage,
-                                           GeneralErrorMessage,
-                                           JSONRPCRequestMessage,
-                                           JSONRPCResponseMessage, Message,
-                                           ProcessDataReadMessage,
-                                           ProcessErrorMessage,
-                                           ProcessStartEventMessage,
-                                           ProcessStartRequestMessage,
-                                           ProcessStopEventMessage,
-                                           ProcessStopRequestMessage,
-                                           TerminalCloseEventMessage,
-                                           TerminalDataReadMessage,
-                                           TerminalDataWriteMessage,
-                                           TerminalErrorMessage,
-                                           TerminalOpenEventMessage,
-                                           TerminalOpenRequestMessage,
-                                           TerminalResizeRequestMessage)
+from opsicommon.messagebus.message import (
+	ChannelSubscriptionEventMessage,
+	ChannelSubscriptionRequestMessage,
+	GeneralErrorMessage,
+	JSONRPCRequestMessage,
+	JSONRPCResponseMessage,
+	Message,
+	ProcessDataReadMessage,
+	ProcessErrorMessage,
+	ProcessStartEventMessage,
+	ProcessStartRequestMessage,
+	ProcessStopEventMessage,
+	ProcessStopRequestMessage,
+	TerminalCloseEventMessage,
+	TerminalDataReadMessage,
+	TerminalDataWriteMessage,
+	TerminalErrorMessage,
+	TerminalOpenEventMessage,
+	TerminalOpenRequestMessage,
+	TerminalResizeRequestMessage,
+)
 from opsicommon.system.info import is_windows
 
 from opsicli.io import get_console
@@ -44,7 +47,6 @@ from opsicli.opsiservice import get_service_connection
 from opsicli.utils import raw_terminal
 
 if is_windows():
-	import ctypes
 	import msvcrt
 else:
 	import fcntl
