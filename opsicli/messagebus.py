@@ -183,7 +183,7 @@ class MessagebusProcess:
 	process_lock: Lock = field(default_factory=Lock)
 
 	@property
-	def locale_encoding(self) -> str | None:
+	def locale_encoding(self) -> str:
 		if self.start_event and self.start_event.locale_encoding:
 			return self.start_event.locale_encoding
 		return "utf-8"
@@ -542,10 +542,10 @@ class TerminalMessagebusConnection(MessagebusConnection):
 				# If no data is given, transmit from stdin until EOF
 				while not self._should_close.is_set():
 					if _is_windows:
-						if not msvcrt.kbhit():
+						if not msvcrt.kbhit():  # type: ignore[attr-defined]
 							time.sleep(0.01)
 							continue
-						data = msvcrt.getch()  # type: ignore
+						data = msvcrt.getch()  # type: ignore[attr-defined]
 					else:
 						if not selector.select(0.01):
 							continue
