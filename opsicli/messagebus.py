@@ -47,10 +47,7 @@ from opsicli.opsiservice import get_service_connection
 from opsicli.utils import raw_terminal
 
 if is_windows():
-	import msvcrt
-
-	import win32console
-	import win32event
+	import win32console  # type: ignore[import-not-found]
 else:
 	import fcntl
 	from signal import SIGWINCH, signal
@@ -483,9 +480,9 @@ class TerminalMessagebusConnection(MessagebusConnection):
 		if self._is_windows:
 			chars = list(message.data)
 			for idx, char in enumerate(chars):
-				if char == 27 and chars[idx+1] == 91 and chars[idx+2] == 63 and chars[idx+3] == 49:
+				if char == 27 and chars[idx + 1] == 91 and chars[idx + 2] == 63 and chars[idx + 3] == 49:
 					# ESC[?1
-					if chars[idx+4] == 104:
+					if chars[idx + 4] == 104:
 						if not self._application_mode:
 							logger.debug("Enter application mode")
 							self._application_mode = True
@@ -573,7 +570,7 @@ class TerminalMessagebusConnection(MessagebusConnection):
 			logger.notice("Return to local shell with 'exit' or 'Ctrl+D'")
 			with raw_terminal():
 				if self._is_windows:
-					con_buf_in = win32console.GetStdHandle(-10) # STD_INPUT_HANDLE /  CONIN$
+					con_buf_in = win32console.GetStdHandle(-10)  # STD_INPUT_HANDLE /  CONIN$
 
 				while not self._should_close.is_set():
 					data = b""
@@ -583,29 +580,29 @@ class TerminalMessagebusConnection(MessagebusConnection):
 							continue
 						for event in con_buf_in.ReadConsoleInput(1024):
 							# https://timgolden.me.uk/pywin32-docs/PyINPUT_RECORD.html
-							if event.EventType == 1: # KEY_EVENT
+							if event.EventType == 1:  # KEY_EVENT
 								if event.KeyDown:
 									# https://www.gnu.org/software/screen/manual/html_node/Input-Translation.html
 									mchr = b"O" if self._application_mode else b"["
-									if event.VirtualScanCode == 72: # Cursor up
+									if event.VirtualScanCode == 72:  # Cursor up
 										data += b"\033" + mchr + b"A"
-									elif event.VirtualScanCode == 80: # Cursor down
+									elif event.VirtualScanCode == 80:  # Cursor down
 										data += b"\033" + mchr + b"B"
-									elif event.VirtualScanCode == 77: # Cursor right
+									elif event.VirtualScanCode == 77:  # Cursor right
 										data += b"\033" + mchr + b"C"
-									elif event.VirtualScanCode == 75: # Cursor left
+									elif event.VirtualScanCode == 75:  # Cursor left
 										data += b"\033" + mchr + b"D"
-									elif event.VirtualScanCode == 71: # Pos 1
+									elif event.VirtualScanCode == 71:  # Pos 1
 										data += b"\033[H"
-									elif event.VirtualScanCode == 79: # End
+									elif event.VirtualScanCode == 79:  # End
 										data += b"\033[F"
-									elif event.VirtualScanCode == 73: # Page up
+									elif event.VirtualScanCode == 73:  # Page up
 										data += b"\033[5~"
-									elif event.VirtualScanCode == 81: # Page down
+									elif event.VirtualScanCode == 81:  # Page down
 										data += b"\033[6~"
 									else:
 										data += event.Char.encode("utf-8")
-							elif event.EventType == 4: # WINDOW_BUFFER_SIZE_EVENT
+							elif event.EventType == 4:  # WINDOW_BUFFER_SIZE_EVENT
 								self._on_resize()
 						if not data:
 							continue
