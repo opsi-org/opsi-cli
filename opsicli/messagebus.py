@@ -44,8 +44,10 @@ from opsicli.opsiservice import get_service_connection
 from opsicli.utils import raw_terminal
 
 if is_windows():
-	import ctypes
 	import msvcrt
+
+	import win32console
+	import win32event
 else:
 	import fcntl
 	from signal import SIGWINCH, signal
@@ -460,6 +462,8 @@ class TerminalMessagebusConnection(MessagebusConnection):
 		self.terminal_read_channel: str | None = None
 		self.terminal_open_event = Event()
 		self._ctrl_c_times: list[float] = []
+		self._application_mode = False
+		self._is_windows = is_windows()
 
 	def _on_terminal_open_event(self, message: TerminalOpenEventMessage) -> None:
 		if message.terminal_id != self.terminal_id:
@@ -472,8 +476,25 @@ class TerminalMessagebusConnection(MessagebusConnection):
 		if message.terminal_id != self.terminal_id:
 			logger.error("Received message for invalid terminal id: %s", message.to_dict())
 			return
-		sys.stdout.buffer.write(message.data)
-		sys.stdout.flush()
+
+		if self._is_windows:
+			chars = list(message.data)
+			for idx, char in enumerate(chars):
+				if char == 27 and chars[idx+1] == 91 and chars[idx+2] == 63 and chars[idx+3] == 49:
+					# ESC[?1
+					if chars[idx+4] == 104:
+						if not self._application_mode:
+							logger.debug("Enter application mode")
+							self._application_mode = True
+					else:
+						if self._application_mode:
+							logger.debug("Exit application mode")
+							self._application_mode = False
+			sys.stdout.buffer.write(message.data)
+			sys.stdout.flush()
+		else:
+			sys.stdout.buffer.write(message.data)
+			sys.stdout.flush()
 
 	def _on_terminal_error(self, message: TerminalErrorMessage) -> None:
 		if message.terminal_id != self.terminal_id:
@@ -495,7 +516,7 @@ class TerminalMessagebusConnection(MessagebusConnection):
 		logger.notice("Received terminal close event - shutting down")
 		self.close("Terminal closed by remote")
 
-	def _on_resize(self, signum: int, frame: FrameType | None) -> None:
+	def _on_resize(self, signum: int = 0, frame: FrameType | None = None) -> None:
 		assert self.terminal_write_channel
 		size = shutil.get_terminal_size()
 		message = TerminalResizeRequestMessage(
@@ -534,9 +555,8 @@ class TerminalMessagebusConnection(MessagebusConnection):
 
 	def run_terminal(self, target: str, term_id: str | None = None) -> None:
 		self.terminal_id = term_id or str(uuid4())
-		_is_windows = is_windows()
 
-		if not _is_windows:
+		if not self._is_windows:
 			flags = fcntl.fcntl(sys.stdin, fcntl.F_GETFL)
 			fcntl.fcntl(sys.stdin, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 			selector = selectors.DefaultSelector()
@@ -549,15 +569,43 @@ class TerminalMessagebusConnection(MessagebusConnection):
 			assert self.terminal_write_channel
 			logger.notice("Return to local shell with 'exit' or 'Ctrl+D'")
 			with raw_terminal():
-				# If no data is given, transmit from stdin until EOF
+				if self._is_windows:
+					con_buf_in = win32console.GetStdHandle(-10) # STD_INPUT_HANDLE /  CONIN$
+
 				while not self._should_close.is_set():
 					data = b""
-					if _is_windows:
-						if not msvcrt.kbhit():  # type: ignore[attr-defined]
-							time.sleep(0.01)
+					if self._is_windows:
+						if con_buf_in.GetNumberOfConsoleInputEvents() == 0:
+							time.sleep(0.005)
 							continue
-						while msvcrt.kbhit():  # type: ignore[attr-defined]
-							data += msvcrt.getch()  # type: ignore[attr-defined]
+						for event in con_buf_in.ReadConsoleInput(1024):
+							# https://timgolden.me.uk/pywin32-docs/PyINPUT_RECORD.html
+							if event.EventType == 1: # KEY_EVENT
+								if event.KeyDown:
+									# https://www.gnu.org/software/screen/manual/html_node/Input-Translation.html
+									mchr = b"O" if self._application_mode else b"["
+									if event.VirtualScanCode == 72: # Cursor up
+										data += b"\033" + mchr + b"A"
+									elif event.VirtualScanCode == 80: # Cursor down
+										data += b"\033" + mchr + b"B"
+									elif event.VirtualScanCode == 77: # Cursor right
+										data += b"\033" + mchr + b"C"
+									elif event.VirtualScanCode == 75: # Cursor left
+										data += b"\033" + mchr + b"D"
+									elif event.VirtualScanCode == 71: # Pos 1
+										data += b"\033[H"
+									elif event.VirtualScanCode == 79: # End
+										data += b"\033[F"
+									elif event.VirtualScanCode == 73: # Page up
+										data += b"\033[5~"
+									elif event.VirtualScanCode == 81: # Page down
+										data += b"\033[6~"
+									else:
+										data += event.Char.encode("utf-8")
+							elif event.EventType == 4: # WINDOW_BUFFER_SIZE_EVENT
+								self._on_resize()
+						if not data:
+							continue
 					else:
 						if not selector.select(0.005):
 							continue

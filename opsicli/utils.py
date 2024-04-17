@@ -26,7 +26,7 @@ from opsicommon.logging import use_logging_config
 from opsicommon.system.info import is_windows
 
 if is_windows():
-	import ctypes
+	import win32console
 else:
 	import termios
 	import tty
@@ -115,9 +115,18 @@ def add_to_env_variable(key: str, value: str, system: bool = False) -> None:
 def raw_terminal() -> Iterator[None]:
 	with use_logging_config(stderr_level=0):
 		if is_windows():
-			kernel32 = ctypes.windll.kernel32
-			kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
-			yield
+			con_buf_in = win32console.GetStdHandle(-10) # STD_INPUT_HANDLE /  CONIN$
+			mode_in = con_buf_in.GetConsoleMode()
+			con_buf_out = win32console.GetStdHandle(-11) # STD_OUTPUT_HANDLE /  CONOUT$
+			mode_out = con_buf_out.GetConsoleMode()
+			# Disable line input, echo input
+			#con_buf_in.SetConsoleMode(mode_in & ~0x2  & ~0x4)
+			con_buf_in.SetConsoleMode(mode_in & ~0x1 & ~0x2  & ~0x4)
+			try:
+				yield
+			finally:
+				con_buf_in.SetConsoleMode(mode_in)
+				con_buf_out.SetConsoleMode(mode_out)
 		else:
 			attrs = termios.tcgetattr(sys.stdin.fileno())
 			try:
