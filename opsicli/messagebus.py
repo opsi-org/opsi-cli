@@ -71,7 +71,7 @@ def log_message(message: Message) -> None:
 class MessagebusConnection(MessagebusListener):
 	def __init__(self) -> None:
 		MessagebusListener.__init__(self)
-		self.channel_subscription_locks: dict[str, Event] = {}
+		self.channel_subscription_events: dict[str, Event] = {}
 		self.subscribed_channels: list[str] = []
 		self.initial_subscription_event = Event()
 		self.service_client = get_service_connection()
@@ -94,26 +94,26 @@ class MessagebusConnection(MessagebusListener):
 
 	def _on_channel_subscription_event(self, message: ChannelSubscriptionEventMessage) -> None:
 		self.subscribed_channels = message.subscribed_channels
+		if not self.initial_subscription_event.is_set():
+			self.initial_subscription_event.set()
 		for channel in message.subscribed_channels:
-			if channel in self.channel_subscription_locks:
-				self.channel_subscription_locks[channel].set()
-			else:
-				self.initial_subscription_event.set()
+			if channel in self.channel_subscription_events:
+				self.channel_subscription_events[channel].set()
 
 	def subscribe_to_channel(self, channel: str) -> None:
 		if channel in self.subscribed_channels:
 			return
 		try:
-			self.channel_subscription_locks[channel] = Event()
+			self.channel_subscription_events[channel] = Event()
 			message = ChannelSubscriptionRequestMessage(
 				sender=CONNECTION_USER_CHANNEL, operation="add", channels=[channel], channel="service:messagebus"
 			)
 			logger.notice("Requesting access to channel %r", channel)
 			self.send_message(message)
-			if not self.channel_subscription_locks[channel].wait(CHANNEL_SUB_TIMEOUT):
+			if not self.channel_subscription_events[channel].wait(CHANNEL_SUB_TIMEOUT):
 				raise ConnectionError(f"Could not subscribe to channel {channel}")
 		finally:
-			del self.channel_subscription_locks[channel]
+			del self.channel_subscription_events[channel]
 
 	@contextmanager
 	def connection(self) -> Generator[MessagebusConnection, None, None]:
