@@ -267,7 +267,7 @@ makeopsipackage:
     - cp output/changelog.md OPSI/
     - opsi-makepackage --no-set-rights -l 6
     - upload-package opsi-cli*.opsi
-    - '[ "$CI_COMMIT_TAG" = "" ] || opsi-dev-cli -l info release-service register-package-version opsi-cli TOOL --files=opsi-cli-windows.exe,opsi-cli-linux.run,opsi-cli-macos --version="$version" --changelog-file=OPSI/changelog.md'
+    - '[ "$CI_COMMIT_TAG" = "" ] || opsi-dev-cli -l debug release-service register-package-version opsi-cli TOOL --files=opsi-cli-windows.exe,opsi-cli-linux.run,opsi-cli-macos --version="$version" --changelog-file=OPSI/changelog.md'
   artifacts:
     name: controlfile
     paths:
