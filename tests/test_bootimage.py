@@ -19,11 +19,11 @@ def test_bootimage_set_boot_parameter() -> None:
 		exit_code, _stdout, _stderr = run_cli(["bootimage", "set-boot-parameter", "nomodeset"])
 		assert exit_code == 0
 		configs = connection.jsonrpc("config_getObjects", params=[[], {"id": "opsi-linux-bootimage.append"}])
-		assert "nomodeset" in configs[0]["defaultValues"]
+		assert "nomodeset" in configs[0].defaultValues
 		exit_code, _stdout, _stderr = run_cli(["bootimage", "set-boot-parameter", "lang", "de"])
 		assert exit_code == 0
 		configs = connection.jsonrpc("config_getObjects", params=[[], {"id": "opsi-linux-bootimage.append"}])
-		assert "lang=de" in configs[0]["defaultValues"]
+		assert "lang=de" in configs[0].defaultValues
 
 
 @pytest.mark.requires_testcontainer
@@ -36,13 +36,13 @@ def test_bootimage_set_boot_parameter_client() -> None:
 			config_states = connection.jsonrpc(
 				"configState_getObjects", params=[[], {"configId": "opsi-linux-bootimage.append", "objectId": CLIENT1}]
 			)
-			assert "nomodeset" in config_states[0]["values"]
+			assert "nomodeset" in config_states[0].values
 			exit_code, _stdout, _stderr = run_cli(["bootimage", "--client", CLIENT1, "set-boot-parameter", "lang", "de"])
 			assert exit_code == 0
 			config_states = connection.jsonrpc(
 				"configState_getObjects", params=[[], {"configId": "opsi-linux-bootimage.append", "objectId": CLIENT1}]
 			)
-			assert "lang=de" in config_states[0]["values"]
+			assert "lang=de" in config_states[0].values
 
 
 @pytest.mark.requires_testcontainer
@@ -56,4 +56,4 @@ def test_bootimage_set_boot_password() -> None:
 		print(result)
 		assert sha512_crypt.verify("linux123", result)
 		configs = connection.jsonrpc("config_getObjects", params=[[], {"id": "opsi-linux-bootimage.append"}])
-		assert f"pwh={result}" in configs[0]["defaultValues"]
+		assert f"pwh={result}" in configs[0].defaultValues

@@ -44,7 +44,7 @@ def test_set_action_request_single() -> None:
 			)
 			assert len(pocs) == 4
 			for poc in pocs:
-				assert poc.get("actionRequest") == "setup"
+				assert poc.actionRequest == "setup"
 
 			cmd += ["--request-type", "none"]
 			exit_code, _stdout, _stderr = run_cli(cmd)
@@ -54,7 +54,7 @@ def test_set_action_request_single() -> None:
 			)
 			assert len(pocs) == 4
 			for poc in pocs:
-				assert poc.get("actionRequest") in ("none", None)
+				assert poc.actionRequest in ("none", None)
 
 
 @pytest.mark.requires_testcontainer
@@ -77,7 +77,7 @@ def test_set_action_request_group() -> None:
 				)
 				assert len(pocs) == 4
 				for poc in pocs:
-					assert poc.get("actionRequest") == "setup"
+					assert poc.actionRequest == "setup"
 
 				cmd += ["--request-type", "none"]
 				exit_code, _stdout, _stderr = run_cli(cmd)
@@ -87,7 +87,7 @@ def test_set_action_request_group() -> None:
 				)
 				assert len(pocs) == 4
 				for poc in pocs:
-					assert poc.get("actionRequest") in ("none", None)
+					assert poc.actionRequest in ("none", None)
 
 
 @pytest.mark.requires_testcontainer
@@ -116,7 +116,7 @@ def test_set_action_request_where_failed() -> None:
 			pocs = connection.jsonrpc("productOnClient_getObjects", params=[[], {"clientId": CLIENT1, "productId": [PRODUCT1, PRODUCT2]}])
 			assert len(pocs) == 2
 			for poc in pocs:
-				assert poc.get("actionRequest") == "setup"
+				assert poc.actionRequest == "setup"
 
 
 @pytest.mark.requires_testcontainer
@@ -149,10 +149,10 @@ def test_set_action_request_excludes() -> None:
 				"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
 			)
 			for poc in pocs:
-				if poc.get("clientId") == CLIENT1 and poc.get("productId") == PRODUCT1:
-					assert poc.get("actionRequest") == "setup"
+				if poc.clientId == CLIENT1 and poc.productId == PRODUCT1:
+					assert poc.actionRequest == "setup"
 				else:
-					assert poc.get("actionRequest") in (None, "none")
+					assert poc.actionRequest in (None, "none")
 
 			cmd += ["--request-type", "none"]
 			exit_code, _stdout, _stderr = run_cli(cmd)
@@ -161,7 +161,7 @@ def test_set_action_request_excludes() -> None:
 				"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
 			)
 			for poc in pocs:
-				assert poc.get("actionRequest") in ("none", None)
+				assert poc.actionRequest in ("none", None)
 
 
 @pytest.mark.requires_testcontainer
@@ -199,9 +199,9 @@ def test_set_action_request_clients_from_depot() -> None:
 			assert exit_code == 0
 			pocs = connection.jsonrpc("productOnClient_getObjects", params=[[], {"clientId": CLIENT1, "productId": PRODUCT1}])
 			assert len(pocs) == 1
-			assert pocs[0].get("actionRequest") == "setup"
-			assert pocs[0].get("productId") == PRODUCT1
-			assert pocs[0].get("clientId") == CLIENT1
+			assert pocs[0].actionRequest == "setup"
+			assert pocs[0].productId == PRODUCT1
+			assert pocs[0].clientId == CLIENT1
 
 
 @pytest.mark.requires_testcontainer

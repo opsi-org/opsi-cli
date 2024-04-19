@@ -30,7 +30,7 @@ def test_messagebus_jsonrpc_params() -> None:
 				"service:config:jsonrpc"
 			]
 	assert len(result) == 1
-	assert result[0]["type"] == "OpsiConfigserver"
+	assert result[0].getType() == "OpsiConfigserver"
 
 
 @pytest.mark.xfail
@@ -56,4 +56,4 @@ def test_messagebus_jsonrpc_multiple() -> None:
 			result = connection.jsonrpc(["service:config:jsonrpc"], "host_getObjects", ([], {"type": "OpsiConfigserver"}))[
 				"service:config:jsonrpc"
 			]
-			assert result[0]["type"] == "OpsiConfigserver"
+			assert result[0].getType() == "OpsiConfigserver"
