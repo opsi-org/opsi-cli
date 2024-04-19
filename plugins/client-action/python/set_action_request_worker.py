@@ -5,7 +5,7 @@ client_action_worker
 """
 
 from opsicommon.logging import get_logger
-from opsicommon.objects import ProductOnClient
+from opsicommon.objects import Product, ProductDependency, ProductGroup, ProductOnClient, ProductOnDepot
 
 from opsicli.config import config
 
@@ -51,26 +51,33 @@ class SetActionRequestWorker(ClientActionWorker):
 		self.client_to_depot: dict[str, str] = {}
 		self.depending_products: set[str] = set()
 		self.request_type = "setup"
+
 		for single_client_to_depot in self.service.jsonrpc("configState_getClientToDepotserver", [[], list(self.clients)]):
-			self.client_to_depot[single_client_to_depot.clientId] = single_client_to_depot.depotId
+			self.client_to_depot[single_client_to_depot["clientId"]] = single_client_to_depot["depotId"]
 		logger.trace("ClientToDepot mapping: %s", self.client_to_depot)
-		for entry in self.service.jsonrpc("productOnDepot_getObjects"):
+
+		product_on_depots: list[ProductOnDepot] = self.service.jsonrpc("productOnDepot_getObjects")
+		for entry in product_on_depots:
 			if not self.depot_versions.get(entry.depotId):
 				self.depot_versions[entry.depotId] = {}
 			self.depot_versions[entry.depotId][entry.productId] = f"{entry.productVersion}-{entry.packageVersion}"
 		logger.trace("Product versions on depots: %s", self.depot_versions)
-		for pdep in self.service.jsonrpc("productDependency_getObjects"):
+
+		product_dependencies: list[ProductDependency] = self.service.jsonrpc("productDependency_getObjects")
+		for pdep in product_dependencies:
 			self.depending_products.add(pdep.productId)
-		for product in self.service.jsonrpc("product_getObjects"):
+
+		products: list[Product] = self.service.jsonrpc("product_getObjects")
+		for product in products:
 			# store the available action request scripts (strip "Script" at the end of the property)
 			self.product_action_scripts[product.id] = [key[:-6] for key in ACTION_REQUEST_SCRIPTS if getattr(product, key, None)]
 		logger.trace("Products with dependencies: %s", self.depending_products)
 
 	def product_ids_from_group(self, group: str) -> list[str]:
-		results = self.service.jsonrpc("group_getObjects", [[], {"id": group, "type": "ProductGroup"}])
-		if not results:
+		product_groups: list[ProductGroup] = self.service.jsonrpc("group_getObjects", [[], {"id": group, "type": "ProductGroup"}])
+		if not product_groups:
 			raise ValueError(f"Product group '{group}' not found")
-		return [mapping.objectId for mapping in self.service.jsonrpc("objectToGroup_getObjects", [[], {"groupId": results[0].id}])]
+		return [mapping.objectId for mapping in self.service.jsonrpc("objectToGroup_getObjects", [[], {"groupId": product_groups[0].id}])]
 
 	def determine_products(
 		self,
@@ -98,10 +105,12 @@ class SetActionRequestWorker(ClientActionWorker):
 			for group in [entry.strip() for entry in exclude_product_groups_string.split(",")]:
 				exclude_products.extend(self.product_ids_from_group(group))
 		logger.info("List of excluded products: %s", exclude_products)
-		product_objects = self.service.jsonrpc("product_getObjects", [[], {"type": "LocalbootProduct", "id": products or None}])
-		self.products = list(set((entry["id"] for entry in product_objects if entry["id"] not in exclude_products)))
+		product_objects: list[Product] = self.service.jsonrpc(
+			"product_getObjects", [[], {"type": "LocalbootProduct", "id": products or None}]
+		)
+		self.products = list(set((entry.id for entry in product_objects if entry.id not in exclude_products)))
 		self.products_with_only_uninstall = [
-			entry["id"]
+			entry.id
 			for entry in product_objects
 			if entry.uninstallScript
 			and not entry.setupScript
@@ -163,19 +172,21 @@ class SetActionRequestWorker(ClientActionWorker):
 	) -> list[ProductOnClient]:
 		new_pocs: list[ProductOnClient] = []
 		existing_pocs: dict[str, dict[str, ProductOnClient]] = {}
-		for poc in self.service.jsonrpc(
+		pocs: list[ProductOnClient] = self.service.jsonrpc(
 			"productOnClient_getObjects",
 			[[], {"clientId": list(self.clients), "productType": "LocalbootProduct", "productId": self.products}],
-		):
-			if poc.clientId not in existing_pocs:
-				existing_pocs[poc.clientId] = {}
-			existing_pocs[poc.clientId].update({poc.productId: poc})
-		for client in clients:
+		)
+		for exisiting_poc in pocs:
+			if exisiting_poc.clientId not in existing_pocs:
+				existing_pocs[exisiting_poc.clientId] = {}
+			existing_pocs[exisiting_poc.clientId].update({exisiting_poc.productId: exisiting_poc})
+
+		for client_id in clients:
 			for product in products:
-				poc = existing_pocs.get(client, {}).get(product, None) or ProductOnClient(
+				poc = existing_pocs.get(client_id, {}).get(product) or ProductOnClient(
 					productId=product,
 					productType="LocalbootProduct",
-					clientId=client,
+					clientId=client_id,
 					installationStatus="not_installed",
 					actionRequest=None,
 				)
@@ -202,34 +213,35 @@ class SetActionRequestWorker(ClientActionWorker):
 		new_pocs: list[ProductOnClient] = []
 		if kwargs.get("where_failed") or kwargs.get("where_outdated") or kwargs.get("uninstall_where_only_uninstall"):
 			modified_clients = set()
-			for entry in self.service.jsonrpc(
+			pocs: list[ProductOnClient] = self.service.jsonrpc(
 				"productOnClient_getObjects",
 				[[], {"clientId": list(self.clients), "productType": "LocalbootProduct", "productId": self.products}],
-			):
+			)
+			for poc in pocs:
 				logger.debug(
 					"Checking %s (%s) on %s",
-					entry.productId,
-					f"{entry.productVersion}-{entry.packageVersion}",
-					entry.clientId,
+					poc.productId,
+					f"{poc.productVersion}-{poc.packageVersion}",
+					poc.clientId,
 				)
 				try:
-					available = self.depot_versions[self.client_to_depot[entry.clientId]][entry.productId]
+					available = self.depot_versions[self.client_to_depot[poc.clientId]][poc.productId]
 				except KeyError:
-					logger.error("Skipping check of %s %s (product not available on depot)", entry.clientId, entry.productId)
+					logger.error("Skipping check of %s %s (product not available on depot)", poc.clientId, poc.productId)
 					continue
-				if kwargs.get("uninstall_where_only_uninstall") and entry.productId in self.products_with_only_uninstall:
-					new_pocs.extend(self.set_single_action_request(entry, "uninstall"))
-					modified_clients.add(entry.clientId)
-				elif kwargs.get("where_failed") and entry.actionResult == "failed":
-					new_pocs.extend(self.set_single_action_request(entry))
-					modified_clients.add(entry.clientId)
+				if kwargs.get("uninstall_where_only_uninstall") and poc.productId in self.products_with_only_uninstall:
+					new_pocs.extend(self.set_single_action_request(poc, "uninstall"))
+					modified_clients.add(poc.clientId)
+				elif kwargs.get("where_failed") and poc.actionResult == "failed":
+					new_pocs.extend(self.set_single_action_request(poc))
+					modified_clients.add(poc.clientId)
 				elif (
 					kwargs.get("where_outdated")
-					and entry.installationStatus == "installed"
-					and f"{entry['productVersion']}-{entry['packageVersion']}" != available
+					and poc.installationStatus == "installed"
+					and f"{poc.productVersion}-{poc.packageVersion}" != available
 				):
-					new_pocs.extend(self.set_single_action_request(entry))
-					modified_clients.add(entry.clientId)
+					new_pocs.extend(self.set_single_action_request(poc))
+					modified_clients.add(poc.clientId)
 			if kwargs.get("setup_on_action") and modified_clients:
 				setup_on_action_products = [entry.strip() for entry in str(kwargs.get("setup_on_action")).split(",")]
 				logger.notice("Setting setup for all modified clients and products: %s", setup_on_action_products)

@@ -567,8 +567,8 @@ class TerminalMessagebusConnection(MessagebusConnection):
 		self.shell = shell
 
 		self.service_client.connect()
-		connected_host_ids = self.service_client.host_getMessagebusConnectedIds()
-		depots = self.service_client.host_getObjects(attributes=["id", "type"], type="OpsiDepotserver")
+		connected_host_ids = self.service_client.host_getMessagebusConnectedIds()  # type: ignore[attr-defined]
+		depots = self.service_client.host_getObjects(attributes=["id", "type"], type="OpsiDepotserver")  # type: ignore[attr-defined]
 		configserver_id = [depot.id for depot in depots if depot.getType() == "OpsiConfigserver"][0]
 		depotserver_ids = [depot.id for depot in depots]
 

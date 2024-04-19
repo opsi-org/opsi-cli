@@ -5,6 +5,7 @@ template for opsi-cli plugins
 import passlib.hash  # type: ignore[import]
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger
+from opsicommon.objects import Config, ConfigState
 
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
@@ -44,17 +45,23 @@ def set_append_values(values: dict[str, str] | None = None, flags: list[str] | N
 	flags = flags or []
 	service = get_service_connection()
 	if client:
-		config_states = service.jsonrpc("configState_getObjects", [[], {"configId": "opsi-linux-bootimage.append", "objectId": client}])
+		config_states: list[ConfigState] = service.jsonrpc(
+			"configState_getObjects", [[], {"configId": "opsi-linux-bootimage.append", "objectId": client}]
+		)
 		new_values = [f"{key}={value}" for key, value in values.items()] + flags
 		if not config_states:
 			service.jsonrpc("configState_create", ["opsi-linux-bootimage.append", client, new_values])
 		else:
-			config_states[0].values = patch_values(values, config_states[0].values)
-			config_states[0].values = patch_flags(flags, config_states[0].values)
+			config_states[0].values = patch_values(values, config_states[0].values or [])
+			config_states[0].values = patch_flags(flags, config_states[0].values or [])
 			service.jsonrpc("configState_updateObjects", [config_states])
 		return
 
-	configs = service.jsonrpc("config_getObjects", [[], {"id": "opsi-linux-bootimage.append"}])
+	configs: list[Config] = service.jsonrpc("config_getObjects", [[], {"id": "opsi-linux-bootimage.append"}])
+	if not configs[0].possibleValues:
+		configs[0].possibleValues = []
+	if not configs[0].defaultValues:
+		configs[0].defaultValues = []
 	new_values = patch_values(values, configs[0].defaultValues)
 	new_values = patch_flags(flags, new_values)
 	for new_value in new_values:
