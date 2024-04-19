@@ -41,6 +41,7 @@ from opsicommon.messagebus.message import (
 	TerminalResizeRequestMessage,
 )
 from opsicommon.system.info import is_windows
+from opsicommon.types import forceHostId
 
 from opsicli.io import get_console
 from opsicli.opsiservice import get_service_connection
@@ -454,13 +455,15 @@ class ProcessMessagebusConnection(MessagebusConnection):
 
 class TerminalMessagebusConnection(MessagebusConnection):
 	terminal_id: str
+	shell: str | None
 
 	def __init__(self) -> None:
 		MessagebusConnection.__init__(self)
 		self._should_close = Event()
-		self.terminal_write_channel: str | None = None
-		self.terminal_read_channel: str | None = None
-		self.terminal_open_event = Event()
+		self._terminal_write_channel: str | None = None
+		self._terminal_read_channel: str | None = None
+		self._terminal_open_event = Event()
+		self._terminal_error: Exception | None = None
 		self._ctrl_c_times: list[float] = []
 		self._application_mode = False
 		self._is_windows = is_windows()
@@ -469,8 +472,8 @@ class TerminalMessagebusConnection(MessagebusConnection):
 		if message.terminal_id != self.terminal_id:
 			logger.error("Received message for invalid terminal id: %s", message.to_dict())
 			return
-		self.terminal_write_channel = message.back_channel
-		self.terminal_open_event.set()
+		self._terminal_write_channel = message.back_channel
+		self._terminal_open_event.set()
 
 	def _on_terminal_data_read(self, message: TerminalDataReadMessage) -> None:
 		if message.terminal_id != self.terminal_id:
@@ -502,12 +505,16 @@ class TerminalMessagebusConnection(MessagebusConnection):
 			return
 		error = f"Received terminal error: {message.error.message}"
 		logger.error(error)
-		self.close(error)
+		self._terminal_error = RuntimeError(message.error.message)
+		self.initial_subscription_event.set()
+		self._terminal_open_event.set()
 
 	def _on_general_error(self, message: GeneralErrorMessage) -> None:
 		error = f"Received general error: {message.error.message}"
 		logger.error(error)
-		self.close(error)
+		self._terminal_error = RuntimeError(message.error.message)
+		self.initial_subscription_event.set()
+		self._terminal_open_event.set()
 
 	def _on_terminal_close_event(self, message: TerminalCloseEventMessage) -> None:
 		if message.terminal_id != self.terminal_id:
@@ -517,11 +524,11 @@ class TerminalMessagebusConnection(MessagebusConnection):
 		self.close("Terminal closed by remote")
 
 	def _on_resize(self, signum: int = 0, frame: FrameType | None = None) -> None:
-		assert self.terminal_write_channel
+		assert self._terminal_write_channel
 		size = shutil.get_terminal_size()
 		message = TerminalResizeRequestMessage(
 			sender=CONNECTION_USER_CHANNEL,
-			channel=self.terminal_write_channel,
+			channel=self._terminal_write_channel,
 			terminal_id=self.terminal_id,
 			rows=size.lines,
 			cols=size.columns,
@@ -529,32 +536,54 @@ class TerminalMessagebusConnection(MessagebusConnection):
 		logger.notice("Requesting to resize terminal with id %s (rows=%d, cols=%d)", self.terminal_id, size.lines, size.columns)
 		self.send_message(message)
 
-	def open_terminal(self, target: str) -> None:
-		self.terminal_read_channel = f"session:{self.terminal_id}"
-		self.subscribe_to_channel(self.terminal_read_channel)
-		term_request_channel = "service:config:terminal" if target.lower() == "configserver" else f"host:{target}"
+	def open_terminal(self, channel: str) -> None:
+		self._terminal_read_channel = f"session:{self.terminal_id}"
+		self.subscribe_to_channel(self._terminal_read_channel)
 		size = shutil.get_terminal_size()
 		message = TerminalOpenRequestMessage(
 			sender=CONNECTION_USER_CHANNEL,
-			channel=term_request_channel,
+			channel=channel,
 			terminal_id=self.terminal_id,
-			back_channel=self.terminal_read_channel,
+			back_channel=self._terminal_read_channel,
 			rows=size.lines,
 			cols=size.columns,
+			shell=self.shell,
 		)
 		logger.notice("Requesting to open terminal with id %s", self.terminal_id)
 		self.send_message(message)
 
-		if not self.terminal_open_event.wait(CHANNEL_SUB_TIMEOUT) or self.terminal_write_channel is None:
-			raise ConnectionError("Timed out waiting for terminal to open")
-		self.terminal_open_event.clear()  # Prepare for catching the next terminal_open_event
+		if not self._terminal_open_event.wait(CHANNEL_SUB_TIMEOUT) or self._terminal_write_channel is None:
+			if not self._terminal_error:
+				self._terminal_error = ConnectionError("Timed out waiting for terminal to open")
+		self._terminal_open_event.clear()  # Prepare for catching the next terminal_open_event
 
 	def close(self, message: str) -> None:
 		self._should_close.set()
 		sys.stdout.write(f"\r\n> {message} <\r\n")
 
-	def run_terminal(self, target: str, term_id: str | None = None) -> None:
-		self.terminal_id = term_id or str(uuid4())
+	def run_terminal(self, target: str, terminal_id: str | None = None, shell: str | None = None) -> None:
+		target = target.lower()
+		self.terminal_id = terminal_id or str(uuid4())
+		self.shell = shell
+
+		self.service_client.connect()
+		connected_host_ids = self.service_client.host_getMessagebusConnectedIds()
+		depots = self.service_client.host_getObjects(attributes=["id", "type"], type="OpsiDepotserver")
+		configserver_id = [depot.id for depot in depots if depot.getType() == "OpsiConfigserver"][0]
+		depotserver_ids = [depot.id for depot in depots]
+
+		logger.debug("Connected host IDs: %s", connected_host_ids)
+		logger.debug("Configserver ID: %s", configserver_id)
+		logger.debug("Depotserver IDs: %s", depotserver_ids)
+
+		host_id = forceHostId(configserver_id if target == "configserver" else target)
+		if host_id != configserver_id and host_id not in connected_host_ids:
+			raise ConnectionError(f"Host {host_id} is currently not connected to messagebus")
+
+		if host_id in depotserver_ids:
+			channel = f"service:depot:{host_id}:terminal"
+		else:
+			channel = f"host:{host_id}"
 
 		if not self._is_windows:
 			flags = fcntl.fcntl(sys.stdin, fcntl.F_GETFL)
@@ -565,14 +594,20 @@ class TerminalMessagebusConnection(MessagebusConnection):
 			signal(SIGWINCH, self._on_resize)
 
 		with self.connection():
-			self.open_terminal(target)
-			assert self.terminal_write_channel
+			self.open_terminal(channel)
+			if self._terminal_error:
+				raise self._terminal_error
+			if self._should_close.is_set():
+				return
+			assert self._terminal_write_channel
 			logger.notice("Return to local shell with 'exit' or 'Ctrl+D'")
 			with raw_terminal():
 				if self._is_windows:
 					con_buf_in = win32console.GetStdHandle(-10)  # STD_INPUT_HANDLE /  CONIN$
 
 				while not self._should_close.is_set():
+					if self._terminal_error:
+						raise self._terminal_error
 					data = b""
 					if self._is_windows:
 						if con_buf_in.GetNumberOfConsoleInputEvents() == 0:
@@ -626,7 +661,7 @@ class TerminalMessagebusConnection(MessagebusConnection):
 
 					message = TerminalDataWriteMessage(
 						sender=CONNECTION_USER_CHANNEL,
-						channel=self.terminal_write_channel,
+						channel=self._terminal_write_channel,
 						terminal_id=self.terminal_id,
 						data=data,
 					)

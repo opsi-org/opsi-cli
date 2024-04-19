@@ -18,14 +18,15 @@ logger = get_logger("opsicli")
 @click.version_option(__version__, message="opsi-cli plugin terminal, version %(version)s")
 @click.argument("target", type=str, required=True)
 @click.option("--terminal-id", help="Connect to existing terminal session with this id.")
-def cli(target: str, terminal_id: str | None) -> None:
+@click.option("--shell", help="Use this shell for the terminal session.")
+def cli(target: str, terminal_id: str | None, shell: str | None) -> None:
 	"""
 	This command starts an interactive console session.
 	It connects to the specified target host-id (opsi Client, Depotserver or Configserver).
 	"""
 	logger.trace("terminal command")
 	messagebus = TerminalMessagebusConnection()
-	messagebus.run_terminal(target, term_id=terminal_id)
+	messagebus.run_terminal(target, terminal_id=terminal_id, shell=shell)
 
 
 class TerminalPlugin(OPSICLIPlugin):

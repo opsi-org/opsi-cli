@@ -12,7 +12,7 @@ from opsicli.config import OPSIService, config
 from opsicli.opsiservice import (
 	get_service_connection,
 	get_service_credentials_from_backend,
-	jsonrpc_client,  # noqa: F401
+	service_client,  # noqa: F401
 )
 
 from .utils import container_connection
@@ -36,8 +36,8 @@ def test_get_service_connection_local() -> None:
 
 @pytest.mark.skipif(not Path("/etc/opsi/backends").exists(), reason="need local backend for this test")
 def test_get_service_connection_half_configured_service() -> None:
-	global jsonrpc_client
-	jsonrpc_client = None
+	global service_client
+	service_client = None
 	config.services.append(OPSIService("pytest_test_service", "https://localhost:4447"))
 	config.service = "pytest_test_service"
 	connection = get_service_connection()

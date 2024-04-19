@@ -23,7 +23,7 @@ from opsicli.config import config
 from opsicli.io import prompt
 
 logger = get_logger("opsicli")
-jsonrpc_client = None
+service_client = None
 SESSION_LIFETIME = 150  # seconds
 
 
@@ -101,8 +101,8 @@ def get_opsiconfd_config() -> dict[str, str]:
 
 
 def get_service_connection() -> ServiceClient:
-	global jsonrpc_client
-	if not jsonrpc_client:
+	global service_client
+	if not service_client:
 		address = config.service
 		username = config.username
 		password = config.password
@@ -152,7 +152,7 @@ def get_service_connection() -> ServiceClient:
 		session_cookie = cache.get("opsiconfd-session")  # None if previous session expired
 		if session_cookie:
 			logger.info("Reusing session cookie from cache")
-		jsonrpc_client = ServiceClient(
+		service_client = ServiceClient(
 			address=address,
 			username=username,
 			password=password,
@@ -163,7 +163,9 @@ def get_service_connection() -> ServiceClient:
 			client_cert_file=client_cert_file,
 			client_key_file=client_key_file,
 			client_key_password=client_key_password,
+			jsonrpc_create_methods=True,
+			jsonrpc_create_objects=True,
 		)
-		jsonrpc_client.register_connection_listener(OpsiCliConnectionListener())
+		service_client.register_connection_listener(OpsiCliConnectionListener())
 
-	return jsonrpc_client
+	return service_client

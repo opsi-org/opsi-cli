@@ -28,8 +28,8 @@ def test_messagebus_terminal() -> None:
 			connection.terminal_id = str(uuid4())
 			with connection.connection():
 				connection.open_terminal("configserver")
-				assert connection.terminal_read_channel
-				assert connection.terminal_write_channel
+				assert connection._terminal_read_channel
+				assert connection._terminal_write_channel
 
 
 @pytest.mark.xfail
