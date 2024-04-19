@@ -49,6 +49,7 @@ def pytest_configure(config: PytestConfig) -> None:
 	config.addinivalue_line("markers", "linux: mark test to run only on linux")
 	config.addinivalue_line("markers", "darwin: mark test to run only on darwin")
 	config.addinivalue_line("markers", "posix: mark test to run only on posix")
+	config.addinivalue_line("markers", "requires_testcontainer: requires testcontainer")
 
 
 def running_in_docker() -> bool:

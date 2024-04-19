@@ -49,18 +49,18 @@ def set_append_values(values: dict[str, str] | None = None, flags: list[str] | N
 		if not config_states:
 			service.jsonrpc("configState_create", ["opsi-linux-bootimage.append", client, new_values])
 		else:
-			config_states[0]["values"] = patch_values(values, config_states[0]["values"])
-			config_states[0]["values"] = patch_flags(flags, config_states[0]["values"])
+			config_states[0].values = patch_values(values, config_states[0].values)
+			config_states[0].values = patch_flags(flags, config_states[0].values)
 			service.jsonrpc("configState_updateObjects", [config_states])
 		return
 
 	configs = service.jsonrpc("config_getObjects", [[], {"id": "opsi-linux-bootimage.append"}])
-	new_values = patch_values(values, configs[0]["defaultValues"])
+	new_values = patch_values(values, configs[0].defaultValues)
 	new_values = patch_flags(flags, new_values)
 	for new_value in new_values:
-		if new_value not in configs[0]["possibleValues"]:
-			configs[0]["possibleValues"].append(new_value)
-	configs[0]["defaultValues"] = new_values
+		if new_value not in configs[0].possibleValues:
+			configs[0].possibleValues.append(new_value)
+	configs[0].defaultValues = new_values
 	service.jsonrpc("config_updateObjects", [configs])
 
 
