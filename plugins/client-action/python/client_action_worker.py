@@ -54,16 +54,16 @@ class ClientActionWorker:
 	def create_group_forest(self) -> None:
 		groups = self.service.jsonrpc("group_getObjects", [[], {"type": "HostGroup"}])
 		for group in groups:
-			self.group_forest[group["id"]] = Group(name=group["id"])
+			self.group_forest[group.id] = Group(name=group.id)
 		for group in groups:
-			if group["parentGroupId"] not in (None, "null"):
+			if group.parentGroupId not in (None, "null"):
 				try:
-					self.group_forest[group["parentGroupId"]].subgroups.append(self.group_forest[group["id"]])
+					self.group_forest[group.parentGroupId].subgroups.append(self.group_forest[group.id])
 				except KeyError:
-					logger.error("Error in Backend: Group %s has parent %s which does not exist", group["id"], group["parentGroupId"])
+					logger.error("Error in Backend: Group %s has parent %s which does not exist", group.id, group.parentGroupId)
 
 	def get_entries_from_group(self, group: str) -> set[str]:
-		result = {mapping["objectId"] for mapping in self.service.jsonrpc("objectToGroup_getObjects", [[], {"groupId": group}])}
+		result = {mapping.objectId for mapping in self.service.jsonrpc("objectToGroup_getObjects", [[], {"groupId": group}])}
 		logger.debug("group %s has clients: %s", group, result)
 		if self.group_forest[group].subgroups:
 			for subgroup in self.group_forest[group].subgroups:
@@ -77,14 +77,14 @@ class ClientActionWorker:
 		return list(self.get_entries_from_group(group))
 
 	def client_ids_from_depot(self, depot: str) -> list[str]:
-		return [entry["clientId"] for entry in self.service.jsonrpc("configState_getClientToDepotserver", [depot])]
+		return [entry.clientId for entry in self.service.jsonrpc("configState_getClientToDepotserver", [depot])]
 
 	def client_ids_with_ip(self, ip_string: str) -> list[str]:
 		network = ip_network(ip_string)  # can handle ipv4 and ipv6 addresses with and without subnet specification
 		result = []
 		for client in self.service.jsonrpc("host_getObjects", [[], {"type": "OpsiClient"}]):
-			if client["ipAddress"] and ip_address_in_network(client["ipAddress"], network):
-				result.append(client["id"])
+			if client.ipAddress and ip_address_in_network(client.ipAddress, network):
+				result.append(client.id)
 		logger.debug("Clients with ip %s: %s", ip_string, result)
 		return result
 
@@ -99,7 +99,7 @@ class ClientActionWorker:
 			)
 			args.clients = "all"
 		if "all" in args.clients:
-			self.clients = {entry["id"] for entry in self.service.jsonrpc("host_getObjects", [[], {"type": "OpsiClient"}])}
+			self.clients = {entry.id for entry in self.service.jsonrpc("host_getObjects", [[], {"type": "OpsiClient"}])}
 		else:
 			if args.clients:
 				self.clients.update(forceHostId(entry.strip()) for entry in args.clients.split(","))

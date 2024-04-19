@@ -29,7 +29,7 @@ class DepotExecuteWorker:
 		result = set()
 		depots = (depots or "").lower()
 		if "all" in depots:
-			result = {entry["id"] for entry in self.service.jsonrpc("host_getObjects", [[], {"type": "OpsiDepotserver"}])}
+			result = {entry.id for entry in self.service.jsonrpc("host_getObjects", [[], {"type": "OpsiDepotserver"}])}
 		elif depots:
 			result.update(forceHostId(entry.strip()) for entry in depots.split(","))
 
