@@ -45,7 +45,7 @@ def tmp_product(service: ServiceClient, name: str) -> Generator[None, None, None
 			"packageVersion": "1",
 			"setupScript": "setup.opsiscript",
 		}
-		depot_id = service.jsonrpc("host_getObjects", [[], {"type": "OpsiConfigserver"}])[0]["id"]
+		depot_id = service.jsonrpc("host_getObjects", [[], {"type": "OpsiConfigserver"}])[0].id
 		service.jsonrpc("product_createObjects", params=[product_dict])
 		pod_dict = {"productId": name, "depotId": depot_id, "productType": "LocalbootProduct", "productVersion": "1", "packageVersion": "1"}
 		service.jsonrpc("productOnDepot_createObjects", params=[pod_dict])
