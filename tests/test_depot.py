@@ -16,7 +16,7 @@ from .utils import (
 def test_depot_execute() -> None:
 	with container_connection():
 		connection = get_service_connection()
-		configserver = connection.jsonrpc("host_getObjects", params=[[], {"type": "OpsiConfigserver"}])[0]["id"]
+		configserver = connection.jsonrpc("host_getObjects", params=[[], {"type": "OpsiConfigserver"}])[0].id
 		cmd = ["depot", "--depots", configserver, "execute", "whoami"]
 		exit_code, output, _stderr = run_cli(cmd)
 		print(output)
