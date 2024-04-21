@@ -948,13 +948,13 @@ reference = "uibpypi"
 
 [[package]]
 name = "pluggy"
-version = "1.4.0"
+version = "1.5.0"
 description = "plugin and hook calling mechanisms for python"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "pluggy-1.4.0-py3-none-any.whl", hash = "sha256:7db9f7b503d67d1c5b95f59773ebb58a8c1c288129a88665838012cfb07b8981"},
-    {file = "pluggy-1.4.0.tar.gz", hash = "sha256:8c85c2876142a764e5b7548e7d9a0e0ddb46f5185161049a79b7e974454223be"},
+    {file = "pluggy-1.5.0-py3-none-any.whl", hash = "sha256:44e1ad92c8ca002de6377e165f3e0f1be63266ab4d554740532335b9d75ea669"},
+    {file = "pluggy-1.5.0.tar.gz", hash = "sha256:2cffa88e94fdc978c4c574f15f9e59b7f4201d439195c3715ca9e2486f1d0cf1"},
 ]
 
 [package.extras]
@@ -1334,13 +1334,13 @@ reference = "uibpypi"
 
 [[package]]
 name = "python-opsi-common"
-version = "4.3.11.1"
+version = "4.3.12.0"
 description = "The opsi python common library"
 optional = false
 python-versions = ">=3.11,<3.13"
 files = [
-    {file = "python_opsi_common-4.3.11.1-py3-none-any.whl", hash = "sha256:6dad4c7c63eb4737d0f8b1c870645a1c223dba4635e5466b94b001affa8a7b50"},
-    {file = "python_opsi_common-4.3.11.1.tar.gz", hash = "sha256:7d6deab09e587c8afaa32bff41a2035a409873a6de12af81b98dd23f0fa464ee"},
+    {file = "python_opsi_common-4.3.12.0-py3-none-any.whl", hash = "sha256:ee8879e63f6895829843af650f50ca52abf33c1f1dd7bb9efc1cf6c061520c37"},
+    {file = "python_opsi_common-4.3.12.0.tar.gz", hash = "sha256:2d86adeff5c98d153e35eb950e71dede1e72ce4fc4900e41fc8be924bae18d3f"},
 ]
 
 [package.dependencies]
