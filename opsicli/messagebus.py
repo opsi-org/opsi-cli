@@ -208,6 +208,9 @@ class MessagebusProcess:
 		with self.process_lock:
 			self.start_event = start_event
 			self.start_event_time = time.time()
+			if not self.stdin_data:
+				return
+
 			pos = 0
 			chunk_size = 32768
 			while pos < len(self.stdin_data):
