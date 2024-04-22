@@ -60,7 +60,10 @@ def test_self_uninstall() -> None:
 		conffile = Path(tempdir) / "conffile.conf"
 		config.config_file_user = conffile
 		binary_path = Path(tempdir) / "out_binary"
+
 		exit_code, _stdout, _stderr = run_cli(["self", "install", "--location", str(binary_path), "--no-add-to-path"])
+		assert config.config_file_user.exists()
+
 		exit_code, stdout, _stderr = run_cli(["self", "uninstall", "--location", str(binary_path)])
 		print(stdout)
 		assert exit_code == 0

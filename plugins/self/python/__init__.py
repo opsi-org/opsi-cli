@@ -412,8 +412,6 @@ def uninstall(location: str, system: bool | None = None, binary_path: Path | Non
 	binary_paths = get_binary_paths(location)
 	exit_code = 0
 	for binary in binary_paths:
-		user_path = binary.parent.is_relative_to(Path.home())
-
 		try:
 			if binary.exists():
 				if config.dry_run:
@@ -432,8 +430,9 @@ def uninstall(location: str, system: bool | None = None, binary_path: Path | Non
 			rich_print(f"[red]Failed to remove binary '{binary}': {err}[/red]")
 			continue
 
+		sys_install = user_is_admin() and not binary.parent.is_relative_to(Path.home())
 		try:
-			config_file = config.config_file_user if user_path else config.config_file_system
+			config_file = config.config_file_system if sys_install else config.config_file_user
 			if config_file and config_file.exists():
 				if config.dry_run:
 					logger.notice("Would remove config file '%s', but --dry-run is set", config_file)
