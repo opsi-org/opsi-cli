@@ -26,7 +26,7 @@ from opsicli.config import ConfigValueSource, config
 from opsicli.io import Attribute, Metadata, get_console, write_output
 from opsicli.plugin import OPSICLIPlugin, plugin_manager
 from opsicli.types import File
-from opsicli.utils import add_to_env_variable, download, get_opsi_cli_download_filename, replace_binary, retry
+from opsicli.utils import add_to_env_variable, download, get_opsi_cli_download_filename, install_binary, retry, user_is_admin
 
 installed_version_metadata = Metadata(
 	attributes=[
@@ -37,7 +37,7 @@ installed_version_metadata = Metadata(
 	]
 )
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 START_MARKER = "### Added by opsi-cli ###"
 END_MARKER = "### /Added by opsi-cli ###"
@@ -73,6 +73,31 @@ def get_binary_path(system: bool = False) -> Path:
 			return Path(r"c:/opsi.org/opsi-cli") / get_binary_name()
 		return Path.home() / "AppData/Local/Programs/opsi-cli" / get_binary_name()
 	raise RuntimeError(f"Platform '{platform.system()}' not supported")
+
+
+def get_current_binary_path() -> Path:
+	current_binary = Path(sys.executable)
+	ziplauncher_binary = os.environ.get("ZIPLAUNCHER_BINARY")
+	if ziplauncher_binary and os.path.exists(ziplauncher_binary):
+		current_binary = Path(ziplauncher_binary)
+	return current_binary
+
+
+def get_binary_paths(location: str | Path) -> list[Path]:
+	if isinstance(location, str):
+		if location == "current":
+			return [get_current_binary_path()]
+		if location == "all":
+			return list(set([get_binary_path(system=False), get_binary_path(system=True)] + list(get_installed_versions())))
+		if location == "user":
+			return [get_binary_path(system=False)]
+		elif location == "system":
+			return [get_binary_path(system=True)]
+		location = Path(location)
+	location = location.expanduser().absolute()
+	if location.is_dir():
+		location = location / get_binary_name()
+	return [location]
 
 
 def get_installed_versions() -> dict[Path, str]:
@@ -189,8 +214,10 @@ def setup_shell_completion(ctx: click.Context, shell: str, completion_file: Path
 	for shell_ in shells:
 		console.print(f"Setting up auto completion for shell [bold cyan]{shell_!r}[/bold cyan].")
 		conf_file = completion_file or get_completion_config_path(shell_)
-		if not conf_file.parent.exists():
+
+		if not conf_file.parent.exists() and not config.dry_run:
 			conf_file.parent.mkdir(parents=True)
+
 		data = ""
 		if conf_file.exists():
 			data = conf_file.read_text(encoding="utf-8")
@@ -213,16 +240,10 @@ def setup_shell_completion(ctx: click.Context, shell: str, completion_file: Path
 
 @cli.command(short_help="Install opsi-cli locally")
 @click.option(
-	"--system/--no-system",
-	is_flag=True,
-	help="Install system-wide.",
-	default=False,
-	show_default=True,
-)
-@click.option(
-	"--binary-path",
-	type=File,
-	help="File path to store binary at.",
+	"--location",
+	type=str,
+	help="Where to install opsi-cli. Can be 'user' (default), 'system', 'all' or an explicit path.\n",
+	default="user",
 )
 @click.option(
 	"--no-add-to-path",
@@ -231,41 +252,68 @@ def setup_shell_completion(ctx: click.Context, shell: str, completion_file: Path
 	default=False,
 	show_default=True,
 )
-def install(system: bool, binary_path: Path | None = None, no_add_to_path: bool = False) -> None:
+@click.option(
+	"--system/--no-system",
+	is_flag=True,
+	help="Install system-wide (deprecated, please use --location).",
+	default=None,
+	show_default=True,
+)
+@click.option(
+	"--binary-path",
+	type=File,
+	help="File path to store binary at (deprecated, please use --location).",
+)
+def install(location: str, no_add_to_path: bool, system: bool | None, binary_path: Path | None = None) -> None:
 	"""
 	opsi-cli self install subcommand.
 
 	Installs opsi-cli binary and configuration files to the system.
 	"""
-	binary_path = binary_path or get_binary_path(system=system)
+	if binary_path:
+		location = binary_path
+	elif system is not None:
+		location = "system" if system else "user"
+
+	binary_paths = get_binary_paths(location)
+
 	src_binary = sys.executable
 	ziplauncher_binary = os.environ.get("ZIPLAUNCHER_BINARY")
 	if ziplauncher_binary and os.path.exists(ziplauncher_binary):
 		src_binary = ziplauncher_binary
 
-	logger.notice("Copying %s to %s", src_binary, binary_path)
-	if not binary_path.parent.exists():
-		binary_path.parent.mkdir(parents=True)
-	try:
+	exit_code = 0
+	for binary in binary_paths:
+		logger.notice("Copying '%s' to '%s'", src_binary, binary)
+		try:
+			if config.dry_run:
+				logger.notice("Would copy '%s' to '%s', but --dry-run is set", src_binary, binary)
+				rich_print(f"Would install opsi-cli to '{binary}', but --dry-run is set.")
+			else:
+				logger.notice("Copying '%s' to '%s'", src_binary, binary)
+				rich_print(f"Installing opsi-cli to '{binary}'.")
+				install_binary(source=src_binary, destination=binary)
+		except Exception as err:
+			exit_code = 1
+			logger.error("Failed to install opsi-cli to '%s': %s", binary, err)
+			rich_print(f"[red]Failed to install opsi-cli to '{binary}': {err}[/red]")
+			continue
+
+		sys_install = user_is_admin() and not binary.parent.is_relative_to(Path.home())
+		source = ConfigValueSource.CONFIG_FILE_SYSTEM if sys_install else ConfigValueSource.CONFIG_FILE_USER
 		if config.dry_run:
-			logger.notice("Not writing binary as --dry-run is set.")
+			logger.notice("Not writing config files as --dry-run is set.")
 		else:
-			shutil.copy(src_binary, binary_path)
-	except shutil.SameFileError:
-		logger.warning("'%s' and '%s' are the same file", src_binary, binary_path)
-	source = ConfigValueSource.CONFIG_FILE_SYSTEM if system else ConfigValueSource.CONFIG_FILE_USER
-	if config.dry_run:
-		logger.notice("Not writing config files as --dry-run is set.")
-	else:
-		config.write_config_files(sources=[source])
-		logger.debug("PATH is '%s'", os.environ.get("PATH", ""))
-		if not no_add_to_path and str(binary_path.parent) not in os.environ.get("PATH", ""):
-			add_to_env_variable("PATH", str(binary_path.parent), system=system)
-	rich_print(f"opsi-cli installed to '{binary_path}'.")
+			config.write_config_files(sources=[source])
+			logger.debug("PATH is '%s'", os.environ.get("PATH", ""))
+			if not no_add_to_path and str(binary.parent) not in os.environ.get("PATH", ""):
+				add_to_env_variable("PATH", str(binary.parent), system=sys_install)
+
 	rich_print("Run 'opsi-cli self setup-shell-completion' to setup shell completion.")
+	sys.exit(exit_code)
 
 
-@cli.command(short_help="upgrade local opsi-cli instance")
+@cli.command(short_help="Upgrade local opsi-cli installation")
 @click.option(
 	"--branch",
 	type=str,
@@ -281,28 +329,25 @@ def install(system: bool, binary_path: Path | None = None, no_add_to_path: bool 
 	show_default=True,
 )
 @click.option(
-	"--all",
-	is_flag=True,
-	help="Upgrade all installed versions.",
-	default=False,
-	show_default=True,
+	"--location",
+	type=str,
+	help="Where to install opsi-cli. Can be 'user' (default), 'system', 'current', 'all' or an explicit path.\n",
+	default="user",
 )
-def upgrade(branch: str, source_url: str, all: bool) -> None:
+def upgrade(branch: str, source_url: str, location: str) -> None:
 	"""
 	opsi-cli self upgrade subcommand.
 
-	Upgrades opsi-cli binary from remote source.
+	Upgrades local opsi-cli installation from remote source.
 	"""
-	current_binary = Path(sys.executable)
-	ziplauncher_binary = os.environ.get("ZIPLAUNCHER_BINARY")
-	if ziplauncher_binary and os.path.exists(ziplauncher_binary):
-		current_binary = Path(ziplauncher_binary)
 
-	if all:
-		rich_print("[bold]Upgrading all installed opsi-cli versions.[/bold]")
-	else:
-		rich_print("[bold]Upgrading running opsi-cli.[/bold]")
+	binary_paths = get_binary_paths(location)
+	if location == "all":
+		current_binary_path = get_current_binary_path()
+		if current_binary_path not in binary_paths:
+			binary_paths.append(current_binary_path)
 
+	exit_code = 0
 	with tempfile.TemporaryDirectory() as tmpdir_name:
 		tmp_dir = Path(tmpdir_name)
 
@@ -319,60 +364,90 @@ def upgrade(branch: str, source_url: str, all: bool) -> None:
 				raise
 
 		new_binary, new_version = download_binary()
-		upgrade_binaries = get_installed_versions() if all else [current_binary]
-		exit_code = 0
-		for binary in upgrade_binaries:
-			if os.access(binary, os.W_OK):
+
+		for binary in binary_paths:
+			try:
 				if config.dry_run:
-					logger.notice("Would replace '%s' with '%s', but --dry-run is set")
+					logger.notice("Would replace '%s' with '%s', but --dry-run is set", binary, new_binary)
 					rich_print(f"Would upgrade '{binary}' to '{new_version}', but --dry-run is set.")
 				else:
 					logger.notice("Replacing '%s' with '%s'", binary, new_binary)
 					rich_print(f"Upgrading '{binary}' to '{new_version}'.")
-					replace_binary(current=binary, new=new_binary)
-			else:
+					install_binary(destination=binary, source=new_binary)
+			except Exception as err:
 				exit_code = 1
-				logger.error("Binary '%s' is not writable, cannot upgrade", binary)
-				rich_print(f"[red]Cannot upgrade '{binary}' because binary is not writable.[/red]")
+				logger.error("Failed to install opsi-cli to '%s': %s", binary, err)
+				rich_print(f"[red]Failed to install opsi-cli to '{binary}': {err}[/red]")
+				continue
 
-		sys.exit(exit_code)
+	sys.exit(exit_code)
 
 
-@cli.command(short_help="Uninstall opsi-cli locally")
+@cli.command(short_help="Uninstall local opsi-cli installation")
+@click.option(
+	"--location",
+	type=str,
+	help="Where to install opsi-cli. Can be 'user' (default), 'system', 'current', 'all' or an explicit path.\n",
+	default="user",
+)
 @click.option(
 	"--system/--no-system",
 	is_flag=True,
-	help="Uninstall system-wide.",
-	default=False,
+	help="Install system-wide (deprecated, please use --location).",
+	default=None,
 	show_default=True,
 )
 @click.option(
 	"--binary-path",
 	type=File,
-	help="File path to find binary at.",
+	help="File path to find binary at (deprecated, please use --location)",
 )
-def uninstall(system: bool, binary_path: Path | None = None) -> None:
+def uninstall(location: str, system: bool | None = None, binary_path: Path | None = None) -> None:
 	"""
 	opsi-cli self uninstall subcommand.
 
-	Uninstalls opsi-cli binary and configuration files from the system.
+	Uninstalls opsi-cli binaries and configuration files from the system.
 	"""
-	binary_path = binary_path or get_binary_path(system=system)
-	if binary_path.exists():
-		if config.dry_run:
-			logger.notice("Not removing binary from %s as --dry-run is set.", binary_path)
-		else:
-			logger.notice("Removing binary from %s", binary_path)
-			binary_path.unlink()
 
-	config_file = config.config_file_system if system else config.config_file_user
-	if config_file and config_file.exists():
-		if config.dry_run:
-			logger.notice("Not removing config file %s as --dry-run is set.", config_file)
-		else:
-			logger.debug("Removing config file %s", config_file)
-			config_file.unlink()
-	rich_print("opsi-cli uninstalled.")
+	binary_paths = get_binary_paths(location)
+	exit_code = 0
+	for binary in binary_paths:
+		user_path = binary.parent.is_relative_to(Path.home())
+
+		try:
+			if binary.exists():
+				if config.dry_run:
+					logger.notice("Would remove binary '%s', but --dry-run is set", binary)
+					rich_print(f"Would remove binary '{binary}', but --dry-run is set.")
+				else:
+					logger.notice("Removing binary '%s'", binary)
+					rich_print(f"Removing binary '{binary}'.")
+					binary.unlink()
+			else:
+				logger.notice("Binary '%s' does not exist.", binary)
+				rich_print(f"Binary '{binary}' does not exist.")
+		except Exception as err:
+			exit_code = 1
+			logger.error("Failed to remove binary '%s': %s", binary, err)
+			rich_print(f"[red]Failed to remove binary '{binary}': {err}[/red]")
+			continue
+
+		try:
+			config_file = config.config_file_user if user_path else config.config_file_system
+			if config_file and config_file.exists():
+				if config.dry_run:
+					logger.notice("Would remove config file '%s', but --dry-run is set", config_file)
+					rich_print(f"Would remove config file '{config_file}', but --dry-run is set.")
+				else:
+					logger.notice("Removing config file '%s'", config_file)
+					rich_print(f"Removing config file '{config_file}'.")
+					config_file.unlink()
+		except Exception as err:
+			exit_code = 1
+			logger.error("Failed to remove config file '%s': %s", config_file, err)
+			rich_print(f"[red]Failed to remove config file '{config_file}': {err}[/red]")
+
+	sys.exit(exit_code)
 
 
 @cli.command(name="installed-versions", short_help="Show installed opsi-cli versions")

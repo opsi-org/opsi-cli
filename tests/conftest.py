@@ -20,6 +20,8 @@ from _pytest.config import Config as PytestConfig
 from _pytest.logging import LogCaptureHandler
 from _pytest.nodes import Item
 
+from opsicli.config import config
+
 from . import OPSI_HOSTNAME
 
 
@@ -33,6 +35,12 @@ LogCaptureHandler.emit = emit  # type: ignore[assignment]
 @pytest.fixture(autouse=True)
 def disable_insecure_request_warning() -> None:
 	warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
+
+
+@pytest.fixture(autouse=True)
+def reset_config() -> None:
+	for item in config.get_config_items():
+		item.set_value(item.default)
 
 
 @pytest.hookimpl()

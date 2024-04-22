@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from opsicommon.logging import LOG_WARNING, use_logging_config
 
-from opsicli.utils import decrypt, encrypt, replace_binary, retry
+from opsicli.utils import decrypt, encrypt, install_binary, retry
 
 
 @pytest.mark.parametrize(
@@ -32,20 +32,20 @@ def test_decrypt_unencrypted() -> None:
 	assert decrypt("test") == "test"
 
 
-def test_replace_binary(tmp_path: Path) -> None:
+def test_install_binary(tmp_path: Path) -> None:
 	current = tmp_path / "testfile"
 	current.touch()
 	new = tmp_path / "newfile"
-	new.touch()
-	replace_binary(current=current, new=new)
-	assert current.exists()
-	assert not new.exists()
-	assert current.with_suffix(current.suffix + ".old").exists()
 
-	new.touch()
-	replace_binary(current=current, new=new)
+	install_binary(source=new, destination=current)
 	assert current.exists()
-	assert current.with_suffix(current.suffix + ".old").exists()
+	assert new.exists()
+	assert not current.with_suffix(current.suffix + ".old").exists()
+
+	install_binary(source=new, destination=current)
+	assert current.exists()
+	assert new.exists()
+	assert not current.with_suffix(current.suffix + ".old").exists()
 
 
 def test_retry() -> None:

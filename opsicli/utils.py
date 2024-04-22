@@ -189,18 +189,36 @@ def get_opsi_cli_download_filename() -> str:
 	raise ValueError(f"Invalid platform {system}")
 
 
-def replace_binary(current: Path, new: Path) -> None:
-	backup_path = current.with_suffix(current.suffix + ".old")
-	if backup_path.exists():
-		backup_path.unlink()
-	shutil.move(current, backup_path)
+def install_binary(source: Path | str, destination: Path | str) -> None:
+	if not isinstance(source, Path):
+		source = Path(source)
+	if not isinstance(destination, Path):
+		destination = Path(destination)
+	source = source.resolve()
+	destination = destination.resolve()
+	if source == destination:
+		return
+
+	if not destination.parent.exists():
+		destination.parent.mkdir(parents=True)
+
+	backup_path = None
+	if destination.exists() and destination.is_file():
+		backup_path = destination.with_suffix(destination.suffix + ".old")
+		if backup_path.exists():
+			backup_path.unlink()
+		shutil.move(destination, backup_path)
 	try:
-		shutil.move(new, current)
-	except Exception as error:
-		logger.error("Failed to move binary to '%s'.", error)
-		logger.warning("Restoring backup.")
-		shutil.move(backup_path, current)
+		shutil.copy(source, destination)
+	except Exception as err:
+		logger.error("Failed to install binary from '%s' to '%s': %s", source, destination, err)
+		if backup_path:
+			logger.warning("Restoring backup.")
+			shutil.move(backup_path, destination)
 		raise
+	else:
+		if backup_path:
+			backup_path.unlink()
 
 
 def retry(

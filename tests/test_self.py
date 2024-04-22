@@ -6,23 +6,54 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from opsicommon.system.info import is_windows
 
 from opsicli.config import config
 from opsicli.plugin import plugin_manager
+from plugins.self.python import get_binary_path, get_binary_paths
 
 from .utils import run_cli, temp_context
 
 
+def test_get_binary_paths() -> None:
+	user_path = get_binary_path(system=False)
+	system_path = get_binary_path(system=True)
+	assert get_binary_paths("user") == [user_path]
+	assert get_binary_paths("system") == [system_path]
+	paths = get_binary_paths("all")
+	assert user_path in paths
+	assert system_path in paths
+	if is_windows():
+		assert get_binary_paths(r"c:\windows") == [Path(r"c:\windows\opsi-cli.exe")]
+		assert get_binary_paths(Path(r"c:\windows")) == [Path(r"c:\windows\opsi-cli.exe")]
+		assert get_binary_paths(r".\\") == [Path(r".\\opsi-cli.exe").absolute()]
+	else:
+		assert get_binary_paths("/tmp/") == [Path("/tmp/opsi-cli")]
+		assert get_binary_paths(Path("/tmp/")) == [Path("/tmp/opsi-cli")]
+		assert get_binary_paths("./") == [Path("./opsi-cli").absolute()]
+
+
 def test_self_install() -> None:
 	with temp_context() as tempdir:
-		conffile = Path(tempdir) / "conffile.conf"
-		config.config_file_user = conffile
-		binary_path = Path(tempdir) / "out_binary"
-		(exit_code, stdout, _stderr) = run_cli(["self", "install", f"--binary-path={binary_path}", "--no-add-to-path", "--no-system"])
+		with patch("opsicli.utils.user_is_admin", lambda: False):
+			conffile = Path(tempdir) / "conffile.conf"
+			config.config_file_user = conffile
+			binary_path = Path(tempdir) / "out_binary"
+			(exit_code, stdout, _stderr) = run_cli(["self", "install", "--location", binary_path, "--no-add-to-path"])
+			print(stdout)
+			assert exit_code == 0
+			assert binary_path.exists()
+			assert config.config_file_user.exists()
+
+
+@pytest.mark.parametrize("location", ["current", "all"])
+def test_self_upgrade(location: str) -> None:
+	with patch("opsicli.utils.install_binary", lambda *args, **kwargs: None):
+		cmd = ["-l", "7", "--dry-run", "self", "upgrade", "--location", location]
+		exit_code, stdout, stderr = run_cli(cmd)
 		print(stdout)
-		assert exit_code == 0
-		assert binary_path.exists()
-		assert config.config_file_user.exists()
+		print(stderr)
+		assert "Would upgrade" in stdout
 
 
 def test_self_uninstall() -> None:
@@ -30,8 +61,8 @@ def test_self_uninstall() -> None:
 		conffile = Path(tempdir) / "conffile.conf"
 		config.config_file_user = conffile
 		binary_path = Path(tempdir) / "out_binary"
-		exit_code, _stdout, _stderr = run_cli(["self", "install", f"--binary-path={binary_path}", "--no-add-to-path", "--no-system"])
-		exit_code, stdout, _stderr = run_cli(["self", "uninstall", f"--binary-path={binary_path}", "--no-system"])
+		exit_code, _stdout, _stderr = run_cli(["self", "install", "--location", binary_path, "--no-add-to-path"])
+		exit_code, stdout, _stderr = run_cli(["self", "uninstall", "--location", binary_path])
 		print(stdout)
 		assert exit_code == 0
 		assert not binary_path.exists()
@@ -74,19 +105,3 @@ def test_command_structure() -> None:
 	assert exit_code == 0
 	assert stdout.startswith("opsi-cli")
 	assert f"self ({mod_self.__version__})\n" in stdout
-
-
-@pytest.mark.parametrize("all", [False, True])
-def test_self_upgrade(all: bool) -> None:
-	with patch("opsicli.utils.replace_binary", lambda *args, **kwargs: None):
-		cmd = ["-l", "7", "--dry-run", "self", "upgrade"]
-		if all:
-			cmd.append("--all")
-		exit_code, stdout, stderr = run_cli(cmd)
-		print(stdout)
-		print(stderr)
-		assert "Upgrading all installed opsi-cli versions." if all else "Upgrading running opsi-cli." in stdout
-		if exit_code == 0:
-			assert "Would upgrade" in stdout
-		else:
-			assert "Cannot upgrade" in stdout
