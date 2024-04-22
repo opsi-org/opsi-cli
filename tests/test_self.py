@@ -34,16 +34,15 @@ def test_get_binary_paths() -> None:
 
 
 def test_self_install() -> None:
-	with temp_context() as tempdir:
-		with patch("opsicli.utils.user_is_admin", lambda: False):
-			conffile = Path(tempdir) / "conffile.conf"
-			config.config_file_user = conffile
-			binary_path = Path(tempdir) / "out_binary"
-			(exit_code, stdout, _stderr) = run_cli(["self", "install", "--location", str(binary_path), "--no-add-to-path"])
-			print(stdout)
-			assert exit_code == 0
-			assert binary_path.exists()
-			assert config.config_file_user.exists()
+	with temp_context() as tempdir, patch("opsicli.utils.user_is_admin", lambda: False):
+		conffile = Path(tempdir) / "conffile.conf"
+		config.config_file_user = conffile
+		binary_path = Path(tempdir) / "out_binary"
+		(exit_code, stdout, _stderr) = run_cli(["self", "install", "--location", str(binary_path), "--no-add-to-path"])
+		print(stdout)
+		assert exit_code == 0
+		assert binary_path.exists()
+		assert config.config_file_user.exists()
 
 
 @pytest.mark.parametrize("location", ["current", "all"])
@@ -57,7 +56,7 @@ def test_self_upgrade(location: str) -> None:
 
 
 def test_self_uninstall() -> None:
-	with temp_context() as tempdir:
+	with temp_context() as tempdir, patch("opsicli.utils.user_is_admin", lambda: False):
 		conffile = Path(tempdir) / "conffile.conf"
 		config.config_file_user = conffile
 		binary_path = Path(tempdir) / "out_binary"
