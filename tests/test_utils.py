@@ -34,8 +34,8 @@ def test_decrypt_unencrypted() -> None:
 
 def test_install_binary(tmp_path: Path) -> None:
 	current = tmp_path / "testfile"
-	current.touch()
 	new = tmp_path / "newfile"
+	new.touch()
 
 	install_binary(source=new, destination=current)
 	assert current.exists()
