@@ -2,10 +2,10 @@
 test_self
 """
 
-import pytest
-
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 from opsicli.config import config
 from opsicli.plugin import plugin_manager
@@ -76,11 +76,17 @@ def test_command_structure() -> None:
 	assert f"self ({mod_self.__version__})\n" in stdout
 
 
-@pytest.mark.xfail
-def test_self_upgrade() -> None:
+@pytest.mark.parametrize("all", [False, True])
+def test_self_upgrade(all: bool) -> None:
 	with patch("opsicli.utils.replace_binary", lambda *args, **kwargs: None):
-		exit_code, stdout, stderr = run_cli(["-l", "7", "--dry-run", "self", "upgrade"])
+		cmd = ["-l", "7", "--dry-run", "self", "upgrade"]
+		if all:
+			cmd.append("--all")
+		exit_code, stdout, stderr = run_cli(cmd)
 		print(stdout)
 		print(stderr)
-		assert exit_code == 0
-		assert "opsi-cli upgraded to" in stdout
+		assert "Upgrading all installed opsi-cli versions." if all else "Upgrading running opsi-cli." in stdout
+		if exit_code == 0:
+			assert "Would upgrade" in stdout
+		else:
+			assert "Cannot upgrade" in stdout
