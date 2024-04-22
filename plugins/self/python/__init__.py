@@ -271,7 +271,7 @@ def install(location: str, no_add_to_path: bool, system: bool | None, binary_pat
 	Installs opsi-cli binary and configuration files to the system.
 	"""
 	if binary_path:
-		location = binary_path
+		location = str(binary_path)
 	elif system is not None:
 		location = "system" if system else "user"
 
