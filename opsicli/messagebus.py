@@ -225,7 +225,7 @@ class MessagebusProcess:
 					process_id=self.process_id,
 					sender=CONNECTION_USER_CHANNEL,
 					channel=self.start_request.channel,
-					stdin="",
+					stdin=b"",
 				)
 			)
 
