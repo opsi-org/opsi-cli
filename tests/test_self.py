@@ -39,7 +39,7 @@ def test_self_install() -> None:
 			conffile = Path(tempdir) / "conffile.conf"
 			config.config_file_user = conffile
 			binary_path = Path(tempdir) / "out_binary"
-			(exit_code, stdout, _stderr) = run_cli(["self", "install", "--location", binary_path, "--no-add-to-path"])
+			(exit_code, stdout, _stderr) = run_cli(["self", "install", "--location", str(binary_path), "--no-add-to-path"])
 			print(stdout)
 			assert exit_code == 0
 			assert binary_path.exists()
@@ -61,8 +61,8 @@ def test_self_uninstall() -> None:
 		conffile = Path(tempdir) / "conffile.conf"
 		config.config_file_user = conffile
 		binary_path = Path(tempdir) / "out_binary"
-		exit_code, _stdout, _stderr = run_cli(["self", "install", "--location", binary_path, "--no-add-to-path"])
-		exit_code, stdout, _stderr = run_cli(["self", "uninstall", "--location", binary_path])
+		exit_code, _stdout, _stderr = run_cli(["self", "install", "--location", str(binary_path), "--no-add-to-path"])
+		exit_code, stdout, _stderr = run_cli(["self", "uninstall", "--location", str(binary_path)])
 		print(stdout)
 		assert exit_code == 0
 		assert not binary_path.exists()
