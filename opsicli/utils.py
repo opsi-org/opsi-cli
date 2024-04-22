@@ -178,7 +178,7 @@ def download(url: str, destination: Path, make_executable: bool = False) -> Path
 	return new_file
 
 
-def get_opsi_cli_filename() -> str:
+def get_opsi_cli_download_filename() -> str:
 	system = platform.system().lower()
 	if system == "windows":
 		return "opsi-cli-windows.exe"

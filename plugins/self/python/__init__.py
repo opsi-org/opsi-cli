@@ -17,15 +17,25 @@ import psutil  # type: ignore[import]
 import rich_click as click  # type: ignore[import]
 from click.shell_completion import get_completion_class  # type: ignore[import]
 from opsicommon.logging import get_logger  # type: ignore[import]
+from opsicommon.system.info import is_posix, is_windows
 from rich import print as rich_print
 from rich.tree import Tree
 
 from opsicli import __version__ as opsi_cli_version
 from opsicli.config import ConfigValueSource, config
-from opsicli.io import get_console
+from opsicli.io import Attribute, Metadata, get_console, write_output
 from opsicli.plugin import OPSICLIPlugin, plugin_manager
 from opsicli.types import File
-from opsicli.utils import add_to_env_variable, download, get_opsi_cli_filename, replace_binary, retry, user_is_admin
+from opsicli.utils import add_to_env_variable, download, get_opsi_cli_download_filename, replace_binary, retry
+
+installed_version_metadata = Metadata(
+	attributes=[
+		Attribute(id="path", description="Location of the binary", identifier=True, data_type="str"),
+		Attribute(id="version", description="Version of the binary", data_type="str"),
+		Attribute(id="default", description="Default binary (first in PATH)?", data_type="bool"),
+		Attribute(id="writable", description="Is the binary writable?", data_type="bool"),
+	]
+)
 
 __version__ = "0.2.0"
 
@@ -47,16 +57,58 @@ def get_completion_config_path(shell: str) -> Path:
 	raise ValueError("Shell {shell!r} is not supported.")
 
 
+def get_binary_name() -> str:
+	if is_windows():
+		return "opsi-cli.exe"
+	return "opsi-cli"
+
+
 def get_binary_path(system: bool = False) -> Path:
-	if platform.system().lower() in ("linux", "darwin"):
+	if is_posix():
 		if system:
-			return Path("/usr/local/bin/opsi-cli")
-		return Path.home() / ".local/bin/opsi-cli"
-	if platform.system().lower() == "windows":
+			return Path("/usr/local/bin") / get_binary_name()
+		return Path.home() / ".local/bin" / get_binary_name()
+	if is_windows():
 		if system:
-			return Path(r"c:\opsi.org\opsi-cli\opsi-cli.exe")
-		return Path(r"~\AppData\Local\Programs\opsi-cli\opsi-cli.exe").expanduser()
-	raise RuntimeError(f"Invalid platform {platform.system()}")
+			return Path(r"c:/opsi.org/opsi-cli") / get_binary_name()
+		return Path.home() / "AppData/Local/Programs/opsi-cli" / get_binary_name()
+	raise RuntimeError(f"Platform '{platform.system()}' not supported")
+
+
+def get_installed_versions() -> dict[Path, str]:
+	installed_versions = {}
+	usr_path = get_binary_path(system=False).parent
+	sys_path = get_binary_path(system=True).parent
+	paths = [Path(p) for p in os.environ.get("PATH", "").split(os.pathsep)]
+	if usr_path not in paths:
+		paths.insert(0, usr_path)
+	if sys_path not in paths:
+		paths.append(sys_path)
+	for path in paths:
+		binary = path / get_binary_name()
+		if not binary.exists():
+			continue
+		try:
+			version = subprocess.check_output([str(binary), "--version"]).decode("utf-8").strip().split()[-1]
+		except subprocess.CalledProcessError:
+			version = "?"
+		installed_versions[binary] = version
+	return installed_versions
+
+
+def print_installed_versions() -> None:
+	data = []
+	installed_versions = get_installed_versions()
+	for idx, binary in enumerate(installed_versions):
+		data.append(
+			{
+				"path": binary,
+				"version": installed_versions[binary],
+				"default": idx == 0,
+				"writable": os.access(binary, os.W_OK),
+			}
+		)
+	write_output(data, installed_version_metadata)
 
 
 @click.group(name="self", short_help="Manage opsi-cli")
@@ -164,7 +216,7 @@ def setup_shell_completion(ctx: click.Context, shell: str, completion_file: Path
 	"--system/--no-system",
 	is_flag=True,
 	help="Install system-wide.",
-	default=user_is_admin(),
+	default=False,
 	show_default=True,
 )
 @click.option(
@@ -228,7 +280,14 @@ def install(system: bool, binary_path: Path | None = None, no_add_to_path: bool 
 	default="https://tools.43.opsi.org",
 	show_default=True,
 )
-def upgrade(branch: str, source_url: str) -> None:
+@click.option(
+	"--all",
+	is_flag=True,
+	help="Upgrade all installed versions.",
+	default=False,
+	show_default=True,
+)
+def upgrade(branch: str, source_url: str, all: bool) -> None:
 	"""
 	opsi-cli self upgrade subcommand.
 
@@ -238,25 +297,45 @@ def upgrade(branch: str, source_url: str) -> None:
 	ziplauncher_binary = os.environ.get("ZIPLAUNCHER_BINARY")
 	if ziplauncher_binary and os.path.exists(ziplauncher_binary):
 		current_binary = Path(ziplauncher_binary)
+
+	if all:
+		rich_print("[bold]Upgrading all installed opsi-cli versions.[/bold]")
+	else:
+		rich_print("[bold]Upgrading running opsi-cli.[/bold]")
+
 	with tempfile.TemporaryDirectory() as tmpdir_name:
 		tmp_dir = Path(tmpdir_name)
 
 		@retry(retries=2, wait=1.0, exceptions=[OSError, PermissionError, subprocess.CalledProcessError])
 		def download_binary() -> tuple[Path, str]:
-			new_binary = download(f"{source_url}/{branch}/{get_opsi_cli_filename()}", tmp_dir, make_executable=True)
+			download_url = f"{source_url}/{branch}/{get_opsi_cli_download_filename()}"
+			rich_print(f"Downloading opsi-cli from '{download_url}'.")
+			new_binary = download(download_url, tmp_dir, make_executable=True)
 			try:
-				new_version = subprocess.check_output([str(new_binary), "--version"]).decode("utf-8").strip()
+				new_version = subprocess.check_output([str(new_binary), "--version"]).decode("utf-8").strip().split()[-1]
 				return new_binary, new_version
 			except subprocess.CalledProcessError as error:
 				logger.error("New binary not working: %s", error)
 				raise
 
 		new_binary, new_version = download_binary()
-		if config.dry_run:
-			logger.notice("Not replacing current binary as --dry-run is set.")
-		else:
-			replace_binary(current=current_binary, new=new_binary)
-	rich_print(f"opsi-cli upgraded to '{new_version}'.")
+		upgrade_binaries = get_installed_versions() if all else [current_binary]
+		exit_code = 0
+		for binary in upgrade_binaries:
+			if os.access(binary, os.W_OK):
+				if config.dry_run:
+					logger.notice("Would replace '%s' with '%s', but --dry-run is set")
+					rich_print(f"Would upgrade '{binary}' to '{new_version}', but --dry-run is set.")
+				else:
+					logger.notice("Replacing '%s' with '%s'", binary, new_binary)
+					rich_print(f"Upgrading '{binary}' to '{new_version}'.")
+					replace_binary(current=binary, new=new_binary)
+			else:
+				exit_code = 1
+				logger.error("Binary '%s' is not writable, cannot upgrade", binary)
+				rich_print(f"[red]Cannot upgrade '{binary}' because binary is not writable.[/red]")
+
+		sys.exit(exit_code)
 
 
 @cli.command(short_help="Uninstall opsi-cli locally")
@@ -264,7 +343,7 @@ def upgrade(branch: str, source_url: str) -> None:
 	"--system/--no-system",
 	is_flag=True,
 	help="Uninstall system-wide.",
-	default=user_is_admin(),
+	default=False,
 	show_default=True,
 )
 @click.option(
@@ -294,6 +373,14 @@ def uninstall(system: bool, binary_path: Path | None = None) -> None:
 			logger.debug("Removing config file %s", config_file)
 			config_file.unlink()
 	rich_print("opsi-cli uninstalled.")
+
+
+@cli.command(name="installed-versions", short_help="Show installed opsi-cli versions")
+def installed_versions() -> None:
+	"""
+	Show all installed opsi-cli binaries and versions.
+	"""
+	print_installed_versions()
 
 
 @cli.command(name="command-structure", short_help="Print structure of opsi-cli commands")
