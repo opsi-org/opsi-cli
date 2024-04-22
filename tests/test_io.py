@@ -139,7 +139,6 @@ def test_output_config(output_format: str, startstrings: list[str]) -> None:
 
 @pytest.mark.parametrize(("input_format", "string", "data"), input_output_testdata)
 def test_input(input_format: str, string: str, data: Any) -> None:
-	# with TextIOWrapper(BufferedReader(BytesIO(string.encode("utf-8")))) as inputfile:
 	with TextIOWrapper(BufferedReader(BytesIO(string.encode("utf-8")))) as inputfile:  # type: ignore[arg-type]
 		old_stdin = sys.stdin
 		sys.stdin = inputfile

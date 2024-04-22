@@ -27,6 +27,7 @@ from opsicommon.messagebus.message import (
 	JSONRPCResponseMessage,
 	Message,
 	ProcessDataReadMessage,
+	ProcessDataWriteMessage,
 	ProcessErrorMessage,
 	ProcessStartEventMessage,
 	ProcessStartRequestMessage,
@@ -43,7 +44,7 @@ from opsicommon.messagebus.message import (
 from opsicommon.system.info import is_windows
 from opsicommon.types import forceHostId
 
-from opsicli.io import get_console
+from opsicli.io import get_console, read_input_raw_bin
 from opsicli.opsiservice import get_service_connection
 from opsicli.utils import raw_terminal
 
@@ -176,6 +177,7 @@ class JSONRPCMessagebusConnection(MessagebusConnection):
 class MessagebusProcess:
 	process_id: str
 	write_function: Callable
+	send_message: Callable
 	start_request: ProcessStartRequestMessage
 	start_request_time: float = 0.0
 	start_event: ProcessStartEventMessage | None = None
@@ -186,6 +188,7 @@ class MessagebusProcess:
 	last_data_created = 0
 	stderr_buffer: bytearray = field(default_factory=bytearray)
 	stdout_buffer: bytearray = field(default_factory=bytearray)
+	stdin_data: bytearray = field(default_factory=bytearray)
 	max_buffer_size: int = 100_000
 	process_lock: Lock = field(default_factory=Lock)
 
@@ -205,6 +208,26 @@ class MessagebusProcess:
 		with self.process_lock:
 			self.start_event = start_event
 			self.start_event_time = time.time()
+			pos = 0
+			chunk_size = 32768
+			while pos < len(self.stdin_data):
+				self.send_message(
+					ProcessDataWriteMessage(
+						process_id=self.process_id,
+						sender=CONNECTION_USER_CHANNEL,
+						channel=self.start_request.channel,
+						stdin=self.stdin_data[pos : pos + chunk_size],
+					)
+				)
+				pos += chunk_size
+			self.send_message(
+				ProcessDataWriteMessage(
+					process_id=self.process_id,
+					sender=CONNECTION_USER_CHANNEL,
+					channel=self.start_request.channel,
+					stdin="",
+				)
+			)
 
 	def on_stop_event(self, stop_event: ProcessStopEventMessage) -> None:
 		with self.process_lock:
@@ -368,6 +391,8 @@ class ProcessMessagebusConnection(MessagebusConnection):
 		if len(uniq_channels) != len(channels):
 			raise RuntimeError("Duplicate channels in list of channels.")
 
+		stdin_data = bytearray(read_input_raw_bin())
+
 		for channel in channels:
 			message = ProcessStartRequestMessage(
 				command=command,
@@ -376,7 +401,11 @@ class ProcessMessagebusConnection(MessagebusConnection):
 				shell=shell,
 			)
 			self.processes[message.process_id] = MessagebusProcess(
-				process_id=message.process_id, write_function=self.write_out, start_request=message
+				process_id=message.process_id,
+				write_function=self.write_out,
+				send_message=self.send_message,
+				start_request=message,
+				stdin_data=stdin_data,
 			)
 			self.max_host_name_length = max(self.max_host_name_length, len(self.get_host_name(message.process_id) or ""))
 
