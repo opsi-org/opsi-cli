@@ -43,6 +43,7 @@ from opsicommon.messagebus.message import (
 )
 from opsicommon.system.info import is_windows
 from opsicommon.types import forceHostId
+from rich.color import ANSI_COLOR_NAMES, Color
 
 from opsicli.io import get_console, read_input_raw_bin
 from opsicli.opsiservice import get_service_connection
@@ -185,6 +186,7 @@ class MessagebusProcess:
 	stop_event: ProcessStopEventMessage | None = None
 	stop_time: float = 0.0
 	error: ProcessErrorMessage | str | None = None
+	prefix_color: Color | None = None
 	last_data_created = 0
 	stderr_buffer: bytearray = field(default_factory=bytearray)
 	stdout_buffer: bytearray = field(default_factory=bytearray)
@@ -252,6 +254,7 @@ class MessagebusProcess:
 				stream="stderr",
 				data_encoding=self.locale_encoding,
 				host_name=self.host_name,
+				prefix_color=self.prefix_color,
 				is_error=True,
 			)
 
@@ -275,6 +278,7 @@ class MessagebusProcess:
 						stream=cast(Literal["stdout", "stderr"], stream),
 						data_encoding=self.locale_encoding,
 						host_name=self.host_name,
+						prefix_color=self.prefix_color,
 					)
 					if buffer == self.stdout_buffer:
 						self.stdout_buffer = buffer[idx + 1 :]
@@ -289,6 +293,7 @@ class MessagebusProcess:
 					stream="stdout" if buffer == self.stdout_buffer else "stderr",
 					data_encoding=self.locale_encoding,
 					host_name=self.host_name,
+					prefix_color=self.prefix_color,
 				)
 				if buffer == self.stdout_buffer:
 					self.stdout_buffer = bytearray()
@@ -297,6 +302,8 @@ class MessagebusProcess:
 
 
 class ProcessMessagebusConnection(MessagebusConnection):
+	COLORS = [c for c in ANSI_COLOR_NAMES if "white" not in c and "black" not in c and "bright" not in c]
+
 	def __init__(self) -> None:
 		self.console = get_console()
 		self.out_lock = Lock()
@@ -305,6 +312,7 @@ class ProcessMessagebusConnection(MessagebusConnection):
 		self.data_encoding = "auto"
 		self.output_encoding = "cp437" if is_windows() else "utf-8"
 		self.processes: dict[str, MessagebusProcess] = {}
+		self.color_position = 0
 		MessagebusConnection.__init__(self)
 
 	def _on_process_data_read(self, message: ProcessDataReadMessage) -> None:
@@ -323,12 +331,9 @@ class ProcessMessagebusConnection(MessagebusConnection):
 		logger.debug("Received process error message")
 		self.processes[message.process_id].on_error(message)
 
-	def get_host_name(self, process_id: str, padded: bool = False) -> str | None:
+	def get_host_name(self, process_id: str) -> str | None:
 		if process := self.processes.get(process_id):
-			host_name = process.host_name
-			if host_name and padded:
-				host_name = host_name.ljust(self.max_host_name_length)
-			return host_name
+			return process.host_name
 		return None
 
 	def write_out(
@@ -338,6 +343,7 @@ class ProcessMessagebusConnection(MessagebusConnection):
 		stream: Literal["stdout", "stderr"],
 		data_encoding: str | None,
 		host_name: str | None = None,
+		prefix_color: Color | None = None,
 		is_error: bool = False,
 	) -> None:
 		if not data:
@@ -358,10 +364,14 @@ class ProcessMessagebusConnection(MessagebusConnection):
 		with self.out_lock:
 			if self.show_host_names and host_name:
 				host_name = host_name.ljust(self.max_host_name_length)
-				line_prefix = f"{host_name}: ".encode(use_encoding or self.output_encoding)
+				line_prefix = f"{host_name} | "
+				if prefix_color:
+					ansi = ";".join(prefix_color.get_ansi_codes(foreground=True))
+					line_prefix = f"\x1b[1;{ansi};22m{line_prefix}\x1b[0m"
+				b_line_prefix = line_prefix.encode(use_encoding or self.output_encoding)
 				lines = data.split(b"\n")
 				last_idx = len(lines) - 1
-				data = b"\n".join(line_prefix + line if idx != last_idx else line for idx, line in enumerate(lines))
+				data = b"\n".join(b_line_prefix + line if idx != last_idx else line for idx, line in enumerate(lines))
 
 			if is_error and use_encoding:
 				self.console.print(f"[red]{data.decode(use_encoding)}[/red]", end="")
@@ -396,7 +406,12 @@ class ProcessMessagebusConnection(MessagebusConnection):
 
 		stdin_data = bytearray(read_input_raw_bin())
 
+		color = "NO_COLOR" not in os.environ
 		for channel in channels:
+			prefix_color = Color.parse(self.COLORS[self.color_position]) if color else None
+			self.color_position += 1
+			if self.color_position >= len(self.COLORS):
+				self.color_position = 0
 			message = ProcessStartRequestMessage(
 				command=command,
 				sender=CONNECTION_USER_CHANNEL,
@@ -408,6 +423,7 @@ class ProcessMessagebusConnection(MessagebusConnection):
 				write_function=self.write_out,
 				send_message=self.send_message,
 				start_request=message,
+				prefix_color=prefix_color,
 				stdin_data=stdin_data,
 			)
 			self.max_host_name_length = max(self.max_host_name_length, len(self.get_host_name(message.process_id) or ""))
