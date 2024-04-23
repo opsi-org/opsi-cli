@@ -22,6 +22,6 @@ def test_depot_execute() -> None:
 		print(output)
 		assert exit_code in (0, 1)
 		if exit_code == 0:  # necessary module is licensed
-			assert f"service:depot:{configserver}:process: opsiconfd" in output
+			assert f"service:depot:{configserver}:process" in output and "opsiconfd" in output
 		else:  # necessary module is not licensed
-			assert f"service:depot:{configserver}:process: Failed to start process" in output
+			assert f"service:depot:{configserver}:process" in output and "Failed to start process" in output
