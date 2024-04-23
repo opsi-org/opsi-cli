@@ -302,7 +302,9 @@ class MessagebusProcess:
 
 
 class ProcessMessagebusConnection(MessagebusConnection):
-	COLORS = [c for c in ANSI_COLOR_NAMES if "white" not in c and "black" not in c and "bright" not in c]
+	COLORS = [
+		c for c in ANSI_COLOR_NAMES if "white" not in c and "black" not in c and "bright" not in c and "grey" not in c and "gray" not in c
+	]
 
 	def __init__(self) -> None:
 		self.console = get_console()
