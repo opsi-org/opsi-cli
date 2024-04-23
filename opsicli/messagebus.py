@@ -353,7 +353,6 @@ class ProcessMessagebusConnection(MessagebusConnection):
 		if not data:
 			return
 
-		use_encoding = None
 		if self.data_encoding == "raw":
 			use_encoding = None
 		elif self.data_encoding == "auto":
@@ -361,7 +360,6 @@ class ProcessMessagebusConnection(MessagebusConnection):
 		else:
 			use_encoding = self.data_encoding
 
-		raw_output = use_encoding in (None, self.output_encoding)
 		write = sys.stdout.buffer.write if stream == "stdout" else sys.stderr.buffer.write
 		flush = sys.stdout.flush if stream == "stdout" else sys.stderr.flush
 
@@ -373,15 +371,24 @@ class ProcessMessagebusConnection(MessagebusConnection):
 					ansi = ";".join(prefix_color.get_ansi_codes(foreground=True))
 					line_prefix = f"\x1b[1;{ansi};22m{line_prefix}\x1b[0m"
 				b_line_prefix = line_prefix.encode(use_encoding or self.output_encoding)
+
 				lines = data.split(b"\n")
 				last_idx = len(lines) - 1
-				data = b"\n".join(b_line_prefix + line if idx != last_idx else line for idx, line in enumerate(lines))
+				data = b""
+				for idx, line in enumerate(lines):
+					if idx != last_idx:
+						data += b_line_prefix
+					if is_error and use_encoding:
+						line = b"\x1b[1;31;22m" + line + b"\x1b[0m"
+					data += line
+					if idx != last_idx:
+						data += b"\n"
+			elif is_error and use_encoding:
+				data = b"\x1b[1;31;22m" + data + b"\x1b[0m"
 
-			if is_error and use_encoding:
-				self.console.print(f"[red]{data.decode(use_encoding)}[/red]", end="")
-				return
-			if not raw_output and use_encoding:
+			if use_encoding not in (None, self.output_encoding):
 				data = data.decode(use_encoding).encode(self.output_encoding)
+
 			write(data)
 			flush()
 
@@ -430,7 +437,10 @@ class ProcessMessagebusConnection(MessagebusConnection):
 				prefix_color=prefix_color,
 				stdin_data=stdin_data,
 			)
-			self.max_host_name_length = max(self.max_host_name_length, len(self.get_host_name(message.process_id) or ""))
+			self.max_host_name_length = max(
+				self.max_host_name_length,
+				len(self.get_host_name(message.process_id) or ""),
+			)
 
 		while True:
 			num_running_processes = 0
