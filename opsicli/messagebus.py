@@ -386,7 +386,7 @@ class ProcessMessagebusConnection(MessagebusConnection):
 			elif is_error and use_encoding:
 				data = b"\x1b[1;31;22m" + data + b"\x1b[0m"
 
-			if use_encoding not in (None, self.output_encoding):
+			if use_encoding and use_encoding != self.output_encoding:
 				data = data.decode(use_encoding).encode(self.output_encoding)
 
 			write(data)
