@@ -118,7 +118,7 @@ def execute(method: str, params: list[str] | None = None) -> None:
 
 	client = get_service_connection()
 	logger.info("Calling method %s with params %s", method, params)
-	data = client.jsonrpc(method, params)
+	data = client.jsonrpc(method, params, create_objects=False)
 	write_output(data, default_output_format=default_output_format)
 
 
