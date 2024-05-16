@@ -331,8 +331,8 @@ def install(location: str, no_add_to_path: bool, system: bool | None, binary_pat
 @click.option(
 	"--location",
 	type=str,
-	help="Where to install opsi-cli. Can be 'user' (default), 'system', 'current', 'all' or an explicit path.\n",
-	default="user",
+	help="Where to install opsi-cli. Can be 'current' (default), 'user', 'system', 'all' or an explicit path.\n",
+	default="current",
 )
 def upgrade(branch: str, source_url: str, location: str) -> None:
 	"""
