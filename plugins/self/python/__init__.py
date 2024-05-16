@@ -346,6 +346,7 @@ def upgrade(branch: str, source_url: str, location: str) -> None:
 		current_binary_path = get_current_binary_path()
 		if current_binary_path not in binary_paths:
 			binary_paths.append(current_binary_path)
+	binary_paths = [p for p in binary_paths if p.exists()]
 
 	exit_code = 0
 	with tempfile.TemporaryDirectory() as tmpdir_name:
