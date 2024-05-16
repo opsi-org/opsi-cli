@@ -21,6 +21,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Type
 
+from opsicommon.system.info import is_posix
 from opsicommon.logging import (
 	get_logger,  # type: ignore[import]
 	use_logging_config,
@@ -219,6 +220,8 @@ def install_binary(source: Path | str, destination: Path | str) -> None:
 	else:
 		if backup_path:
 			backup_path.unlink()
+		if is_posix():
+			os.chmod(destination, 0o755)
 
 
 def retry(
