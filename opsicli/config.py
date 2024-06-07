@@ -285,6 +285,13 @@ CONFIG_ITEMS = [
 		description="Read data from the given file.",
 	),
 	ConfigItem(name="interactive", type=Bool, group="IO", default=sys.stdin.isatty(), description="Enable or disable interactive mode."),
+	ConfigItem(
+		name="quiet",
+		type=Bool,
+		group="IO",
+		default=False,
+		description="Flag to enable quiet mode, to run without output.",
+	),
 	ConfigItem(name="metadata", type=Bool, group="IO", default=False, description="Enable or disable output of metadata."),
 	ConfigItem(name="header", type=Bool, group="IO", default=True, description="Enable or disable header for data input and output."),
 	ConfigItem(

@@ -170,6 +170,7 @@ class LogLevel(click.ParamType):
 @config.get_click_option("log_level_stderr", short_option="-l")
 @config.get_click_option("color", long_option="--color/--no-color", is_eager=True, envvar="NO_COLOR")
 @config.get_click_option("interactive", long_option="--interactive/--non-interactive")
+@config.get_click_option("quiet", is_flag=True, help=f"{config.get_description('quiet')}")
 @config.get_click_option("output_format")
 @config.get_click_option("output_file")
 @config.get_click_option("input_file")
@@ -196,3 +197,6 @@ def main(*args: str, **kwargs: str) -> None:
 	"""
 	logger.debug("Main called")
 	prepare_cli_paths()
+	if config.quiet:
+		logger.info("Quiet mode enabled")
+		sys.stdout = open(os.devnull, "w")
