@@ -142,8 +142,8 @@ class OpsiCLI(click.MultiCommand):  # type: ignore
 		logger.debug("get_command %r", cmd_name)
 		try:
 			plugin = plugin_manager.load_plugin(cmd_name)
-		except ModuleNotFoundError as error:
-			raise ModuleNotFoundError(f"Invalid command {cmd_name!r}") from error
+		except ModuleNotFoundError as err:
+			raise ModuleNotFoundError(f"Invalid command {cmd_name!r} ({err})") from err
 		if plugin.cli:
 			return plugin.cli
 		raise RuntimeError(f"Plugin {cmd_name} appears to be broken.")

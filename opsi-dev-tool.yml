@@ -11,6 +11,7 @@ pyinstaller-poetry:
       - psutil
       - pip._internal.commands.install
       - rich.tree
+      - rich.progress
       - passlib.hash
     windows:
       - pip._vendor.platformdirs.windows
