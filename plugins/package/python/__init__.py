@@ -12,6 +12,7 @@ from opsicommon.package.archive import ArchiveProgress, ArchiveProgressListener
 from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
 from rich.progress import Progress
 
+from opsicli.config import config
 from opsicli.io import get_console
 from opsicli.plugin import OPSICLIPlugin
 
@@ -73,7 +74,9 @@ def make(
 	"""
 	logger.trace("make package")
 	with Progress() as progress:
-		progress_listener = PackageMakeProgressListener(progress, "[cyan]Creating OPSI package...")
+		progress_listener = None
+		if not config.quiet:
+			progress_listener = PackageMakeProgressListener(progress, "[cyan]Creating OPSI package...")
 
 		destination_dir.mkdir(parents=True, exist_ok=True)
 
@@ -150,7 +153,9 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 	destination_dir.mkdir(parents=True, exist_ok=True)
 
 	with Progress() as progress:
-		progress_listener = PackageMakeProgressListener(progress, "[cyan]Extracting OPSI package...")
+		progress_listener = None
+		if not config.quiet:
+			progress_listener = PackageMakeProgressListener(progress, "[cyan]Extracting OPSI package...")
 		logger.info("Extracting package archive for '%s'", destination_dir)
 		opsi_package = OpsiPackage()
 		try:

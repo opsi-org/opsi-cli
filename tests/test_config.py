@@ -207,3 +207,14 @@ def test_list_attributes_flag() -> None:
 		assert exit_code == 0
 	finally:
 		config.list_attributes = False
+
+
+def test_quiet_flag() -> None:
+	config = Config()
+	try:
+		exit_code, _stdout, _stderr = run_cli(["--quiet", "config", "list"])
+		assert exit_code == 0
+		assert _stdout == ""  # No output in quiet mode
+
+	finally:
+		config.quiet = False

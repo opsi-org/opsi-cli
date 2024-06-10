@@ -124,8 +124,19 @@ def output_file_str(encoding: str | None = "utf-8") -> Iterator[IO[str]]:
 			file.flush()
 
 
+class QuietConsole(Console):
+	def print(self, *args: Any, **kwargs: Any) -> None:
+		"""
+		Override get_console.print() method to not print anything
+		"""
+		pass
+
+
 def get_console(file: IO[str] | None = None) -> Console:
-	return Console(file=file, color_system="auto" if config.color else None)
+	if config.quiet:
+		return QuietConsole(file=file, color_system="auto" if config.color else None)
+	else:
+		return Console(file=file, color_system="auto" if config.color else None)
 
 
 def prompt(
@@ -255,6 +266,9 @@ def write_output_msgpack(data: Any, metadata: Metadata | None = None) -> None:
 
 
 def write_output(data: Any, metadata: Metadata | None = None, default_output_format: str | None = None) -> None:
+	if config.quiet:
+		logger.debug("Quiet mode enabled, not writing output")
+		return
 	output_format = config.output_format
 	if output_format == "auto":
 		output_format = default_output_format if default_output_format else "table"

@@ -18,7 +18,6 @@ import rich_click as click  # type: ignore[import]
 from click.shell_completion import get_completion_class  # type: ignore[import]
 from opsicommon.logging import get_logger  # type: ignore[import]
 from opsicommon.system.info import is_posix, is_windows
-from rich import print as rich_print
 from rich.tree import Tree
 
 from opsicli import __version__ as opsi_cli_version
@@ -288,15 +287,15 @@ def install(location: str, no_add_to_path: bool, system: bool | None, binary_pat
 		try:
 			if config.dry_run:
 				logger.notice("Would copy '%s' to '%s', but --dry-run is set", src_binary, binary)
-				rich_print(f"Would install opsi-cli to '{binary}', but --dry-run is set.")
+				get_console().print(f"Would install opsi-cli to '{binary}', but --dry-run is set.")
 			else:
 				logger.notice("Copying '%s' to '%s'", src_binary, binary)
-				rich_print(f"Installing opsi-cli to '{binary}'.")
+				get_console().print(f"Installing opsi-cli to '{binary}'.")
 				install_binary(source=src_binary, destination=binary)
 		except Exception as err:
 			exit_code = 1
 			logger.error("Failed to install opsi-cli to '%s': %s", binary, err)
-			rich_print(f"[red]Failed to install opsi-cli to '{binary}': {err}[/red]")
+			get_console().print(f"[red]Failed to install opsi-cli to '{binary}': {err}[/red]")
 			continue
 
 		sys_install = user_is_admin() and not binary.parent.is_relative_to(Path.home())
@@ -309,7 +308,7 @@ def install(location: str, no_add_to_path: bool, system: bool | None, binary_pat
 			if not no_add_to_path and str(binary.parent) not in os.environ.get("PATH", ""):
 				add_to_env_variable("PATH", str(binary.parent), system=sys_install)
 
-	rich_print("Run 'opsi-cli self setup-shell-completion' to setup shell completion.")
+	get_console().print("Run 'opsi-cli self setup-shell-completion' to setup shell completion.")
 	sys.exit(exit_code)
 
 
@@ -355,7 +354,7 @@ def upgrade(branch: str, source_url: str, location: str) -> None:
 		@retry(retries=2, wait=1.0, exceptions=[OSError, PermissionError, subprocess.CalledProcessError])
 		def download_binary() -> tuple[Path, str]:
 			download_url = f"{source_url}/{branch}/{get_opsi_cli_download_filename()}"
-			rich_print(f"Downloading opsi-cli from '{download_url}'.")
+			get_console().print(f"Downloading opsi-cli from '{download_url}'.")
 			new_binary = download(download_url, tmp_dir, make_executable=True)
 			try:
 				new_version = subprocess.check_output([str(new_binary), "--version"]).decode("utf-8").strip().split()[-1]
@@ -370,15 +369,15 @@ def upgrade(branch: str, source_url: str, location: str) -> None:
 			try:
 				if config.dry_run:
 					logger.notice("Would replace '%s' with '%s', but --dry-run is set", binary, new_binary)
-					rich_print(f"Would upgrade '{binary}' to '{new_version}', but --dry-run is set.")
+					get_console().print(f"Would upgrade '{binary}' to '{new_version}', but --dry-run is set.")
 				else:
 					logger.notice("Replacing '%s' with '%s'", binary, new_binary)
-					rich_print(f"Upgrading '{binary}' to '{new_version}'.")
+					get_console().print(f"Upgrading '{binary}' to '{new_version}'.")
 					install_binary(destination=binary, source=new_binary)
 			except Exception as err:
 				exit_code = 1
 				logger.error("Failed to install opsi-cli to '%s': %s", binary, err)
-				rich_print(f"[red]Failed to install opsi-cli to '{binary}': {err}[/red]")
+				get_console().print(f"[red]Failed to install opsi-cli to '{binary}': {err}[/red]")
 				continue
 
 	sys.exit(exit_code)
@@ -417,18 +416,18 @@ def uninstall(location: str, system: bool | None = None, binary_path: Path | Non
 			if binary.exists():
 				if config.dry_run:
 					logger.notice("Would remove binary '%s', but --dry-run is set", binary)
-					rich_print(f"Would remove binary '{binary}', but --dry-run is set.")
+					get_console().print(f"Would remove binary '{binary}', but --dry-run is set.")
 				else:
 					logger.notice("Removing binary '%s'", binary)
-					rich_print(f"Removing binary '{binary}'.")
+					get_console().print(f"Removing binary '{binary}'.")
 					binary.unlink()
 			else:
 				logger.notice("Binary '%s' does not exist.", binary)
-				rich_print(f"Binary '{binary}' does not exist.")
+				get_console().print(f"Binary '{binary}' does not exist.")
 		except Exception as err:
 			exit_code = 1
 			logger.error("Failed to remove binary '%s': %s", binary, err)
-			rich_print(f"[red]Failed to remove binary '{binary}': {err}[/red]")
+			get_console().print(f"[red]Failed to remove binary '{binary}': {err}[/red]")
 			continue
 
 		sys_install = user_is_admin() and not binary.parent.is_relative_to(Path.home())
@@ -437,15 +436,15 @@ def uninstall(location: str, system: bool | None = None, binary_path: Path | Non
 			if config_file and config_file.exists():
 				if config.dry_run:
 					logger.notice("Would remove config file '%s', but --dry-run is set", config_file)
-					rich_print(f"Would remove config file '{config_file}', but --dry-run is set.")
+					get_console().print(f"Would remove config file '{config_file}', but --dry-run is set.")
 				else:
 					logger.notice("Removing config file '%s'", config_file)
-					rich_print(f"Removing config file '{config_file}'.")
+					get_console().print(f"Removing config file '{config_file}'.")
 					config_file.unlink()
 		except Exception as err:
 			exit_code = 1
 			logger.error("Failed to remove config file '%s': %s", config_file, err)
-			rich_print(f"[red]Failed to remove config file '{config_file}': {err}[/red]")
+			get_console().print(f"[red]Failed to remove config file '{config_file}': {err}[/red]")
 
 	sys.exit(exit_code)
 
@@ -483,7 +482,7 @@ def command_structure() -> None:
 	for plugin_id in sorted(plugin_manager.plugins):
 		plugin = plugin_manager.load_plugin(plugin_id)
 		add_sub_structure(plugin, tree)
-	rich_print(tree)
+	get_console().print(tree)
 
 
 class SelfPlugin(OPSICLIPlugin):

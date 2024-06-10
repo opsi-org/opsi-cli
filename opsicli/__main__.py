@@ -5,6 +5,7 @@ opsi-cli Basic command line interface for opsi
 Main command
 """
 
+import builtins
 import os
 
 # pylint: disable=wrong-import-position
@@ -161,6 +162,13 @@ class LogLevel(click.ParamType):
 		return completion_items
 
 
+def quiet_print(*args: Any, **kwargs: Any) -> None:
+	"""
+	Disable print if quiet mode is enabled
+	"""
+	pass
+
+
 @click.command(cls=OpsiCLI)
 @click.version_option(f"{__version__}", message="opsi-cli version %(version)s")
 @config.get_click_option("config_file_system", is_eager=True, expose_value=False)
@@ -198,5 +206,5 @@ def main(*args: str, **kwargs: str) -> None:
 	logger.debug("Main called")
 	prepare_cli_paths()
 	if config.quiet:
-		logger.info("Quiet mode enabled")
-		sys.stdout = open(os.devnull, "w")
+		logger.debug("Quiet mode enabled, disabling print")
+		builtins.print = quiet_print
