@@ -135,8 +135,12 @@ class QuietConsole(Console):
 def get_console(file: IO[str] | None = None) -> Console:
 	if config.quiet:
 		return QuietConsole(file=file, color_system="auto" if config.color else None)
-	else:
-		return Console(file=file, color_system="auto" if config.color else None)
+
+	return Console(file=file, color_system="auto" if config.color else None)
+
+
+def get_console_ignore_quiet(file: IO[str] | None = None) -> Console:
+	return Console(file=file, color_system="auto" if config.color else None)
 
 
 def prompt(
@@ -155,7 +159,7 @@ def prompt(
 		cls = FloatPrompt
 	return cls.ask(
 		prompt=text,
-		console=get_console(),
+		console=get_console_ignore_quiet(),
 		default=default,
 		password=password,
 		choices=choices,
@@ -196,7 +200,7 @@ def write_output_table(data: Any, metadata: Metadata) -> None:
 			table.add_row(*[to_string(row)])
 
 	with output_file_str() as file:
-		console = get_console(file)
+		console = get_console_ignore_quiet(file)
 		console.print(table)
 
 
@@ -266,9 +270,6 @@ def write_output_msgpack(data: Any, metadata: Metadata | None = None) -> None:
 
 
 def write_output(data: Any, metadata: Metadata | None = None, default_output_format: str | None = None) -> None:
-	if config.quiet:
-		logger.debug("Quiet mode enabled, not writing output")
-		return
 	output_format = config.output_format
 	if output_format == "auto":
 		output_format = default_output_format if default_output_format else "table"
