@@ -2,6 +2,7 @@
 opsi-cli package plugin
 """
 
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Callable
 
@@ -83,7 +84,7 @@ def make(
 	This subcommand is used to create an opsi package.
 	"""
 	logger.trace("make package")
-	with Progress() as progress:
+	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
 		progress_listener = None
 		if not config.quiet:
 			progress_listener = PackageMakeProgressListener(progress, "[cyan]Creating opsi package...")
