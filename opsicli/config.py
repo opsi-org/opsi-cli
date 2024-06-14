@@ -509,6 +509,12 @@ class Config(metaclass=Singleton):
 				YAML().dump(data, file)
 
 	def set_logging_config(self) -> None:
+		if self.quiet:
+			config_item = config.get_config_item("log_level_stderr")
+			values = config_item.get_values(value_only=True, sources=[ConfigValueSource.COMMANDLINE])
+			if not values:
+				self.log_level_stderr = 0
+
 		logging_config(
 			log_file=self.log_file,
 			file_level=self.log_level_file,
