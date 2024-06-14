@@ -285,6 +285,13 @@ CONFIG_ITEMS = [
 		description="Read data from the given file.",
 	),
 	ConfigItem(name="interactive", type=Bool, group="IO", default=sys.stdin.isatty(), description="Enable or disable interactive mode."),
+	ConfigItem(
+		name="quiet",
+		type=Bool,
+		group="IO",
+		default=False,
+		description="Enables quiet mode, suppressing messages and stderr logs. If --log-level-stderr is used, stderr logs appear.",
+	),
 	ConfigItem(name="metadata", type=Bool, group="IO", default=False, description="Enable or disable output of metadata."),
 	ConfigItem(name="header", type=Bool, group="IO", default=True, description="Enable or disable header for data input and output."),
 	ConfigItem(
@@ -502,6 +509,12 @@ class Config(metaclass=Singleton):
 				YAML().dump(data, file)
 
 	def set_logging_config(self) -> None:
+		if self.quiet:
+			config_item = config.get_config_item("log_level_stderr")
+			values = config_item.get_values(value_only=True, sources=[ConfigValueSource.COMMANDLINE])
+			if not values:
+				self.log_level_stderr = 0
+
 		logging_config(
 			log_file=self.log_file,
 			file_level=self.log_level_file,

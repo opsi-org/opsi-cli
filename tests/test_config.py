@@ -207,3 +207,18 @@ def test_list_attributes_flag() -> None:
 		assert exit_code == 0
 	finally:
 		config.list_attributes = False
+
+
+def test_quiet_flag() -> None:
+	config = Config()
+	try:
+		source_dir = "dummyproduct"
+		message = "Invalid value for '[SOURCE_DIR]': Directory 'dummyproduct' does not exist."
+		_, _stdout, _stderr = run_cli(["package", "control-to-toml", source_dir])
+		assert message in _stderr
+
+		_, _stdout, _stderr = run_cli(["--quiet", "package", "control-to-toml", source_dir])
+		assert message not in _stderr
+
+	finally:
+		config.quiet = False

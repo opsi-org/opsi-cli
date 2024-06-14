@@ -124,7 +124,18 @@ def output_file_str(encoding: str | None = "utf-8") -> Iterator[IO[str]]:
 			file.flush()
 
 
-def get_console(file: IO[str] | None = None) -> Console:
+class QuietConsole(Console):
+	def print(self, *args: Any, **kwargs: Any) -> None:
+		"""
+		Override get_console.print() method to not print anything
+		"""
+		pass
+
+
+def get_console(file: IO[str] | None = None, ignore_quiet: bool = False) -> Console:
+	if config.quiet and not ignore_quiet:
+		return QuietConsole(file=file, color_system="auto" if config.color else None)
+
 	return Console(file=file, color_system="auto" if config.color else None)
 
 
@@ -144,7 +155,7 @@ def prompt(
 		cls = FloatPrompt
 	return cls.ask(
 		prompt=text,
-		console=get_console(),
+		console=get_console(ignore_quiet=True),
 		default=default,
 		password=password,
 		choices=choices,
@@ -185,7 +196,7 @@ def write_output_table(data: Any, metadata: Metadata) -> None:
 			table.add_row(*[to_string(row)])
 
 	with output_file_str() as file:
-		console = get_console(file)
+		console = get_console(file, ignore_quiet=True)
 		console.print(table)
 
 
