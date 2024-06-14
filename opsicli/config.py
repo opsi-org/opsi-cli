@@ -290,7 +290,7 @@ CONFIG_ITEMS = [
 		type=Bool,
 		group="IO",
 		default=False,
-		description="Flag to enable quiet mode, to run without output.",
+		description="Enables quiet mode, suppressing messages and stderr logs. If --log-level-stderr is used, stderr logs appear.",
 	),
 	ConfigItem(name="metadata", type=Bool, group="IO", default=False, description="Enable or disable output of metadata."),
 	ConfigItem(name="header", type=Bool, group="IO", default=True, description="Enable or disable header for data input and output."),
