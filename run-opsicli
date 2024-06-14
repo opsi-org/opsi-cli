@@ -3,6 +3,7 @@
 """
 Main script to use with pyinstaller
 """
+
 import sys
 import traceback
 

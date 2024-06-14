@@ -33,9 +33,13 @@ def create_additional_file(file_type: str, create_func: Callable, package_archiv
 class PackageMakeProgressListener(ArchiveProgressListener):
 	def __init__(self, progress: Progress, task_message: str):
 		self.progress = progress
-		self.task_id = self.progress.add_task(task_message, total=100)
+		self.started = False
+		self.task_id = self.progress.add_task(task_message, total=None)
 
 	def progress_changed(self, progress: ArchiveProgress) -> None:
+		if not self.started:
+			self.started = True
+			self.progress.tasks[self.task_id].total = 100
 		self.progress.update(self.task_id, completed=progress.percent_completed)
 
 
@@ -76,7 +80,7 @@ def make(
 	with Progress() as progress:
 		progress_listener = None
 		if not config.quiet:
-			progress_listener = PackageMakeProgressListener(progress, "[cyan]Creating OPSI package...")
+			progress_listener = PackageMakeProgressListener(progress, "[cyan]Creating opsi package...")
 
 		destination_dir.mkdir(parents=True, exist_ok=True)
 
@@ -155,7 +159,7 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 	with Progress() as progress:
 		progress_listener = None
 		if not config.quiet:
-			progress_listener = PackageMakeProgressListener(progress, "[cyan]Extracting OPSI package...")
+			progress_listener = PackageMakeProgressListener(progress, "[cyan]Extracting opsi package...")
 		logger.info("Extracting package archive for '%s'", destination_dir)
 		opsi_package = OpsiPackage()
 		try:
