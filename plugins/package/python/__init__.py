@@ -111,12 +111,16 @@ def make(
 		try:
 			if md5:
 				logger.info("Creating md5sum file for '%s'", package_archive)
-				progress_adapter = ProgressCallbackAdapter(progress, "[cyan]Creating md5sum file...")
-				md5_file = create_package_md5_file(package_archive, progress_callback=progress_adapter.progress_callback)
+				progress_callback = (
+					ProgressCallbackAdapter(progress, "[cyan]Creating md5sum file...").progress_callback if not config.quiet else None
+				)
+				md5_file = create_package_md5_file(package_archive, progress_callback=progress_callback)
 			if zsync:
 				logger.info("Creating zsync file for '%s'", package_archive)
-				progress_adapter = ProgressCallbackAdapter(progress, "[cyan]Creating zsync file...")
-				zsync_file = create_package_zsync_file(package_archive, progress_callback=progress_adapter.progress_callback)
+				progress_callback = (
+					ProgressCallbackAdapter(progress, "[cyan]Creating zsync file...").progress_callback if not config.quiet else None
+				)
+				zsync_file = create_package_zsync_file(package_archive, progress_callback=progress_callback)
 		except Exception as err:
 			logger.error(err, exc_info=True)
 			raise err
