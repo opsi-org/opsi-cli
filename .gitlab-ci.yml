@@ -119,7 +119,7 @@ lint-pytest:
     reports:
       junit: testreport.xml
 
-linux-pyinstaller:
+linux-x64-pyinstaller:
   stage: build
   script:
     - export LC_ALL=C.UTF-8
@@ -145,7 +145,7 @@ linux-pyinstaller:
       - CLIENT_DATA/opsi-cli-linux.run
 
 # arm binary pushed to binaryindex, but not included in opsi-package (no arm clients)
-linux-arm-pyinstaller:
+linux-arm64-pyinstaller:
   stage: build
   tags:
     - linux-arm64
@@ -167,7 +167,7 @@ linux-arm-pyinstaller:
     - '[ "$CI_COMMIT_TAG" = "" ] && ./opsi-dev-cli -l info binary push opsi-cli-linux-arm64.run --prerelease="$CI_JOB_ID"'
     - '[ "$CI_COMMIT_TAG" = "" ] || ./opsi-dev-cli -l info binary push opsi-cli-linux-arm64.run'
 
-macos-pyinstaller:
+macos-x64-pyinstaller:
   stage: build
   tags:
     - catalina-py311-x64
@@ -210,7 +210,7 @@ macos-pyinstaller:
     paths:
       - CLIENT_DATA/opsi-cli-macos
 
-windows-pyinstaller:
+windows-x86-pyinstaller:
   stage: build
   tags:
     - win10-py311-x86
@@ -267,7 +267,7 @@ makeopsipackage:
     - cp output/changelog.md OPSI/
     - opsi-makepackage --no-set-rights -l 6
     - upload-package opsi-cli*.opsi
-    - '[ "$CI_COMMIT_TAG" = "" ] || opsi-dev-cli -l debug release-service register-package-version opsi-cli TOOL --files=opsi-cli-windows.exe,opsi-cli-linux.run,opsi-cli-macos --version="$version" --changelog-file=OPSI/changelog.md'
+    - '[ "$CI_COMMIT_TAG" = "" ] || opsi-dev-cli -l debug release-service register-package-version opsi-cli TOOL --files=opsi-cli-windows-x86.exe,opsi-cli-linux-x64.run,opsi-cli-linux-arm64.run,opsi-cli-macos-x64 --version="$version" --changelog-file=OPSI/changelog.md'
   artifacts:
     name: controlfile
     paths:
