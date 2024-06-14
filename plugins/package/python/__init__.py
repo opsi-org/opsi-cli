@@ -16,18 +16,11 @@ from opsicli.config import config
 from opsicli.io import get_console
 from opsicli.plugin import OPSICLIPlugin
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __description__ = "Manage opsi packages"
 
 
 logger = get_logger("opsicli")
-
-
-def create_additional_file(file_type: str, create_func: Callable, package_archive: Path) -> None:
-	logger.info("Creating '%s' for '%s'", file_type, package_archive)
-	get_console().print(f"Creating {file_type} for {package_archive}...")
-	file = create_func(Path(package_archive))
-	get_console().print(f"{file_type} has been successfully created at {file}\n")
 
 
 class PackageMakeProgressListener(ArchiveProgressListener):
@@ -41,6 +34,19 @@ class PackageMakeProgressListener(ArchiveProgressListener):
 			self.started = True
 			self.progress.tasks[self.task_id].total = 100
 		self.progress.update(self.task_id, completed=progress.percent_completed)
+
+
+class ProgressCallbackAdapter:
+	def __init__(self, progress: Progress, task_message: str):
+		self.progress = progress
+		self.started = False
+		self.task_id = self.progress.add_task(task_message, total=None)
+
+	def progress_callback(self, completed: int, total: int) -> None:
+		if not self.started:
+			self.started = True
+			self.progress.tasks[self.task_id].total = total
+		self.progress.update(self.task_id, completed=completed)
 
 
 @click.group(name="package", short_help="Custom plugin package")
@@ -84,7 +90,7 @@ def make(
 
 		destination_dir.mkdir(parents=True, exist_ok=True)
 
-		logger.info("Creating package archive for '%s'", source_dir)
+		logger.info("Creating opsi package from source dir '%s'", source_dir)
 		opsi_package = OpsiPackage()
 		try:
 			package_archive = opsi_package.create_package_archive(
@@ -99,15 +105,28 @@ def make(
 		except Exception as err:
 			logger.error(err, exc_info=True)
 			raise err
-	get_console().print(f"\nPackage archive has been successfully created at {package_archive}\n")
-	try:
-		if md5:
-			create_additional_file("MD5 checksum", create_package_md5_file, package_archive)
-		if zsync:
-			create_additional_file("zsync file", create_package_zsync_file, package_archive)
-	except Exception as err:
-		logger.error(err, exc_info=True)
-		raise err
+
+		md5_file: Path | None = None
+		zsync_file: Path | None = None
+		try:
+			if md5:
+				logger.info("Creating md5sum file for '%s'", package_archive)
+				progress_adapter = ProgressCallbackAdapter(progress, "[cyan]Creating md5sum file...")
+				md5_file = create_package_md5_file(package_archive, progress_callback=progress_adapter.progress_callback)
+			if zsync:
+				logger.info("Creating zsync file for '%s'", package_archive)
+				progress_adapter = ProgressCallbackAdapter(progress, "[cyan]Creating zsync file...")
+				zsync_file = create_package_zsync_file(package_archive, progress_callback=progress_adapter.progress_callback)
+		except Exception as err:
+			logger.error(err, exc_info=True)
+			raise err
+
+	console = get_console()
+	console.print(f"The opsi package was created at '{package_archive}'")
+	if md5_file:
+		console.print(f"The md5sum file was created at '{md5_file}'")
+	if zsync_file:
+		console.print(f"The zsync file was created at '{zsync_file}'")
 
 
 @cli.command(short_help="Generate TOML from control file.")
