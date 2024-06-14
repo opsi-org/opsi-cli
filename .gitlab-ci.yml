@@ -14,7 +14,7 @@ pytest-darwin:
     - export ZIPLAUNCHER_CLEAN_TMP=true
     - poetry lock --no-update --no-cache
     - poetry install
-    - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_darwin.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
+    - poetry run pytest --tb=short -x -o junit_family=xunit2 --junitxml=testreport_darwin.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - mv .coverage coverage_darwin
   artifacts:
     name: "opsi-cli_test_darwin"
@@ -31,7 +31,7 @@ pytest-windows:
   script:
     - poetry lock --no-update --no-cache
     - poetry install
-    - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_windows.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
+    - poetry run pytest --tb=short -x -o junit_family=xunit2 --junitxml=testreport_windows.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - Rename-Item -Path .coverage -NewName coverage_windows
   artifacts:
     name: "opsi-cli_test_windows"
@@ -72,7 +72,7 @@ pytest-linux:
   script:
     - poetry lock --no-update --no-cache
     - poetry install
-    - poetry run pytest --tb=short -o junit_family=xunit2 --junitxml=testreport_linux.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
+    - poetry run pytest --tb=short -x -o junit_family=xunit2 --junitxml=testreport_linux.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - mv .coverage coverage_linux
   artifacts:
     name: "opsi-cli_test_linux"
