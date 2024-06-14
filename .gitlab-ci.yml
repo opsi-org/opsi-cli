@@ -135,10 +135,10 @@ linux-pyinstaller:
     - sed -i 's/import rich_click as click/import rich_click as click; import flask/' cicdtest/python/__init__.py
     - ./opsi-cli -l 7 plugin add cicdtest
     - time ./opsi-cli --help
-    - mv ./opsi-cli opsi-cli-linux-amd64.run
-    - '[ "$CI_COMMIT_TAG" = "" ] && ./opsi-dev-cli -l info binary push opsi-cli-linux-amd64.run --prerelease="$CI_JOB_ID"'
-    - '[ "$CI_COMMIT_TAG" = "" ] || ./opsi-dev-cli -l info binary push opsi-cli-linux-amd64.run'
-    - mv ./opsi-cli-linux-amd64.run CLIENT_DATA/opsi-cli-linux.run
+    - mv ./opsi-cli opsi-cli-linux-x64.run
+    - '[ "$CI_COMMIT_TAG" = "" ] && ./opsi-dev-cli -l info binary push opsi-cli-linux-x64.run --prerelease="$CI_JOB_ID"'
+    - '[ "$CI_COMMIT_TAG" = "" ] || ./opsi-dev-cli -l info binary push opsi-cli-linux-x64.run'
+    - mv ./opsi-cli-linux-x64.run CLIENT_DATA/opsi-cli-linux.run
   artifacts:
     name: opsi-cli-linux.run
     paths:
@@ -201,10 +201,10 @@ macos-pyinstaller:
     - sed -i '' 's/import rich_click as click/import rich_click as click; import flask/' cicdtest/python/__init__.py
     - ./opsi-cli -l 7 plugin add cicdtest
     - time ./opsi-cli --help
-    - mv ./opsi-cli opsi-cli-macos-amd64
-    - '[ "$CI_COMMIT_TAG" = "" ] && ./opsi-dev-cli -l info binary push ./opsi-cli-macos-amd64 --prerelease="$CI_JOB_ID"'
-    - '[ "$CI_COMMIT_TAG" = "" ] || ./opsi-dev-cli -l info binary push ./opsi-cli-macos-amd64'
-    - mv ./opsi-cli-macos-amd64 CLIENT_DATA/opsi-cli-macos
+    - mv ./opsi-cli opsi-cli-macos-x64
+    - '[ "$CI_COMMIT_TAG" = "" ] && ./opsi-dev-cli -l info binary push ./opsi-cli-macos-x64 --prerelease="$CI_JOB_ID"'
+    - '[ "$CI_COMMIT_TAG" = "" ] || ./opsi-dev-cli -l info binary push ./opsi-cli-macos-x64'
+    - mv ./opsi-cli-macos-x64 CLIENT_DATA/opsi-cli-macos
   artifacts:
     name: opsi-cli-macos
     paths:

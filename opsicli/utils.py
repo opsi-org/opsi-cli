@@ -186,11 +186,11 @@ def get_opsi_cli_download_filename() -> str:
 	if system == "linux":
 		if machine == "aarch64":
 			return "opsi-cli-linux-arm64.run"
-		return "opsi-cli-linux-amd64.run"
+		return "opsi-cli-linux-x64.run"
 	if system == "darwin":
 		if machine == "aarch64":
 			return "opsi-cli-macos-arm64"
-		return "opsi-cli-macos-amd64"
+		return "opsi-cli-macos-x64"
 	raise ValueError(f"Invalid platform {system}")
 
 
