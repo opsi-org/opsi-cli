@@ -132,14 +132,10 @@ class QuietConsole(Console):
 		pass
 
 
-def get_console(file: IO[str] | None = None) -> Console:
-	if config.quiet:
+def get_console(file: IO[str] | None = None, ignore_quiet: bool = False) -> Console:
+	if config.quiet and not ignore_quiet:
 		return QuietConsole(file=file, color_system="auto" if config.color else None)
 
-	return Console(file=file, color_system="auto" if config.color else None)
-
-
-def get_console_ignore_quiet(file: IO[str] | None = None) -> Console:
 	return Console(file=file, color_system="auto" if config.color else None)
 
 
@@ -159,7 +155,7 @@ def prompt(
 		cls = FloatPrompt
 	return cls.ask(
 		prompt=text,
-		console=get_console_ignore_quiet(),
+		console=get_console(ignore_quiet=True),
 		default=default,
 		password=password,
 		choices=choices,
@@ -200,7 +196,7 @@ def write_output_table(data: Any, metadata: Metadata) -> None:
 			table.add_row(*[to_string(row)])
 
 	with output_file_str() as file:
-		console = get_console_ignore_quiet(file)
+		console = get_console(file, ignore_quiet=True)
 		console.print(table)
 
 

@@ -22,7 +22,7 @@ from rich.tree import Tree
 
 from opsicli import __version__ as opsi_cli_version
 from opsicli.config import ConfigValueSource, config
-from opsicli.io import Attribute, Metadata, get_console, get_console_ignore_quiet, write_output
+from opsicli.io import Attribute, Metadata, get_console, write_output
 from opsicli.plugin import OPSICLIPlugin, plugin_manager
 from opsicli.types import File
 from opsicli.utils import add_to_env_variable, download, get_opsi_cli_download_filename, install_binary, retry, user_is_admin
@@ -482,7 +482,7 @@ def command_structure() -> None:
 	for plugin_id in sorted(plugin_manager.plugins):
 		plugin = plugin_manager.load_plugin(plugin_id)
 		add_sub_structure(plugin, tree)
-	get_console_ignore_quiet().print(tree)
+	get_console(ignore_quiet=True).print(tree)
 
 
 class SelfPlugin(OPSICLIPlugin):
