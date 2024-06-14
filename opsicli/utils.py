@@ -21,12 +21,11 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Type
 
-from opsicommon.system.info import is_posix
 from opsicommon.logging import (
 	get_logger,  # type: ignore[import]
 	use_logging_config,
 )
-from opsicommon.system.info import is_windows
+from opsicommon.system.info import is_posix, is_windows
 
 if is_windows():
 	import win32console  # type: ignore[import-not-found]
@@ -181,12 +180,17 @@ def download(url: str, destination: Path, make_executable: bool = False) -> Path
 
 def get_opsi_cli_download_filename() -> str:
 	system = platform.system().lower()
+	machine = platform.machine().lower()
 	if system == "windows":
-		return "opsi-cli-windows.exe"
+		return "opsi-cli-windows-x86.exe"
 	if system == "linux":
-		return "opsi-cli-linux.run"
+		if machine == "aarch64":
+			return "opsi-cli-linux-arm64.run"
+		return "opsi-cli-linux-amd64.run"
 	if system == "darwin":
-		return "opsi-cli-macos"
+		if machine == "aarch64":
+			return "opsi-cli-macos-arm64"
+		return "opsi-cli-macos-amd64"
 	raise ValueError(f"Invalid platform {system}")
 
 

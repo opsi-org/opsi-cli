@@ -135,10 +135,10 @@ linux-pyinstaller:
     - sed -i 's/import rich_click as click/import rich_click as click; import flask/' cicdtest/python/__init__.py
     - ./opsi-cli -l 7 plugin add cicdtest
     - time ./opsi-cli --help
-    - mv ./opsi-cli opsi-cli-linux.run
-    - '[ "$CI_COMMIT_TAG" = "" ] && ./opsi-dev-cli -l info binary push opsi-cli-linux.run --prerelease="$CI_JOB_ID"'
-    - '[ "$CI_COMMIT_TAG" = "" ] || ./opsi-dev-cli -l info binary push opsi-cli-linux.run'
-    - mv ./opsi-cli-linux.run CLIENT_DATA/opsi-cli-linux.run
+    - mv ./opsi-cli opsi-cli-linux-amd64.run
+    - '[ "$CI_COMMIT_TAG" = "" ] && ./opsi-dev-cli -l info binary push opsi-cli-linux-amd64.run --prerelease="$CI_JOB_ID"'
+    - '[ "$CI_COMMIT_TAG" = "" ] || ./opsi-dev-cli -l info binary push opsi-cli-linux-amd64.run'
+    - mv ./opsi-cli-linux-amd64.run CLIENT_DATA/opsi-cli-linux.run
   artifacts:
     name: opsi-cli-linux.run
     paths:
@@ -163,9 +163,9 @@ linux-arm-pyinstaller:
     - sed -i 's/import rich_click as click/import rich_click as click; import flask/' cicdtest/python/__init__.py
     - ./opsi-cli -l 7 plugin add cicdtest
     - time ./opsi-cli --help
-    - mv ./opsi-cli opsi-cli-linux.run
-    - '[ "$CI_COMMIT_TAG" = "" ] && ./opsi-dev-cli -l info binary push opsi-cli-linux.run --prerelease="$CI_JOB_ID"'
-    - '[ "$CI_COMMIT_TAG" = "" ] || ./opsi-dev-cli -l info binary push opsi-cli-linux.run'
+    - mv ./opsi-cli opsi-cli-linux-arm64.run
+    - '[ "$CI_COMMIT_TAG" = "" ] && ./opsi-dev-cli -l info binary push opsi-cli-linux-arm64.run --prerelease="$CI_JOB_ID"'
+    - '[ "$CI_COMMIT_TAG" = "" ] || ./opsi-dev-cli -l info binary push opsi-cli-linux-arm64.run'
 
 macos-pyinstaller:
   stage: build
@@ -201,10 +201,10 @@ macos-pyinstaller:
     - sed -i '' 's/import rich_click as click/import rich_click as click; import flask/' cicdtest/python/__init__.py
     - ./opsi-cli -l 7 plugin add cicdtest
     - time ./opsi-cli --help
-    - mv ./opsi-cli opsi-cli-macos
-    - '[ "$CI_COMMIT_TAG" = "" ] && ./opsi-dev-cli -l info binary push ./opsi-cli-macos --prerelease="$CI_JOB_ID"'
-    - '[ "$CI_COMMIT_TAG" = "" ] || ./opsi-dev-cli -l info binary push ./opsi-cli-macos'
-    - mv ./opsi-cli-macos CLIENT_DATA/opsi-cli-macos
+    - mv ./opsi-cli opsi-cli-macos-amd64
+    - '[ "$CI_COMMIT_TAG" = "" ] && ./opsi-dev-cli -l info binary push ./opsi-cli-macos-amd64 --prerelease="$CI_JOB_ID"'
+    - '[ "$CI_COMMIT_TAG" = "" ] || ./opsi-dev-cli -l info binary push ./opsi-cli-macos-amd64'
+    - mv ./opsi-cli-macos-amd64 CLIENT_DATA/opsi-cli-macos
   artifacts:
     name: opsi-cli-macos
     paths:
@@ -244,11 +244,11 @@ windows-pyinstaller:
     # Virus check opsi-cli binary and ziplauncher
     - .\opsi-dev-cli.exe -l info --output-format summary virustotal check dist\opsicli\opsi-cli.exe --allow-detections=10
     - .\opsi-dev-cli.exe -l info --output-format summary virustotal check opsi-cli.exe --allow-detections=10
-    - move opsi-cli.exe opsi-cli-windows.exe
+    - move opsi-cli.exe opsi-cli-windows-x86.exe
     # Upload and archive opsi-cli binary
-    - if (! $CI_COMMIT_TAG) {.\opsi-dev-cli.exe -l info binary push opsi-cli-windows.exe --prerelease="$CI_JOB_ID"}
-    - if ($CI_COMMIT_TAG) {.\opsi-dev-cli.exe -l info binary push opsi-cli-windows.exe}
-    - move opsi-cli-windows.exe CLIENT_DATA\opsi-cli-windows.exe
+    - if (! $CI_COMMIT_TAG) {.\opsi-dev-cli.exe -l info binary push opsi-cli-windows-x86.exe --prerelease="$CI_JOB_ID"}
+    - if ($CI_COMMIT_TAG) {.\opsi-dev-cli.exe -l info binary push opsi-cli-windows-x86.exe}
+    - move opsi-cli-windows-x86.exe CLIENT_DATA\opsi-cli-windows.exe
   artifacts:
     name: opsi-cli-windows.exe
     paths:
