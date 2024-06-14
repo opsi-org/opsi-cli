@@ -8,6 +8,7 @@
 This file is part of opsi - https://www.opsi.org
 """
 
+import builtins
 import os
 import platform
 import warnings
@@ -23,6 +24,8 @@ from _pytest.nodes import Item
 from opsicli.config import config
 
 from . import OPSI_HOSTNAME
+
+builtins_print = builtins.print
 
 
 def emit(*args: Any, **kwargs: Any) -> None:
@@ -41,6 +44,7 @@ def disable_insecure_request_warning() -> None:
 def reset_config() -> None:
 	for item in config.get_config_items():
 		item.set_value(item.default)
+	builtins.print = builtins_print
 
 
 @pytest.hookimpl()
