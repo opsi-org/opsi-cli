@@ -14,8 +14,10 @@ from opsicommon.package.associated_files import create_package_md5_file, create_
 from rich.progress import Progress
 
 from opsicli.config import config
-from opsicli.io import get_console
+from opsicli.io import get_console, write_output
+from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
+from plugins.package.data.metadata import command_metadata
 
 __version__ = "0.2.0"
 __description__ = "Manage opsi packages"
@@ -132,6 +134,21 @@ def make(
 		console.print(f"The md5sum file was created at '{md5_file}'")
 	if zsync_file:
 		console.print(f"The zsync file was created at '{zsync_file}'")
+
+
+@cli.command(name="list", short_help="List opsi packages")
+def package_list() -> None:
+	"""
+	opsi-cli package list subcommand.
+	"""
+	logger.trace("list packages")
+	service_client = get_service_connection()
+	package_list = service_client.jsonrpc("product_getObjects")
+	if not package_list:
+		get_console().print("No packages found.")
+		return
+	metadata = command_metadata.get("package_list")
+	write_output(package_list, metadata=metadata, default_output_format="table")
 
 
 @cli.command(short_help="Generate TOML from control file.")
