@@ -91,20 +91,31 @@ class SetActionRequestWorker(ClientActionWorker):
 		exclude_products = []
 		if use_default_excludes:
 			exclude_products = STATIC_EXCLUDE_PRODUCTS
+
 		products: list[str] = []
 		if products_string:
 			products = [entry.strip() for entry in products_string.split(",")]
+			for product in products:
+				if product in exclude_products:
+					logger.debug("Removing default excluded product %r from exclude list", product)
+					exclude_products.remove(product)
+
 		if product_groups_string:
 			for group in [entry.strip() for entry in product_groups_string.split(",")]:
 				products.extend(self.product_ids_from_group(group))
+
 		if products_string or product_groups_string:
 			logger.info("Limiting handled products to %s", products)
+
 		if exclude_products_string:
 			exclude_products.extend([entry.strip() for entry in exclude_products_string.split(",")])
+
 		if exclude_product_groups_string:
 			for group in [entry.strip() for entry in exclude_product_groups_string.split(",")]:
 				exclude_products.extend(self.product_ids_from_group(group))
+
 		logger.info("List of excluded products: %s", exclude_products)
+
 		product_objects: list[Product] = self.service.jsonrpc(
 			"product_getObjects", [[], {"type": "LocalbootProduct", "id": products or None}]
 		)
