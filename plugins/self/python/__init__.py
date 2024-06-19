@@ -155,7 +155,7 @@ def get_running_shell() -> str:
 		if ancestor_name in SUPPORTED_SHELLS:
 			logger.info("Found supported shell %r in ancestor process", ancestor_name)
 			return ancestor_name
-	logger.debug("Did not find a supported shell shell in ancestor process")
+	logger.debug("Did not find a supported shell in ancestor process")
 
 	env_shell = Path(os.environ.get("SHELL", "")).name
 	if env_shell and env_shell in SUPPORTED_SHELLS:
