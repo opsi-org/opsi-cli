@@ -16,6 +16,7 @@ import stat
 import string
 import sys
 import time
+from collections import defaultdict
 from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
@@ -260,3 +261,22 @@ def retry(
 		return wrapper
 
 	return decorator
+
+
+def create_nested_dict(list: list[object], keys: list[str]) -> dict:
+	"""
+	Parameters:
+	list: List of objects to be converted into a dictionary.
+	keys: List of attribute names to be used as keys in the dictionary.
+
+	Returns:
+	A nested dictionary where each level corresponds to an attribute in keys.
+	"""
+	info_dict: dict[Any, Any] = defaultdict(dict)
+	for item in list:
+		temp_dict = info_dict
+		for key in keys[:-1]:
+			key_value = getattr(item, key, None)
+			temp_dict = temp_dict.setdefault(key_value, defaultdict(dict))
+		temp_dict[getattr(item, keys[-1] if keys else "", "")] = item
+	return info_dict

@@ -4,7 +4,6 @@ opsi-cli package plugin
 
 from contextlib import nullcontext
 from pathlib import Path
-from typing import Callable
 
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger
@@ -17,6 +16,7 @@ from opsicli.config import config
 from opsicli.io import get_console, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
+from opsicli.utils import create_nested_dict
 from plugins.package.data.metadata import command_metadata
 
 __version__ = "0.2.0"
@@ -137,18 +137,42 @@ def make(
 
 
 @cli.command(name="list", short_help="List opsi packages")
-def package_list() -> None:
+@click.option("--depots", help="Depots to include (comma-separated or 'all')", default="all")
+def package_list(depots: str) -> None:
 	"""
 	opsi-cli package list subcommand.
+	This subcommand is used to list opsi packages.
 	"""
 	logger.trace("list packages")
+
+	if not depots.strip():
+		depots = "all"
+	depot_list = [depot.strip() for depot in depots.split(",") if depot.strip() != "all"]
+
 	service_client = get_service_connection()
-	package_list = service_client.jsonrpc("product_getObjects")
-	if not package_list:
-		get_console().print("No packages found.")
-		return
+	product_list = service_client.jsonrpc("product_getObjects")
+	product_on_depot_list = service_client.jsonrpc("productOnDepot_getObjects", [[], {"depotId": depot_list}])
+
+	product_dict = create_nested_dict(product_list, ["id", "productVersion", "packageVersion"])
+	product_on_depot_dict = create_nested_dict(product_on_depot_list, ["depotId", "productId"])
+
+	combined_list = [
+		{
+			**vars(product_on_depot),
+			**vars(product),
+			"depotId": depot_id,
+		}
+		for depot_id, products in product_on_depot_dict.items()
+		for product_id, product_on_depot in products.items()
+		if (
+			product := product_dict.get(product_on_depot.productId, {})
+			.get(product_on_depot.productVersion, {})
+			.get(product_on_depot.packageVersion, None)
+		)
+	]
+
 	metadata = command_metadata.get("package_list")
-	write_output(package_list, metadata=metadata, default_output_format="table")
+	write_output(combined_list, metadata=metadata, default_output_format="table")
 
 
 @cli.command(short_help="Generate TOML from control file.")
