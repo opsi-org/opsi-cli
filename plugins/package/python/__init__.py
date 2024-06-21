@@ -137,7 +137,7 @@ def make(
 
 
 @cli.command(name="list", short_help="List opsi packages")
-@click.option("--depots", help="Depots to include (comma-separated or 'all')", default="all")
+@click.option("--depots", help="Depot IDs (comma-separated) or 'all'", default="all")
 def package_list(depots: str) -> None:
 	"""
 	opsi-cli package list subcommand.

@@ -7,7 +7,7 @@ from typing import Optional, Union
 
 import pytest
 
-from .utils import run_cli
+from .utils import container_connection, run_cli
 
 CONTROL_FILE_NAME = "control"
 CONTROL_TOML_FILE_NAME = "control.toml"
@@ -206,3 +206,10 @@ def test_control_to_toml(setup_test_product: Path) -> None:
 	exit_code, _stdout, _stderr = run_cli(["package", "control-to-toml", str(source_dir)])
 	control_toml = source_dir / "OPSI" / CONTROL_TOML_FILE_NAME
 	assert exit_code == 0 and control_toml.exists()
+
+
+@pytest.mark.requires_testcontainer
+def test_package_list() -> None:
+	with container_connection():
+		exit_code, _stdout, _stderr = run_cli(["package", "list"])
+		assert exit_code == 0
