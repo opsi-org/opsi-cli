@@ -52,7 +52,7 @@ class ProgressCallbackAdapter:
 		self.progress.update(self.task_id, completed=completed)
 
 
-@click.group(name="package", short_help="Custom plugin package")
+@click.group(name="package", short_help="Manage opsi packages")
 @click.version_option(__version__, message="opsi-cli plugin package, version %(version)s")
 def cli() -> None:
 	"""
@@ -209,7 +209,7 @@ def control_to_toml(source_dir: Path) -> None:
 	get_console().print("Control TOML has been successfully generated.\n")
 
 
-@cli.command(short_help="Extract an opsi package")
+@cli.command(short_help="Extract an opsi package.")
 @click.argument("package_archive", type=click.Path(exists=True, file_okay=True, dir_okay=False, path_type=Path))
 @click.argument("destination_dir", type=click.Path(file_okay=False, dir_okay=True, path_type=Path), default=Path("."))
 @click.option(
