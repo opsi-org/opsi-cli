@@ -263,20 +263,20 @@ def retry(
 	return decorator
 
 
-def create_nested_dict(list: list[object], keys: list[str]) -> dict:
+def create_nested_dict(items: list[object], attributes: list[str]) -> dict:
 	"""
 	Parameters:
-	list: List of objects to be converted into a dictionary.
-	keys: List of attribute names to be used as keys in the dictionary.
+	items: List of objects to be converted into a dictionary.
+	attributes: List of attribute names to be used as keys in the dictionary.
 
 	Returns:
 	A nested dictionary where each level corresponds to an attribute in keys.
 	"""
 	info_dict: dict[Any, Any] = defaultdict(dict)
-	for item in list:
+	for item in items:
 		temp_dict = info_dict
-		for key in keys[:-1]:
+		for key in attributes[:-1]:
 			key_value = getattr(item, key, None)
 			temp_dict = temp_dict.setdefault(key_value, defaultdict(dict))
-		temp_dict[getattr(item, keys[-1] if keys else "", "")] = item
+		temp_dict[getattr(item, attributes[-1] if attributes else "", "")] = item
 	return info_dict
