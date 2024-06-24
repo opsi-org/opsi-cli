@@ -148,12 +148,12 @@ def combine_products(product_dict: dict, product_on_depot_dict: dict) -> list:
 			if product:
 				combined_products.append(
 					{
-						"depotId": depot_id,
-						"productId": product_id,
+						"depot_id": depot_id,
+						"product_id": product_id,
 						"name": product.name,
 						"description": product.description,
-						"productVersion": product.productVersion,
-						"packageVersion": product.packageVersion,
+						"product_version": product.productVersion,
+						"package_version": product.packageVersion,
 					}
 				)
 	return combined_products
