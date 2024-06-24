@@ -7,8 +7,9 @@ from pathlib import Path
 
 import pytest
 from opsicommon.logging import LOG_WARNING, use_logging_config
+from opsicommon.objects import LocalbootProduct
 
-from opsicli.utils import decrypt, encrypt, install_binary, retry
+from opsicli.utils import create_nested_dict, decrypt, encrypt, install_binary, retry
 
 
 @pytest.mark.parametrize(
@@ -79,3 +80,20 @@ def test_retry() -> None:
 			failing_function2()
 
 		assert len(caught_exceptions) == 4
+
+
+def test_create_nested_dict() -> None:
+	product1 = LocalbootProduct(id="product1", name="Product 1", productVersion="1.0.0", packageVersion="1")
+	product2 = LocalbootProduct(id="product2", name="Product 2", productVersion="1.0", packageVersion="3")
+	product3 = LocalbootProduct(id="product3", name="Product 3", productVersion="4.6.3.2172", packageVersion="3")
+
+	list_of_objects: list[object] = [product1, product2, product3]
+	keys = ["id", "productVersion", "packageVersion"]
+
+	expected = {
+		"product1": {"1.0.0": {"1": product1}},
+		"product2": {"1.0": {"3": product2}},
+		"product3": {"4.6.3.2172": {"3": product3}},
+	}
+
+	assert create_nested_dict(list_of_objects, keys) == expected

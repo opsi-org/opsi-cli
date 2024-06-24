@@ -4,7 +4,6 @@ opsi-cli package plugin
 
 from contextlib import nullcontext
 from pathlib import Path
-from typing import Callable
 
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger
@@ -14,8 +13,11 @@ from opsicommon.package.associated_files import create_package_md5_file, create_
 from rich.progress import Progress
 
 from opsicli.config import config
-from opsicli.io import get_console
+from opsicli.io import get_console, write_output
+from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
+from opsicli.utils import create_nested_dict
+from plugins.package.data.metadata import command_metadata
 
 __version__ = "0.2.0"
 __description__ = "Manage opsi packages"
@@ -132,6 +134,56 @@ def make(
 		console.print(f"The md5sum file was created at '{md5_file}'")
 	if zsync_file:
 		console.print(f"The zsync file was created at '{zsync_file}'")
+
+
+def combine_products(product_dict: dict, product_on_depot_dict: dict) -> list:
+	"""
+	Returns a list of dictionaries, each has combined product and product on depot information
+	"""
+	combined_products = []
+	for depot_id, products in product_on_depot_dict.items():
+		for product_id in sorted(products):
+			pod = products[product_id]
+			product = product_dict.get(pod.productId, {}).get(pod.productVersion, {}).get(pod.packageVersion)
+			if product:
+				combined_products.append(
+					{
+						"depot_id": depot_id,
+						"product_id": product_id,
+						"name": product.name,
+						"description": product.description,
+						"product_version": product.productVersion,
+						"package_version": product.packageVersion,
+					}
+				)
+	return combined_products
+
+
+@cli.command(name="list", short_help="List opsi packages")
+@click.option("--depots", help="Depot IDs (comma-separated) or 'all'", default="all")
+def package_list(depots: str) -> None:
+	"""
+	opsi-cli package list subcommand.
+	This subcommand is used to list opsi packages.
+	"""
+	logger.trace("list packages")
+	depots = depots.strip() or "all"
+	depot_list = [depot.strip() for depot in depots.split(",") if depot.strip() != "all"]
+
+	try:
+		service_client = get_service_connection()
+		product_list = service_client.jsonrpc("product_getObjects")
+		product_on_depot_list = service_client.jsonrpc("productOnDepot_getObjects", [[], {"depotId": depot_list}])
+	except Exception as err:
+		logger.error(err, exc_info=True)
+		raise err
+
+	product_dict = create_nested_dict(product_list, ["id", "productVersion", "packageVersion"])
+	product_on_depot_dict = create_nested_dict(product_on_depot_list, ["depotId", "productId"])
+
+	combined_products = combine_products(product_dict, product_on_depot_dict)
+	metadata = command_metadata.get("package_list")
+	write_output(combined_products, metadata=metadata, default_output_format="table")
 
 
 @cli.command(short_help="Generate TOML from control file.")

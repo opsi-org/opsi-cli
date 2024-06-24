@@ -6,8 +6,11 @@ from pathlib import Path
 from typing import Optional, Union
 
 import pytest
+from opsicommon.objects import LocalbootProduct, ProductOnDepot
 
-from .utils import run_cli
+from plugins.package.python import combine_products
+
+from .utils import container_connection, run_cli
 
 CONTROL_FILE_NAME = "control"
 CONTROL_TOML_FILE_NAME = "control.toml"
@@ -206,3 +209,36 @@ def test_control_to_toml(setup_test_product: Path) -> None:
 	exit_code, _stdout, _stderr = run_cli(["package", "control-to-toml", str(source_dir)])
 	control_toml = source_dir / "OPSI" / CONTROL_TOML_FILE_NAME
 	assert exit_code == 0 and control_toml.exists()
+
+
+@pytest.mark.requires_testcontainer
+def test_package_list() -> None:
+	with container_connection():
+		exit_code, _stdout, _stderr = run_cli(["package", "list"])
+		assert exit_code == 0
+
+
+def test_combine_products() -> None:
+	product = LocalbootProduct(
+		id="testproduct", name="Test Product", productVersion="1.0", packageVersion="1", description="Test Product Description"
+	)
+
+	product_on_depot = ProductOnDepot(
+		productId="testproduct", depotId="depot1.test.local", productType="LocalbootProduct", productVersion="1.0", packageVersion="1"
+	)
+
+	product_dict = {"testproduct": {"1.0": {"1": product}}}
+	product_on_depot_dict = {"depot1.test.local": {"testproduct": product_on_depot}}
+
+	expected = [
+		{
+			"depot_id": "depot1.test.local",
+			"product_id": "testproduct",
+			"name": "Test Product",
+			"description": "Test Product Description",
+			"product_version": "1.0",
+			"package_version": "1",
+		}
+	]
+
+	assert combine_products(product_dict, product_on_depot_dict) == expected
