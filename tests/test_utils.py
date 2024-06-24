@@ -4,10 +4,10 @@ test_plugins
 
 import time
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 from opsicommon.logging import LOG_WARNING, use_logging_config
+from opsicommon.objects import LocalbootProduct
 
 from opsicli.utils import create_nested_dict, decrypt, encrypt, install_binary, retry
 
@@ -83,9 +83,9 @@ def test_retry() -> None:
 
 
 def test_create_nested_dict() -> None:
-	product1 = MagicMock(id="product1", name="Product 1", productVersion="1.0.0", packageVersion="1")
-	product2 = MagicMock(id="product2", name="Product 2", productVersion="1.0", packageVersion="3")
-	product3 = MagicMock(id="product3", name="Product 3", productVersion="4.6.3.2172", packageVersion="3")
+	product1 = LocalbootProduct(id="product1", name="Product 1", productVersion="1.0.0", packageVersion="1")
+	product2 = LocalbootProduct(id="product2", name="Product 2", productVersion="1.0", packageVersion="3")
+	product3 = LocalbootProduct(id="product3", name="Product 3", productVersion="4.6.3.2172", packageVersion="3")
 
 	list_of_objects: list[object] = [product1, product2, product3]
 	keys = ["id", "productVersion", "packageVersion"]

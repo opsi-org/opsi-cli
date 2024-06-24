@@ -4,9 +4,9 @@ test_package.py is a test file for the package plugin.
 
 from pathlib import Path
 from typing import Optional, Union
-from unittest.mock import MagicMock
 
 import pytest
+from opsicommon.objects import LocalbootProduct, ProductOnDepot
 
 from plugins.package.python import combine_products
 
@@ -219,25 +219,25 @@ def test_package_list() -> None:
 
 
 def test_combine_products() -> None:
-	mock_product = MagicMock()
-	mock_product_on_depot = MagicMock()
-	mock_product.configure_mock(
+	product = LocalbootProduct(
 		id="testproduct", name="Test Product", productVersion="1.0", packageVersion="1", description="Test Product Description"
 	)
-	mock_product_on_depot.configure_mock(
-		productId="testproduct", depotId="depot1", productType="LocalbootProduct", productVersion="1.0", packageVersion="1"
+
+	product_on_depot = ProductOnDepot(
+		productId="testproduct", depotId="depot1.test.local", productType="LocalbootProduct", productVersion="1.0", packageVersion="1"
 	)
-	product_dict = {"testproduct": {"1.0": {"1": mock_product}}}
-	product_on_depot_dict = {"depot1": {"testproduct": mock_product_on_depot}}
+
+	product_dict = {"testproduct": {"1.0": {"1": product}}}
+	product_on_depot_dict = {"depot1.test.local": {"testproduct": product_on_depot}}
 
 	expected = [
 		{
-			"depotId": "depot1",
-			"productId": "testproduct",
+			"depot_id": "depot1.test.local",
+			"product_id": "testproduct",
 			"name": "Test Product",
 			"description": "Test Product Description",
-			"productVersion": "1.0",
-			"packageVersion": "1",
+			"product_version": "1.0",
+			"package_version": "1",
 		}
 	]
 
