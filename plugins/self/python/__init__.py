@@ -53,7 +53,7 @@ def get_completion_config_path(shell: str) -> Path:
 		return Path("~/.zshrc").expanduser().resolve()
 	if shell == "powershell":
 		return Path(subprocess.check_output(["powershell", "-ExecutionPolicy", "Bypass", "-NoProfile", "echo $profile"]).decode().strip())
-	raise ValueError("Shell {shell!r} is not supported.")
+	raise ValueError(f"Shell {shell!r} is not supported.")
 
 
 def get_binary_name() -> str:
@@ -149,20 +149,25 @@ SUPPORTED_SHELLS = ["zsh", "bash", "fish", "powershell"]
 
 
 def get_running_shell() -> str:
-	running_shell = psutil.Process(os.getpid()).parent().name()
-	logger.debug("Parent process: %s", running_shell)
-	if not running_shell or running_shell not in SUPPORTED_SHELLS:
-		logger.info("Did not get shell from parent process.")
-		try:
-			running_shell = Path(os.environ["SHELL"]).name
-		except KeyError:
-			logger.warning("Did not get shell from environment.")
-			if platform.system().lower() == "windows":
-				logger.notice("Running on windows, assuming powershell")
-				running_shell = "powershell"
-	if running_shell not in SUPPORTED_SHELLS:
-		raise ValueError("Did not determine valid running shell")
-	return running_shell
+	proc = psutil.Process(os.getpid())
+	for ancestor_name in [proc.parent().name(), proc.parent().parent().name()]:
+		logger.debug("Checking if ancestor process  %r is a supported shell", ancestor_name)
+		if ancestor_name in SUPPORTED_SHELLS:
+			logger.info("Found supported shell %r in ancestor process", ancestor_name)
+			return ancestor_name
+	logger.debug("Did not find a supported shell in ancestor process")
+
+	env_shell = Path(os.environ.get("SHELL", "")).name
+	if env_shell and env_shell in SUPPORTED_SHELLS:
+		logger.info("Found supported shell %r in SHELL environment variable", env_shell)
+		return env_shell
+	logger.debug("Did not find a supported shell in SHELL environment variable (SHELL=%r)", env_shell)
+
+	if platform.system().lower() == "windows":
+		logger.info("Running on windows, assuming powershell")
+		return "powershell"
+
+	raise ValueError("No supported running shell could be determined")
 
 
 @cli.command(short_help="Setup shell completion")
