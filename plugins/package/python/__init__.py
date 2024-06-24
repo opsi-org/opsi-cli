@@ -136,6 +136,29 @@ def make(
 		console.print(f"The zsync file was created at '{zsync_file}'")
 
 
+def combine_products(product_dict: dict, product_on_depot_dict: dict) -> list:
+	"""
+	Returns a list of dictionaries, each has combined product and product on depot information
+	"""
+	combined_products = []
+	for depot_id, products in product_on_depot_dict.items():
+		for product_id in sorted(products):
+			pod = products[product_id]
+			product = product_dict.get(pod.productId, {}).get(pod.productVersion, {}).get(pod.packageVersion)
+			if product:
+				combined_products.append(
+					{
+						"depotId": depot_id,
+						"productId": product_id,
+						"name": product.name,
+						"description": product.description,
+						"productVersion": product.productVersion,
+						"packageVersion": product.packageVersion,
+					}
+				)
+	return combined_products
+
+
 @cli.command(name="list", short_help="List opsi packages")
 @click.option("--depots", help="Depot IDs (comma-separated) or 'all'", default="all")
 def package_list(depots: str) -> None:
@@ -144,35 +167,23 @@ def package_list(depots: str) -> None:
 	This subcommand is used to list opsi packages.
 	"""
 	logger.trace("list packages")
-
-	if not depots.strip():
-		depots = "all"
+	depots = depots.strip() or "all"
 	depot_list = [depot.strip() for depot in depots.split(",") if depot.strip() != "all"]
 
-	service_client = get_service_connection()
-	product_list = service_client.jsonrpc("product_getObjects")
-	product_on_depot_list = service_client.jsonrpc("productOnDepot_getObjects", [[], {"depotId": depot_list}])
+	try:
+		service_client = get_service_connection()
+		product_list = service_client.jsonrpc("product_getObjects")
+		product_on_depot_list = service_client.jsonrpc("productOnDepot_getObjects", [[], {"depotId": depot_list}])
+	except Exception as err:
+		logger.error(err, exc_info=True)
+		raise err
 
 	product_dict = create_nested_dict(product_list, ["id", "productVersion", "packageVersion"])
 	product_on_depot_dict = create_nested_dict(product_on_depot_list, ["depotId", "productId"])
 
-	combined_list = [
-		{
-			**vars(product_on_depot),
-			**vars(product),
-			"depotId": depot_id,
-		}
-		for depot_id, products in product_on_depot_dict.items()
-		for product_id, product_on_depot in products.items()
-		if (
-			product := product_dict.get(product_on_depot.productId, {})
-			.get(product_on_depot.productVersion, {})
-			.get(product_on_depot.packageVersion, None)
-		)
-	]
-
+	combined_products = combine_products(product_dict, product_on_depot_dict)
 	metadata = command_metadata.get("package_list")
-	write_output(combined_list, metadata=metadata, default_output_format="table")
+	write_output(combined_products, metadata=metadata, default_output_format="table")
 
 
 @cli.command(short_help="Generate TOML from control file.")

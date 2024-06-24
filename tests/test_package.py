@@ -4,8 +4,11 @@ test_package.py is a test file for the package plugin.
 
 from pathlib import Path
 from typing import Optional, Union
+from unittest.mock import MagicMock
 
 import pytest
+
+from plugins.package.python import combine_products
 
 from .utils import container_connection, run_cli
 
@@ -213,3 +216,29 @@ def test_package_list() -> None:
 	with container_connection():
 		exit_code, _stdout, _stderr = run_cli(["package", "list"])
 		assert exit_code == 0
+
+
+def test_combine_products() -> None:
+	mock_product = MagicMock()
+	mock_product_on_depot = MagicMock()
+	mock_product.configure_mock(
+		id="testproduct", name="Test Product", productVersion="1.0", packageVersion="1", description="Test Product Description"
+	)
+	mock_product_on_depot.configure_mock(
+		productId="testproduct", depotId="depot1", productType="LocalbootProduct", productVersion="1.0", packageVersion="1"
+	)
+	product_dict = {"testproduct": {"1.0": {"1": mock_product}}}
+	product_on_depot_dict = {"depot1": {"testproduct": mock_product_on_depot}}
+
+	expected = [
+		{
+			"depotId": "depot1",
+			"productId": "testproduct",
+			"name": "Test Product",
+			"description": "Test Product Description",
+			"productVersion": "1.0",
+			"packageVersion": "1",
+		}
+	]
+
+	assert combine_products(product_dict, product_on_depot_dict) == expected
