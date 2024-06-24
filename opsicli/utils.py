@@ -270,13 +270,13 @@ def create_nested_dict(items: list[object], attributes: list[str]) -> dict:
 	attributes: List of attribute names to be used as keys in the dictionary.
 
 	Returns:
-	A nested dictionary where each level corresponds to an attribute in keys.
+	A nested dictionary where each level corresponds to an attribute in attributes.
 	"""
 	info_dict: dict[Any, Any] = defaultdict(dict)
 	for item in items:
-		temp_dict = info_dict
+		current_level = info_dict
 		for key in attributes[:-1]:
 			key_value = getattr(item, key, None)
-			temp_dict = temp_dict.setdefault(key_value, defaultdict(dict))
-		temp_dict[getattr(item, attributes[-1] if attributes else "", "")] = item
+			current_level = current_level.setdefault(key_value, defaultdict(dict))
+		current_level[getattr(item, attributes[-1] if attributes else "", "")] = item
 	return info_dict
