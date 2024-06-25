@@ -161,10 +161,14 @@ def combine_products(product_dict: dict, product_on_depot_dict: dict) -> list:
 
 @cli.command(name="list", short_help="List opsi packages")
 @click.option("--depots", help="Depot IDs (comma-separated) or 'all'", default="all")
-def package_list(depots: str) -> None:
+@click.argument("product_ids", type=str, nargs=-1)
+def package_list(depots: str, product_ids: list[str]) -> None:
 	"""
 	opsi-cli package list subcommand.
 	This subcommand is used to list opsi packages.
+
+	A list of product IDs can be specified to filter the output.
+	In the product IDs, "*" can be used as a wildcard.
 	"""
 	logger.trace("list packages")
 	depots = depots.strip() or "all"
@@ -173,7 +177,7 @@ def package_list(depots: str) -> None:
 	try:
 		service_client = get_service_connection()
 		product_list = service_client.jsonrpc("product_getObjects")
-		product_on_depot_list = service_client.jsonrpc("productOnDepot_getObjects", [[], {"depotId": depot_list}])
+		product_on_depot_list = service_client.jsonrpc("productOnDepot_getObjects", [[], {"depotId": depot_list, "productId": product_ids}])
 	except Exception as err:
 		logger.error(err, exc_info=True)
 		raise err
