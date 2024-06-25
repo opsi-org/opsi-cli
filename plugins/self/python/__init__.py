@@ -31,6 +31,7 @@ installed_version_metadata = Metadata(
 	attributes=[
 		Attribute(id="path", description="Location of the binary", identifier=True, data_type="str"),
 		Attribute(id="version", description="Version of the binary", data_type="str"),
+		Attribute(id="in_path", description="Is the binary file located in a directory that is contained in the PATH environment variable?", data_type="bool"),
 		Attribute(id="default", description="Default binary (first in PATH)?", data_type="bool"),
 		Attribute(id="writable", description="Is the binary writable?", data_type="bool"),
 	]
@@ -114,7 +115,7 @@ def get_installed_versions() -> dict[Path, str]:
 			continue
 		try:
 			version = subprocess.check_output([str(binary), "--version"]).decode("utf-8").strip().split()[-1]
-		except subprocess.CalledProcessError:
+		except (subprocess.CalledProcessError, PermissionError):
 			version = "?"
 		installed_versions[binary] = version
 	return installed_versions
@@ -123,11 +124,14 @@ def get_installed_versions() -> dict[Path, str]:
 def print_installed_versions() -> None:
 	data = []
 	installed_versions = get_installed_versions()
+	paths = [Path(p) for p in os.environ.get("PATH", "").split(os.pathsep)]
+	installed_versions = {k: installed_versions[k] for k in sorted(installed_versions, key=lambda x: paths.index(x.parent) if x.parent in paths else 999)}
 	for idx, binary in enumerate(installed_versions):
 		data.append(
 			{
 				"path": binary,
 				"version": installed_versions[binary],
+				"in_path": binary.parent in paths,
 				"default": idx == 0,
 				"writable": os.access(binary, os.W_OK),
 			}
