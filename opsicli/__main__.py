@@ -28,6 +28,8 @@ from opsicli.plugin import plugin_manager
 from opsicli.types import LogLevel as TypeLogLevel
 from opsicli.types import OpsiCliRuntimeError
 
+original_print = builtins.print
+
 COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE" in os.environ
 
 if not COMPLETION_MODE:
@@ -164,9 +166,11 @@ class LogLevel(click.ParamType):
 
 def quiet_print(*args: Any, **kwargs: Any) -> None:
 	"""
-	Disable print if quiet mode is enabled
+	Suppress builtins print if quiet mode is enabled.
+	stderr output will only be suppressed if --hide-errors is used.
 	"""
-	pass
+	if kwargs.get("file") == sys.stderr and not config.hide_errors:
+		original_print(*args, **kwargs)
 
 
 @click.command(cls=OpsiCLI)
@@ -179,6 +183,7 @@ def quiet_print(*args: Any, **kwargs: Any) -> None:
 @config.get_click_option("color", long_option="--color/--no-color", is_eager=True, envvar="NO_COLOR")
 @config.get_click_option("interactive", long_option="--interactive/--non-interactive")
 @config.get_click_option("quiet", is_flag=True, help=f"{config.get_description('quiet')}")
+@config.get_click_option("hide_errors", is_flag=True, help=f"{config.get_description('hide_errors')}")
 @config.get_click_option("output_format")
 @config.get_click_option("output_file")
 @config.get_click_option("input_file")
