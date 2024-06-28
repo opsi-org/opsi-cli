@@ -148,9 +148,9 @@ def prompt(
 	show_choices: bool = True,
 ) -> str | int | float:
 	cls: Type[Prompt] | Type[IntPrompt] | Type[FloatPrompt] = Prompt
-	if return_type is int:
+	if return_type == int:  # noqa: E721
 		cls = IntPrompt
-	elif return_type is float:
+	elif return_type == float:  # noqa: E721
 		cls = FloatPrompt
 	return cls.ask(
 		prompt=text,
@@ -271,14 +271,14 @@ def write_output(data: Any, metadata: Metadata | None = None, default_output_for
 
 	if output_format in ("table", "csv") and not metadata:
 		stt = get_structure_type(data)
-		if stt is list:
+		if stt == list:  # noqa: E721
 			metadata = Metadata(attributes=[Attribute(id="value0")])
-		elif stt is list[list]:
+		elif stt == list[list]:
 			metadata = Metadata(attributes=[Attribute(id=f"value{idx}") for idx in range(len(data[0]))])
-		elif stt is list[dict]:
+		elif stt == list[dict]:
 			metadata = Metadata(attributes=[Attribute(id=key) for key in get_attributes(data)])
 		else:
-			raise RuntimeError(f"Output-format {config.output_format!r} does not support stucture {stt!r}")
+			raise RuntimeError(f"Output-format {output_format!r} does not support stucture {stt!r}")
 
 	if metadata is not None and config.attributes and config.attributes != ["all"]:
 		ordered_list = [attr for config_attribute in config.attributes for attr in metadata.attributes if attr.id == config_attribute]
