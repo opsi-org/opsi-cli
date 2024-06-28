@@ -2,6 +2,7 @@
 test_config
 """
 
+import sys
 from pathlib import Path
 from typing import Type
 
@@ -209,11 +210,32 @@ def test_list_attributes_flag() -> None:
 		config.list_attributes = False
 
 
-def test_quiet_flag() -> None:
-	source_dir = "dummyproduct"
+@pytest.mark.parametrize(
+	"cli_args, expect_error",
+	[
+		(["package", "control-to-toml", "dummyproduct"], True),
+		(["--quiet", "package", "control-to-toml", "dummyproduct"], True),
+		(["--quiet", "--hide-errors", "package", "control-to-toml", "dummyproduct"], False),
+	],
+)
+def test_quiet_and_hide_errors_flags(cli_args: list, expect_error: bool) -> None:
 	message = "Invalid value for '[SOURCE_DIR]': Directory 'dummyproduct' does not exist."
-	_, _stdout, _stderr = run_cli(["package", "control-to-toml", source_dir])
-	assert message in _stderr
+	_, _, _stderr = run_cli(cli_args)
 
-	# _, _stdout, _stderr = run_cli(["--quiet", "package", "control-to-toml", source_dir])
-	# assert message not in _stderr
+	if expect_error:
+		assert message in _stderr
+	else:
+		assert message not in _stderr
+
+
+def test_quiet_and_hide_errors_flags_for_builtins_print() -> None:
+	print("Prints to stdout unless --quiet is used", file=sys.stdout)
+	print("Prints to stderr unless --hide-errors along with --quiet is used.", file=sys.stderr)
+
+	_, _stdout, _stderr = run_cli(["--quiet", "package", "control-to-toml", "dummyproduct"])
+	assert not _stdout
+	assert _stderr
+
+	_, _stdout, _stderr = run_cli(["--quiet", "--hide-errors", "package", "control-to-toml", "dummyproduct"])
+	assert not _stdout
+	assert not _stderr

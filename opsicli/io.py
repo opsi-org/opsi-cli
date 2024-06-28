@@ -133,9 +133,8 @@ class QuietConsole(Console):
 
 
 def get_console(file: IO[str] | None = None, ignore_quiet: bool = False) -> Console:
-	if config.quiet and not ignore_quiet:
+	if (file is not sys.stderr or config.hide_errors) and config.quiet and not ignore_quiet:
 		return QuietConsole(file=file, color_system="auto" if config.color else None)
-
 	return Console(file=file, color_system="auto" if config.color else None)
 
 

@@ -217,6 +217,11 @@ def test_package_list() -> None:
 		exit_code, _stdout, _stderr = run_cli(["package", "list"])
 		assert exit_code == 0
 
+		exit_code, _stdout, _stderr = run_cli(["package", "list", "opsi*"])
+		assert exit_code == 0
+
+		exit_code, _stdout, _stderr = run_cli(["package", "list", "--depots", "all", "opsi-client-agent"])
+		assert exit_code == 0
 
 def test_combine_products() -> None:
 	product = LocalbootProduct(
