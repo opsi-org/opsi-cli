@@ -257,6 +257,41 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 	get_console().print(f"Package archive has been successfully extracted at {destination_dir}\n")
 
 
+@cli.command(short_help="Install opsi packages.")
+@click.argument("opsi_packages", nargs=-1, type=click.Path(exists=True, file_okay=True, dir_okay=True, path_type=Path))
+@click.option("--depots", help="Depot IDs (comma-separated) or 'all'. Default is configserver.")
+def install(opsi_packages: list[str], depots: str) -> None:
+	"""
+	opsi-cli package install subcommand.
+	This subcommand is used to install opsi packages.
+	"""
+	if not opsi_packages:
+		raise click.UsageError("Specify at least one package to install.")
+
+	ordered_opsi_packages = list(opsi_packages)
+
+	for package_path in opsi_packages:
+		opsi_package = OpsiPackage(Path(package_path))
+		if opsi_package.package_dependencies:
+			package_dependencies = [dep.package for dep in opsi_package.package_dependencies]
+			package_ids = [OpsiPackage(Path(pkg)).product.id for pkg in ordered_opsi_packages]
+
+			if not all(dep_id in package_ids for dep_id in package_dependencies):
+				raise click.UsageError(f"Package dependencies for {package_path} are missing.")
+
+			dependency_ordered_packages: list = []
+			for dep_id in package_dependencies:
+				dependency_ordered_packages.extend(pkg for pkg in ordered_opsi_packages if OpsiPackage(Path(pkg)).product.id == dep_id)
+			dependency_ordered_packages.extend(pkg for pkg in ordered_opsi_packages if pkg not in dependency_ordered_packages)
+			ordered_opsi_packages = dependency_ordered_packages
+
+			if opsi_package.product.id != OpsiPackage(Path(ordered_opsi_packages[0])).product.id:
+				ordered_opsi_packages.remove(package_path)
+				ordered_opsi_packages.insert(0, package_path)
+
+	print(ordered_opsi_packages)
+
+
 class PackagePlugin(OPSICLIPlugin):
 	name: str = "Package"
 	description: str = __description__
