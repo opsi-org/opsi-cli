@@ -11,17 +11,19 @@ from opsicommon.package import OpsiPackage
 from opsicommon.package.archive import ArchiveProgress, ArchiveProgressListener
 from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
 from rich.progress import Progress
-
 from opsicli.config import config
 from opsicli.io import get_console, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.utils import create_nested_dict
 from plugins.package.data.metadata import command_metadata
+from OPSI.Util.Repository import getRepository
+from typing import Any
 
 __version__ = "0.2.0"
 __description__ = "Manage opsi packages"
 
+USER_AGENT = f"opsi-cli package/{__version__}"
 
 logger = get_logger("opsicli")
 
@@ -272,24 +274,78 @@ def order_dependencies(opsi_packages_paths: list[Path], package_id_to_path: dict
 	return ordered_opsi_packages
 
 
+def upload_to_repository(depot: Any, package_path: Path) -> None:
+	logger.info("Uploading package %s to repository", package_path)
+	print(f"Uploading package {package_path} to repository")
+	repository = getRepository(
+		url=depot.repositoryRemoteUrl,
+		username=depot.id,
+		password=depot.opsiHostKey,
+		maxBandwidth=(max(depot.maxBandwidth or 0, 0)) * 1000,
+		application=USER_AGENT,
+		readTimeout=24 * 3600,
+	)
+
+	print(f"Repository: {repository.content()}")
+
+
 @cli.command(short_help="Install opsi packages.")
 @click.argument("opsi_packages", nargs=-1, type=click.Path(exists=True, file_okay=True, dir_okay=True, path_type=Path))
 @click.option("--depots", help="Depot IDs (comma-separated) or 'all'. Default is configserver.")
-def install(opsi_packages: list[str], depots: str) -> None:
+@click.option("--force", is_flag=True, help="Force installation even if locked products are found.")
+def install(opsi_packages: list[str], depots: str, force: bool) -> None:
+	"""
+	opsi-cli package install subcommand.
+	This subcommand is used to install opsi packages.
+	"""
+	logger.trace("install package")
+
 	if not opsi_packages:
 		raise click.UsageError("Specify at least one package to install.")
 
 	opsi_packages_paths = [Path(pkg) for pkg in opsi_packages]
 	package_id_to_path = {OpsiPackage(pkg).product.id: pkg for pkg in opsi_packages_paths}
-
 	ordered_opsi_packages = order_dependencies(opsi_packages_paths, package_id_to_path)
-
 	for package_path in opsi_packages_paths:
 		if package_path not in ordered_opsi_packages:
 			ordered_opsi_packages.append(package_path)
 
 	package_list = [OpsiPackage(pkg).product.id for pkg in ordered_opsi_packages]
-	print(package_list)
+
+	try:
+		service_client = get_service_connection()
+
+		hosts = service_client.jsonrpc("host_getObjects", [["id"], {"type": "OpsiConfigserver"}])
+		config_server = hosts[0].id
+		if not depots:
+			depots = config_server
+		depot_list = [depot.strip() for depot in depots.split(",")]
+		locked_products = service_client.jsonrpc(
+			"productOnDepot_getObjects", [[], {"productId": package_list, "depotId": depot_list, "locked": True}]
+		)
+
+		if locked_products and not force:
+			error_message = "Locked products found:\n"
+			header_format = "\n{:<30} {:<30}\n"
+			error_message += header_format.format("ProductId", "DepotId")
+			error_message += "-" * 60 + "\n"
+			row_format = "{:<30} {:<30}\n"
+			for product in locked_products:
+				error_message += row_format.format(product.productId, product.depotId)
+			error_message += "\nUse --force to install anyway."
+			raise ValueError(error_message)
+
+		for depot in depot_list:
+			logger.info("Installing packages %s on depot %s", package_list, depot)
+			print(f"Installing packages {package_list} on depot {depot}")
+			depot_object = service_client.jsonrpc("host_getObjects", [[], {"id": depot}])[0]
+			print(f"Depot object: {depot_object}")
+			for package in ordered_opsi_packages:
+				upload_to_repository(depot_object, package)
+
+	except Exception as err:
+		logger.error(err, exc_info=True)
+		raise err
 
 
 class PackagePlugin(OPSICLIPlugin):
