@@ -2,23 +2,26 @@
 opsi-cli package plugin
 """
 
+from collections import defaultdict
 from contextlib import nullcontext
 from pathlib import Path
+from typing import Any
 
 import rich_click as click  # type: ignore[import]
+from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.logging import get_logger
 from opsicommon.package import OpsiPackage
 from opsicommon.package.archive import ArchiveProgress, ArchiveProgressListener
 from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
 from rich.progress import Progress
+
+from OPSI.Util.Repository import getRepository
 from opsicli.config import config
 from opsicli.io import get_console, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.utils import create_nested_dict
 from plugins.package.data.metadata import command_metadata
-from OPSI.Util.Repository import getRepository
-from typing import Any
 
 __version__ = "0.2.0"
 __description__ = "Manage opsi packages"
@@ -259,21 +262,6 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 	get_console().print(f"Package archive has been successfully extracted at {destination_dir}\n")
 
 
-def order_dependencies(opsi_packages_paths: list[Path], package_id_to_path: dict) -> list[Path]:
-	ordered_opsi_packages = []
-	for package_path in opsi_packages_paths:
-		opsi_package = OpsiPackage(package_path)
-		if opsi_package.package_dependencies and package_path not in ordered_opsi_packages:
-			ordered_opsi_packages.append(package_path)
-			for dep in opsi_package.package_dependencies:
-				dep_path = package_id_to_path.get(dep.package)
-				if not dep_path:
-					raise ValueError(f"Dependency {dep.package} for package {opsi_package.product.id} not specified.")
-				if dep_path not in ordered_opsi_packages:
-					ordered_opsi_packages.append(dep_path)
-	return ordered_opsi_packages
-
-
 def upload_to_repository(depot: Any, package_path: Path) -> None:
 	logger.info("Uploading package %s to repository", package_path)
 	print(f"Uploading package {package_path} to repository")
@@ -287,6 +275,50 @@ def upload_to_repository(depot: Any, package_path: Path) -> None:
 	)
 
 	print(f"Repository: {repository.content()}")
+
+
+def order_opsi_packages(opsi_packages: list[str]) -> list[Path]:
+	"""
+	Reorders a list of opsi packages based on their dependencies. Each package is placed after its dependencies in the list.
+	"""
+	dependencies = defaultdict(list)
+	package_id_to_path = {}
+	for pkg in opsi_packages:
+		opsi_package = OpsiPackage(Path(pkg))
+		package_id = opsi_package.product.id
+		package_id_to_path[package_id] = Path(pkg)
+		if opsi_package.package_dependencies:
+			dependencies[package_id] = [dependency.package for dependency in opsi_package.package_dependencies]
+
+	result = []
+	visited = set()
+
+	def visit(package_id: str) -> None:
+		if package_id not in visited:
+			visited.add(package_id)
+			for dependency in dependencies[package_id]:
+				if dependency not in package_id_to_path:
+					raise ValueError(f"Dependency '{dependency}' not specified for package '{package_id}'.")
+				visit(dependency)
+			result.append(package_id_to_path[package_id])
+
+	for package_id in package_id_to_path:
+		visit(package_id)
+
+	return result
+
+
+def check_locked_products(service_client: ServiceClient, package_list: list[str], depot_list: list[str], force: bool) -> None:
+	locked_products = service_client.jsonrpc(
+		"productOnDepot_getObjects", [["productId", "depotId"], {"productId": package_list, "depotId": depot_list, "locked": True}]
+	)
+	if locked_products and not force:
+		locked_products_list = ["{:<30} {:<30}".format(product.productId, product.depotId) for product in locked_products]
+		error_message = "Locked products found:\n\n{:<30} {:<30}\n".format("ProductId", "DepotId")
+		error_message += "-" * 60 + "\n"
+		error_message += "\n".join(locked_products_list)
+		error_message += "\n\nUse --force to install anyway."
+		raise ValueError(error_message)
 
 
 @cli.command(short_help="Install opsi packages.")
@@ -303,49 +335,26 @@ def install(opsi_packages: list[str], depots: str, force: bool) -> None:
 	if not opsi_packages:
 		raise click.UsageError("Specify at least one package to install.")
 
-	opsi_packages_paths = [Path(pkg) for pkg in opsi_packages]
-	package_id_to_path = {OpsiPackage(pkg).product.id: pkg for pkg in opsi_packages_paths}
-	ordered_opsi_packages = order_dependencies(opsi_packages_paths, package_id_to_path)
-	for package_path in opsi_packages_paths:
-		if package_path not in ordered_opsi_packages:
-			ordered_opsi_packages.append(package_path)
-
+	ordered_opsi_packages = order_opsi_packages(opsi_packages)
 	package_list = [OpsiPackage(pkg).product.id for pkg in ordered_opsi_packages]
 
-	try:
-		service_client = get_service_connection()
+	service_client = get_service_connection()
 
-		hosts = service_client.jsonrpc("host_getObjects", [["id"], {"type": "OpsiConfigserver"}])
-		config_server = hosts[0].id
-		if not depots:
-			depots = config_server
-		depot_list = [depot.strip() for depot in depots.split(",")]
-		locked_products = service_client.jsonrpc(
-			"productOnDepot_getObjects", [[], {"productId": package_list, "depotId": depot_list, "locked": True}]
-		)
+	hosts = service_client.jsonrpc("host_getObjects", [["id"], {"type": "OpsiConfigserver"}])
+	config_server = hosts[0].id
+	if not depots:
+		depots = config_server
+	depot_list = [depot.strip() for depot in depots.split(",")]
 
-		if locked_products and not force:
-			error_message = "Locked products found:\n"
-			header_format = "\n{:<30} {:<30}\n"
-			error_message += header_format.format("ProductId", "DepotId")
-			error_message += "-" * 60 + "\n"
-			row_format = "{:<30} {:<30}\n"
-			for product in locked_products:
-				error_message += row_format.format(product.productId, product.depotId)
-			error_message += "\nUse --force to install anyway."
-			raise ValueError(error_message)
+	check_locked_products(service_client, package_list, depot_list, force)
 
-		for depot in depot_list:
-			logger.info("Installing packages %s on depot %s", package_list, depot)
-			print(f"Installing packages {package_list} on depot {depot}")
-			depot_object = service_client.jsonrpc("host_getObjects", [[], {"id": depot}])[0]
-			print(f"Depot object: {depot_object}")
-			for package in ordered_opsi_packages:
-				upload_to_repository(depot_object, package)
-
-	except Exception as err:
-		logger.error(err, exc_info=True)
-		raise err
+	for depot in depot_list:
+		logger.info("Installing packages %s on depot %s", package_list, depot)
+		print(f"Installing packages {package_list} on depot {depot}")
+		depot_object = service_client.jsonrpc("host_getObjects", [[], {"id": depot}])[0]
+		print(f"Depot object: {depot_object}")
+		for package in ordered_opsi_packages:
+			upload_to_repository(depot_object, package)
 
 
 class PackagePlugin(OPSICLIPlugin):
