@@ -262,22 +262,7 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 	get_console().print(f"Package archive has been successfully extracted at {destination_dir}\n")
 
 
-def upload_to_repository(depot: Any, package_path: Path) -> None:
-	logger.info("Uploading package %s to repository", package_path)
-	print(f"Uploading package {package_path} to repository")
-	repository = getRepository(
-		url=depot.repositoryRemoteUrl,
-		username=depot.id,
-		password=depot.opsiHostKey,
-		maxBandwidth=(max(depot.maxBandwidth or 0, 0)) * 1000,
-		application=USER_AGENT,
-		readTimeout=24 * 3600,
-	)
-
-	print(f"Repository: {repository.content()}")
-
-
-def order_opsi_packages(opsi_packages: list[str]) -> list[Path]:
+def sort_packages_with_dependencies(opsi_packages: list[str]) -> list[Path]:
 	"""
 	Reorders a list of opsi packages based on their dependencies. Each package is placed after its dependencies in the list.
 	"""
@@ -313,12 +298,32 @@ def check_locked_products(service_client: ServiceClient, package_list: list[str]
 		"productOnDepot_getObjects", [["productId", "depotId"], {"productId": package_list, "depotId": depot_list, "locked": True}]
 	)
 	if locked_products and not force:
-		locked_products_list = ["{:<30} {:<30}".format(product.productId, product.depotId) for product in locked_products]
-		error_message = "Locked products found:\n\n{:<30} {:<30}\n".format("ProductId", "DepotId")
-		error_message += "-" * 60 + "\n"
-		error_message += "\n".join(locked_products_list)
-		error_message += "\n\nUse --force to install anyway."
+		error_message = f"Locked products found:\n\n{'ProductId':<30} {'DepotId':<30}\n" + "-" * 60 + "\n"
+		for product in locked_products:
+			error_message += f"{product.productId:<30} {product.depotId:<30}\n"
+		error_message += "\nUse --force to install anyway."
 		raise ValueError(error_message)
+
+
+def upload_to_repository(depot: Any, package_path: Path) -> None:
+	logger.info("Uploading package %s to repository", package_path)
+	print(f"Uploading package {package_path} to repository")
+	repository = getRepository(
+		url=depot.repositoryRemoteUrl,
+		username=depot.id,
+		password=depot.opsiHostKey,
+		maxBandwidth=(max(depot.maxBandwidth or 0, 0)) * 1000,
+		application=USER_AGENT,
+		readTimeout=24 * 3600,
+	)
+
+	print(f"Repository: {repository.content()}")
+
+
+def install_package(depot: Any, package_path: Path) -> None:
+	logger.info("Installing package %s on depot %s", package_path, depot.id)
+	print(f"Installing package {package_path} on depot {depot.id}")
+	print(depot.repositoryLocalUrl)
 
 
 @cli.command(short_help="Install opsi packages.")
@@ -335,26 +340,22 @@ def install(opsi_packages: list[str], depots: str, force: bool) -> None:
 	if not opsi_packages:
 		raise click.UsageError("Specify at least one package to install.")
 
-	ordered_opsi_packages = order_opsi_packages(opsi_packages)
-	package_list = [OpsiPackage(pkg).product.id for pkg in ordered_opsi_packages]
+	sorted_opsi_packages = sort_packages_with_dependencies(opsi_packages)
+	package_list = [OpsiPackage(pkg).product.id for pkg in sorted_opsi_packages]
 
+	host_filter: dict[str, Any] = (
+		{} if depots == "all" else {"id": [depot.strip() for depot in depots.split(",")]} if depots else {"type": "OpsiConfigserver"}
+	)
 	service_client = get_service_connection()
+	depot_objects = service_client.jsonrpc("host_getObjects", [[], host_filter])
+	depot_id_list = [depot.id for depot in depot_objects]
 
-	hosts = service_client.jsonrpc("host_getObjects", [["id"], {"type": "OpsiConfigserver"}])
-	config_server = hosts[0].id
-	if not depots:
-		depots = config_server
-	depot_list = [depot.strip() for depot in depots.split(",")]
+	check_locked_products(service_client, package_list, depot_id_list, force)
 
-	check_locked_products(service_client, package_list, depot_list, force)
-
-	for depot in depot_list:
-		logger.info("Installing packages %s on depot %s", package_list, depot)
-		print(f"Installing packages {package_list} on depot {depot}")
-		depot_object = service_client.jsonrpc("host_getObjects", [[], {"id": depot}])[0]
-		print(f"Depot object: {depot_object}")
-		for package in ordered_opsi_packages:
-			upload_to_repository(depot_object, package)
+	for depot in depot_objects:
+		for package in sorted_opsi_packages:
+			# upload_to_repository(depot, package)
+			install_package(depot, package)
 
 
 class PackagePlugin(OPSICLIPlugin):
