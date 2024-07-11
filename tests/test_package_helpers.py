@@ -20,7 +20,7 @@ def test_sort_packages_by_dependency() -> None:
 	- testdepends5_1.0-2.opsi: None
 	- testdepends6_1.0-2.opsi: None
 	"""
-	packages = [
+	packages_list = [
 		"test-opsi-package_1.0-5.opsi",
 		"testdepends1_1.0-2.opsi",
 		"testdepends5_1.0-2.opsi",
@@ -29,9 +29,9 @@ def test_sort_packages_by_dependency() -> None:
 		"testdepends4_1.0-2.opsi",
 		"testdepends6_1.0-2.opsi",
 	]
-	packages = [str(TEST_DATA_PATH / pkg) for pkg in packages]
+	packages: list[str] = [str(TEST_DATA_PATH / pkg) for pkg in packages_list]
 
-	expected_order = [
+	expected_order_list = [
 		"testdepends5_1.0-2.opsi",
 		"testdepends4_1.0-2.opsi",
 		"testdepends3_1.0-2.opsi",
@@ -40,6 +40,6 @@ def test_sort_packages_by_dependency() -> None:
 		"test-opsi-package_1.0-5.opsi",
 		"testdepends6_1.0-2.opsi",
 	]
-	expected_order = [(TEST_DATA_PATH / pkg) for pkg in expected_order]
+	expected_order: list[Path] = [TEST_DATA_PATH / pkg for pkg in expected_order_list]
 
 	assert sort_packages_by_dependency(packages) == expected_order
