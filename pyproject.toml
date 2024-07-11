@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "opsi-cli"
-version = "4.3.7.0"
+version = "4.3.7.1"
 description = "opsi command line interface"
 homepage = "https://www.opsi.org"
 license = "AGPL-3.0"
@@ -48,7 +48,7 @@ prompt-toolkit = "^3.0.33"
 passlib = "^1.7.4"
 pydantic = "^2.5.1"
 pydantic-core = "^2.18"
-annotated-types = "^0.6"
+annotated-types = "^0.7"
 
 [tool.poetry.scripts]
 opsi-cli = "opsicli.__main__:main"
@@ -62,7 +62,7 @@ version = ">=303,<304"
 
 [tool.poetry.group.dev.dependencies]
 types-requests = "^2.31"
-ruff = "^0.3"
+ruff = "^0.5"
 mypy = "^1.4"
 pyinstaller = "^6.0"
 pytest = "^8.0"

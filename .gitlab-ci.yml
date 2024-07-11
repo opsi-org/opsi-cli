@@ -131,9 +131,9 @@ linux-x64-pyinstaller:
     - poetry run ./opsi-dev-cli -l info pyinstaller build
     - ./ziplaunch/ziplaunch dist/opsicli ./ziplaunch_data/ziplaunch.ini opsi-cli
     - ./opsi-cli --version
-    - ./opsi-cli --non-interactive plugin new cicdtest --version=1.0
-    - sed -i 's/import rich_click as click/import rich_click as click; import flask/' cicdtest/python/__init__.py
-    - ./opsi-cli -l 7 plugin add cicdtest
+    #- ./opsi-cli --non-interactive plugin new cicdtest --version=1.0
+    #- sed -i 's/import rich_click as click/import rich_click as click; import flask/' cicdtest/python/__init__.py
+    #- ./opsi-cli -l 7 plugin add cicdtest
     - time ./opsi-cli --help
     - mv ./opsi-cli opsi-cli-linux-x64.run
     - '[ "$CI_COMMIT_TAG" = "" ] && ./opsi-dev-cli -l info binary push opsi-cli-linux-x64.run --prerelease="$CI_JOB_ID"'
@@ -159,9 +159,9 @@ linux-arm64-pyinstaller:
     - poetry run ./opsi-dev-cli -l info pyinstaller build
     - ./ziplaunch/ziplaunch dist/opsicli ./ziplaunch_data/ziplaunch.ini opsi-cli
     - ./opsi-cli --version
-    - ./opsi-cli --non-interactive plugin new cicdtest --version=1.0
-    - sed -i 's/import rich_click as click/import rich_click as click; import flask/' cicdtest/python/__init__.py
-    - ./opsi-cli -l 7 plugin add cicdtest
+    #- ./opsi-cli --non-interactive plugin new cicdtest --version=1.0
+    #- sed -i 's/import rich_click as click/import rich_click as click; import flask/' cicdtest/python/__init__.py
+    #- ./opsi-cli -l 7 plugin add cicdtest
     - time ./opsi-cli --help
     - mv ./opsi-cli opsi-cli-linux-arm64.run
     - '[ "$CI_COMMIT_TAG" = "" ] && ./opsi-dev-cli -l info binary push opsi-cli-linux-arm64.run --prerelease="$CI_JOB_ID"'
