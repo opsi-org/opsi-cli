@@ -2,26 +2,29 @@
 opsi-cli package plugin
 """
 
-from collections import defaultdict
 from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
 
 import rich_click as click  # type: ignore[import]
-from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.logging import get_logger
 from opsicommon.package import OpsiPackage
 from opsicommon.package.archive import ArchiveProgress, ArchiveProgressListener
 from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
 from rich.progress import Progress
 
-from OPSI.Util.Repository import getRepository
 from opsicli.config import config
 from opsicli.io import get_console, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.utils import create_nested_dict
 from plugins.package.data.metadata import command_metadata
+from plugins.package.python.install_helpers import (
+	check_locked_products,
+	install_package,
+	sort_packages_by_dependency,
+	upload_to_repository,
+)
 
 __version__ = "0.2.0"
 __description__ = "Manage opsi packages"
@@ -262,70 +265,6 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 	get_console().print(f"Package archive has been successfully extracted at {destination_dir}\n")
 
 
-def sort_packages_with_dependencies(opsi_packages: list[str]) -> list[Path]:
-	"""
-	Reorders a list of opsi packages based on their dependencies. Each package is placed after its dependencies in the list.
-	"""
-	dependencies = defaultdict(list)
-	package_id_to_path = {}
-	for pkg in opsi_packages:
-		opsi_package = OpsiPackage(Path(pkg))
-		package_id = opsi_package.product.id
-		package_id_to_path[package_id] = Path(pkg)
-		if opsi_package.package_dependencies:
-			dependencies[package_id] = [dependency.package for dependency in opsi_package.package_dependencies]
-
-	result = []
-	visited = set()
-
-	def visit(package_id: str) -> None:
-		if package_id not in visited:
-			visited.add(package_id)
-			for dependency in dependencies[package_id]:
-				if dependency not in package_id_to_path:
-					raise ValueError(f"Dependency '{dependency}' not specified for package '{package_id}'.")
-				visit(dependency)
-			result.append(package_id_to_path[package_id])
-
-	for package_id in package_id_to_path:
-		visit(package_id)
-
-	return result
-
-
-def check_locked_products(service_client: ServiceClient, package_list: list[str], depot_list: list[str], force: bool) -> None:
-	locked_products = service_client.jsonrpc(
-		"productOnDepot_getObjects", [["productId", "depotId"], {"productId": package_list, "depotId": depot_list, "locked": True}]
-	)
-	if locked_products and not force:
-		error_message = f"Locked products found:\n\n{'ProductId':<30} {'DepotId':<30}\n" + "-" * 60 + "\n"
-		for product in locked_products:
-			error_message += f"{product.productId:<30} {product.depotId:<30}\n"
-		error_message += "\nUse --force to install anyway."
-		raise ValueError(error_message)
-
-
-def upload_to_repository(depot: Any, package_path: Path) -> None:
-	logger.info("Uploading package %s to repository", package_path)
-	print(f"Uploading package {package_path} to repository")
-	repository = getRepository(
-		url=depot.repositoryRemoteUrl,
-		username=depot.id,
-		password=depot.opsiHostKey,
-		maxBandwidth=(max(depot.maxBandwidth or 0, 0)) * 1000,
-		application=USER_AGENT,
-		readTimeout=24 * 3600,
-	)
-
-	print(f"Repository: {repository.content()}")
-
-
-def install_package(depot: Any, package_path: Path) -> None:
-	logger.info("Installing package %s on depot %s", package_path, depot.id)
-	print(f"Installing package {package_path} on depot {depot.id}")
-	print(depot.repositoryLocalUrl)
-
-
 @cli.command(short_help="Install opsi packages.")
 @click.argument("opsi_packages", nargs=-1, type=click.Path(exists=True, file_okay=True, dir_okay=True, path_type=Path))
 @click.option("--depots", help="Depot IDs (comma-separated) or 'all'. Default is configserver.")
@@ -340,7 +279,7 @@ def install(opsi_packages: list[str], depots: str, force: bool) -> None:
 	if not opsi_packages:
 		raise click.UsageError("Specify at least one package to install.")
 
-	sorted_opsi_packages = sort_packages_with_dependencies(opsi_packages)
+	sorted_opsi_packages = sort_packages_by_dependency(opsi_packages)
 	package_list = [OpsiPackage(pkg).product.id for pkg in sorted_opsi_packages]
 
 	host_filter: dict[str, Any] = (
@@ -354,7 +293,7 @@ def install(opsi_packages: list[str], depots: str, force: bool) -> None:
 
 	for depot in depot_objects:
 		for package in sorted_opsi_packages:
-			# upload_to_repository(depot, package)
+			# upload_to_repository(depot, package, USER_AGENT)
 			install_package(depot, package)
 
 
