@@ -19,8 +19,11 @@ from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.utils import create_nested_dict
 from plugins.package.data.metadata import command_metadata
-from plugins.package.python.install_helpers import (
+
+from .install_helpers import (
 	check_locked_products,
+	get_local_path_from_repo_url,
+	fix_custom_package_name,
 	install_package,
 	sort_packages_by_dependency,
 	upload_to_repository,
@@ -268,8 +271,13 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 @cli.command(short_help="Install opsi packages.")
 @click.argument("opsi_packages", nargs=-1, type=click.Path(exists=True, file_okay=True, dir_okay=True, path_type=Path))
 @click.option("--depots", help="Depot IDs (comma-separated) or 'all'. Default is configserver.")
+@click.option(
+	"--update-properties",
+	is_flag=True,
+	help="This flag triggers an interactive prompt to update Product property default values.",
+)
 @click.option("--force", is_flag=True, help="Force installation even if locked products are found.")
-def install(opsi_packages: list[str], depots: str, force: bool) -> None:
+def install(opsi_packages: list[str], depots: str, force: bool, update_properties: bool) -> None:
 	"""
 	opsi-cli package install subcommand.
 	This subcommand is used to install opsi packages.
@@ -292,8 +300,13 @@ def install(opsi_packages: list[str], depots: str, force: bool) -> None:
 	check_locked_products(service_client, package_list, depot_id_list, force)
 
 	for depot in depot_objects:
+		depot_repository_path = get_local_path_from_repo_url(depot.repositoryLocalUrl)
+		print(depot_repository_path)
 		for package in sorted_opsi_packages:
+			package_name = fix_custom_package_name(package)
+			print(package_name)
 			# upload_to_repository(depot, package, USER_AGENT)
+			# TODO: Update Product property default values, and this option should be active only on interactive mode
 			install_package(depot, package)
 
 

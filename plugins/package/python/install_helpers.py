@@ -10,7 +10,7 @@ from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.logging import get_logger
 from opsicommon.package import OpsiPackage
 
-from OPSI.Util.Repository import getRepository
+from OPSI.Util.Repository import getRepository  # type: ignore[import]
 
 logger = get_logger("opsicli")
 
@@ -59,6 +59,30 @@ def check_locked_products(service_client: ServiceClient, package_list: list[str]
 			error_message += f"{product.productId:<30} {product.depotId:<30}\n"
 		error_message += "\nUse --force to install anyway."
 		raise ValueError(error_message)
+
+
+def get_local_path_from_repo_url(repo_local_url: str) -> str:
+	"""
+	Extracts and returns the local file system path from a depot repository local URL.
+	"""
+	if not repo_local_url.startswith("file://"):
+		raise ValueError(f"Repository local URL '{repo_local_url}' is not supported. Must start with 'file://'.")
+	depot_repository_path = repo_local_url[7:].rstrip("/")
+	return depot_repository_path
+
+
+def fix_custom_package_name(package_path: Path) -> str:
+	"""
+	Fixes the package name if it is a custom package.
+	For example, the package name "test2_1.0-6~custom1.opsi" will be fixed to "test2_1.0-6.opsi".
+	"""
+	package_name = package_path.stem
+	if '~' in package_name:
+		fixed_name = package_name.split('~')[0] + ".opsi"
+		logger.notice(f"Custom package detected: {package_name}. Fixed to: {fixed_name}")
+		return fixed_name
+	else:
+		return f"{package_name}.opsi"
 
 
 def upload_to_repository(depot: Any, package_path: Path, user_agent: str) -> None:
