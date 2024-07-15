@@ -27,6 +27,7 @@ from .install_helpers import (
 	install_package,
 	sort_packages_by_dependency,
 	upload_to_repository,
+	update_product_properties
 )
 
 __version__ = "0.2.0"
@@ -301,13 +302,14 @@ def install(opsi_packages: list[str], depots: str, force: bool, update_propertie
 
 	for depot in depot_objects:
 		depot_repository_path = get_local_path_from_repo_url(depot.repositoryLocalUrl)
-		print(depot_repository_path)
 		for package in sorted_opsi_packages:
 			package_name = fix_custom_package_name(package)
-			print(package_name)
+			opsi_package = OpsiPackage(package)
+			if update_properties:
+				update_product_properties(opsi_package)
 			# upload_to_repository(depot, package, USER_AGENT)
 			# TODO: Update Product property default values, and this option should be active only on interactive mode
-			install_package(depot, package)
+			# install_package(depot, package)
 
 
 class PackagePlugin(OPSICLIPlugin):
