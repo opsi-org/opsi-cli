@@ -22,18 +22,16 @@ from plugins.package.data.metadata import command_metadata
 
 from .install_helpers import (
 	check_locked_products,
-	get_local_path_from_repo_url,
 	fix_custom_package_name,
+	get_local_path_from_repo_url,
 	install_package,
 	sort_packages_by_dependency,
+	update_product_properties,
 	upload_to_repository,
-	update_product_properties
 )
 
 __version__ = "0.2.0"
 __description__ = "Manage opsi packages"
-
-USER_AGENT = f"opsi-cli package/{__version__}"
 
 logger = get_logger("opsicli")
 
@@ -307,9 +305,8 @@ def install(opsi_packages: list[str], depots: str, force: bool, update_propertie
 			opsi_package = OpsiPackage(package)
 			if update_properties:
 				update_product_properties(opsi_package)
-			# upload_to_repository(depot, package, USER_AGENT)
-			# TODO: Update Product property default values, and this option should be active only on interactive mode
-			# install_package(depot, package)
+			upload_to_repository(depot, package, package_name)
+			install_package(depot, package)
 
 
 class PackagePlugin(OPSICLIPlugin):
