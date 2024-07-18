@@ -23,7 +23,6 @@ from plugins.package.data.metadata import command_metadata
 from .install_helpers import (
 	check_locked_products,
 	fix_custom_package_name,
-	get_local_path_from_repo_url,
 	install_package,
 	sort_packages_by_dependency,
 	update_product_properties,
@@ -299,7 +298,6 @@ def install(opsi_packages: list[str], depots: str, force: bool, update_propertie
 	check_locked_products(service_client, package_list, depot_id_list, force)
 
 	for depot in depot_objects:
-		depot_repository_path = get_local_path_from_repo_url(depot.repositoryLocalUrl)
 		for package in sorted_opsi_packages:
 			package_name = fix_custom_package_name(package)
 			opsi_package = OpsiPackage(package)

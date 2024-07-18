@@ -14,10 +14,11 @@ from opsicommon.objects import BoolProductProperty, ProductProperty, UnicodeProd
 from opsicommon.package import OpsiPackage
 from opsicommon.package.associated_files import md5sum
 
-from OPSI.Util.File.Opsi import parseFilename
+from OPSI.Util.File.Opsi import parseFilename  # type: ignore[import]
 from OPSI.Util.Repository import getRepository  # type: ignore[import]
 from opsicli import __version__
 from opsicli.io import prompt
+from opsicli.opsiservice import get_depot_connection
 
 logger = get_logger("opsicli")
 
@@ -68,17 +69,8 @@ def check_locked_products(service_client: ServiceClient, package_list: list[str]
 		raise ValueError(error_message)
 
 
-def get_local_path_from_repo_url(repo_local_url: str) -> str:
-	"""
-	Extracts and returns the local file system path from a depot repository local URL.
-	"""
-	if not repo_local_url.startswith("file://"):
-		raise ValueError(f"Repository local URL '{repo_local_url}' is not supported. Must start with 'file://'.")
-	depot_repository_path = repo_local_url[7:].rstrip("/")
-	return depot_repository_path
-
-
 def fix_custom_package_name(package_path: Path) -> str:
+	# TODO: Fix opsi-cli package make to use custom package format on opsi-cli package make with custom options , custom format is package_name_version-1~custom1.opsi
 	"""
 	Fixes the package name if it is a custom package.
 	For example, the package name "testpackage_1.0-2~custom1.opsi" will be fixed to "testpackage_1.0-2.opsi".
@@ -119,25 +111,6 @@ def update_product_properties(opsi_package: OpsiPackage) -> None:
 		print(selected_values)
 
 
-def get_depot_connection(depot: Any) -> ServiceClient:
-	"""
-	Returns a connection to the depot.
-	"""
-	url = urlparse(depot.repositoryRemoteUrl)
-	hostname = url.hostname
-	if ":" in hostname:
-		# IPv6 address
-		hostname = f"[{hostname}]"
-	connection = ServiceClient(
-		address=f"https://{hostname}:{url.port or 4447}",
-		username=depot.id,
-		password=depot.opsiHostKey,
-		user_agent=f"opsi-cli/{__version__}",
-	)
-	# TODO: client_cert_auth=True
-	return connection
-
-
 def get_checksum(package_path: Path) -> str:
 	"""
 	Checks the md5 file and returns the checksum if it exists, otherwise calculates the checksum.
@@ -153,9 +126,10 @@ def upload_to_repository(depot: Any, package_path: Path, package_name: str) -> N
 	Uploads a package to the depot's repository.
 	"""
 	logger.info("Uploading package %s to repository", package_path)
+	depot_repository_path = "/var/lib/opsi/repository"
 	try:
 		depot_connection = get_depot_connection(depot)
-		remote_package_file = depot.depotRepositoryPath + "/" + package_name
+		remote_package_file = depot_repository_path + "/" + package_name
 		remote_checksum = depot_connection.jsonrpc("depot_getMD5Sum", [[], {remote_package_file}])
 		local_checksum = get_checksum(package_path)
 
@@ -179,7 +153,7 @@ def upload_to_repository(depot: Any, package_path: Path, package_name: str) -> N
 						logger.notice("Checksum of source and destination matches on depot '%s'. No need to upload", depot.id)
 						return
 
-		repo_disk_space = depot_connection.jsonrpc("depot_getDiskSpaceUsage", [[], {depot.depotRepositoryPath}])
+		repo_disk_space = depot_connection.jsonrpc("depot_getDiskSpaceUsage", [[], {depot_repository_path}])
 		if repo_disk_space["available"] < package_size:
 			raise ValueError(
 				f"Insufficient disk space on depot '{depot.id}' to upload package '{package_name}'. Needed: {package_size} bytes, available: {repo_disk_space['available']} bytes"
@@ -211,7 +185,7 @@ def upload_to_repository(depot: Any, package_path: Path, package_name: str) -> N
 			raise ValueError(
 				f"MD5sum of source '{local_checksum}' and destination '{remote_checksum}'" f"differ after upload to depot '{depot.id}'"
 			)
-		repo_disk_space = depot_connection.jsonrpc("depot_getDiskSpaceUsage", [[], {depot.depotRepositoryPath}])
+		repo_disk_space = depot_connection.jsonrpc("depot_getDiskSpaceUsage", [[], {depot_repository_path}])
 		if repo_disk_space["usage"] >= 0.9:
 			logger.warning("Warning: %d%% filesystem usage at repository on depot '%s'", int(100 * repo_disk_space["usage"]), depot.id)
 
