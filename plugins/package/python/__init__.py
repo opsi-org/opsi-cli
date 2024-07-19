@@ -304,7 +304,7 @@ def install(opsi_packages: list[str], depots: str, force: bool, update_propertie
 			if update_properties:
 				update_product_properties(opsi_package)
 			upload_to_repository(depot, package, package_name)
-			install_package(depot, package)
+			install_package(depot, package, package_name, update_properties, service_client)
 
 
 class PackagePlugin(OPSICLIPlugin):

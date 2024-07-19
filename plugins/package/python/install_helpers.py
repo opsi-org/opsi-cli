@@ -196,11 +196,44 @@ def upload_to_repository(depot: Any, package_path: Path, package_name: str) -> N
 	finally:
 		repository.disconnect()
 
+def get_property_default_values(opsi_package: OpsiPackage) -> dict:
+    property_default_values = {}
+    for product_property in opsi_package.product_properties:
+        property_default_values[product_property.propertyId] = product_property.defaultValues or []
+    return property_default_values
 
-def install_package(depot: Any, package_path: Path) -> None:
+def update_property_default_values(service_client: ServiceClient, depot_id: str, product_id: str, property_default_values: dict) -> None:
+    product_property_states = service_client.jsonrpc(
+        "productPropertyState_getObjects",
+        [[], {"productId": product_id, "objectId": depot_id}],
+    )
+    for product_property_state in product_property_states:
+        if product_property_state.propertyId in property_default_values:
+            property_default_values[product_property_state.propertyId] = product_property_state.values or []
+
+def install_package(depot: Any, package_path: Path, package_name: str, update_properties: bool, service_client: ServiceClient) -> None:
 	"""
 	Installs a package on a depot.
 	"""
 	logger.info("Installing package %s on depot %s", package_path, depot.id)
 	print(f"Installing package {package_path} on depot {depot.id}")
-	print(depot.repositoryLocalUrl)
+	depot_repository_path = "/var/lib/opsi/repository"
+	remote_package_file = depot_repository_path + "/" + package_name
+	opsi_package = OpsiPackage(package_path)
+	product_id = opsi_package.product.id
+
+	property_default_values = get_property_default_values(opsi_package)
+	if not update_properties:
+		update_property_default_values(service_client, depot.id, product_id, property_default_values)
+
+	installation_params = {
+		"force": True,
+		"propertyDefaultValues": property_default_values
+	}
+
+	depot_connection = get_depot_connection(depot)
+	depot_connection.jsonrpc("depot_installPackage", [[], {remote_package_file, installation_params}])
+	# TODO: set_product_cache_outdated
+	logger.notice("Installation of package %s on depot %s successful", remote_package_file, depot.id)
+
+
