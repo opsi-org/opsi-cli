@@ -6,7 +6,6 @@ import os
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
 
 from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.logging import get_logger
@@ -21,6 +20,7 @@ from opsicli.io import prompt
 from opsicli.opsiservice import get_depot_connection
 
 logger = get_logger("opsicli")
+DEPOT_REPOSITORY_PATH = "/var/lib/opsi/repository"
 
 
 def sort_packages_by_dependency(opsi_packages: list[str]) -> list[Path]:
@@ -70,18 +70,16 @@ def check_locked_products(service_client: ServiceClient, package_list: list[str]
 
 
 def fix_custom_package_name(package_path: Path) -> str:
-	# TODO: Fix opsi-cli package make to use custom package format on opsi-cli package make with custom options , custom format is package_name_version-1~custom1.opsi
 	"""
 	Fixes the package name if it is a custom package.
-	For example, the package name "testpackage_1.0-2~custom1.opsi" will be fixed to "testpackage_1.0-2.opsi".
+	For example, the package name "testpackage_1.0-2~custom.opsi" will be fixed to "testpackage_1.0-2.opsi".
 	"""
-	package_name = package_path.stem
+	package_name = package_path.name
 	if "~" in package_name:
 		fixed_name = package_name.split("~")[0] + ".opsi"
 		logger.notice(f"Custom package detected: {package_name}. Fixed to: {fixed_name}")
 		return fixed_name
-	else:
-		return f"{package_name}.opsi"
+	return package_name
 
 
 def update_product_properties(opsi_package: OpsiPackage) -> None:
@@ -121,15 +119,33 @@ def get_checksum(package_path: Path) -> str:
 	return md5sum(package_path)
 
 
+def verify_upload(depot_connection: ServiceClient, local_checksum: str, remote_package_file: str, depot: Any) -> None:
+	logger.notice("Verifying upload")
+	remote_checksum = depot_connection.jsonrpc("depot_getMD5Sum", [[], {remote_package_file}])
+	if local_checksum != remote_checksum:
+		raise ValueError(
+			f"MD5sum of source '{local_checksum}' and destination '{remote_checksum}'" f"differ after upload to depot '{depot.id}'"
+		)
+	repo_disk_space = depot_connection.jsonrpc("depot_getDiskSpaceUsage", [[], {DEPOT_REPOSITORY_PATH}])
+	if repo_disk_space["usage"] >= 0.9:
+		logger.warning("Warning: %d%% filesystem usage at repository on depot '%s'", int(100 * repo_disk_space["usage"]), depot.id)
+
+
+def create_remote_md5_and_zsync_files(depot_connection: ServiceClient, remote_package_file: str) -> None:
+	remote_package_md5sum_file = remote_package_file + ".md5"
+	depot_connection.jsonrpc("depot_createMd5SumFile", [[], {remote_package_file, remote_package_md5sum_file}])
+	remote_package_zsync_file = remote_package_file + ".zsync"
+	depot_connection.jsonrpc("depot_createZsyncFile", [[], {remote_package_file, remote_package_zsync_file}])
+
+
 def upload_to_repository(depot: Any, package_path: Path, package_name: str) -> None:
 	"""
 	Uploads a package to the depot's repository.
 	"""
 	logger.info("Uploading package %s to repository", package_path)
-	depot_repository_path = "/var/lib/opsi/repository"
 	try:
 		depot_connection = get_depot_connection(depot)
-		remote_package_file = depot_repository_path + "/" + package_name
+		remote_package_file = DEPOT_REPOSITORY_PATH + "/" + package_name
 		remote_checksum = depot_connection.jsonrpc("depot_getMD5Sum", [[], {remote_package_file}])
 		local_checksum = get_checksum(package_path)
 
@@ -153,7 +169,7 @@ def upload_to_repository(depot: Any, package_path: Path, package_name: str) -> N
 						logger.notice("Checksum of source and destination matches on depot '%s'. No need to upload", depot.id)
 						return
 
-		repo_disk_space = depot_connection.jsonrpc("depot_getDiskSpaceUsage", [[], {depot_repository_path}])
+		repo_disk_space = depot_connection.jsonrpc("depot_getDiskSpaceUsage", [[], {DEPOT_REPOSITORY_PATH}])
 		if repo_disk_space["available"] < package_size:
 			raise ValueError(
 				f"Insufficient disk space on depot '{depot.id}' to upload package '{package_name}'. Needed: {package_size} bytes, available: {repo_disk_space['available']} bytes"
@@ -179,37 +195,29 @@ def upload_to_repository(depot: Any, package_path: Path, package_name: str) -> N
 			repository.delete(old_package)
 			logger.notice("Deleting old package %s from depot %s finished", old_package, depot.id)
 
-		logger.notice("Verifying upload")
-		remote_checksum = depot_connection.jsonrpc("depot_getMD5Sum", [[], {remote_package_file}])
-		if local_checksum != remote_checksum:
-			raise ValueError(
-				f"MD5sum of source '{local_checksum}' and destination '{remote_checksum}'" f"differ after upload to depot '{depot.id}'"
-			)
-		repo_disk_space = depot_connection.jsonrpc("depot_getDiskSpaceUsage", [[], {depot_repository_path}])
-		if repo_disk_space["usage"] >= 0.9:
-			logger.warning("Warning: %d%% filesystem usage at repository on depot '%s'", int(100 * repo_disk_space["usage"]), depot.id)
+		verify_upload(depot_connection, local_checksum, remote_package_file, depot)
+		create_remote_md5_and_zsync_files(depot_connection, remote_package_file)
 
-		remote_package_md5sum_file = remote_package_file + ".md5"
-		depot_connection.jsonrpc("depot_createMd5SumFile", [[], {remote_package_file, remote_package_md5sum_file}])
-		remote_package_zsync_file = remote_package_file + ".zsync"
-		depot_connection.jsonrpc("depot_createZsyncFile", [[], {remote_package_file, remote_package_zsync_file}])
 	finally:
 		repository.disconnect()
 
+
 def get_property_default_values(opsi_package: OpsiPackage) -> dict:
-    property_default_values = {}
-    for product_property in opsi_package.product_properties:
-        property_default_values[product_property.propertyId] = product_property.defaultValues or []
-    return property_default_values
+	property_default_values = {}
+	for product_property in opsi_package.product_properties:
+		property_default_values[product_property.propertyId] = product_property.defaultValues or []
+	return property_default_values
+
 
 def update_property_default_values(service_client: ServiceClient, depot_id: str, product_id: str, property_default_values: dict) -> None:
-    product_property_states = service_client.jsonrpc(
-        "productPropertyState_getObjects",
-        [[], {"productId": product_id, "objectId": depot_id}],
-    )
-    for product_property_state in product_property_states:
-        if product_property_state.propertyId in property_default_values:
-            property_default_values[product_property_state.propertyId] = product_property_state.values or []
+	product_property_states = service_client.jsonrpc(
+		"productPropertyState_getObjects",
+		[[], {"productId": product_id, "objectId": depot_id}],
+	)
+	for product_property_state in product_property_states:
+		if product_property_state.propertyId in property_default_values:
+			property_default_values[product_property_state.propertyId] = product_property_state.values or []
+
 
 def install_package(depot: Any, package_path: Path, package_name: str, update_properties: bool, service_client: ServiceClient) -> None:
 	"""
@@ -217,8 +225,7 @@ def install_package(depot: Any, package_path: Path, package_name: str, update_pr
 	"""
 	logger.info("Installing package %s on depot %s", package_path, depot.id)
 	print(f"Installing package {package_path} on depot {depot.id}")
-	depot_repository_path = "/var/lib/opsi/repository"
-	remote_package_file = depot_repository_path + "/" + package_name
+	remote_package_file = DEPOT_REPOSITORY_PATH + "/" + package_name
 	opsi_package = OpsiPackage(package_path)
 	product_id = opsi_package.product.id
 
@@ -226,14 +233,9 @@ def install_package(depot: Any, package_path: Path, package_name: str, update_pr
 	if not update_properties:
 		update_property_default_values(service_client, depot.id, product_id, property_default_values)
 
-	installation_params = {
-		"force": True,
-		"propertyDefaultValues": property_default_values
-	}
+	installation_params = {"force": True, "propertyDefaultValues": property_default_values}
 
 	depot_connection = get_depot_connection(depot)
 	depot_connection.jsonrpc("depot_installPackage", [[], {remote_package_file, installation_params}])
 	# TODO: set_product_cache_outdated
 	logger.notice("Installation of package %s on depot %s successful", remote_package_file, depot.id)
-
-
