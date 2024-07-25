@@ -12,12 +12,12 @@ from opsicommon.logging import get_logger
 from opsicommon.objects import BoolProductProperty, OpsiConfigserver, OpsiDepotserver, ProductProperty, UnicodeProductProperty
 from opsicommon.package import OpsiPackage
 from opsicommon.package.associated_files import md5sum
+from rich.progress import Progress
 
 from OPSI.Util.File.Opsi import parseFilename  # type: ignore[import]
-from OPSI.Util.Message import ProgressSubject  # type: ignore[import]
 from OPSI.Util.Repository import WebDAVRepository, getRepository  # type: ignore[import]
 from opsicli import __version__
-from opsicli.io import prompt
+from opsicli.io import get_console, prompt
 
 logger = get_logger("opsicli")
 DEPOT_REPOSITORY_PATH = "/var/lib/opsi/repository"
@@ -144,7 +144,10 @@ def check_pkg_existence_and_integrity(
 		logger.info("Checksum of source and destination differs.")
 		return False
 
-	logger.notice(f"Destination '{dest_package_name}' matches in size and checksum. No need to upload.")
+	logger.notice("Package '%s' already exists in the repository with matching size and checksum. Skipping upload.", dest_package_name)
+	get_console().print(
+		f"Package '{dest_package_name}' already exists in the repository with matching size and checksum. Skipping upload.\n"
+	)
 	return True
 
 
@@ -211,8 +214,10 @@ def upload_to_repository(
 		check_disk_space(depot_connection, depot.id, package_size)
 
 		logger.notice("Starting upload of package %s to depot %s", dest_package_name, depot.id)
-		progress_subject = ProgressSubject(id=depot.id, type="upload")
-		repository.upload(str(source_package), dest_package_name, progress_subject)
+		with Progress() as progress:
+			task = progress.add_task(f"Uploading '{dest_package_name}' to depot '{depot.id}'...", total=package_size)
+			repository.upload(str(source_package), dest_package_name)
+			progress.update(task, completed=package_size)
 		logger.notice("Finished upload of package %s to depot %s", dest_package_name, depot.id)
 
 		cleanup_old_packages(repository, OpsiPackage(source_package).product.id, dest_package_name)

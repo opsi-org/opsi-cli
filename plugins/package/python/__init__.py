@@ -4,7 +4,6 @@ opsi-cli package plugin
 
 from contextlib import nullcontext
 from pathlib import Path
-from typing import Any
 
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger
