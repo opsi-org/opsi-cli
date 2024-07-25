@@ -8,6 +8,7 @@ from typing import Any
 
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger
+from opsicommon.objects import OpsiConfigserver, OpsiDepotserver
 from opsicommon.package import OpsiPackage
 from opsicommon.package.archive import ArchiveProgress, ArchiveProgressListener
 from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
@@ -15,7 +16,7 @@ from rich.progress import Progress
 
 from opsicli.config import config
 from opsicli.io import get_console, write_output
-from opsicli.opsiservice import get_service_connection
+from opsicli.opsiservice import get_depot_connection, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.utils import create_nested_dict
 from plugins.package.data.metadata import command_metadata
@@ -286,25 +287,30 @@ def install(opsi_packages: list[str], depots: str, force: bool, update_propertie
 		raise click.UsageError("Specify at least one package to install.")
 
 	sorted_opsi_packages = sort_packages_by_dependency(opsi_packages)
-	package_list = [OpsiPackage(pkg).product.id for pkg in sorted_opsi_packages]
 
-	host_filter: dict[str, Any] = (
-		{} if depots == "all" else {"id": [depot.strip() for depot in depots.split(",")]} if depots else {"type": "OpsiConfigserver"}
-	)
 	service_client = get_service_connection()
-	depot_objects = service_client.jsonrpc("host_getObjects", [[], host_filter])
-	depot_id_list = [depot.id for depot in depot_objects]
+	depot_filter: dict[str, str | list[str]] = (
+		{"type": "OpsiDepotserver"}
+		if depots == "all"
+		else {"id": [depot.strip() for depot in depots.split(",")]}
+		if depots
+		else {"type": "OpsiConfigserver"}
+	)
+	depot_objects: list[OpsiConfigserver | OpsiDepotserver] = service_client.jsonrpc("host_getObjects", [[], depot_filter])
 
-	check_locked_products(service_client, package_list, depot_id_list, force)
+	check_locked_products(service_client, sorted_opsi_packages, depot_objects, force)
+
+	if update_properties:
+		for package in sorted_opsi_packages:
+			opsi_package = OpsiPackage(package)
+			update_product_properties(opsi_package)
 
 	for depot in depot_objects:
+		depot_connection = get_depot_connection(depot)
 		for package in sorted_opsi_packages:
-			package_name = fix_custom_package_name(package)
-			opsi_package = OpsiPackage(package)
-			if update_properties:
-				update_product_properties(opsi_package)
-			upload_to_repository(depot, package, package_name)
-			install_package(depot, package, package_name, update_properties, service_client)
+			dest_package_name = fix_custom_package_name(package)
+			upload_to_repository(depot_connection, depot, package, dest_package_name)
+	#       install_package(depot, depot_connection, package, package_name, update_properties, service_client)
 
 
 class PackagePlugin(OPSICLIPlugin):
