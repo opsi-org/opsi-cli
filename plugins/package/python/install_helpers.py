@@ -130,6 +130,9 @@ def check_pkg_existence_and_integrity(
 	package_size: int,
 	local_checksum: str,
 ) -> bool:
+	"""
+	Check if the package already exists in the repository and has the same size and checksum. If it does, skip the upload.
+	"""
 	if not any(repo_content["name"] == dest_package_name for repo_content in repository.content()):
 		return False
 
@@ -152,6 +155,9 @@ def check_pkg_existence_and_integrity(
 
 
 def check_disk_space(depot_connection: ServiceClient, depot_id: str, package_size: int) -> None:
+	"""
+	Check if there is enough disk space on the depot for the package.
+	"""
 	available_space = depot_connection.jsonrpc("depot_getDiskSpaceUsage", [DEPOT_REPOSITORY_PATH])["available"]
 	if available_space < package_size:
 		logger.error(
@@ -161,6 +167,9 @@ def check_disk_space(depot_connection: ServiceClient, depot_id: str, package_siz
 
 
 def cleanup_old_packages(repository: WebDAVRepository, source_product_id: str, dest_package_name: str) -> None:
+	"""
+	Deletes old packages from the depot repository.
+	"""
 	for repo_content in repository.content():
 		repo_file = parseFilename(repo_content["name"])
 		if repo_file and repo_file.productId == source_product_id and repo_content["name"] != dest_package_name:
@@ -171,6 +180,9 @@ def cleanup_old_packages(repository: WebDAVRepository, source_product_id: str, d
 def validate_upload_and_check_disk_space(
 	depot_connection: ServiceClient, depot_id: str, local_checksum: str, remote_package_file: str
 ) -> None:
+	"""
+	Validates the upload by comparing the checksums and also checks the disk space on the depot. If the disk space usage is above 90%, a warning is logged.
+	"""
 	logger.info("Validating upload and checking disk space")
 	remote_checksum = depot_connection.jsonrpc("depot_getMD5Sum", [remote_package_file])
 	if local_checksum != remote_checksum:
@@ -183,6 +195,9 @@ def validate_upload_and_check_disk_space(
 
 
 def create_remote_md5_and_zsync_files(depot_connection: ServiceClient, remote_package_file: str) -> None:
+	"""
+	Creates the MD5 and zsync files on the depot repository.
+	"""
 	logger.info("Creating MD5 and zsync files on repository for package '%s'", remote_package_file)
 	remote_package_md5sum_file = remote_package_file + ".md5"
 	depot_connection.jsonrpc("depot_createMd5SumFile", [remote_package_file, remote_package_md5sum_file])
