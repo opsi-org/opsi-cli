@@ -261,29 +261,33 @@ def update_property_default_values(service_client: ServiceClient, depot_id: str,
 
 
 def install_package(
-	depot: OpsiConfigserver | OpsiDepotserver,
 	depot_connection: ServiceClient,
-	package_path: Path,
-	package_name: str,
+	depot: OpsiConfigserver | OpsiDepotserver,
+	source_package: Path,
+	dest_package_name: str,
 	update_properties: bool,
 	service_client: ServiceClient,
 ) -> None:
 	"""
 	Installs a package on a depot.
 	"""
-	logger.info("Installing package %s on depot %s", package_path, depot.id)
-	print(f"Installing package {package_path} on depot {depot.id}")
-	remote_package_file = DEPOT_REPOSITORY_PATH + "/" + package_name
-	opsi_package = OpsiPackage(package_path)
+	logger.info("Installing package %s on depot %s", dest_package_name, depot.id)
+	remote_package_file = DEPOT_REPOSITORY_PATH + "/" + dest_package_name
+	opsi_package = OpsiPackage(source_package)
 	product_id = opsi_package.product.id
 
 	property_default_values = get_property_default_values(opsi_package)
 	if not update_properties:
 		update_property_default_values(service_client, depot.id, product_id, property_default_values)
-
 	installation_params = {"force": True, "propertyDefaultValues": property_default_values}
 
-	# depot_connection = get_depot_connection(depot)
-	depot_connection.jsonrpc("depot_installPackage", [[], {remote_package_file, installation_params}])
+	logger.notice("Starting installation of package %s to depot %s", dest_package_name, depot.id)
+	with Progress() as progress:
+		task = progress.add_task(f"Installing '{dest_package_name}' to depot '{depot.id}'...", total=100)
+		for _ in range(10):
+			depot_connection.jsonrpc("depot_installPackage", [remote_package_file, installation_params])
+			progress.update(task, advance=10)
+	logger.notice("Finished installation of package %s to depot %s", dest_package_name, depot.id)
+
 	# TODO: set_product_cache_outdated
 	logger.notice("Installation of package %s on depot %s successful", remote_package_file, depot.id)

@@ -309,7 +309,7 @@ def install(opsi_packages: list[str], depots: str, force: bool, update_propertie
 		for package in sorted_opsi_packages:
 			dest_package_name = fix_custom_package_name(package)
 			upload_to_repository(depot_connection, depot, package, dest_package_name)
-	#       install_package(depot, depot_connection, package, package_name, update_properties, service_client)
+			install_package(depot_connection, depot, package, dest_package_name, update_properties, service_client)
 
 
 class PackagePlugin(OPSICLIPlugin):
