@@ -55,17 +55,17 @@ def sort_packages_by_dependency(opsi_packages: list[str]) -> list[Path]:
 
 
 def check_locked_products(
-	service_client: ServiceClient, opsi_packages: list[Path], depot_objects: list[OpsiConfigserver | OpsiDepotserver], force: bool
+	service_client: ServiceClient, opsi_packages: list[Path], depot_objects: list[OpsiConfigserver | OpsiDepotserver]
 ) -> None:
 	"""
-	Check if the packages are locked on the depots. If they are locked, raise an error unless the force flag is set.
+	Checks if the packages are locked on the depots and raises an error if any are found.
 	"""
 	package_list = [OpsiPackage(pkg).product.id for pkg in opsi_packages]
 	depot_id_list = [depot.id for depot in depot_objects]
 	locked_products = service_client.jsonrpc(
 		"productOnDepot_getObjects", [["productId", "depotId"], {"productId": package_list, "depotId": depot_id_list, "locked": True}]
 	)
-	if locked_products and not force:
+	if locked_products:
 		error_message = f"Locked products found:\n\n{'ProductId':<30} {'DepotId':<30}\n" + "-" * 60 + "\n"
 		for product in locked_products:
 			error_message += f"{product.productId:<30} {product.depotId:<30}\n"
