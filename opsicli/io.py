@@ -154,14 +154,13 @@ def prompt(
 		cls = IntPrompt
 	elif return_type == float:  # noqa: E721
 		cls = FloatPrompt
-	if editable and multi_value:
-		prompt_text = f"{text} Choose more, type 'done' to finish, or enter a new value {choices}"
-	if editable and not multi_value:
-		prompt_text = f"{text} Choose one or enter a new value {choices}"
-	if not editable and multi_value:
-		prompt_text = f"{text} Choose more or type 'done' to finish"
-	if not editable and not multi_value:
-		prompt_text = text
+
+	hint_multi_editable = "Choose multiple options, type 'done' to finish, or enter a new value"
+	hint_single_editable = "Choose one option or enter a new value"
+	hint_multi = "Choose multiple options or type 'done' to finish"
+	hint = hint_multi_editable if editable and multi_value else hint_single_editable if editable else hint_multi if multi_value else ""
+	prompt_text = f"{text} [dim]{hint}[/dim]" + (f" [bold bright_magenta]{choices}" if editable else "")
+
 	if multi_value:
 		selected_values: list[Any] = []
 		while True:
@@ -176,45 +175,19 @@ def prompt(
 			)
 			if choice == "done" or not choice:
 				break
-			if choice not in selected_values:
+			if choice != "[]" and choice not in selected_values:
 				selected_values.append(choice)
 		return selected_values
-	else:
-		return cls.ask(
-			prompt=prompt_text,
-			console=get_console(ignore_quiet=True),
-			default=default,
-			password=password,
-			choices=None if editable else choices,
-			show_default=show_default,
-			show_choices=show_choices,
-		)
 
-
-# def prompt(
-# 	text: str,
-# 	return_type: type = str,
-# 	password: bool = False,
-# 	default: Any = ...,
-# 	choices: list[str] | None = None,
-# 	show_default: bool = True,
-# 	show_choices: bool = True,
-# ) -> str | int | float:
-# 	cls: Type[Prompt] | Type[IntPrompt] | Type[FloatPrompt] = Prompt
-# 	if return_type == int:  # noqa: E721
-# 		cls = IntPrompt
-# 	elif return_type == float:  # noqa: E721
-# 		cls = FloatPrompt
-
-# 	return cls.ask(
-# 		prompt=text,
-# 		console=get_console(ignore_quiet=True),
-# 		default=default,
-# 		password=password,
-# 		choices=choices,
-# 		show_default=show_default,
-# 		show_choices=show_choices,
-# 	)
+	return cls.ask(
+		prompt=prompt_text,
+		console=get_console(ignore_quiet=True),
+		default=default,
+		password=password,
+		choices=None if editable else choices,
+		show_default=show_default,
+		show_choices=show_choices,
+	)
 
 
 def write_output_table(data: Any, metadata: Metadata) -> None:
