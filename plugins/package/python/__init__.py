@@ -297,7 +297,8 @@ def install(opsi_packages: list[str], depots: str, force: bool, update_propertie
 	)
 	depot_objects: list[OpsiConfigserver | OpsiDepotserver] = service_client.jsonrpc("host_getObjects", [[], depot_filter])
 
-	check_locked_products(service_client, sorted_opsi_packages, depot_objects, force)
+	if not force:
+		check_locked_products(service_client, sorted_opsi_packages, depot_objects)
 
 	if update_properties:
 		for package in sorted_opsi_packages:
