@@ -102,7 +102,7 @@ def get_opsiconfd_config() -> dict[str, str]:
 
 def get_ssl_config() -> dict:
 	"""
-	Extracts SSL configuration from the given config dictionary.
+	Extracts SSL configuration from the opsiconfd config dictionary.
 	"""
 	cfg = get_opsiconfd_config()
 	logger.debug("opsiconfd config: %r", cfg)
@@ -131,8 +131,7 @@ def get_depot_connection(depot: Any) -> ServiceClient:
 	"""
 	url = urlparse(depot.repositoryRemoteUrl)
 	hostname = url.hostname
-	if ":" in hostname:
-		# IPv6 address
+	if ":" in hostname:  # IPv6 address
 		hostname = f"[{hostname}]"
 
 	ssl_config = get_ssl_config()
@@ -143,6 +142,8 @@ def get_depot_connection(depot: Any) -> ServiceClient:
 		password=depot.opsiHostKey,
 		user_agent=f"opsi-cli/{__version__}",
 		verify=ServiceVerificationFlags.ACCEPT_ALL,
+		jsonrpc_create_methods=True,
+		jsonrpc_create_objects=True,
 		**ssl_config,
 	)
 	return connection
