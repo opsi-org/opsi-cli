@@ -5,7 +5,7 @@ dummy command - proof of concept
 """
 
 import click
-import git  # noqa
+import git  # type: ignore[import] # pylint: disable=import-error
 import netifaces  # type: ignore[import] # pylint: disable=import-error
 import requests  # type: ignore[import]
 from opsicommon.logging import get_logger  # type: ignore[import]
