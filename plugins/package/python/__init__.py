@@ -7,7 +7,6 @@ from pathlib import Path
 
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger
-from opsicommon.objects import OpsiConfigserver, OpsiDepotserver
 from opsicommon.package import OpsiPackage
 from opsicommon.package.archive import ArchiveProgress, ArchiveProgressListener
 from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
@@ -23,7 +22,10 @@ from plugins.package.data.metadata import command_metadata
 from .install_helpers import (
 	check_locked_products,
 	fix_custom_package_name,
+	get_depot_objects,
+	get_property_default_values,
 	install_package,
+	prepare_packages,
 	sort_packages_by_dependency,
 	update_product_properties,
 	upload_to_repository,
@@ -272,7 +274,7 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 @click.option(
 	"--update-properties",
 	is_flag=True,
-	help="This flag triggers an interactive prompt to update Product property default values.",
+	help="This flag triggers an interactive prompt to update Product property default values. Effective only when --interactive is enabled.",
 )
 @click.option("--force", is_flag=True, help="Force installation even if locked products are found.")
 def install(opsi_packages: list[str], depots: str, force: bool, update_properties: bool) -> None:
@@ -285,32 +287,34 @@ def install(opsi_packages: list[str], depots: str, force: bool, update_propertie
 	if not opsi_packages:
 		raise click.UsageError("Specify at least one package to install.")
 
-	sorted_opsi_packages = sort_packages_by_dependency(opsi_packages)
+	opsi_package_dict, product_id_to_path, dependencies = prepare_packages(opsi_packages)
+	sorted_opsi_packages = sort_packages_by_dependency(product_id_to_path, dependencies)
 
 	service_client = get_service_connection()
-	depot_filter: dict[str, str | list[str]] = (
-		{"type": "OpsiDepotserver"}
-		if depots == "all"
-		else {"id": [depot.strip() for depot in depots.split(",")]}
-		if depots
-		else {"type": "OpsiConfigserver"}
-	)
-	depot_objects: list[OpsiConfigserver | OpsiDepotserver] = service_client.jsonrpc("host_getObjects", [[], depot_filter])
+	depot_objects = get_depot_objects(service_client, depots)
 
 	if not force:
-		check_locked_products(service_client, sorted_opsi_packages, depot_objects)
+		check_locked_products(service_client, depot_objects, opsi_package_dict)
 
-	if update_properties:
-		for package in sorted_opsi_packages:
-			opsi_package = OpsiPackage(package)
-			update_product_properties(opsi_package)
+	if update_properties and config.interactive:
+		update_product_properties(opsi_package_dict)
 
 	for depot in depot_objects:
 		depot_connection = get_depot_connection(depot)
-		for package in sorted_opsi_packages:
-			dest_package_name = fix_custom_package_name(package)
-			upload_to_repository(depot_connection, depot, package, dest_package_name)
-			install_package(depot_connection, depot, package, dest_package_name, update_properties, service_client)
+		for package_path in sorted_opsi_packages:
+			dest_package_name = fix_custom_package_name(package_path)
+			upload_to_repository(depot_connection, depot, package_path, dest_package_name)
+
+			product_id = next(key for key, value in product_id_to_path.items() if value == package_path)
+			property_default_values = get_property_default_values(
+				service_client,
+				depot.id,
+				product_id,
+				opsi_package_dict,
+				update_properties,
+			)
+
+			install_package(depot_connection, depot, dest_package_name, force, property_default_values)
 
 
 class PackagePlugin(OPSICLIPlugin):
