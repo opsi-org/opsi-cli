@@ -60,6 +60,8 @@ def client_logs(client: str, path: Path) -> None:
 	messagebus = JSONRPCMessagebusConnection()
 	with messagebus.connection():
 		result = messagebus.jsonrpc([f"host:{client}"], "getLogs")[f"host:{client}"]
+	if isinstance(result, Exception):  # jsonrpc method may return TimeoutError or other exceptions
+		raise result
 	if not result.get("file_id"):
 		raise ValueError(f"Did not get file id for download. Result: {result}")
 	service_client = get_service_connection()
