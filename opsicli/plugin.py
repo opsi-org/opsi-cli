@@ -258,7 +258,7 @@ def install_dependencies(path: Path, target_dir: Path) -> None:
 				temp_module.__version__,
 				dependency["version"],
 			)
-		except (ImportError, AssertionError, AttributeError):
+		except (ImportError, AssertionError, AttributeError, ModuleNotFoundError):
 			install_python_package(target_dir, dependency)
 	# Place requirements.txt at lib dir for possible later use (upgrade dependencies etc.)
 	shutil.copy(path / "requirements.txt", target_dir)
