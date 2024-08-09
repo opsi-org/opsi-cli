@@ -3,19 +3,12 @@ Support functions for installing packages.
 """
 
 import os
-from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
 from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.logging import get_logger
-from opsicommon.objects import (
-	BoolProductProperty,
-	OpsiConfigserver,
-	OpsiDepotserver,
-	ProductProperty,
-	UnicodeProductProperty,
-)
+from opsicommon.objects import BoolProductProperty, OpsiConfigserver, OpsiDepotserver, ProductProperty
 from opsicommon.package import OpsiPackage
 from opsicommon.package.associated_files import md5sum
 from rich.progress import Progress
@@ -44,38 +37,35 @@ def get_depot_objects(service_client: ServiceClient, depots: str) -> list[OpsiCo
 	return service_client.jsonrpc("host_getObjects", [[], depot_filter])
 
 
-def prepare_packages(opsi_packages: list[str]) -> tuple[dict[str, OpsiPackage], dict[str, Path], dict[str, list[str]]]:
+def map_opsipackages_to_paths(packages: list[str]) -> dict[Path, OpsiPackage]:
 	"""
-	Prepares the opsi packages by creating a dictionary with the package id as the key and the OpsiPackage object as the value.
-	Also creates a dictionary with the package id as the key and the package path as the value.
-	And a dictionary with the package id as the key and a list of dependencies as the value.
+	Returns a dictionary with the package path to the OpsiPackage object.
 	"""
-	opsi_package_dict = {}
-	dependencies = defaultdict(list)
-	product_id_to_path = {}
-	for pkg in opsi_packages:
+	path_to_opsipackage_dict = {}
+	for pkg in packages:
 		opsi_package = OpsiPackage(Path(pkg))
-		package_id = opsi_package.product.id
-		product_id_to_path[package_id] = Path(pkg)
-		opsi_package_dict[package_id] = opsi_package
-		if opsi_package.package_dependencies:
-			dependencies[package_id] = [dependency.package for dependency in opsi_package.package_dependencies]
-	return opsi_package_dict, product_id_to_path, dependencies
+		path_to_opsipackage_dict[Path(pkg)] = opsi_package
+	return path_to_opsipackage_dict
 
 
-def sort_packages_by_dependency(product_id_to_path: dict[str, Path], dependencies: dict[str, list[str]]) -> list[Path]:
+def sort_packages_by_dependency(path_to_opsipackage_dict: dict[Path, OpsiPackage]) -> list[Path]:
 	"""
 	Reorders a list of opsi packages based on their dependencies. Each package is placed after its dependencies in the list.
 	"""
+	product_id_to_path = {opsi_package.product.id: path for path, opsi_package in path_to_opsipackage_dict.items()}
 	result = []
 	visited = set()
 
 	def visit(product_id: str) -> None:
 		if product_id not in visited:
 			visited.add(product_id)
-			for dependency in dependencies[product_id]:
+			opsi_package = path_to_opsipackage_dict[product_id_to_path[product_id]]
+			dependencies = (
+				[dependency.package for dependency in opsi_package.package_dependencies] if opsi_package.package_dependencies else []
+			)
+			for dependency in dependencies:
 				if dependency not in product_id_to_path:
-					raise ValueError(f"Dependency '{dependency}' not specified for package '{product_id}'.")
+					raise ValueError(f"Dependency '{dependency}' for package '{product_id}' is not specified.")
 				visit(dependency)
 			result.append(product_id_to_path[product_id])
 
@@ -87,17 +77,18 @@ def sort_packages_by_dependency(product_id_to_path: dict[str, Path], dependencie
 def check_locked_products(
 	service_client: ServiceClient,
 	depot_objects: list[OpsiConfigserver | OpsiDepotserver],
-	opsi_package_dict: dict[str, OpsiPackage],
+	path_to_opsipackage_dict: dict[Path, OpsiPackage],
 ) -> None:
 	"""
 	Checks if the packages are locked on the depots and raises an error if any are found.
 	"""
-	product_list = list(opsi_package_dict.keys())
+	product_list = [opsi_package.product.id for opsi_package in path_to_opsipackage_dict.values()]
 	depot_id_list = [depot.id for depot in depot_objects]
 	locked_products = service_client.jsonrpc(
 		"productOnDepot_getObjects", [["productId", "depotId"], {"productId": product_list, "depotId": depot_id_list, "locked": True}]
 	)
 	if locked_products:
+		logger.error("Locked products found: %s", locked_products)
 		error_message = f"Locked products found:\n\n{'ProductId':<30} {'DepotId':<30}\n" + "-" * 60 + "\n"
 		for product in locked_products:
 			error_message += f"{product.productId:<30} {product.depotId:<30}\n"
@@ -106,29 +97,26 @@ def check_locked_products(
 
 
 def prompt_property_value(product_property: ProductProperty, property_info: str) -> str | int | float | list[Any]:
+	choices = None
 	if isinstance(product_property, BoolProductProperty):
-		return prompt(
-			f"{property_info}",
-			default=str(product_property.defaultValues),
-			choices=[str(choice) for choice in (product_property.possibleValues or [])],
-			editable=product_property.editable,
-		)
-	if isinstance(product_property, UnicodeProductProperty):
-		return prompt(
-			f"{property_info}",
-			default=str(product_property.defaultValues),
-			choices=product_property.possibleValues,
-			multi_value=product_property.multiValue,
-			editable=product_property.editable,
-		)
-	return ""
+		choices = [str(choice) for choice in (product_property.possibleValues or [])]
+	else:
+		choices = product_property.possibleValues
+
+	return prompt(
+		f"{property_info}",
+		default=str(product_property.defaultValues),
+		choices=choices,
+		multi_value=product_property.multiValue,
+		editable=product_property.editable,
+	)
 
 
-def update_product_properties(opsi_package_dict: dict[str, OpsiPackage]) -> None:
+def update_product_properties(path_to_opsipackage_dict: dict[Path, OpsiPackage]) -> None:
 	"""
 	Updates the default values and possible values of the product properties based on the user input.
 	"""
-	for opsi_package in opsi_package_dict.values():
+	for opsi_package in path_to_opsipackage_dict.values():
 		product_info = f"{opsi_package.product.id}_{opsi_package.product.productVersion}-{opsi_package.product.packageVersion}"
 		product_properties = sorted(opsi_package.product_properties, key=lambda prop: prop.propertyId)
 
@@ -144,20 +132,21 @@ def update_product_properties(opsi_package_dict: dict[str, OpsiPackage]) -> None
 			selected_values = prompt_property_value(product_property, property_info)
 			if not isinstance(selected_values, list):
 				selected_values = [selected_values]
-			if "[]" in selected_values:
-				selected_values = [value for value in selected_values if value != "[]"]
-			if product_property.editable and all(selected_values != value for value in (product_property.possibleValues or [])):
-				new_possible_values = product_property.possibleValues or []
+			selected_values = [value for value in selected_values if value != "[]"]
+
+			if product_property.editable:
+				new_possible_values = set(product_property.getPossibleValues() or [])
 				for value in selected_values:
-					if value not in new_possible_values:
-						new_possible_values.append(value)
-				product_property.setPossibleValues(new_possible_values)
+					new_possible_values.add(value)
+				product_property.setPossibleValues(list(new_possible_values))
+
 			product_property.setDefaultValues(selected_values)
 
 
 def fix_custom_package_name(package_path: Path) -> str:
 	"""
 	Fixes the package name if it is a custom package.
+
 	For example, the package name "testpackage_1.0-2~custom.opsi" will be fixed to "testpackage_1.0-2.opsi".
 	"""
 	package_name = package_path.name
@@ -174,7 +163,9 @@ def get_checksum(package_path: Path) -> str:
 	"""
 	md5_file = package_path.with_suffix(".md5")
 	if md5_file.exists():
+		logger.info("MD5 file found for package %s", package_path)
 		return md5_file.read_text()
+	logger.info("Calculating MD5 checksum for package %s", package_path)
 	return md5sum(package_path)
 
 
@@ -203,9 +194,7 @@ def check_pkg_existence_and_integrity(
 		return False
 
 	logger.notice("Package '%s' already exists in the repository with matching size and checksum. Skipping upload.", dest_package_name)
-	get_console().print(
-		f"Package '{dest_package_name}' already exists in the repository with matching size and checksum. Skipping upload.\n"
-	)
+	get_console().print(f"Package '{dest_package_name}' already exists in the repository with matching size and checksum. Skipping upload.")
 	return True
 
 
@@ -301,8 +290,7 @@ def upload_to_repository(
 def get_property_default_values(
 	service_client: ServiceClient,
 	depot_id: str,
-	product_id: str,
-	opsi_package_dict: dict[str, OpsiPackage],
+	opsi_package: OpsiPackage,
 	update_properties: bool,
 ) -> dict[str, list[Any]]:
 	"""
@@ -312,9 +300,10 @@ def get_property_default_values(
 	retrieve default values from the Opsi package. Otherwise, fetch values
 	from `productPropertyState_getObjects`.
 	"""
+	product_id = opsi_package.product.id
 	property_default_values = {}
+
 	if update_properties and config.interactive:
-		opsi_package = opsi_package_dict[product_id]
 		property_default_values = {
 			product_property.propertyId: product_property.defaultValues or [] for product_property in opsi_package.product_properties
 		}
@@ -343,7 +332,7 @@ def install_package(
 	installation_params = [remote_package_file, str(force), property_default_values]
 	logger.notice("Starting installation of package %s to depot %s", dest_package_name, depot.id)
 	with Progress() as progress:
-		task = progress.add_task(f"Installing '{dest_package_name}' to depot '{depot.id}'...", total=100)
+		task = progress.add_task(f"Installing '{dest_package_name}' to depot '{depot.id}'...\n", total=100)
 		depot_connection.jsonrpc("depot_installPackage", installation_params)
 		progress.update(task, completed=100)
 	logger.notice("Finished installation of package %s to depot %s", dest_package_name, depot.id)
