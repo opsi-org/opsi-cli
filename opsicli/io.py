@@ -146,45 +146,18 @@ def prompt(
 	choices: list[str] | None = None,
 	show_default: bool = True,
 	show_choices: bool = True,
-	multi_value: bool | None = False,
-	editable: bool | None = False,
-) -> str | int | float | list[Any]:
+) -> str | int | float:
 	cls: Type[Prompt] | Type[IntPrompt] | Type[FloatPrompt] = Prompt
 	if return_type == int:  # noqa: E721
 		cls = IntPrompt
 	elif return_type == float:  # noqa: E721
 		cls = FloatPrompt
-
-	hint_multi_editable = "Choose multiple options, type 'done' to finish, or enter a new value"
-	hint_single_editable = "Choose one option or enter a new value"
-	hint_multi = "Choose multiple options or type 'done' to finish"
-	hint = hint_multi_editable if editable and multi_value else hint_single_editable if editable else hint_multi if multi_value else ""
-	prompt_text = f"{text} [dim]{hint}[/dim]" + (f" [bold bright_magenta]{choices}" if editable else "")
-
-	if multi_value:
-		selected_values: list[Any] = []
-		while True:
-			choice = cls.ask(
-				prompt=prompt_text,
-				console=get_console(ignore_quiet=True),
-				default=default,
-				password=password,
-				choices=None if editable else (choices or []) + ["done"],
-				show_default=show_default,
-				show_choices=show_choices,
-			)
-			if choice == "done" or not choice:
-				break
-			if choice != "[]" and choice not in selected_values:
-				selected_values.append(choice)
-		return selected_values
-
 	return cls.ask(
-		prompt=prompt_text,
+		prompt=text,
 		console=get_console(ignore_quiet=True),
 		default=default,
 		password=password,
-		choices=None if editable else choices,
+		choices=choices,
 		show_default=show_default,
 		show_choices=show_choices,
 	)

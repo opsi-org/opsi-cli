@@ -96,20 +96,52 @@ def check_locked_products(
 		raise ValueError(error_message)
 
 
-def prompt_property_value(product_property: ProductProperty, property_info: str) -> str | int | float | list[Any]:
-	choices = None
-	if isinstance(product_property, BoolProductProperty):
-		choices = [str(choice) for choice in (product_property.possibleValues or [])]
-	else:
-		choices = product_property.possibleValues
+def get_hint(product_property: ProductProperty) -> str:
+	"""
+	Returns a hint for the product property.
+	"""
+	if product_property.editable:
+		return (
+			"Choose multiple options, type 'done' to finish, or enter a new value"
+			if product_property.multiValue
+			else "Choose one option or enter a new value"
+		)
+	return "Choose multiple options or type 'done' to finish" if product_property.multiValue else ""
 
-	return prompt(
-		f"{property_info}",
-		default=str(product_property.defaultValues),
-		choices=choices,
-		multi_value=product_property.multiValue,
-		editable=product_property.editable,
-	)
+
+def get_choices(product_property: ProductProperty) -> list[Any] | None:
+	"""
+	Returns the possible values for the product property.
+	"""
+	if isinstance(product_property, BoolProductProperty):
+		return [str(choice) for choice in (product_property.possibleValues or [])]
+	return product_property.possibleValues
+
+
+def prompt_for_values(product_property: ProductProperty, prompt_text: str) -> list[Any]:
+	"""
+	Prompts the user for the product property values.
+	"""
+	selected_values: list[str | int | float] = []
+	if product_property.multiValue:
+		while True:
+			choice = prompt(
+				prompt_text,
+				default=str(product_property.defaultValues),
+				choices=None if product_property.editable else (get_choices(product_property) or []) + ["done"],
+			)
+			if choice in ["done", ""]:
+				break
+			if choice not in selected_values:
+				selected_values.append(choice)
+	else:
+		choice = prompt(
+			prompt_text,
+			default=str(product_property.defaultValues),
+			choices=None if product_property.editable else get_choices(product_property),
+		)
+		selected_values.append(choice)
+	return selected_values
 
 
 def update_product_properties(path_to_opsipackage_dict: dict[Path, OpsiPackage]) -> None:
@@ -129,15 +161,17 @@ def update_product_properties(path_to_opsipackage_dict: dict[Path, OpsiPackage])
 				f"\n"
 				f"Enter default value:"
 			)
-			selected_values = prompt_property_value(product_property, property_info)
-			if not isinstance(selected_values, list):
-				selected_values = [selected_values]
-			selected_values = [value for value in selected_values if value != "[]"]
+
+			hint = get_hint(product_property)
+			prompt_text = f"{property_info} [dim]{hint}[/dim]" + (
+				f" [bold bright_magenta]{product_property.possibleValues}" if product_property.editable else ""
+			)
+
+			selected_values = prompt_for_values(product_property, prompt_text)
 
 			if product_property.editable:
 				new_possible_values = set(product_property.getPossibleValues() or [])
-				for value in selected_values:
-					new_possible_values.add(value)
+				new_possible_values.update(selected_values)
 				product_property.setPossibleValues(list(new_possible_values))
 
 			product_property.setDefaultValues(selected_values)
