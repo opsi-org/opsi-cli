@@ -25,8 +25,7 @@ from .install_helpers import (
 	get_depot_objects,
 	get_property_default_values,
 	install_package,
-	map_opsipackages_to_paths,
-	sort_packages_by_dependency,
+	map_and_sort_packages,
 	update_product_properties,
 	upload_to_repository,
 )
@@ -276,7 +275,7 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 	is_flag=True,
 	help="This flag triggers an interactive prompt to update Product property default values. Effective only when --interactive is enabled.",
 )
-@click.option("--force", is_flag=True, help="Force installation even if locked products are found.")
+@click.option("--force", is_flag=True, help="Force installation.")
 def install(packages: list[str], depots: str, force: bool, update_properties: bool) -> None:
 	"""
 	opsi-cli package install subcommand.
@@ -287,8 +286,7 @@ def install(packages: list[str], depots: str, force: bool, update_properties: bo
 	if not packages:
 		raise click.UsageError("Specify at least one package to install.")
 
-	path_to_opsipackage_dict = map_opsipackages_to_paths(packages)
-	sorted_packages = sort_packages_by_dependency(path_to_opsipackage_dict)
+	path_to_opsipackage_dict = map_and_sort_packages(packages)
 
 	service_client = get_service_connection()
 	depot_objects = get_depot_objects(service_client, depots)
@@ -301,14 +299,14 @@ def install(packages: list[str], depots: str, force: bool, update_properties: bo
 
 	for depot in depot_objects:
 		depot_connection = get_depot_connection(depot)
-		for package_path in sorted_packages:
+		for package_path, opsi_package in path_to_opsipackage_dict.items():
 			dest_package_name = fix_custom_package_name(package_path)
 			upload_to_repository(depot_connection, depot, package_path, dest_package_name)
 
 			property_default_values = get_property_default_values(
 				service_client,
 				depot.id,
-				path_to_opsipackage_dict[package_path],
+				opsi_package,
 				update_properties,
 			)
 			install_package(depot_connection, depot, dest_package_name, force, property_default_values)

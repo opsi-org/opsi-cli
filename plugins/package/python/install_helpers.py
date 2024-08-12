@@ -37,40 +37,31 @@ def get_depot_objects(service_client: ServiceClient, depots: str) -> list[OpsiCo
 	return service_client.jsonrpc("host_getObjects", [[], depot_filter])
 
 
-def map_opsipackages_to_paths(packages: list[str]) -> dict[Path, OpsiPackage]:
+def map_and_sort_packages(packages: list[str]) -> dict[Path, OpsiPackage]:
 	"""
-	Returns a dictionary with the package path to the OpsiPackage object.
-	"""
-	path_to_opsipackage_dict = {}
-	for pkg in packages:
-		opsi_package = OpsiPackage(Path(pkg))
-		path_to_opsipackage_dict[Path(pkg)] = opsi_package
-	return path_to_opsipackage_dict
+	Maps a list of package paths to OpsiPackage objects and sorts them based on their dependencies.
 
-
-def sort_packages_by_dependency(path_to_opsipackage_dict: dict[Path, OpsiPackage]) -> list[Path]:
+	Each package is placed after its dependencies in the dictionary.
 	"""
-	Reorders a list of opsi packages based on their dependencies. Each package is placed after its dependencies in the list.
-	"""
-	product_id_to_path = {opsi_package.product.id: path for path, opsi_package in path_to_opsipackage_dict.items()}
-	result = []
+	path_to_opsipackage_dict = {Path(pkg): OpsiPackage(Path(pkg)) for pkg in packages}
+	product_id_to_path = {pkg.product.id: path for path, pkg in path_to_opsipackage_dict.items()}
+	result = {}
 	visited = set()
 
-	def visit(product_id: str) -> None:
-		if product_id not in visited:
-			visited.add(product_id)
-			opsi_package = path_to_opsipackage_dict[product_id_to_path[product_id]]
-			dependencies = (
-				[dependency.package for dependency in opsi_package.package_dependencies] if opsi_package.package_dependencies else []
-			)
-			for dependency in dependencies:
-				if dependency not in product_id_to_path:
-					raise ValueError(f"Dependency '{dependency}' for package '{product_id}' is not specified.")
-				visit(dependency)
-			result.append(product_id_to_path[product_id])
+	def visit(path: Path) -> None:
+		if path in visited:
+			return
+		visited.add(path)
+		opsi_package = path_to_opsipackage_dict[path]
+		for dep in opsi_package.package_dependencies or []:
+			dep_path = product_id_to_path.get(dep.package)
+			if dep_path is None:
+				raise ValueError(f"Dependency '{dep.package}' for package '{opsi_package.product.id}' is not specified.")
+			visit(dep_path)
+		result[path] = opsi_package
 
-	for product_id in product_id_to_path:
-		visit(product_id)
+	for path in path_to_opsipackage_dict:
+		visit(path)
 	return result
 
 
