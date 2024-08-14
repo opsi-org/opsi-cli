@@ -12,6 +12,7 @@ from opsicommon.package.archive import ArchiveProgress, ArchiveProgressListener
 from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
 from rich.progress import Progress
 
+from OPSI.Util.Repository import getRepository
 from opsicli.config import config
 from opsicli.io import get_console, write_output
 from opsicli.opsiservice import get_depot_connection, get_service_connection
@@ -274,8 +275,9 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 	"--update-properties",
 	is_flag=True,
 	help="This flag triggers an interactive prompt to update Product property default values. Effective only when --interactive is enabled.",
+	default=False,
 )
-@click.option("--force", is_flag=True, help="Force installation.")
+@click.option("--force", is_flag=True, help="Force installation.", default=False)
 def install(packages: list[str], depots: str, force: bool, update_properties: bool) -> None:
 	"""
 	opsi-cli package install subcommand.
@@ -310,6 +312,49 @@ def install(packages: list[str], depots: str, force: bool, update_properties: bo
 				update_properties,
 			)
 			install_package(depot_connection, depot, dest_package_name, force, property_default_values)
+
+
+@cli.command(short_help="Uninstall opsi products.")
+@click.argument("product_ids", type=str, nargs=-1, help="Product IDs (comma-separated).")
+@click.option("--depots", help="Depot IDs (comma-separated) or 'all'.", default="all")
+@click.option("--force", is_flag=True, help="Force uninstallation.", default=False)
+@click.option("--delete-files", is_flag=True, help="Delete client data files on uninstallation.", default=False)
+def uninstall(product_ids: list[str], depots: str, force: bool, delete_files: bool) -> None:
+	"""
+	opsi-cli package uninstall subcommand.
+	This subcommand is used to uninstall opsi products.
+	"""
+	logger.trace("uninstall package")
+
+	# if not products:
+	# 	raise click.UsageError("Specify at least one product to uninstall.")
+
+	depots = depots.strip() or "all"
+	depot_list = [depot.strip() for depot in depots.split(",") if depot.strip() != "all"]
+
+	service_client = get_service_connection()
+	product_on_depot_list = service_client.jsonrpc("productOnDepot_getObjects", [[], {"depotId": depot_list, "productId": product_ids}])
+
+	depot_filter: dict[str, str | list[str]] = (
+		{"type": "OpsiDepotserver"} if depots == "all" else {"id": [depot.strip() for depot in depots.split(",")]} if depots else {}
+	)
+	depot_objects = service_client.jsonrpc("host_getObjects", [[], depot_filter])
+	for depot in depot_objects:
+		depot_connection = get_depot_connection(depot)
+		for product_on_depot in product_on_depot_list:
+			repository = getRepository(url=depot.repositoryRemoteUrl, username=depot.id, password=depot.opsiHostKey)
+			for repo_file in repository.listdir():
+				opsi_file = OpsiPackage(repo_file)
+				if opsi_file.product.id == product_on_depot.productId:
+					logger.info("Deleting file %s from the repository", repo_file)
+					repository.delete(repo_file)
+		uninstallation_params = [product_on_depot.productId, str(force), str(delete_files)]
+		logger.notice("Starting uninstallation of product %s from depot %s", product_on_depot.productId, depot.id)
+		with Progress() as progress:
+			task = progress.add_task(f"Uninstalling '{product_on_depot.productId}' from depot '{depot.id}'...\n", total=100)
+			depot_connection.jsonrpc("depot_uninstallPackage", uninstallation_params)
+			progress.update(task, completed=100)
+		logger.notice("Finished uninstallation of product %s from depot %s", product_on_depot.productId, depot.id)
 
 
 class PackagePlugin(OPSICLIPlugin):
