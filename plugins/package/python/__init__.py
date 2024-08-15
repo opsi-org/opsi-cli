@@ -12,7 +12,8 @@ from opsicommon.package.archive import ArchiveProgress, ArchiveProgressListener
 from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
 from rich.progress import Progress
 
-from OPSI.Util.Repository import getRepository
+from OPSI.Util.File.Opsi import parseFilename
+from OPSI.Util.Repository import WebDAVRepository, getRepository
 from opsicli.config import config
 from opsicli.io import get_console, write_output
 from opsicli.opsiservice import get_depot_connection, get_service_connection
@@ -315,7 +316,7 @@ def install(packages: list[str], depots: str, force: bool, update_properties: bo
 
 
 @cli.command(short_help="Uninstall opsi products.")
-@click.argument("product_ids", type=str, nargs=-1, help="Product IDs (comma-separated).")
+@click.argument("product_ids", type=str, nargs=-1)
 @click.option("--depots", help="Depot IDs (comma-separated) or 'all'.", default="all")
 @click.option("--force", is_flag=True, help="Force uninstallation.", default=False)
 @click.option("--delete-files", is_flag=True, help="Delete client data files on uninstallation.", default=False)
@@ -326,8 +327,8 @@ def uninstall(product_ids: list[str], depots: str, force: bool, delete_files: bo
 	"""
 	logger.trace("uninstall package")
 
-	# if not products:
-	# 	raise click.UsageError("Specify at least one product to uninstall.")
+	if not product_ids:
+		raise click.UsageError("Specify at least one product to uninstall.")
 
 	depots = depots.strip() or "all"
 	depot_list = [depot.strip() for depot in depots.split(",") if depot.strip() != "all"]
@@ -342,12 +343,24 @@ def uninstall(product_ids: list[str], depots: str, force: bool, delete_files: bo
 	for depot in depot_objects:
 		depot_connection = get_depot_connection(depot)
 		for product_on_depot in product_on_depot_list:
-			repository = getRepository(url=depot.repositoryRemoteUrl, username=depot.id, password=depot.opsiHostKey)
-			for repo_file in repository.listdir():
-				opsi_file = OpsiPackage(repo_file)
-				if opsi_file.product.id == product_on_depot.productId:
-					logger.info("Deleting file %s from the repository", repo_file)
-					repository.delete(repo_file)
+			try:
+				repository: WebDAVRepository = getRepository(
+					url=depot.repositoryRemoteUrl,
+					username=depot.id,
+					password=depot.opsiHostKey,
+					maxBandwidth=(max(depot.maxBandwidth or 0, 0)) * 1000,
+					application=f"opsi-cli/{__version__}",
+					readTimeout=24 * 3600,
+				)
+				print(depot.repositoryRemoteUrl)
+				for repo_content in repository.content():
+					repo_file = parseFilename(repo_content["name"])
+					if repo_file and repo_file.productId == product_on_depot.productId:
+						logger.info("Deleting file %s from the repository", repo_content["name"])
+						repository.delete(repo_content["name"])
+			finally:
+				if repository:
+					repository.disconnect()
 		uninstallation_params = [product_on_depot.productId, str(force), str(delete_files)]
 		logger.notice("Starting uninstallation of product %s from depot %s", product_on_depot.productId, depot.id)
 		with Progress() as progress:
