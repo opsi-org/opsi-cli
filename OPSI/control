@@ -8,7 +8,7 @@ id: opsi-cli
 name: opsi-cli
 description: Command line interface for opsi (Windows, Linux, MacOS)
 advice: 
-version: 4.3.8.0
+version: 4.3.8.1
 priority: 0
 licenseRequired: False
 productClasses: 
