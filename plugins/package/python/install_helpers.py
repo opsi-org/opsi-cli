@@ -321,9 +321,8 @@ def get_property_default_values(
 	"""
 	Get the default values for the product properties.
 
-	If `update_properties` is True and the configuration is interactive,
-	retrieve default values from the Opsi package. Otherwise, fetch values
-	from `productPropertyState_getObjects`.
+	If `update_properties` is True and in interactive mode, get user-updated values.
+	Otherwise, fetch property states for the depot from `productPropertyState_getObjects`.
 	"""
 	product_id = opsi_package.product.id
 	property_default_values = {}
