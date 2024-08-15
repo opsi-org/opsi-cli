@@ -153,16 +153,20 @@ def user_is_admin() -> bool:
 		return ctypes.windll.shell32.IsUserAnAdmin() != 0  # type: ignore[attr-defined]
 
 
-def evaluate_rpc_dict_result(result: dict[str, dict[str, str | None]], log_success: bool = True) -> int:
-	num_success = 0
+def evaluate_rpc_dict_result(
+	result: dict[str, dict[str, str | None]], log_success: bool = True
+) -> tuple[dict[str, str | None], dict[str, str | None]]:
+	succeeded: dict[str, str | None] = {}
+	failed: dict[str, str | None] = {}
 	for key, response in result.items():
 		if response.get("error"):
 			logger.warning("%s: ERROR %s", key, response["error"])
+			failed[key] = str(response["error"])
 		else:
 			if log_success:
 				logger.info("%s: SUCCESS", key)
-			num_success += 1
-	return num_success
+			succeeded[key] = str(response) if response else None
+	return (succeeded, failed)
 
 
 def download(url: str, destination: Path, make_executable: bool = False) -> Path:
