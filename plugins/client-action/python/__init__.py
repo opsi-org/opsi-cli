@@ -13,10 +13,10 @@ from opsicli.plugin import OPSICLIPlugin
 
 from .client_action_worker import ClientActionArgs
 from .execute_worker import ExecuteWorker
+from .host_control_worker import HostControlWorker
 from .set_action_request_worker import SetActionRequestWorker
-from .trigger_event_worker import TriggerEventWorker
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 __description__ = "This command can be used to manage opsi client actions."
 
 logger = get_logger("opsicli")
@@ -113,7 +113,7 @@ def set_action_request(ctx: click.Context, **kwargs: str) -> None:
 )
 @click.option(
 	"--wakeup-timeout",
-	help="Number of seconds to wait for client to wake up",
+	help="Number of seconds to wait for client to wake up (0 = do not wait)",
 	type=float,
 	default=60.0,
 )
@@ -121,7 +121,7 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool, wakeup_timeout: 
 	"""
 	opsi-cli client-action trigger-event command
 	"""
-	worker = TriggerEventWorker(ctx.obj)
+	worker = HostControlWorker(ctx.obj)
 	worker.trigger_event(event, wakeup, wakeup_timeout=wakeup_timeout)
 
 
@@ -144,14 +144,48 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool, wakeup_timeout: 
 	type=str,
 	default="auto",
 )
-@click.option("--timeout", help="Number of seconds until command should be interrupted (0 = no timeout)", type=int, default=0)
+@click.option("--timeout", help="Number of seconds until command should be interrupted (0 = no timeout)", type=float, default=0.0)
 @click.option("--concurrent", help="Maximum number of concurrent executions", type=int, default=100)
-def execute(ctx: click.Context, command: tuple[str], shell: bool, host_names: bool, encoding: str, timeout: int, concurrent: int) -> None:
+def execute(ctx: click.Context, command: tuple[str], shell: bool, host_names: bool, encoding: str, timeout: float, concurrent: int) -> None:
 	"""
 	opsi-cli client-action execute command
 	"""
 	worker = ExecuteWorker(ctx.obj)
 	exit_code = worker.execute(command, timeout=timeout, shell=shell, concurrent=concurrent, show_host_names=host_names, encoding=encoding)
+	sys.exit(exit_code)
+
+
+@cli.command(
+	name="shutdown",
+	short_help="Shutdown selected clients",
+	context_settings={"ignore_unknown_options": True, "allow_interspersed_args": False},
+)
+@click.pass_context
+def shutdown(ctx: click.Context) -> None:
+	"""
+	opsi-cli client-action shutdown clients
+	"""
+	exit_code = HostControlWorker(ctx.obj).shutdown_clients()
+	sys.exit(exit_code)
+
+
+@cli.command(
+	name="wakeup",
+	short_help="Wake up selected clients",
+	context_settings={"ignore_unknown_options": True, "allow_interspersed_args": False},
+)
+@click.pass_context
+@click.option(
+	"--wakeup-timeout",
+	help="Number of seconds to wait for client to wake up (0 = do not wait)",
+	type=float,
+	default=0.0,
+)
+def wakeup(ctx: click.Context, wakeup_timeout: float) -> None:
+	"""
+	opsi-cli client-action wake up clients
+	"""
+	exit_code = HostControlWorker(ctx.obj).wakeup_clients(wakeup_timeout)
 	sys.exit(exit_code)
 
 

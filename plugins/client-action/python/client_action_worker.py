@@ -45,12 +45,17 @@ class NoClientsSelected(OpsiCliRuntimeError):
 	pass
 
 
+class NoClientsOnline(OpsiCliRuntimeError):
+	pass
+
+
 class ClientActionWorker:
-	def __init__(self, args: ClientActionArgs, default_all: bool = True) -> None:
+	def __init__(self, args: ClientActionArgs, default_all: bool = True, error_if_no_clients_online: bool = True) -> None:
 		self.service = get_service_connection()
 		self.clients: set[str] = set()
 		self.group_forest: dict[str, Group] = {}
 		self.default_all = default_all
+		self.error_if_no_clients_online = error_if_no_clients_online
 		self.determine_clients(args)
 
 	def create_group_forest(self) -> None:
@@ -128,11 +133,15 @@ class ClientActionWorker:
 			for ip_address in args.exclude_ip_addresses.split(","):
 				exclude_clients.update(self.client_ids_with_ip(ip_address.strip()))
 		self.clients -= exclude_clients
+
+		if not self.clients:
+			raise NoClientsSelected("No clients selected")
+
 		if args.only_online:
 			reachable = set(self.service.jsonrpc("host_getMessagebusConnectedIds"))
 			self.clients.intersection_update(reachable)
 
-		if not self.clients:
-			raise NoClientsSelected("No clients selected")
+		if not self.clients and self.error_if_no_clients_online:
+			raise NoClientsOnline("No clients online")
 
 		logger.notice("Selected clients: %s", self.clients)
