@@ -165,8 +165,7 @@ def shutdown(ctx: click.Context) -> None:
 	"""
 	opsi-cli client-action shutdown clients
 	"""
-	exit_code = HostControlWorker(ctx.obj).shutdown_clients()
-	sys.exit(exit_code)
+	HostControlWorker(ctx.obj).shutdown_clients()
 
 
 @cli.command(
@@ -185,8 +184,7 @@ def wakeup(ctx: click.Context, wakeup_timeout: float) -> None:
 	"""
 	opsi-cli client-action wake up clients
 	"""
-	exit_code = HostControlWorker(ctx.obj).wakeup_clients(wakeup_timeout)
-	sys.exit(exit_code)
+	HostControlWorker(ctx.obj).wakeup_clients(wakeup_timeout)
 
 
 # This class keeps track of the plugins meta-information
