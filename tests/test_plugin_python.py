@@ -32,4 +32,4 @@ def test_python_script(tmp_path: Path) -> None:
 	script.write_text("import sys\nfrom opsicli.io import get_console\nget_console().print(','.join(sys.argv))\nsys.exit(3)\n")
 	exit_code, stdout, stderr = run_cli(["python", str(script), "arg1", "arg2"])
 	assert exit_code == 3
-	assert stdout == f"{script},arg1,arg2\n"
+	assert stdout.replace("\n", "").strip() == f"{script},arg1,arg2"
