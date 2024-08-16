@@ -9,20 +9,16 @@ pyinstaller-poetry:
     all:
       - orjson
       - psutil
-      - pip._internal.commands.install
       - rich.tree
       - rich.progress
       - passlib.hash
-    windows:
-      - pip._vendor.platformdirs.windows
-    darwin:
-      - pip._vendor.platformdirs.macos
   collect_submodules:
     - opsicli
     - urllib3
     - opsicommon.package
     - setuptools
     - code
+    - pip
   extra_args:
     - --exclude-module=tkinter
     - --exclude-module=tan
