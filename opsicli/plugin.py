@@ -232,18 +232,23 @@ def install_python_package(target_dir: Path, package: dict[str, str]) -> None:
 def install_dependencies(path: Path, target_dir: Path) -> None:
 	# Import is slow (python requests/urllib3)
 	# pylint: disable=import-outside-toplevel
-	import _frozen_importlib_external
 
-	import pyimod02_importers
 	from pip._vendor.distlib import resources
 	from pipreqs import pipreqs  # type: ignore[import]
 
 	logger.debug("Finder registry: %s", resources._finder_registry)
 
-	resources._finder_registry[pyimod02_importers.PyiFrozenImporter] = resources._finder_registry[
-		_frozen_importlib_external.SourceFileLoader
-	]
-	logger.debug("Finder registry: %s", resources._finder_registry)
+	try:
+		import _frozen_importlib_external
+
+		import pyimod02_importers
+
+		resources._finder_registry[pyimod02_importers.PyiFrozenImporter] = resources._finder_registry[
+			_frozen_importlib_external.SourceFileLoader
+		]
+		logger.debug("Finder registry: %s", resources._finder_registry)
+	except ModuleNotFoundError as err:
+		logger.debug(err)
 
 	if (path / "requirements.txt").exists():
 		logger.debug("Reading requirements.txt from %s", path)
