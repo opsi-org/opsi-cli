@@ -8,7 +8,7 @@ from typing import Any
 
 from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.logging import get_logger
-from opsicommon.objects import BoolProductProperty, OpsiConfigserver, OpsiDepotserver, ProductProperty
+from opsicommon.objects import BoolProductProperty, OpsiConfigserver, OpsiDepotserver, ProductOnDepot, ProductProperty
 from opsicommon.package import OpsiPackage
 from opsicommon.package.associated_files import md5sum
 from rich.progress import Progress
@@ -194,6 +194,20 @@ def get_checksum(package_path: Path) -> str:
 	return md5sum(package_path)
 
 
+def get_repository(depot: OpsiConfigserver | OpsiDepotserver) -> WebDAVRepository:
+	"""
+	Returns a WebDAVRepository object congifured for the depot.
+	"""
+	return getRepository(
+		url=depot.repositoryRemoteUrl,
+		username=depot.id,
+		password=depot.opsiHostKey,
+		maxBandwidth=(max(depot.maxBandwidth or 0, 0)) * 1000,
+		application=f"opsi-cli/{__version__}",
+		readTimeout=24 * 3600,
+	)
+
+
 def check_pkg_existence_and_integrity(
 	depot_connection: ServiceClient,
 	repository: WebDAVRepository,
@@ -235,14 +249,19 @@ def check_disk_space(depot_connection: ServiceClient, depot_id: str, package_siz
 		raise ValueError(f"Insufficient disk space on depot '{depot_id}'. Needed: {package_size} bytes, available: {available_space} bytes")
 
 
-def cleanup_old_packages(repository: WebDAVRepository, source_product_id: str, dest_package_name: str) -> None:
+def cleanup_packages_from_repo(repository: WebDAVRepository, product_id: str, exclude_package_name: str | None = None) -> None:
 	"""
-	Deletes old packages from the depot repository.
+	Deletes packages from the depot repository.
+
+	If `exclude_package_name` is provided, it deletes all packages with the same product ID except the one matching `exclude_package_name`.
+	If not provided, it deletes all packages with the given product ID.
 	"""
 	for repo_content in repository.content():
 		repo_file = parseFilename(repo_content["name"])
-		if repo_file and repo_file.productId == source_product_id and repo_content["name"] != dest_package_name:
-			logger.notice("Deleting old package %s from depot", repo_content["name"])
+		if repo_file and repo_file.productId == product_id:
+			if exclude_package_name and repo_content["name"] == exclude_package_name:
+				continue
+			logger.notice("Deleting package %s from depot", repo_content["name"])
 			repository.delete(repo_content["name"])
 
 
@@ -285,14 +304,7 @@ def upload_to_repository(
 	local_checksum = get_checksum(source_package)
 	remote_package_file = DEPOT_REPOSITORY_PATH + "/" + dest_package_name
 	try:
-		repository = getRepository(
-			url=depot.repositoryRemoteUrl,
-			username=depot.id,
-			password=depot.opsiHostKey,
-			maxBandwidth=(max(depot.maxBandwidth or 0, 0)) * 1000,
-			application=f"opsi-cli/{__version__}",
-			readTimeout=24 * 3600,
-		)
+		repository = get_repository(depot)
 		if check_pkg_existence_and_integrity(depot_connection, repository, dest_package_name, package_size, local_checksum):
 			return
 		check_disk_space(depot_connection, depot.id, package_size)
@@ -304,7 +316,7 @@ def upload_to_repository(
 			progress.update(task, completed=package_size)
 		logger.notice("Finished upload of package %s to depot %s", dest_package_name, depot.id)
 
-		cleanup_old_packages(repository, OpsiPackage(source_package).product.id, dest_package_name)
+		cleanup_packages_from_repo(repository, OpsiPackage(source_package).product.id, dest_package_name)
 		validate_upload_and_check_disk_space(depot_connection, depot.id, local_checksum, remote_package_file)
 		create_remote_md5_and_zsync_files(depot_connection, remote_package_file)
 	finally:
@@ -360,3 +372,31 @@ def install_package(
 		depot_connection.jsonrpc("depot_installPackage", installation_params)
 		progress.update(task, completed=100)
 	logger.notice("Finished installation of package %s to depot %s", dest_package_name, depot.id)
+
+
+def delete_from_repository(depot: OpsiConfigserver | OpsiDepotserver, product_on_depot: ProductOnDepot) -> None:
+	try:
+		repository = get_repository(depot)
+		cleanup_packages_from_repo(repository, product_on_depot.productId)
+	finally:
+		if repository:
+			repository.disconnect()
+
+
+def uninstall_package(
+	depot_connection: ServiceClient,
+	depot: OpsiConfigserver | OpsiDepotserver,
+	product_on_depot: ProductOnDepot,
+	force: bool,
+	delete_files: bool,
+) -> None:
+	"""
+	Uninstalls a package from a depot.
+	"""
+	uninstallation_params = [product_on_depot.productId, str(force), str(delete_files)]
+	logger.notice("Starting uninstallation of product %s from depot %s", product_on_depot.productId, depot.id)
+	with Progress() as progress:
+		task = progress.add_task(f"Uninstalling '{product_on_depot.productId}' from depot '{depot.id}'...\n", total=100)
+		depot_connection.jsonrpc("depot_uninstallPackage", uninstallation_params)
+		progress.update(task, completed=100)
+	logger.notice("Finished uninstallation of product %s from depot %s", product_on_depot.productId, depot.id)

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from opsicommon.package import OpsiPackage
 
-from plugins.package.python.install_helpers import fix_custom_package_name, map_and_sort_packages
+from plugins.package.python.package_helpers import fix_custom_package_name, map_and_sort_packages
 
 TEST_DATA_PATH = Path("tests/test_data/plugins/package")
 
