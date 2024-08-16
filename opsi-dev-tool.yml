@@ -1,7 +1,5 @@
 pyinstaller-poetry:
   one_file: no
-  #app_bundle: yes
-  #bundle_identifier: org.opsi.opsi-cli
   strip: yes
   before_script:
     - find plugins -name __pycache__ -exec rm -rf {} +
@@ -21,16 +19,12 @@ pyinstaller-poetry:
     - opsicli
     - urllib3
     - opsicommon.package
-    - setuptools
     - code
   extra_args:
     - --exclude-module=tkinter
-    - --exclude-module=tan
     - --exclude-module=pytest
-    - --exclude-module=flake8
-    - --exclude-module=isort
+    - --exclude-module=ruff
     - --exclude-module=mypy
-    #- --contents-directory=.
   scripts:
     - script: run-opsicli
       binaries:
