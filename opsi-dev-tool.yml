@@ -21,6 +21,7 @@ pyinstaller-poetry:
     - opsicli
     - urllib3
     - opsicommon.package
+    - setuptools
   extra_args:
     - --exclude-module=tkinter
     - --exclude-module=tan
