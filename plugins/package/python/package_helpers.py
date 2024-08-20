@@ -139,6 +139,7 @@ def update_product_properties(path_to_opsipackage_dict: dict[Path, OpsiPackage])
 	"""
 	Updates the default values and possible values of the product properties based on the user input.
 	"""
+	print(path_to_opsipackage_dict)
 	for opsi_package in path_to_opsipackage_dict.values():
 		product_info = f"{opsi_package.product.id}_{opsi_package.product.productVersion}-{opsi_package.product.packageVersion}"
 		product_properties = sorted(opsi_package.product_properties, key=lambda prop: prop.propertyId)
@@ -186,7 +187,7 @@ def get_checksum(package_path: Path) -> str:
 	"""
 	Checks the md5 file and returns the content if it exists, otherwise calculates the checksum.
 	"""
-	md5_file = package_path.with_suffix(".md5")
+	md5_file = package_path.with_suffix(".opsi.md5")
 	if md5_file.exists():
 		logger.info("MD5 file found for package %s", package_path)
 		return md5_file.read_text()
@@ -368,13 +369,14 @@ def install_package(
 	installation_params = [remote_package_file, str(force), property_default_values]
 	logger.notice("Starting installation of package %s to depot %s", dest_package_name, depot.id)
 	with Progress() as progress:
-		task = progress.add_task(f"Installing '{dest_package_name}' to depot '{depot.id}'...\n", total=100)
+		task = progress.add_task(f"Installing '{dest_package_name}' on depot '{depot.id}'...\n", total=100)
 		depot_connection.jsonrpc("depot_installPackage", installation_params)
 		progress.update(task, completed=100)
 	logger.notice("Finished installation of package %s to depot %s", dest_package_name, depot.id)
 
 
 def delete_from_repository(depot: OpsiConfigserver | OpsiDepotserver, product_on_depot: ProductOnDepot) -> None:
+	"Delete packages from the depot's repository."
 	try:
 		repository = get_repository(depot)
 		cleanup_packages_from_repo(repository, product_on_depot.productId)
