@@ -400,7 +400,7 @@ class ProcessMessagebusConnection(MessagebusConnection):
 		shell: bool = False,
 		concurrent: int = 100,
 		show_host_names: bool = True,
-		timeout: int = 0,
+		timeout: float = 0.0,
 		encoding: str = "auto",
 	) -> int:
 		self.show_host_names = show_host_names
