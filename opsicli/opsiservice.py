@@ -100,6 +100,55 @@ def get_opsiconfd_config() -> dict[str, str]:
 	return config
 
 
+def get_ssl_config() -> dict:
+	"""
+	Extracts SSL configuration from the opsiconfd config dictionary.
+	"""
+	cfg = get_opsiconfd_config()
+	logger.debug("opsiconfd config: %r", cfg)
+	client_cert_file = None
+	client_key_file = None
+	client_key_password = None
+	if (
+		cfg["ssl_server_key"]
+		and os.path.exists(cfg["ssl_server_key"])
+		and cfg["ssl_server_cert"]
+		and os.path.exists(cfg["ssl_server_cert"])
+	):
+		client_cert_file = cfg["ssl_server_cert"]
+		client_key_file = cfg["ssl_server_key"]
+		client_key_password = cfg["ssl_server_key_passphrase"]
+	return {
+		"client_cert_file": client_cert_file,
+		"client_key_file": client_key_file,
+		"client_key_password": client_key_password,
+	}
+
+
+def get_depot_connection(depot: Any) -> ServiceClient:
+	"""
+	Returns a connection to the depot.
+	"""
+	url = urlparse(depot.repositoryRemoteUrl)
+	hostname = url.hostname
+	if ":" in hostname:  # IPv6 address
+		hostname = f"[{hostname}]"
+
+	ssl_config = get_ssl_config()
+
+	connection = ServiceClient(
+		address=f"https://{hostname}:{url.port or 4447}",
+		username=depot.id,
+		password=depot.opsiHostKey,
+		user_agent=f"opsi-cli/{__version__}",
+		verify=ServiceVerificationFlags.ACCEPT_ALL,
+		jsonrpc_create_methods=True,
+		jsonrpc_create_objects=True,
+		**ssl_config,
+	)
+	return connection
+
+
 def get_service_connection() -> ServiceClient:
 	global service_client
 	if not service_client:
