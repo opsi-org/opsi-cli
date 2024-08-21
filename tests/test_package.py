@@ -177,12 +177,18 @@ def test_make_with_custom(tmp_path: Path, setup_test_product: Path, custom_name:
 	exit_code, _stdout, _stderr = run_cli(cli_args)
 
 	product_version = NEW_PRODUCT_VERSION if custom_name else PRODUCT_VERSION
-	package_archive = tmp_path / f"{TESTPRODUCT}_{product_version}-{PACKAGE_VERSION}.opsi"
+	package_archive_name = f"{TESTPRODUCT}_{product_version}-{PACKAGE_VERSION}"
+	if custom_name:
+		package_archive_name += f"~{custom_name}"
+	package_archive = tmp_path / f"{package_archive_name}.opsi"
 	assert exit_code == 0 and package_archive.exists()
 
 	extract_dir = tmp_path / "extract_dir"
 	exit_code, _stdout, _stderr = run_cli(["package", "extract", str(package_archive), str(extract_dir)])
-	extracted_dir = Path(extract_dir) / f"{TESTPRODUCT}_{product_version}-{PACKAGE_VERSION}"
+	extracted_dir_name = f"{TESTPRODUCT}_{product_version}-{PACKAGE_VERSION}"
+	if custom_name:
+		extracted_dir_name += f"~{custom_name}"
+	extracted_dir = extract_dir / extracted_dir_name
 	assert exit_code == 0 and extracted_dir.exists()
 
 	opsi_custom_exists = (extracted_dir / "OPSI.custom").exists()
@@ -222,6 +228,7 @@ def test_package_list() -> None:
 
 		exit_code, _stdout, _stderr = run_cli(["package", "list", "--depots", "all", "opsi-client-agent"])
 		assert exit_code == 0
+
 
 def test_combine_products() -> None:
 	product = LocalbootProduct(
