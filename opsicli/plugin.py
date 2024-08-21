@@ -215,7 +215,7 @@ def install_python_package(target_dir: Path, package: dict[str, str]) -> None:
 		warnings.filterwarnings("ignore", category=DeprecationWarning, module=".*packaging\\.version")
 		try:
 			install_args = [
-				f"{package['name']}>={package['version']}",
+				f"{package['name']}>={package['version']}" if package["version"] else package["name"],
 				"--target",
 				str(target_dir),
 			]
