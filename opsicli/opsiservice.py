@@ -142,8 +142,8 @@ def get_depot_connection(depot: Any) -> ServiceClient:
 		password=depot.opsiHostKey,
 		user_agent=f"opsi-cli/{__version__}",
 		verify=ServiceVerificationFlags.ACCEPT_ALL,
-		jsonrpc_create_methods=True,
-		jsonrpc_create_objects=True,
+		jsonrpc_create_methods=False,
+		jsonrpc_create_objects=False,
 		**ssl_config,
 	)
 	return connection
