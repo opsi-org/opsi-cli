@@ -2,7 +2,6 @@
 Support functions for installing packages.
 """
 
-import os
 from pathlib import Path
 from typing import Any
 
@@ -139,7 +138,6 @@ def update_product_properties(path_to_opsipackage_dict: dict[Path, OpsiPackage])
 	"""
 	Updates the default values and possible values of the product properties based on the user input.
 	"""
-	print(path_to_opsipackage_dict)
 	for opsi_package in path_to_opsipackage_dict.values():
 		product_info = f"{opsi_package.product.id}_{opsi_package.product.productVersion}-{opsi_package.product.packageVersion}"
 		product_properties = sorted(opsi_package.product_properties, key=lambda prop: prop.propertyId)
@@ -301,7 +299,7 @@ def upload_to_repository(
 	Uploads a package to the depot's repository.
 	"""
 	logger.info("Uploading package '%s' to the repository on depot '%s'.", dest_package_name, depot.id)
-	package_size = os.path.getsize(source_package)
+	package_size = source_package.stat().st_size
 	local_checksum = get_checksum(source_package)
 	remote_package_file = DEPOT_REPOSITORY_PATH + "/" + dest_package_name
 	try:
