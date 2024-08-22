@@ -317,8 +317,8 @@ def install(packages: list[str], depots: str, force: bool, update_properties: bo
 @click.argument("product_ids", type=str, nargs=-1, required=True)
 @click.option("--depots", help="Depot IDs (comma-separated) or 'all'. Default is configserver.")
 @click.option("--force", is_flag=True, help="Force uninstallation.", default=False)
-@click.option("--delete-files", is_flag=True, help="Delete client data files on uninstallation.", default=False)
-def uninstall(product_ids: list[str], depots: str, force: bool, delete_files: bool) -> None:
+@click.option("--keep-files", is_flag=True, help="Keep files on uninstallation.", default=False)
+def uninstall(product_ids: list[str], depots: str, force: bool, keep_files: bool) -> None:
 	"""
 	opsi-cli package uninstall subcommand.
 	This subcommand is used to uninstall opsi products.
@@ -339,7 +339,7 @@ def uninstall(product_ids: list[str], depots: str, force: bool, delete_files: bo
 		depot_connection = get_depot_connection(depot)
 		for product_on_depot in product_on_depot_list:
 			delete_from_repository(depot, product_on_depot)
-			uninstall_package(depot_connection, depot, product_on_depot, force, delete_files)
+			uninstall_package(depot_connection, depot, product_on_depot, force, not keep_files)
 
 
 class PackagePlugin(OPSICLIPlugin):
