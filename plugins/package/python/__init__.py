@@ -271,7 +271,7 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 
 
 @cli.command(short_help="Install opsi packages.")
-@click.argument("packages", nargs=-1, type=click.Path(exists=True, file_okay=True, dir_okay=True, path_type=Path))
+@click.argument("packages", nargs=-1, required=True, type=click.Path(exists=True, file_okay=True, dir_okay=True, path_type=Path))
 @click.option("--depots", help="Depot IDs (comma-separated) or 'all'. Default is configserver.")
 @click.option(
 	"--update-properties",
@@ -286,9 +286,6 @@ def install(packages: list[str], depots: str, force: bool, update_properties: bo
 	This subcommand is used to install opsi packages.
 	"""
 	logger.trace("install package")
-
-	if not packages:
-		raise click.UsageError("Specify at least one package to install.")
 
 	path_to_opsipackage_dict = map_and_sort_packages(packages)
 
@@ -317,7 +314,7 @@ def install(packages: list[str], depots: str, force: bool, update_properties: bo
 
 
 @cli.command(short_help="Uninstall opsi products.")
-@click.argument("product_ids", type=str, nargs=-1)
+@click.argument("product_ids", type=str, nargs=-1, required=True)
 @click.option("--depots", help="Depot IDs (comma-separated) or 'all'. Default is configserver.")
 @click.option("--force", is_flag=True, help="Force uninstallation.", default=False)
 @click.option("--delete-files", is_flag=True, help="Delete client data files on uninstallation.", default=False)
@@ -327,9 +324,6 @@ def uninstall(product_ids: list[str], depots: str, force: bool, delete_files: bo
 	This subcommand is used to uninstall opsi products.
 	"""
 	logger.trace("uninstall package")
-
-	if not product_ids:
-		raise click.UsageError("Specify at least one product to uninstall.")
 
 	service_client = get_service_connection()
 	depot_objects = get_depot_objects(service_client, depots)
