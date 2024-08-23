@@ -221,12 +221,12 @@ def check_pkg_existence_and_integrity(
 		return False
 
 	repo_file_info = repository.fileInfo(dest_package_name)
-	remote_checksum = depot_connection.jsonrpc("depot_getMD5Sum", [DEPOT_REPOSITORY_PATH + "/" + dest_package_name])
 
 	if repo_file_info["size"] != package_size:
 		logger.info("Size of source and destination differs.")
 		return False
 
+	remote_checksum = depot_connection.jsonrpc("depot_getMD5Sum", [DEPOT_REPOSITORY_PATH + "/" + dest_package_name])
 	if local_checksum != remote_checksum:
 		logger.info("Checksum of source and destination differs.")
 		return False
