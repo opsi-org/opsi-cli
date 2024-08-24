@@ -7,14 +7,13 @@ from typing import Any
 
 from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.logging import get_logger
-from opsicommon.objects import BoolProductProperty, OpsiConfigserver, OpsiDepotserver, ProductOnDepot, ProductProperty
+from opsicommon.objects import BoolProductProperty, OpsiConfigserver, OpsiDepotserver, ProductProperty
 from opsicommon.package import OpsiPackage
 from opsicommon.package.associated_files import md5sum
 from rich.progress import Progress
 
 from OPSI.Util.File.Opsi import parseFilename  # type: ignore[import]
-from OPSI.Util.Repository import WebDAVRepository, getRepository  # type: ignore[import]
-from opsicli import __version__
+from OPSI.Util.Repository import WebDAVRepository  # type: ignore[import]
 from opsicli.config import config
 from opsicli.io import get_console, prompt
 
@@ -193,20 +192,6 @@ def get_checksum(package_path: Path) -> str:
 	return md5sum(package_path)
 
 
-def get_repository(depot: OpsiConfigserver | OpsiDepotserver) -> WebDAVRepository:
-	"""
-	Returns a WebDAVRepository object congifured for the depot.
-	"""
-	return getRepository(
-		url=depot.repositoryRemoteUrl,
-		username=depot.id,
-		password=depot.opsiHostKey,
-		maxBandwidth=(max(depot.maxBandwidth or 0, 0)) * 1000,
-		application=f"opsi-cli/{__version__}",
-		readTimeout=24 * 3600,
-	)
-
-
 def check_pkg_existence_and_integrity(
 	depot_connection: ServiceClient,
 	repository: WebDAVRepository,
@@ -293,34 +278,34 @@ def create_remote_md5_and_zsync_files(depot_connection: ServiceClient, remote_pa
 
 
 def upload_to_repository(
-	depot_connection: ServiceClient, depot: OpsiConfigserver | OpsiDepotserver, source_package: Path, dest_package_name: str
+	depot_connection: ServiceClient,
+	repository: WebDAVRepository,
+	depot_id: str,
+	source_package: Path,
+	dest_package_name: str,
 ) -> None:
 	"""
 	Uploads a package to the depot's repository.
 	"""
-	logger.info("Uploading package '%s' to the repository on depot '%s'.", dest_package_name, depot.id)
+	logger.info("Uploading package '%s' to the repository on depot '%s'.", dest_package_name, depot_id)
 	package_size = source_package.stat().st_size
 	local_checksum = get_checksum(source_package)
 	remote_package_file = DEPOT_REPOSITORY_PATH + "/" + dest_package_name
-	try:
-		repository = get_repository(depot)
-		if check_pkg_existence_and_integrity(depot_connection, repository, dest_package_name, package_size, local_checksum):
-			return
-		check_disk_space(depot_connection, depot.id, package_size)
 
-		logger.notice("Starting upload of package %s to depot %s", dest_package_name, depot.id)
-		with Progress() as progress:
-			task = progress.add_task(f"Uploading '{dest_package_name}' to depot '{depot.id}'...", total=package_size)
-			repository.upload(str(source_package), dest_package_name)
-			progress.update(task, completed=package_size)
-		logger.notice("Finished upload of package %s to depot %s", dest_package_name, depot.id)
+	if check_pkg_existence_and_integrity(depot_connection, repository, dest_package_name, package_size, local_checksum):
+		return
+	check_disk_space(depot_connection, depot_id, package_size)
 
-		cleanup_packages_from_repo(repository, OpsiPackage(source_package).product.id, dest_package_name)
-		validate_upload_and_check_disk_space(depot_connection, depot.id, local_checksum, remote_package_file)
-		create_remote_md5_and_zsync_files(depot_connection, remote_package_file)
-	finally:
-		if repository:
-			repository.disconnect()
+	logger.notice("Starting upload of package %s to depot %s", dest_package_name, depot_id)
+	with Progress() as progress:
+		task = progress.add_task(f"Uploading '{dest_package_name}' to depot '{depot_id}'...", total=package_size)
+		repository.upload(str(source_package), dest_package_name)
+		progress.update(task, completed=package_size)
+	logger.notice("Finished upload of package %s to depot %s", dest_package_name, depot_id)
+
+	cleanup_packages_from_repo(repository, OpsiPackage(source_package).product.id, dest_package_name)
+	validate_upload_and_check_disk_space(depot_connection, depot_id, local_checksum, remote_package_file)
+	create_remote_md5_and_zsync_files(depot_connection, remote_package_file)
 
 
 def get_property_default_values(
@@ -354,7 +339,7 @@ def get_property_default_values(
 
 def install_package(
 	depot_connection: ServiceClient,
-	depot: OpsiConfigserver | OpsiDepotserver,
+	depot_id: str,
 	dest_package_name: str,
 	force: bool,
 	property_default_values: dict[str, list[Any]],
@@ -362,41 +347,31 @@ def install_package(
 	"""
 	Installs a package on a depot.
 	"""
-	logger.info("Installing package %s on depot %s", dest_package_name, depot.id)
+	logger.info("Installing package %s on depot %s", dest_package_name, depot_id)
 	remote_package_file = DEPOT_REPOSITORY_PATH + "/" + dest_package_name
 	installation_params = [remote_package_file, str(force), property_default_values]
-	logger.notice("Starting installation of package %s to depot %s", dest_package_name, depot.id)
+	logger.notice("Starting installation of package %s to depot %s", dest_package_name, depot_id)
 	with Progress() as progress:
-		task = progress.add_task(f"Installing '{dest_package_name}' on depot '{depot.id}'...\n", total=100)
+		task = progress.add_task(f"Installing '{dest_package_name}' on depot '{depot_id}'...\n", total=100)
 		depot_connection.jsonrpc("depot_installPackage", installation_params)
 		progress.update(task, completed=100)
-	logger.notice("Finished installation of package %s to depot %s", dest_package_name, depot.id)
-
-
-def delete_from_repository(depot: OpsiConfigserver | OpsiDepotserver, product_on_depot: ProductOnDepot) -> None:
-	"Delete packages from the depot's repository."
-	try:
-		repository = get_repository(depot)
-		cleanup_packages_from_repo(repository, product_on_depot.productId)
-	finally:
-		if repository:
-			repository.disconnect()
+	logger.notice("Finished installation of package %s to depot %s", dest_package_name, depot_id)
 
 
 def uninstall_package(
 	depot_connection: ServiceClient,
-	depot: OpsiConfigserver | OpsiDepotserver,
-	product_on_depot: ProductOnDepot,
+	depot_id: str,
+	product_id: str,
 	force: bool,
 	delete_files: bool,
 ) -> None:
 	"""
 	Uninstalls a package from a depot.
 	"""
-	uninstallation_params = [product_on_depot.productId, str(force), str(delete_files)]
-	logger.notice("Starting uninstallation of product %s from depot %s", product_on_depot.productId, depot.id)
+	uninstallation_params = [product_id, str(force), str(delete_files)]
+	logger.notice("Starting uninstallation of product %s from depot %s", product_id, depot_id)
 	with Progress() as progress:
-		task = progress.add_task(f"Uninstalling '{product_on_depot.productId}' from depot '{depot.id}'...\n", total=100)
+		task = progress.add_task(f"Uninstalling '{product_id}' from depot '{depot_id}'...\n", total=100)
 		depot_connection.jsonrpc("depot_uninstallPackage", uninstallation_params)
 		progress.update(task, completed=100)
-	logger.notice("Finished uninstallation of product %s from depot %s", product_on_depot.productId, depot.id)
+	logger.notice("Finished uninstallation of product %s from depot %s", product_id, depot_id)

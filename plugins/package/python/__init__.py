@@ -17,12 +17,13 @@ from opsicli.config import config
 from opsicli.io import get_console, write_output
 from opsicli.opsiservice import get_depot_connection, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
+from opsicli.repository import get_repository
 from opsicli.utils import create_nested_dict
 from plugins.package.data.metadata import command_metadata
 
 from .package_helpers import (
 	check_locked_products,
-	delete_from_repository,
+	cleanup_packages_from_repo,
 	fix_custom_package_name,
 	get_depot_objects,
 	get_property_default_values,
@@ -300,17 +301,22 @@ def install(packages: list[str], depots: str, force: bool, update_properties: bo
 
 	for depot in depot_objects:
 		depot_connection = get_depot_connection(depot)
-		for package_path, opsi_package in path_to_opsipackage_dict.items():
-			dest_package_name = fix_custom_package_name(package_path)
-			upload_to_repository(depot_connection, depot, package_path, dest_package_name)
+		repository = get_repository(depot)
+		try:
+			for package_path, opsi_package in path_to_opsipackage_dict.items():
+				dest_package_name = fix_custom_package_name(package_path)
+				upload_to_repository(depot_connection, repository, depot.id, package_path, dest_package_name)
 
-			property_default_values = get_property_default_values(
-				service_client,
-				depot.id,
-				opsi_package,
-				update_properties,
-			)
-			install_package(depot_connection, depot, dest_package_name, force, property_default_values)
+				property_default_values = get_property_default_values(
+					service_client,
+					depot.id,
+					opsi_package,
+					update_properties,
+				)
+				install_package(depot_connection, depot.id, dest_package_name, force, property_default_values)
+		finally:
+			repository and repository.disconnect()
+			depot_connection.disconnect()
 
 
 @cli.command(short_help="Uninstall opsi products.")
@@ -337,9 +343,14 @@ def uninstall(product_ids: list[str], depots: str, force: bool, keep_files: bool
 
 	for depot in depot_objects:
 		depot_connection = get_depot_connection(depot)
-		for product_on_depot in product_on_depot_list:
-			delete_from_repository(depot, product_on_depot)
-			uninstall_package(depot_connection, depot, product_on_depot, force, not keep_files)
+		repository = get_repository(depot)
+		try:
+			for product_on_depot in product_on_depot_list:
+				cleanup_packages_from_repo(repository, product_on_depot.productId)
+				uninstall_package(depot_connection, depot.id, product_on_depot.productId, force, not keep_files)
+		finally:
+			repository and repository.disconnect()
+			depot_connection.disconnect()
 
 
 class PackagePlugin(OPSICLIPlugin):
