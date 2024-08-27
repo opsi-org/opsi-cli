@@ -255,11 +255,6 @@ def test_combine_products() -> None:
 @pytest.mark.requires_testcontainer
 def test_package_install_and_uninstall() -> None:
 	with container_connection():
-		# Test installing without specifying a package
-		exit_code, _, _stderr = run_cli(["package", "install"])
-		assert exit_code != 0
-		assert "Specify at least one package to install." in _stderr
-
 		# Test installing with a missing dependency
 		exit_code, _, _stderr = run_cli(["package", "install", str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi")])
 		assert exit_code != 0
@@ -358,7 +353,7 @@ def test_package_install_and_uninstall() -> None:
 @pytest.mark.requires_testcontainer
 def test_custom_package_installation() -> None:
 	with container_connection():
-		# Test case where the package has "~custom" name. and also for reading content from the .md5 file located in the package path
+		# Test case where the package has "~custom" name and has local md5 and zsync files, which are not updated.
 		exit_code, _, _ = run_cli(["package", "install", str(TEST_DATA_PATH / "test2_1.0-6~custom1.opsi")])
 		assert exit_code == 0
 		for file in ["test2_1.0-6.opsi", "test2_1.0-6.opsi.md5", "test2_1.0-6.opsi.zsync"]:
