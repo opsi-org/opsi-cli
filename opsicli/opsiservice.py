@@ -9,6 +9,7 @@ import json
 import os
 import re
 import subprocess
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -16,6 +17,7 @@ from urllib.parse import urlparse
 from opsicommon.client.opsiservice import ServiceClient, ServiceConnectionListener, ServiceVerificationFlags
 from opsicommon.config import OpsiConfig
 from opsicommon.logging import get_logger, secret_filter
+from opsicommon.objects import OpsiDepotserver
 
 from opsicli import __version__
 from opsicli.cache import cache
@@ -100,9 +102,10 @@ def get_opsiconfd_config() -> dict[str, str]:
 	return config
 
 
-def get_ssl_config() -> dict:
+@lru_cache(maxsize=100)
+def get_tls_client_auth_config() -> dict:
 	"""
-	Extracts SSL configuration from the opsiconfd config dictionary.
+	Returns the TLS client authentication settings.
 	"""
 	cfg = get_opsiconfd_config()
 	logger.debug("opsiconfd config: %r", cfg)
@@ -125,16 +128,23 @@ def get_ssl_config() -> dict:
 	}
 
 
-def get_depot_connection(depot: Any) -> ServiceClient:
+def get_depot_connection(depot: OpsiDepotserver) -> ServiceClient:
 	"""
 	Returns a connection to the depot.
 	"""
 	url = urlparse(depot.repositoryRemoteUrl)
 	hostname = url.hostname
+
+	if hostname is None:
+		raise ValueError("Hostname could not be parsed from the repository URL.")
+
+	if isinstance(hostname, bytes):
+		hostname = hostname.decode("utf-8")
+
 	if ":" in hostname:  # IPv6 address
 		hostname = f"[{hostname}]"
 
-	ssl_config = get_ssl_config()
+	ssl_config = get_tls_client_auth_config()
 
 	connection = ServiceClient(
 		address=f"https://{hostname}:{url.port or 4447}",
@@ -142,8 +152,8 @@ def get_depot_connection(depot: Any) -> ServiceClient:
 		password=depot.opsiHostKey,
 		user_agent=f"opsi-cli/{__version__}",
 		verify=ServiceVerificationFlags.ACCEPT_ALL,
-		jsonrpc_create_methods=True,
-		jsonrpc_create_objects=True,
+		jsonrpc_create_methods=False,
+		jsonrpc_create_objects=False,
 		**ssl_config,
 	)
 	return connection

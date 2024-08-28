@@ -2,20 +2,19 @@
 Support functions for installing packages.
 """
 
-import os
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.logging import get_logger
-from opsicommon.objects import BoolProductProperty, OpsiConfigserver, OpsiDepotserver, ProductOnDepot, ProductProperty
+from opsicommon.objects import BoolProductProperty, OpsiDepotserver, ProductProperty
 from opsicommon.package import OpsiPackage
-from opsicommon.package.associated_files import md5sum
+from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
 from rich.progress import Progress
 
 from OPSI.Util.File.Opsi import parseFilename  # type: ignore[import]
-from OPSI.Util.Repository import WebDAVRepository, getRepository  # type: ignore[import]
-from opsicli import __version__
+from OPSI.Util.Repository import WebDAVRepository  # type: ignore[import]
 from opsicli.config import config
 from opsicli.io import get_console, prompt
 
@@ -23,7 +22,7 @@ logger = get_logger("opsicli")
 DEPOT_REPOSITORY_PATH = "/var/lib/opsi/repository"
 
 
-def get_depot_objects(service_client: ServiceClient, depots: str) -> list[OpsiConfigserver | OpsiDepotserver]:
+def get_depot_objects(service_client: ServiceClient, depots: str) -> list[OpsiDepotserver]:
 	"""
 	This function makes a JSON-RPC call to the "host_getObjects" with the depots filter.
 	"""
@@ -67,7 +66,7 @@ def map_and_sort_packages(packages: list[str]) -> dict[Path, OpsiPackage]:
 
 def check_locked_products(
 	service_client: ServiceClient,
-	depot_objects: list[OpsiConfigserver | OpsiDepotserver],
+	depot_objects: list[OpsiDepotserver],
 	path_to_opsipackage_dict: dict[Path, OpsiPackage],
 ) -> None:
 	"""
@@ -139,7 +138,6 @@ def update_product_properties(path_to_opsipackage_dict: dict[Path, OpsiPackage])
 	"""
 	Updates the default values and possible values of the product properties based on the user input.
 	"""
-	print(path_to_opsipackage_dict)
 	for opsi_package in path_to_opsipackage_dict.values():
 		product_info = f"{opsi_package.product.id}_{opsi_package.product.productVersion}-{opsi_package.product.packageVersion}"
 		product_properties = sorted(opsi_package.product_properties, key=lambda prop: prop.propertyId)
@@ -169,6 +167,7 @@ def update_product_properties(path_to_opsipackage_dict: dict[Path, OpsiPackage])
 			product_property.setDefaultValues(selected_values)
 
 
+@lru_cache(maxsize=100)
 def fix_custom_package_name(package_path: Path) -> str:
 	"""
 	Fixes the package name if it is a custom package.
@@ -183,30 +182,54 @@ def fix_custom_package_name(package_path: Path) -> str:
 	return package_name
 
 
-def get_checksum(package_path: Path) -> str:
+@lru_cache(maxsize=100)
+def get_md5_file(package_path: Path, temp_dir: Path) -> tuple[Path, str]:
 	"""
-	Checks the md5 file and returns the content if it exists, otherwise calculates the checksum.
+	Create the MD5 for the package in a temporary path.
+	Also checks if the local MD5 file differs from the temporary one.
+	Returns the MD5 file path and the checksum.
 	"""
 	md5_file = package_path.with_suffix(".opsi.md5")
+
+	tmp_md5_file = temp_dir / md5_file.name
+	if not tmp_md5_file.exists():
+		logger.info("Creating MD5 file for package %s in temporary path %s", package_path, temp_dir)
+		tmp_md5_file = create_package_md5_file(package_path, filename=tmp_md5_file)
+	else:
+		logger.info("Using existing temporary MD5 file %s", tmp_md5_file)
+
 	if md5_file.exists():
-		logger.info("MD5 file found for package %s", package_path)
-		return md5_file.read_text()
-	logger.info("Calculating MD5 checksum for package %s", package_path)
-	return md5sum(package_path)
+		local_md5 = md5_file.read_text()
+		tmp_md5 = tmp_md5_file.read_text()
+		if local_md5 != tmp_md5:
+			logger.warning("Local MD5 file differs from the temporary one.")
+
+	return tmp_md5_file, tmp_md5_file.read_text()
 
 
-def get_repository(depot: OpsiConfigserver | OpsiDepotserver) -> WebDAVRepository:
+@lru_cache(maxsize=100)
+def get_zsync_file(package_path: Path, temp_dir: Path) -> Path:
 	"""
-	Returns a WebDAVRepository object congifured for the depot.
+	Create the zsync file for the package in a temporary path.
+	Also checks if the local zsync file differs from the temporary one.
+	Returns the zsync file path.
 	"""
-	return getRepository(
-		url=depot.repositoryRemoteUrl,
-		username=depot.id,
-		password=depot.opsiHostKey,
-		maxBandwidth=(max(depot.maxBandwidth or 0, 0)) * 1000,
-		application=f"opsi-cli/{__version__}",
-		readTimeout=24 * 3600,
-	)
+	zsync_file = package_path.with_suffix(".opsi.zsync")
+
+	tmp_zsync_file = temp_dir / zsync_file.name
+	if not tmp_zsync_file.exists():
+		logger.info("Creating zsync file for package %s in temporary path %s", package_path, temp_dir)
+		tmp_zsync_file = create_package_zsync_file(package_path, filename=tmp_zsync_file)
+	else:
+		logger.info("Using existing temporary zsync file %s", tmp_zsync_file)
+
+	if zsync_file.exists():
+		local_zsync = zsync_file.read_text(encoding="utf-8", errors="ignore")
+		tmp_zsync = tmp_zsync_file.read_text(encoding="utf-8", errors="ignore")
+		if local_zsync != tmp_zsync:
+			logger.warning("Local zsync file differs from the temporary one.")
+
+	return tmp_zsync_file
 
 
 def check_pkg_existence_and_integrity(
@@ -219,16 +242,17 @@ def check_pkg_existence_and_integrity(
 	"""
 	Check if the package already exists in the repository and has the same size and checksum. If it does, skip the upload.
 	"""
-	if not any(repo_content["name"] == dest_package_name for repo_content in repository.content()):
+	logger.info("Checking package existence and integrity in the repository")
+	repo_contents = repository.content()
+	if not any(repo_content["name"] == dest_package_name for repo_content in repo_contents):
 		return False
 
 	repo_file_info = repository.fileInfo(dest_package_name)
-	remote_checksum = depot_connection.jsonrpc("depot_getMD5Sum", [DEPOT_REPOSITORY_PATH + "/" + dest_package_name])
-
 	if repo_file_info["size"] != package_size:
 		logger.info("Size of source and destination differs.")
 		return False
 
+	remote_checksum = depot_connection.jsonrpc("depot_getMD5Sum", [DEPOT_REPOSITORY_PATH + "/" + dest_package_name])
 	if local_checksum != remote_checksum:
 		logger.info("Checksum of source and destination differs.")
 		return False
@@ -242,6 +266,7 @@ def check_disk_space(depot_connection: ServiceClient, depot_id: str, package_siz
 	"""
 	Check if there is enough disk space on the depot for the package.
 	"""
+	logger.info("Checking disk space on depot '%s'", depot_id)
 	available_space = depot_connection.jsonrpc("depot_getDiskSpaceUsage", [DEPOT_REPOSITORY_PATH])["available"]
 	if available_space < package_size:
 		logger.error(
@@ -254,26 +279,31 @@ def cleanup_packages_from_repo(repository: WebDAVRepository, product_id: str, ex
 	"""
 	Deletes packages from the depot repository.
 
-	If `exclude_package_name` is provided, it deletes all packages with the same product ID except the one matching `exclude_package_name`.
-	If not provided, it deletes all packages with the given product ID.
+	If `exclude_package_name` is provided, it excludes that package and its .md5 and .zsync files from deletion.
+	Otherwise, it deletes all packages with the given product ID.
 	"""
-	for repo_content in repository.content():
+	exclude_files = (
+		{exclude_package_name, f"{exclude_package_name}.md5", f"{exclude_package_name}.zsync"} if exclude_package_name else set()
+	)
+
+	repo_contents = repository.content()
+	for repo_content in repo_contents:
 		repo_file = parseFilename(repo_content["name"])
 		if repo_file and repo_file.productId == product_id:
-			if exclude_package_name and repo_content["name"] == exclude_package_name:
+			if repo_content["name"] in exclude_files:
 				continue
 			logger.notice("Deleting package %s from depot", repo_content["name"])
 			repository.delete(repo_content["name"])
 
 
 def validate_upload_and_check_disk_space(
-	depot_connection: ServiceClient, depot_id: str, local_checksum: str, remote_package_file: str
+	depot_connection: ServiceClient, depot_id: str, local_checksum: str, dest_package_name: str
 ) -> None:
 	"""
 	Validates the upload by comparing the checksums and also checks the disk space on the depot. If the disk space usage is above 90%, a warning is logged.
 	"""
 	logger.info("Validating upload and checking disk space")
-	remote_checksum = depot_connection.jsonrpc("depot_getMD5Sum", [remote_package_file])
+	remote_checksum = depot_connection.jsonrpc("depot_getMD5Sum", [DEPOT_REPOSITORY_PATH + "/" + dest_package_name])
 	if local_checksum != remote_checksum:
 		logger.error("MD5sum mismatch: local='%s', remote='%s' after upload to depot '%s'", local_checksum, remote_checksum, depot_id)
 		raise ValueError(f"MD5sum mismatch: local='{local_checksum}', remote='{remote_checksum}' after upload to depot '{depot_id}'")
@@ -283,46 +313,37 @@ def validate_upload_and_check_disk_space(
 		logger.warning("Filesystem usage at %d%% on depot '%s'", int(usage * 100), depot_id)
 
 
-def create_remote_md5_and_zsync_files(depot_connection: ServiceClient, remote_package_file: str) -> None:
-	"""
-	Creates the MD5 and zsync files on the depot repository.
-	"""
-	logger.info("Creating MD5 and zsync files on repository for package '%s'", remote_package_file)
-	remote_package_md5sum_file = remote_package_file + ".md5"
-	depot_connection.jsonrpc("depot_createMd5SumFile", [remote_package_file, remote_package_md5sum_file])
-	remote_package_zsync_file = remote_package_file + ".zsync"
-	depot_connection.jsonrpc("depot_createZsyncFile", [remote_package_file, remote_package_zsync_file])
-
-
 def upload_to_repository(
-	depot_connection: ServiceClient, depot: OpsiConfigserver | OpsiDepotserver, source_package: Path, dest_package_name: str
+	depot_connection: ServiceClient,
+	repository: WebDAVRepository,
+	depot_id: str,
+	source_package: Path,
+	dest_package_name: str,
+	temp_dir: Path,
 ) -> None:
 	"""
 	Uploads a package to the depot's repository.
 	"""
-	logger.info("Uploading package '%s' to the repository on depot '%s'.", dest_package_name, depot.id)
-	package_size = os.path.getsize(source_package)
-	local_checksum = get_checksum(source_package)
-	remote_package_file = DEPOT_REPOSITORY_PATH + "/" + dest_package_name
-	try:
-		repository = get_repository(depot)
-		if check_pkg_existence_and_integrity(depot_connection, repository, dest_package_name, package_size, local_checksum):
-			return
-		check_disk_space(depot_connection, depot.id, package_size)
+	md5_file, local_checksum = get_md5_file(source_package, temp_dir)
+	package_size = source_package.stat().st_size
 
-		logger.notice("Starting upload of package %s to depot %s", dest_package_name, depot.id)
-		with Progress() as progress:
-			task = progress.add_task(f"Uploading '{dest_package_name}' to depot '{depot.id}'...", total=package_size)
-			repository.upload(str(source_package), dest_package_name)
-			progress.update(task, completed=package_size)
-		logger.notice("Finished upload of package %s to depot %s", dest_package_name, depot.id)
+	if check_pkg_existence_and_integrity(depot_connection, repository, dest_package_name, package_size, local_checksum):
+		return
+	check_disk_space(depot_connection, depot_id, package_size)
 
-		cleanup_packages_from_repo(repository, OpsiPackage(source_package).product.id, dest_package_name)
-		validate_upload_and_check_disk_space(depot_connection, depot.id, local_checksum, remote_package_file)
-		create_remote_md5_and_zsync_files(depot_connection, remote_package_file)
-	finally:
-		if repository:
-			repository.disconnect()
+	zsync_file = get_zsync_file(source_package, temp_dir)
+
+	logger.notice("Starting upload of package %s to depot %s with MD5 and zsync", dest_package_name, depot_id)
+	with Progress() as progress:
+		task = progress.add_task(f"Uploading '{dest_package_name}' to depot '{depot_id}' with MD5 and zsync...", total=package_size)
+		repository.upload(str(source_package), dest_package_name)
+		repository.upload(str(md5_file), f"{dest_package_name}.md5")
+		repository.upload(str(zsync_file), f"{dest_package_name}.zsync")
+		progress.update(task, completed=package_size)
+	logger.notice("Finished upload of package %s to depot %s with MD5 and zsync", dest_package_name, depot_id)
+
+	cleanup_packages_from_repo(repository, OpsiPackage(source_package).product.id, dest_package_name)
+	validate_upload_and_check_disk_space(depot_connection, depot_id, local_checksum, dest_package_name)
 
 
 def get_property_default_values(
@@ -356,7 +377,7 @@ def get_property_default_values(
 
 def install_package(
 	depot_connection: ServiceClient,
-	depot: OpsiConfigserver | OpsiDepotserver,
+	depot_id: str,
 	dest_package_name: str,
 	force: bool,
 	property_default_values: dict[str, list[Any]],
@@ -364,41 +385,30 @@ def install_package(
 	"""
 	Installs a package on a depot.
 	"""
-	logger.info("Installing package %s on depot %s", dest_package_name, depot.id)
 	remote_package_file = DEPOT_REPOSITORY_PATH + "/" + dest_package_name
 	installation_params = [remote_package_file, str(force), property_default_values]
-	logger.notice("Starting installation of package %s to depot %s", dest_package_name, depot.id)
+	logger.notice("Starting installation of package %s to depot %s", dest_package_name, depot_id)
 	with Progress() as progress:
-		task = progress.add_task(f"Installing '{dest_package_name}' on depot '{depot.id}'...\n", total=100)
+		task = progress.add_task(f"Installing '{dest_package_name}' on depot '{depot_id}'...\n", total=100)
 		depot_connection.jsonrpc("depot_installPackage", installation_params)
 		progress.update(task, completed=100)
-	logger.notice("Finished installation of package %s to depot %s", dest_package_name, depot.id)
-
-
-def delete_from_repository(depot: OpsiConfigserver | OpsiDepotserver, product_on_depot: ProductOnDepot) -> None:
-	"Delete packages from the depot's repository."
-	try:
-		repository = get_repository(depot)
-		cleanup_packages_from_repo(repository, product_on_depot.productId)
-	finally:
-		if repository:
-			repository.disconnect()
+	logger.notice("Finished installation of package %s to depot %s", dest_package_name, depot_id)
 
 
 def uninstall_package(
 	depot_connection: ServiceClient,
-	depot: OpsiConfigserver | OpsiDepotserver,
-	product_on_depot: ProductOnDepot,
+	depot_id: str,
+	product_id: str,
 	force: bool,
 	delete_files: bool,
 ) -> None:
 	"""
 	Uninstalls a package from a depot.
 	"""
-	uninstallation_params = [product_on_depot.productId, str(force), str(delete_files)]
-	logger.notice("Starting uninstallation of product %s from depot %s", product_on_depot.productId, depot.id)
+	uninstallation_params = [product_id, str(force), str(delete_files)]
+	logger.notice("Starting uninstallation of product %s from depot %s", product_id, depot_id)
 	with Progress() as progress:
-		task = progress.add_task(f"Uninstalling '{product_on_depot.productId}' from depot '{depot.id}'...\n", total=100)
+		task = progress.add_task(f"Uninstalling '{product_id}' from depot '{depot_id}'...\n", total=100)
 		depot_connection.jsonrpc("depot_uninstallPackage", uninstallation_params)
 		progress.update(task, completed=100)
-	logger.notice("Finished uninstallation of product %s from depot %s", product_on_depot.productId, depot.id)
+	logger.notice("Finished uninstallation of product %s from depot %s", product_id, depot_id)
