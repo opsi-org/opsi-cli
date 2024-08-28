@@ -8,7 +8,7 @@ from typing import Any
 
 from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.logging import get_logger
-from opsicommon.objects import BoolProductProperty, OpsiConfigserver, OpsiDepotserver, ProductProperty
+from opsicommon.objects import BoolProductProperty, OpsiDepotserver, ProductProperty
 from opsicommon.package import OpsiPackage
 from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
 from rich.progress import Progress
@@ -23,7 +23,7 @@ logger = get_logger("opsicli")
 DEPOT_REPOSITORY_PATH = "/var/lib/opsi/repository"
 
 
-def get_depot_objects(service_client: ServiceClient, depots: str) -> list[OpsiConfigserver | OpsiDepotserver]:
+def get_depot_objects(service_client: ServiceClient, depots: str) -> list[OpsiDepotserver]:
 	"""
 	This function makes a JSON-RPC call to the "host_getObjects" with the depots filter.
 	"""
@@ -67,7 +67,7 @@ def map_and_sort_packages(packages: list[str]) -> dict[Path, OpsiPackage]:
 
 def check_locked_products(
 	service_client: ServiceClient,
-	depot_objects: list[OpsiConfigserver | OpsiDepotserver],
+	depot_objects: list[OpsiDepotserver],
 	path_to_opsipackage_dict: dict[Path, OpsiPackage],
 ) -> None:
 	"""

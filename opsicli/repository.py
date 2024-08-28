@@ -3,13 +3,13 @@
 This modules provides functions to interact with repositories.
 """
 
-from opsicommon.objects import OpsiConfigserver, OpsiDepotserver
+from opsicommon.objects import OpsiDepotserver
 
 from OPSI.Util.Repository import WebDAVRepository, getRepository  # type: ignore[import]
 from opsicli import __version__
 
 
-def get_repository(depot: OpsiConfigserver | OpsiDepotserver) -> WebDAVRepository:
+def get_repository(depot: OpsiDepotserver) -> WebDAVRepository:
 	"""
 	Returns a WebDAVRepository object configured for the depot.
 	"""
