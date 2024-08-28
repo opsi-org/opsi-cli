@@ -9,6 +9,7 @@ import json
 import os
 import re
 import subprocess
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -101,9 +102,10 @@ def get_opsiconfd_config() -> dict[str, str]:
 	return config
 
 
-def get_ssl_config() -> dict:
+@lru_cache(maxsize=100)
+def get_tls_client_auth_config() -> dict:
 	"""
-	Extracts SSL configuration from the opsiconfd config dictionary.
+	Returns the TLS client authentication settings.
 	"""
 	cfg = get_opsiconfd_config()
 	logger.debug("opsiconfd config: %r", cfg)
@@ -142,7 +144,7 @@ def get_depot_connection(depot: OpsiDepotserver) -> ServiceClient:
 	if ":" in hostname:  # IPv6 address
 		hostname = f"[{hostname}]"
 
-	ssl_config = get_ssl_config()
+	ssl_config = get_tls_client_auth_config()
 
 	connection = ServiceClient(
 		address=f"https://{hostname}:{url.port or 4447}",
