@@ -11,6 +11,7 @@ from opsicommon.objects import ProductOnDepot
 from opsicommon.package import OpsiPackage
 from opsicommon.package.archive import ArchiveProgress, ArchiveProgressListener
 from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
+from opsicommon.utils import make_temp_dir
 from rich.progress import Progress
 
 from opsicli.config import config
@@ -18,14 +19,12 @@ from opsicli.io import get_console, write_output
 from opsicli.opsiservice import get_depot_connection, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.repository import get_repository
-from opsicli.temp_utils import TempDirManager
 from opsicli.utils import create_nested_dict
 from plugins.package.data.metadata import command_metadata
 
 from .package_helpers import (
 	check_locked_products,
 	cleanup_packages_from_repo,
-	clear_caches,
 	fix_custom_package_name,
 	get_depot_objects,
 	get_property_default_values,
@@ -301,28 +300,25 @@ def install(packages: list[str], depots: str, force: bool, update_properties: bo
 	if update_properties and config.interactive:
 		update_product_properties(path_to_opsipackage_dict)
 
-	temp_dir_manager = TempDirManager()
+	with make_temp_dir() as temp_dir:
+		for depot in depot_objects:
+			depot_connection = get_depot_connection(depot)
+			repository = get_repository(depot)
+			try:
+				for package_path, opsi_package in path_to_opsipackage_dict.items():
+					dest_package_name = fix_custom_package_name(package_path)
+					upload_to_repository(depot_connection, repository, depot.id, package_path, dest_package_name, temp_dir)
 
-	for depot in depot_objects:
-		depot_connection = get_depot_connection(depot)
-		repository = get_repository(depot)
-		try:
-			for package_path, opsi_package in path_to_opsipackage_dict.items():
-				dest_package_name = fix_custom_package_name(package_path)
-				upload_to_repository(depot_connection, repository, depot.id, package_path, dest_package_name, temp_dir_manager)
-
-				property_default_values = get_property_default_values(
-					service_client,
-					depot.id,
-					opsi_package,
-					update_properties,
-				)
-				install_package(depot_connection, depot.id, dest_package_name, force, property_default_values)
-		finally:
-			repository and repository.disconnect()
-			depot_connection.disconnect()
-
-	temp_dir_manager.delete_temp_dir()
+					property_default_values = get_property_default_values(
+						service_client,
+						depot.id,
+						opsi_package,
+						update_properties,
+					)
+					install_package(depot_connection, depot.id, dest_package_name, force, property_default_values)
+			finally:
+				repository and repository.disconnect()
+				depot_connection.disconnect()
 
 
 @cli.command(short_help="Uninstall opsi products.")

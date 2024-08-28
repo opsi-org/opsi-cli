@@ -17,7 +17,6 @@ from OPSI.Util.File.Opsi import parseFilename  # type: ignore[import]
 from OPSI.Util.Repository import WebDAVRepository  # type: ignore[import]
 from opsicli.config import config
 from opsicli.io import get_console, prompt
-from opsicli.temp_utils import TempDirManager
 
 logger = get_logger("opsicli")
 DEPOT_REPOSITORY_PATH = "/var/lib/opsi/repository"
@@ -184,7 +183,7 @@ def fix_custom_package_name(package_path: Path) -> str:
 
 
 @lru_cache(maxsize=100)
-def get_md5_file(package_path: Path, temp_dir_manager: TempDirManager) -> tuple[Path, str]:
+def get_md5_file(package_path: Path, temp_dir: Path) -> tuple[Path, str]:
 	"""
 	Create the MD5 for the package in a temporary path.
 	Also checks if the local MD5 file differs from the temporary one.
@@ -192,9 +191,9 @@ def get_md5_file(package_path: Path, temp_dir_manager: TempDirManager) -> tuple[
 	"""
 	md5_file = package_path.with_suffix(".opsi.md5")
 
-	tmp_md5_file = temp_dir_manager.get_temp_dir() / md5_file.name
+	tmp_md5_file = temp_dir / md5_file.name
 	if not tmp_md5_file.exists():
-		logger.info("Creating MD5 file for package %s in temporary path %s", package_path, tmp_md5_file.parent)
+		logger.info("Creating MD5 file for package %s in temporary path %s", package_path, temp_dir)
 		tmp_md5_file = create_package_md5_file(package_path, filename=tmp_md5_file)
 	else:
 		logger.info("Using existing temporary MD5 file %s", tmp_md5_file)
@@ -209,7 +208,7 @@ def get_md5_file(package_path: Path, temp_dir_manager: TempDirManager) -> tuple[
 
 
 @lru_cache(maxsize=100)
-def get_zsync_file(package_path: Path, temp_dir_manager: TempDirManager) -> Path:
+def get_zsync_file(package_path: Path, temp_dir: Path) -> Path:
 	"""
 	Create the zsync file for the package in a temporary path.
 	Also checks if the local zsync file differs from the temporary one.
@@ -217,9 +216,9 @@ def get_zsync_file(package_path: Path, temp_dir_manager: TempDirManager) -> Path
 	"""
 	zsync_file = package_path.with_suffix(".opsi.zsync")
 
-	tmp_zsync_file = temp_dir_manager.get_temp_dir() / zsync_file.name
+	tmp_zsync_file = temp_dir / zsync_file.name
 	if not tmp_zsync_file.exists():
-		logger.info("Creating zsync file for package %s in temporary path %s", package_path, tmp_zsync_file.parent)
+		logger.info("Creating zsync file for package %s in temporary path %s", package_path, temp_dir)
 		tmp_zsync_file = create_package_zsync_file(package_path, filename=tmp_zsync_file)
 	else:
 		logger.info("Using existing temporary zsync file %s", tmp_zsync_file)
@@ -231,14 +230,6 @@ def get_zsync_file(package_path: Path, temp_dir_manager: TempDirManager) -> Path
 			logger.warning("Local zsync file differs from the temporary one.")
 
 	return tmp_zsync_file
-
-
-def clear_caches() -> None:
-	"Clear the caches."
-	fix_custom_package_name.cache_clear()
-	get_md5_file.cache_clear()
-	get_zsync_file.cache_clear()
-	logger.info("Caches cleared")
 
 
 def check_pkg_existence_and_integrity(
@@ -328,19 +319,19 @@ def upload_to_repository(
 	depot_id: str,
 	source_package: Path,
 	dest_package_name: str,
-	temp_dir_manager: TempDirManager,
+	temp_dir: Path,
 ) -> None:
 	"""
 	Uploads a package to the depot's repository.
 	"""
-	md5_file, local_checksum = get_md5_file(source_package, temp_dir_manager)
+	md5_file, local_checksum = get_md5_file(source_package, temp_dir)
 	package_size = source_package.stat().st_size
 
 	if check_pkg_existence_and_integrity(depot_connection, repository, dest_package_name, package_size, local_checksum):
 		return
 	check_disk_space(depot_connection, depot_id, package_size)
 
-	zsync_file = get_zsync_file(source_package, temp_dir_manager)
+	zsync_file = get_zsync_file(source_package, temp_dir)
 
 	logger.notice("Starting upload of package %s to depot %s with MD5 and zsync", dest_package_name, depot_id)
 	with Progress() as progress:
