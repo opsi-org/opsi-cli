@@ -7,21 +7,36 @@ from pathlib import Path
 
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger
+from opsicommon.objects import ProductOnDepot
 from opsicommon.package import OpsiPackage
 from opsicommon.package.archive import ArchiveProgress, ArchiveProgressListener
 from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
+from opsicommon.utils import make_temp_dir
 from rich.progress import Progress
 
 from opsicli.config import config
 from opsicli.io import get_console, write_output
-from opsicli.opsiservice import get_service_connection
+from opsicli.opsiservice import get_depot_connection, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
+from opsicli.repository import get_repository
 from opsicli.utils import create_nested_dict
 from plugins.package.data.metadata import command_metadata
 
+from .package_helpers import (
+	check_locked_products,
+	cleanup_packages_from_repo,
+	fix_custom_package_name,
+	get_depot_objects,
+	get_property_default_values,
+	install_package,
+	map_and_sort_packages,
+	uninstall_package,
+	update_product_properties,
+	upload_to_repository,
+)
+
 __version__ = "0.2.0"
 __description__ = "Manage opsi packages"
-
 
 logger = get_logger("opsicli")
 
@@ -52,7 +67,7 @@ class ProgressCallbackAdapter:
 		self.progress.update(self.task_id, completed=completed)
 
 
-@click.group(name="package", short_help="Custom plugin package")
+@click.group(name="package", short_help="Manage opsi packages")
 @click.version_option(__version__, message="opsi-cli plugin package, version %(version)s")
 def cli() -> None:
 	"""
@@ -213,7 +228,7 @@ def control_to_toml(source_dir: Path) -> None:
 	get_console().print("Control TOML has been successfully generated.\n")
 
 
-@cli.command(short_help="Extract an opsi package")
+@cli.command(short_help="Extract an opsi package.")
 @click.argument("package_archive", type=click.Path(exists=True, file_okay=True, dir_okay=False, path_type=Path))
 @click.argument("destination_dir", type=click.Path(file_okay=False, dir_okay=True, path_type=Path), default=Path("."))
 @click.option(
@@ -255,6 +270,89 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 			raise err
 
 	get_console().print(f"Package archive has been successfully extracted at {destination_dir}\n")
+
+
+@cli.command(short_help="Install opsi packages.")
+@click.argument("packages", nargs=-1, required=True, type=click.Path(exists=True, file_okay=True, dir_okay=True, path_type=Path))
+@click.option("--depots", help="Depot IDs (comma-separated) or 'all'. Default is configserver.")
+@click.option(
+	"--update-properties",
+	is_flag=True,
+	help="This flag triggers an interactive prompt to update Product property default values. Effective only when --interactive is enabled.",
+	default=False,
+)
+@click.option("--force", is_flag=True, help="Force installation.", default=False)
+def install(packages: list[str], depots: str, force: bool, update_properties: bool) -> None:
+	"""
+	opsi-cli package install subcommand.
+	This subcommand is used to install opsi packages.
+	"""
+	logger.trace("install package")
+
+	path_to_opsipackage_dict = map_and_sort_packages(packages)
+
+	service_client = get_service_connection()
+	depot_objects = get_depot_objects(service_client, depots)
+
+	if not force:
+		check_locked_products(service_client, depot_objects, path_to_opsipackage_dict)
+
+	if update_properties and config.interactive:
+		update_product_properties(path_to_opsipackage_dict)
+
+	with make_temp_dir() as temp_dir:
+		for depot in depot_objects:
+			depot_connection = get_depot_connection(depot)
+			repository = get_repository(depot)
+			try:
+				for package_path, opsi_package in path_to_opsipackage_dict.items():
+					dest_package_name = fix_custom_package_name(package_path)
+					upload_to_repository(depot_connection, repository, depot.id, package_path, dest_package_name, temp_dir)
+
+					property_default_values = get_property_default_values(
+						service_client,
+						depot.id,
+						opsi_package,
+						update_properties,
+					)
+					install_package(depot_connection, depot.id, dest_package_name, force, property_default_values)
+			finally:
+				repository and repository.disconnect()
+				depot_connection.disconnect()
+
+
+@cli.command(short_help="Uninstall opsi products.")
+@click.argument("product_ids", type=str, nargs=-1, required=True)
+@click.option("--depots", help="Depot IDs (comma-separated) or 'all'. Default is configserver.")
+@click.option("--force", is_flag=True, help="Force uninstallation.", default=False)
+@click.option("--keep-files", is_flag=True, help="Keep files on uninstallation.", default=False)
+def uninstall(product_ids: list[str], depots: str, force: bool, keep_files: bool) -> None:
+	"""
+	opsi-cli package uninstall subcommand.
+	This subcommand is used to uninstall opsi products.
+	"""
+	logger.trace("uninstall package")
+
+	service_client = get_service_connection()
+	depot_objects = get_depot_objects(service_client, depots)
+
+	depot_list = [depot.id for depot in depot_objects]
+	product_on_depot_list: list[ProductOnDepot] = service_client.jsonrpc(
+		"productOnDepot_getObjects", [[], {"depotId": depot_list, "productId": product_ids}]
+	)
+	if not product_on_depot_list:
+		raise click.UsageError("No products found to uninstall.")
+
+	for depot in depot_objects:
+		depot_connection = get_depot_connection(depot)
+		repository = get_repository(depot)
+		try:
+			for product_on_depot in product_on_depot_list:
+				cleanup_packages_from_repo(repository, product_on_depot.productId)
+				uninstall_package(depot_connection, depot.id, product_on_depot.productId, force, not keep_files)
+		finally:
+			repository and repository.disconnect()
+			depot_connection.disconnect()
 
 
 class PackagePlugin(OPSICLIPlugin):

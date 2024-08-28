@@ -9,6 +9,7 @@ import json
 import os
 import re
 import subprocess
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -16,6 +17,7 @@ from urllib.parse import urlparse
 from opsicommon.client.opsiservice import ServiceClient, ServiceConnectionListener, ServiceVerificationFlags
 from opsicommon.config import OpsiConfig
 from opsicommon.logging import get_logger, secret_filter
+from opsicommon.objects import OpsiDepotserver
 
 from opsicli import __version__
 from opsicli.cache import cache
@@ -98,6 +100,63 @@ def get_opsiconfd_config() -> dict[str, str]:
 	except Exception as err:
 		logger.debug("Failed to get opsiconfd config %s", err)
 	return config
+
+
+@lru_cache(maxsize=100)
+def get_tls_client_auth_config() -> dict:
+	"""
+	Returns the TLS client authentication settings.
+	"""
+	cfg = get_opsiconfd_config()
+	logger.debug("opsiconfd config: %r", cfg)
+	client_cert_file = None
+	client_key_file = None
+	client_key_password = None
+	if (
+		cfg["ssl_server_key"]
+		and os.path.exists(cfg["ssl_server_key"])
+		and cfg["ssl_server_cert"]
+		and os.path.exists(cfg["ssl_server_cert"])
+	):
+		client_cert_file = cfg["ssl_server_cert"]
+		client_key_file = cfg["ssl_server_key"]
+		client_key_password = cfg["ssl_server_key_passphrase"]
+	return {
+		"client_cert_file": client_cert_file,
+		"client_key_file": client_key_file,
+		"client_key_password": client_key_password,
+	}
+
+
+def get_depot_connection(depot: OpsiDepotserver) -> ServiceClient:
+	"""
+	Returns a connection to the depot.
+	"""
+	url = urlparse(depot.repositoryRemoteUrl)
+	hostname = url.hostname
+
+	if hostname is None:
+		raise ValueError("Hostname could not be parsed from the repository URL.")
+
+	if isinstance(hostname, bytes):
+		hostname = hostname.decode("utf-8")
+
+	if ":" in hostname:  # IPv6 address
+		hostname = f"[{hostname}]"
+
+	ssl_config = get_tls_client_auth_config()
+
+	connection = ServiceClient(
+		address=f"https://{hostname}:{url.port or 4447}",
+		username=depot.id,
+		password=depot.opsiHostKey,
+		user_agent=f"opsi-cli/{__version__}",
+		verify=ServiceVerificationFlags.ACCEPT_ALL,
+		jsonrpc_create_methods=False,
+		jsonrpc_create_objects=False,
+		**ssl_config,
+	)
+	return connection
 
 
 def get_service_connection() -> ServiceClient:
