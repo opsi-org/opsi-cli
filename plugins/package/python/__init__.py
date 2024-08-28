@@ -322,7 +322,6 @@ def install(packages: list[str], depots: str, force: bool, update_properties: bo
 			repository and repository.disconnect()
 			depot_connection.disconnect()
 
-	clear_caches()
 	temp_dir_manager.delete_temp_dir()
 
 
