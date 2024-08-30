@@ -12,6 +12,8 @@ from plugins.package.python import combine_products
 
 from .utils import container_connection, run_cli
 
+TEST_DATA_PATH = Path("tests/test_data/plugins/package")
+
 CONTROL_FILE_NAME = "control"
 CONTROL_TOML_FILE_NAME = "control.toml"
 
@@ -254,3 +256,114 @@ def test_combine_products() -> None:
 	]
 
 	assert combine_products(product_dict, product_on_depot_dict) == expected
+
+
+@pytest.mark.requires_testcontainer
+def test_package_install_and_uninstall() -> None:
+	with container_connection():
+		# Test installing with a missing dependency
+		exit_code, _, _stderr = run_cli(["package", "install", str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi")])
+		assert exit_code != 0
+		assert "Dependency 'testdependency5' for package 'testdependency4' is not specified." in _stderr
+
+		# Test with unfulfilled package dependency, this will lock the product 'testdependency4'
+		exit_code, _, _stderr = run_cli(
+			[
+				"package",
+				"install",
+				str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi"),
+				str(TEST_DATA_PATH / "testdependency5_1.2-2.opsi"),
+			]
+		)
+		assert exit_code != 0
+		assert "Opsi rpc error:" in _stderr
+
+		# Verify files exist after failed install
+		for file in [
+			"testdependency4_1.0-5.opsi",
+			"testdependency4_1.0-5.opsi.md5",
+			"testdependency4_1.0-5.opsi.zsync",
+			"testdependency5_1.2-2.opsi",
+			"testdependency5_1.2-2.opsi.md5",
+			"testdependency5_1.2-2.opsi.zsync",
+		]:
+			assert (Path("/var/lib/opsi/repository") / file).exists()
+
+		# Test with correct dependency version
+		exit_code, _, _stderr = run_cli(
+			[
+				"package",
+				"install",
+				str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi"),
+				str(TEST_DATA_PATH / "testdependency5_2-0.opsi"),
+			]
+		)
+		assert exit_code != 0
+		assert "Locked products found:" in _stderr
+
+		# Force install with correct dependency version
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"package",
+				"install",
+				str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi"),
+				str(TEST_DATA_PATH / "testdependency5_2-0.opsi"),
+				"--force",
+			]
+		)
+		assert exit_code == 0
+		assert (
+			"Package 'testdependency4_1.0-5.opsi' already exists in the repository with matching size and checksum. Skipping upload"
+			in _stdout.replace("\n", " ").replace("  ", " ")
+		)
+
+		# Verify correct files exist after successful install
+		for file in [
+			"testdependency4_1.0-5.opsi",
+			"testdependency4_1.0-5.opsi.md5",
+			"testdependency4_1.0-5.opsi.zsync",
+			"testdependency5_2-0.opsi",
+			"testdependency5_2-0.opsi.md5",
+			"testdependency5_2-0.opsi.zsync",
+		]:
+			assert (Path("/var/lib/opsi/repository") / file).exists()
+
+		# Verify incorrect files do not exist
+		for file in ["testdependency5_1.2-2.opsi", "testdependency5_1.2-2.opsi.md5", "testdependency5_1.2-2.opsi.zsync"]:
+			assert not (Path("/var/lib/opsi/repository") / file).exists()
+
+		# Test uninstalling packages
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"package",
+				"uninstall",
+				"testdependency4",
+				"testdependency5",
+			]
+		)
+		assert exit_code == 0
+		assert "Uninstalling" in _stdout
+
+		# Verify files do not exist after uninstall
+		for file in [
+			"testdependency4_1.0-5.opsi",
+			"testdependency4_1.0-5.opsi.md5",
+			"testdependency4_1.0-5.opsi.zsync",
+			"testdependency5_2-0.opsi",
+			"testdependency5_2-0.opsi.md5",
+			"testdependency5_2-0.opsi.zsync",
+		]:
+			assert not (Path("/var/lib/opsi/repository") / file).exists()
+
+
+@pytest.mark.requires_testcontainer
+def test_custom_package_installation() -> None:
+	with container_connection():
+		# Test case where the package has "~custom" name and has local md5 and zsync files, which are not updated.
+		exit_code, _, _ = run_cli(["package", "install", str(TEST_DATA_PATH / "test2_1.0-6~custom1.opsi")])
+		assert exit_code == 0
+		for file in ["test2_1.0-6.opsi", "test2_1.0-6.opsi.md5", "test2_1.0-6.opsi.zsync"]:
+			assert (Path("/var/lib/opsi/repository") / file).exists()
+
+		exit_code, _, _ = run_cli(["package", "uninstall", "test2"])
+		assert exit_code == 0
