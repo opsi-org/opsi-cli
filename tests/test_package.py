@@ -199,6 +199,32 @@ def test_make_with_custom(tmp_path: Path, setup_test_product: Path, custom_name:
 	assert not opsi_exists if custom_only else opsi_exists
 
 
+@pytest.mark.parametrize(
+	"setup_test_product",
+	[
+		{
+			"custom_dir_name": "custom",
+			"custom_toml_content": CONTROL_TOML,
+		}
+	],
+	indirect=["setup_test_product"],
+)
+def test_make_with_and_without_custom(tmp_path: Path, setup_test_product: Path) -> None:
+	"""
+	Testcase to verify that the custom package does not overwrite the non-custom package, but is created with a custom name format.
+	"""
+	source_dir = setup_test_product
+	cli_args = ["package", "make", str(source_dir), str(tmp_path)]
+	exit_code, _, _ = run_cli(cli_args)
+	package_archive = tmp_path / f"{TESTPRODUCT}_{PRODUCT_VERSION}-{PACKAGE_VERSION}.opsi"
+	assert exit_code == 0 and package_archive.exists()
+
+	cli_args = ["package", "make", str(source_dir), str(tmp_path), "--custom-name", "custom"]
+	exit_code, _, _ = run_cli(cli_args)
+	package_archive = tmp_path / f"{TESTPRODUCT}_{PRODUCT_VERSION}-{PACKAGE_VERSION}~custom.opsi"
+	assert exit_code == 0 and package_archive.exists()
+
+
 def test_extract(tmp_path: Path, setup_test_product: Path) -> None:
 	source_dir = setup_test_product
 	exit_code, _stdout, _stderr = run_cli(["package", "make", str(source_dir), str(tmp_path)])
