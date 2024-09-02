@@ -120,11 +120,6 @@ def make(
 				custom_name=custom_name,
 				custom_only=custom_only,
 			)
-			if custom_name:
-				logger.info("Renaming package archive to include custom name '%s'", custom_name)
-				custom_package_name = package_archive.parent / f"{package_archive.stem}~{custom_name}.opsi"
-				package_archive.rename(custom_package_name)
-				package_archive = custom_package_name
 		except Exception as err:
 			logger.error(err, exc_info=True)
 			raise err
