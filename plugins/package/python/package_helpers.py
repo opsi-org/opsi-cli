@@ -2,14 +2,19 @@
 Support functions for installing packages.
 """
 
+import os
+import shutil
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
+import requests
 from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.logging import get_logger
 from opsicommon.objects import BoolProductProperty, OpsiDepotserver, ProductProperty
 from opsicommon.package import OpsiPackage
+from opsicommon.package.archive import extract_archive
 from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
 from rich.progress import Progress
 
@@ -20,6 +25,56 @@ from opsicli.io import get_console, prompt
 
 logger = get_logger("opsicli")
 DEPOT_REPOSITORY_PATH = "/var/lib/opsi/repository"
+
+
+def download_file(url: str, local_filename: str) -> None:
+	chunk_size = 1024 * 1024  # 1 MB chunks
+	try:
+		with requests.get(url, stream=True) as r:
+			r.raise_for_status()
+			total_size = int(r.headers.get("content-length", 0))
+			downloaded_size = 0
+
+			with Progress() as progress:
+				task = progress.add_task(f"Downloading '{url}'...", total=total_size)
+				with open(local_filename, "wb") as f:
+					for chunk in r.iter_content(chunk_size=chunk_size):
+						if chunk:
+							f.write(chunk)
+							downloaded_size += len(chunk)
+							progress.update(task, advance=len(chunk))
+
+			logger.info("Downloaded file to %s", local_filename)
+	except requests.RequestException as e:
+		logger.error("Failed to download %s: %s", url, e)
+		raise
+
+
+def download_package(url: str, temp_dir: Path) -> str:
+	parsed_url = urlparse(url)
+	filename = os.path.basename(parsed_url.path)
+	local_opsi_file = os.path.join(temp_dir, filename)
+	if filename.endswith(".opsi"):
+		download_file(url, local_opsi_file)
+
+		for ext in [".md5", ".zsync"]:
+			download_file(url + ext, local_opsi_file + ext)
+	elif filename.endswith(".tar.gz"):
+		download_file(url, local_opsi_file)
+		extract_dir = os.path.join(temp_dir, filename.replace(".tar.gz", ""))
+		extract_archive(archive=Path(local_opsi_file), destination=Path(extract_dir))
+
+		for root, _, files in os.walk(extract_dir):
+			for file in files:
+				if file.endswith((".opsi", ".opsi.md5", ".opsi.zsync")):
+					extracted_file_path = os.path.join(root, file)
+					final_path = os.path.join(temp_dir, file)
+					shutil.copy(extracted_file_path, final_path)
+					logger.info("Copied %s to %s", extracted_file_path, final_path)
+					if file.endswith(".opsi"):
+						local_opsi_file = final_path
+
+	return local_opsi_file
 
 
 def get_depot_objects(service_client: ServiceClient, depots: str) -> list[OpsiDepotserver]:

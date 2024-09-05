@@ -4,6 +4,7 @@ opsi-cli package plugin
 
 from contextlib import nullcontext
 from pathlib import Path
+from urllib.parse import urlparse
 
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger
@@ -25,6 +26,7 @@ from plugins.package.data.metadata import command_metadata
 from .package_helpers import (
 	check_locked_products,
 	cleanup_packages_from_repo,
+	download_package,
 	fix_custom_package_name,
 	get_depot_objects,
 	get_property_default_values,
@@ -273,7 +275,7 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 
 
 @cli.command(short_help="Install opsi packages.")
-@click.argument("packages", nargs=-1, required=True, type=click.Path(exists=True, file_okay=True, dir_okay=True, path_type=Path))
+@click.argument("packages", nargs=-1, required=True, type=str)
 @click.option("--depots", help="Depot IDs (comma-separated) or 'all'. Default is configserver.")
 @click.option(
 	"--update-properties",
@@ -288,19 +290,29 @@ def install(packages: list[str], depots: str, force: bool, update_properties: bo
 	This subcommand is used to install opsi packages.
 	"""
 	logger.trace("install package")
-
-	path_to_opsipackage_dict = map_and_sort_packages(packages)
-
-	service_client = get_service_connection()
-	depot_objects = get_depot_objects(service_client, depots)
-
-	if not force:
-		check_locked_products(service_client, depot_objects, path_to_opsipackage_dict)
-
-	if update_properties and config.interactive:
-		update_product_properties(path_to_opsipackage_dict)
-
 	with make_temp_dir() as temp_dir:
+		local_packages = []
+		for package in packages:
+			parsed_url = urlparse(package)
+			if parsed_url.scheme in ("http", "https"):
+				local_package = download_package(package, temp_dir)
+				local_packages.append(local_package)
+			else:
+				if not Path(package).exists():
+					raise FileNotFoundError(f"Package '{package}' not found	")
+				local_packages.append(package)
+
+		path_to_opsipackage_dict = map_and_sort_packages(local_packages)
+
+		service_client = get_service_connection()
+		depot_objects = get_depot_objects(service_client, depots)
+
+		if not force:
+			check_locked_products(service_client, depot_objects, path_to_opsipackage_dict)
+
+		if update_properties and config.interactive:
+			update_product_properties(path_to_opsipackage_dict)
+
 		for depot in depot_objects:
 			depot_connection = get_depot_connection(depot)
 			repository = get_repository(depot)
