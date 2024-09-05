@@ -2,7 +2,6 @@
 Support functions for installing packages.
 """
 
-import os
 import shutil
 from functools import lru_cache
 from pathlib import Path
@@ -23,17 +22,18 @@ from OPSI.Util.Repository import WebDAVRepository  # type: ignore[import]
 from opsicli.config import config
 from opsicli.io import get_console, prompt
 
+from .package_progress import PackageProgressListener
+
 logger = get_logger("opsicli")
 DEPOT_REPOSITORY_PATH = "/var/lib/opsi/repository"
 
 
 def download_file(url: str, local_filename: str) -> None:
-	chunk_size = 1024 * 1024  # 1 MB chunks
+	chunk_size = 32 * 1024  # 32 KB chunks
 	try:
 		with requests.get(url, stream=True) as r:
 			r.raise_for_status()
 			total_size = int(r.headers.get("content-length", 0))
-			downloaded_size = 0
 
 			with Progress() as progress:
 				task = progress.add_task(f"Downloading '{url}'...", total=total_size)
@@ -41,7 +41,6 @@ def download_file(url: str, local_filename: str) -> None:
 					for chunk in r.iter_content(chunk_size=chunk_size):
 						if chunk:
 							f.write(chunk)
-							downloaded_size += len(chunk)
 							progress.update(task, advance=len(chunk))
 
 			logger.info("Downloaded file to %s", local_filename)
@@ -52,29 +51,37 @@ def download_file(url: str, local_filename: str) -> None:
 
 def download_package(url: str, temp_dir: Path) -> str:
 	parsed_url = urlparse(url)
-	filename = os.path.basename(parsed_url.path)
-	local_opsi_file = os.path.join(temp_dir, filename)
+	filename = Path(parsed_url.path).name
+	local_opsi_file = temp_dir / filename
+
+	download_file(url, str(local_opsi_file))
+
 	if filename.endswith(".opsi"):
-		download_file(url, local_opsi_file)
-
 		for ext in [".md5", ".zsync"]:
-			download_file(url + ext, local_opsi_file + ext)
-	elif filename.endswith(".tar.gz"):
-		download_file(url, local_opsi_file)
-		extract_dir = os.path.join(temp_dir, filename.replace(".tar.gz", ""))
-		extract_archive(archive=Path(local_opsi_file), destination=Path(extract_dir))
+			download_file(url + ext, str(local_opsi_file) + ext)
+	elif any(
+		filename.endswith(ext)
+		for ext in {".tar", ".gz", ".gzip", ".bz2", ".bzip2", ".zstd", ".cpio", ".tar.gz", ".tgz", ".tar.bz2", ".tbz", ".tar.xz", ".txz"}
+	):
+		extract_dir = temp_dir / filename.rsplit(".", 1)[0]
+		with Progress() as progress:
+			progress_listener = PackageProgressListener(progress, f"Extracting '{filename}'...")
 
-		for root, _, files in os.walk(extract_dir):
-			for file in files:
-				if file.endswith((".opsi", ".opsi.md5", ".opsi.zsync")):
-					extracted_file_path = os.path.join(root, file)
-					final_path = os.path.join(temp_dir, file)
-					shutil.copy(extracted_file_path, final_path)
-					logger.info("Copied %s to %s", extracted_file_path, final_path)
-					if file.endswith(".opsi"):
-						local_opsi_file = final_path
+			extract_archive(
+				archive=local_opsi_file,
+				destination=extract_dir,
+				progress_listener=progress_listener,
+			)
 
-	return local_opsi_file
+		for file in extract_dir.rglob("*"):
+			if file.suffix in (".opsi", ".md5", ".zsync"):
+				final_path = temp_dir / file.name
+				shutil.move(str(file), final_path)
+				logger.info("Moved %s to %s", file, final_path)
+				if file.suffix == ".opsi":
+					local_opsi_file = final_path
+
+	return str(local_opsi_file)
 
 
 def get_depot_objects(service_client: ServiceClient, depots: str) -> list[OpsiDepotserver]:
