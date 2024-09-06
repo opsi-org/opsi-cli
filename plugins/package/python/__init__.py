@@ -10,7 +10,6 @@ import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger
 from opsicommon.objects import ProductOnDepot
 from opsicommon.package import OpsiPackage
-from opsicommon.package.archive import ArchiveProgress, ArchiveProgressListener
 from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
 from opsicommon.utils import make_temp_dir
 from rich.progress import Progress
@@ -36,37 +35,12 @@ from .package_helpers import (
 	update_product_properties,
 	upload_to_repository,
 )
+from .package_progress import PackageProgressListener, ProgressCallbackAdapter
 
 __version__ = "0.2.0"
 __description__ = "Manage opsi packages"
 
 logger = get_logger("opsicli")
-
-
-class PackageMakeProgressListener(ArchiveProgressListener):
-	def __init__(self, progress: Progress, task_message: str):
-		self.progress = progress
-		self.started = False
-		self.task_id = self.progress.add_task(task_message, total=None)
-
-	def progress_changed(self, progress: ArchiveProgress) -> None:
-		if not self.started:
-			self.started = True
-			self.progress.tasks[self.task_id].total = 100
-		self.progress.update(self.task_id, completed=progress.percent_completed)
-
-
-class ProgressCallbackAdapter:
-	def __init__(self, progress: Progress, task_message: str):
-		self.progress = progress
-		self.started = False
-		self.task_id = self.progress.add_task(task_message, total=None)
-
-	def progress_callback(self, completed: int, total: int) -> None:
-		if not self.started:
-			self.started = True
-			self.progress.tasks[self.task_id].total = total
-		self.progress.update(self.task_id, completed=completed)
 
 
 @click.group(name="package", short_help="Manage opsi packages")
@@ -106,7 +80,7 @@ def make(
 	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
 		progress_listener = None
 		if not config.quiet:
-			progress_listener = PackageMakeProgressListener(progress, "[cyan]Creating opsi package...")
+			progress_listener = PackageProgressListener(progress, "[cyan]Creating opsi package...")
 
 		destination_dir.mkdir(parents=True, exist_ok=True)
 
@@ -256,7 +230,7 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 	with Progress() as progress:
 		progress_listener = None
 		if not config.quiet:
-			progress_listener = PackageMakeProgressListener(progress, "[cyan]Extracting opsi package...")
+			progress_listener = PackageProgressListener(progress, "[cyan]Extracting opsi package...")
 		logger.info("Extracting package archive for '%s'", destination_dir)
 		opsi_package = OpsiPackage()
 		try:
