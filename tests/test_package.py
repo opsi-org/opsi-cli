@@ -361,3 +361,18 @@ def test_custom_package_installation() -> None:
 
 		exit_code, _, _ = run_cli(["package", "uninstall", "test2"])
 		assert exit_code == 0
+
+
+@pytest.mark.requires_testcontainer
+def test_package_installation_from_urls() -> None:
+	with container_connection():
+		exit_code, _, _ = run_cli(["package", "install", "https://opsipackages.43.opsi.org/stable/linux/localboot/hwaudit_4.2.0.3-1.opsi"])
+		assert exit_code == 0
+
+		exit_code, _, _ = run_cli(
+			["package", "install", "https://opsipackages.uib.gmbh/development/7zip/all/all/7zip_all_all_19.00-2.tar.gz"]
+		)
+		assert exit_code == 0
+
+		exit_code, _, _ = run_cli(["package", "uninstall", "hwaudit", "7zip"])
+		assert exit_code == 0
