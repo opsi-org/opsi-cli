@@ -15,6 +15,7 @@ from opsicommon.utils import make_temp_dir
 from rich.progress import Progress
 
 from opsicli.config import config
+from opsicli.decorators import handle_list_attributes
 from opsicli.io import get_console, write_output
 from opsicli.opsiservice import get_depot_connection, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
@@ -69,6 +70,8 @@ class ProgressCallbackAdapter:
 
 @click.group(name="package", short_help="Manage opsi packages")
 @click.version_option(__version__, message="opsi-cli plugin package, version %(version)s")
+@click.pass_context
+@handle_list_attributes
 def cli() -> None:
 	"""
 	opsi-cli package command.
