@@ -4,7 +4,6 @@ opsi-cli package plugin
 
 from contextlib import nullcontext
 from pathlib import Path
-from urllib.parse import urlparse
 
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger
@@ -25,12 +24,12 @@ from plugins.package.data.metadata import command_metadata
 from .package_helpers import (
 	check_locked_products,
 	cleanup_packages_from_repo,
-	download_package,
 	fix_custom_package_name,
 	get_depot_objects,
 	get_property_default_values,
 	install_package,
 	map_and_sort_packages,
+	process_local_packages,
 	uninstall_package,
 	update_product_properties,
 	upload_to_repository,
@@ -265,16 +264,7 @@ def install(packages: list[str], depots: str, force: bool, update_properties: bo
 	"""
 	logger.trace("install package")
 	with make_temp_dir() as temp_dir:
-		local_packages = []
-		for package in packages:
-			parsed_url = urlparse(package)
-			if parsed_url.scheme in ("http", "https"):
-				local_package = download_package(package, temp_dir)
-				local_packages.append(local_package)
-			else:
-				if not Path(package).exists():
-					raise FileNotFoundError(f"Package '{package}' not found	")
-				local_packages.append(package)
+		local_packages = process_local_packages(packages, temp_dir)
 
 		path_to_opsipackage_dict = map_and_sort_packages(local_packages)
 
