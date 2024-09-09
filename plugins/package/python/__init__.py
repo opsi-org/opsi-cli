@@ -72,7 +72,7 @@ class ProgressCallbackAdapter:
 @click.version_option(__version__, message="opsi-cli plugin package, version %(version)s")
 @click.pass_context
 @handle_list_attributes
-def cli() -> None:
+def cli(ctx: click.Context) -> None:
 	"""
 	opsi-cli package command.
 	This command is used to manage opsi packages.
