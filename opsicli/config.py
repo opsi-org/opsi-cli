@@ -5,6 +5,8 @@ opsi-cli Basic command line interface for opsi
 general configuration
 """
 
+from __future__ import annotations
+
 import os
 import platform
 import sys
@@ -13,6 +15,8 @@ from dataclasses import InitVar, asdict, dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any, Callable
+
+from opsicli.utils import Singleton
 
 COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE" in os.environ
 
@@ -38,7 +42,6 @@ from opsicommon.logging import (  # noqa: E402
 	logging_config,
 	secret_filter,
 )
-from opsicommon.utils import Singleton  # noqa: E402
 from ruamel.yaml import YAML  # noqa: E402  # type: ignore[import]
 
 from opsicli.types import (  # noqa: E402
@@ -325,21 +328,20 @@ CONFIG_ITEMS = [
 	ConfigItem(
 		name="service",
 		type=OPSIServiceUrlOrServiceName,
-		group="Opsi service",
-		default="https://localhost:4447",
+		group="opsi service",
 		description="URL or name of a configured service to connect.",
 	),
-	ConfigItem(name="username", type=str, group="Opsi service", description="Username for opsi service connection."),
+	ConfigItem(name="username", type=str, group="opsi service", description="Username for opsi service connection."),
 	ConfigItem(
 		name="password",
 		type=Password,
-		group="Opsi service",
+		group="opsi service",
 		description="Password for opsi service connection. For 2FA, append TOTP to the password",
 	),
 	ConfigItem(
 		name="totp",
 		type=Bool,
-		group="Opsi service",
+		group="opsi service",
 		default=False,
 		description="This flag triggers an interactive prompt to enter TOTP, assuming the password is stored in the configuration.",
 	),

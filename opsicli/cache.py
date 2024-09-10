@@ -11,9 +11,9 @@ from typing import Any
 
 import orjson
 from opsicommon.logging import get_logger  # type: ignore[import]
-from opsicommon.utils import Singleton  # type: ignore[import]
 
 from opsicli.config import config
+from opsicli.utils import Singleton  # type: ignore[import]
 
 logger = get_logger("opsicli")
 

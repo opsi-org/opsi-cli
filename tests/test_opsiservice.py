@@ -11,18 +11,10 @@ from opsicli.cache import cache
 from opsicli.config import OPSIService, config
 from opsicli.opsiservice import (
 	get_service_connection,
-	get_service_credentials_from_backend,
 	service_client,  # noqa: F401
 )
 
 from .utils import container_connection
-
-
-@pytest.mark.skipif(not Path("/etc/opsi/backends").exists(), reason="need local backend for this test")
-def test_get_service_credentials_from_backend() -> None:
-	(host_id, host_key) = get_service_credentials_from_backend()
-	assert host_id
-	assert host_key
 
 
 @pytest.mark.skipif(not Path("/etc/opsi/backends").exists(), reason="need local backend for this test")

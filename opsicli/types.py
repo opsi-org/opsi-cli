@@ -13,7 +13,14 @@ from pathlib import Path
 from typing import Any, Type
 from urllib.parse import urlparse
 
-import rich_click as click  # type: ignore[import]
+from opsicli.config import COMPLETION_MODE
+
+if not COMPLETION_MODE:  # type: ignore[has-type]
+	import rich_click as click  # type: ignore[import]
+else:
+	# Loads faster
+	import click  # type: ignore[import,no-redef]
+
 from opsicommon.logging import (  # type: ignore[import]
 	LEVEL_TO_OPSI_LEVEL,
 	NAME_TO_LEVEL,

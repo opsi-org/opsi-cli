@@ -69,3 +69,14 @@ Manche python-Bibliotheken nutzen zur Laufzeit C libraries des Systems (Beispiel
 Dabei sei aber darauf hingewiesen, dass das Resultierende Program nur dann funktioniert, wenn die benötigten libraries auf dem Zielsystem vorhanden sind.
 Das Verhalten kann also auch Änderungen unterworfen sein, in verschiedenen Umgebungen oder mit verschiedenen Versionen der C libraries.
 Daher ist es empfohlen, wenn möglich, darauf zu verzichten.
+
+## Entwicklung
+### Ausführungsgeschwindigkeit
+Gerade für die Shell-Auto-Completion ist es wichtig, dass opsi-cli wenig Ausführungszeit benötigt.
+Das Start-Verhalten kann mit viztracer sehr gut analysiert werden:
+
+```bash
+poetry run pip install viztracer
+_OPSI_CLI_COMPLETE=zsh_source poetry run viztracer opsi-cli foo
+poetry run vizviewer result.json
+```
