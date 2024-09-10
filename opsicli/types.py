@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 
 from opsicli.config import COMPLETION_MODE
 
-if not COMPLETION_MODE:
+if not COMPLETION_MODE:  # type: ignore[has-type]
 	import rich_click as click  # type: ignore[import]
 else:
 	# Loads faster
