@@ -7,6 +7,7 @@ from typing import Optional, Union
 
 import pytest
 from opsicommon.objects import LocalbootProduct, ProductOnDepot
+from opsicommon.testing.helpers import http_test_server
 
 from plugins.package.python import combine_products
 
@@ -398,13 +399,13 @@ def test_custom_package_installation() -> None:
 @pytest.mark.requires_testcontainer
 def test_package_installation_from_urls() -> None:
 	with container_connection():
-		exit_code, _, _ = run_cli(["package", "install", "https://opsipackages.43.opsi.org/stable/linux/localboot/hwaudit_4.2.0.3-1.opsi"])
-		assert exit_code == 0
+		with http_test_server(serve_directory=TEST_DATA_PATH) as server:
+			base_url = f"http://localhost:{server.port}"
 
-		exit_code, _, _ = run_cli(
-			["package", "install", "https://opsipackages.uib.gmbh/development/7zip/all/all/7zip_all_all_19.00-2.tar.gz"]
-		)
-		assert exit_code == 0
+			for file in ["test2_1.0-6~custom1.opsi", "7zip_all_all_19.00-2.tar.gz"]:
+				file_url = f"{base_url}/{file}"
+				exit_code, _, _ = run_cli(["package", "install", file_url])
+				assert exit_code == 0
 
-		exit_code, _, _ = run_cli(["package", "uninstall", "hwaudit", "7zip"])
-		assert exit_code == 0
+			exit_code, _, _ = run_cli(["package", "uninstall", "test2", "7zip"])
+			assert exit_code == 0
