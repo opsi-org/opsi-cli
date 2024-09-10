@@ -64,19 +64,24 @@ def get_depot_connection(depot: OpsiDepotserver) -> ServiceClient:
 def get_service_connection() -> ServiceClient:
 	global service_client
 	if not service_client:
-		address = config.service
-		username = config.username
-		password = config.password
-		service = config.get_service_by_name(config.service)
+		address: str | None = None
+		username: str | None = None
+		password: str | None = None
+
+		if config.service:
+			service_conf = config.get_service_by_name(config.service)
+			if service_conf:
+				address = service_conf.url
+				username = service_conf.username
+				password = service_conf.password
+			else:
+				address = config.service
+		if config.username:
+			username = config.username
+		if config.password:
+			password = config.password
 
 		totp = str(prompt("Enter the TOTP", password=True)) if config.totp else None
-
-		if service:
-			address = service.url
-			if service.username:
-				username = service.username
-			if service.password:
-				password = service.password
 
 		if username and not password and config.interactive:
 			password = str(prompt(f"Please enter the password for {username}@{address}", password=True))
