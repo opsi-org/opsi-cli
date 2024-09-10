@@ -229,7 +229,7 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 		raise FileExistsError(f"Destination directory '{destination_dir}' already exists.")
 	destination_dir.mkdir(parents=True, exist_ok=True)
 
-	with Progress() as progress:
+	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
 		progress_listener = None
 		if not config.quiet:
 			progress_listener = PackageProgressListener(progress, "[cyan]Extracting opsi package...")
