@@ -3,6 +3,7 @@ Support functions for installing packages.
 """
 
 import shutil
+from contextlib import nullcontext
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -46,10 +47,12 @@ def download_with_progress(url: str, destination: Path) -> None:
 	"""
 	Downloads a file from the given URL to the specified destination with a progress bar.
 	"""
-	with Progress() as progress:
-		task = progress.add_task(f"Downloading '{url}'...", total=100)
+	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
+		if not config.quiet:
+			task = progress.add_task(f"Downloading '{url}'...", total=100)
 		downloaded_file = download(url, destination)
-		progress.update(task, completed=100)
+		if not config.quiet:
+			progress.update(task, completed=100)
 	logger.info("Downloaded file to %s", downloaded_file)
 
 
@@ -72,8 +75,10 @@ def download_package(url: str, temp_dir: Path) -> str:
 		for ext in {".tar", ".gz", ".gzip", ".bz2", ".bzip2", ".zstd", ".cpio", ".tar.gz", ".tgz", ".tar.bz2", ".tbz", ".tar.xz", ".txz"}
 	):
 		extract_dir = temp_dir / f"extract_{filename}"
-		with Progress() as progress:
-			progress_listener = PackageProgressListener(progress, f"Extracting '{filename}'...")
+		with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
+			progress_listener = None
+			if not config.quiet:
+				progress_listener = PackageProgressListener(progress, f"Extracting '{filename}'...")
 
 			extract_archive(
 				archive=local_opsi_file,
@@ -409,12 +414,14 @@ def upload_to_repository(
 	zsync_file = get_zsync_file(source_package, temp_dir)
 
 	logger.notice("Starting upload of package %s to depot %s with MD5 and zsync", dest_package_name, depot_id)
-	with Progress() as progress:
-		task = progress.add_task(f"Uploading '{dest_package_name}' to depot '{depot_id}' with MD5 and zsync...", total=package_size)
+	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
+		if not config.quiet:
+			task = progress.add_task(f"Uploading '{dest_package_name}' to depot '{depot_id}' with MD5 and zsync...", total=package_size)
 		repository.upload(str(source_package), dest_package_name)
 		repository.upload(str(md5_file), f"{dest_package_name}.md5")
 		repository.upload(str(zsync_file), f"{dest_package_name}.zsync")
-		progress.update(task, completed=package_size)
+		if not config.quiet:
+			progress.update(task, completed=package_size)
 	logger.notice("Finished upload of package %s to depot %s with MD5 and zsync", dest_package_name, depot_id)
 
 	cleanup_packages_from_repo(repository, OpsiPackage(source_package).product.id, dest_package_name)
@@ -463,10 +470,12 @@ def install_package(
 	remote_package_file = DEPOT_REPOSITORY_PATH + "/" + dest_package_name
 	installation_params = [remote_package_file, str(force), property_default_values]
 	logger.notice("Starting installation of package %s to depot %s", dest_package_name, depot_id)
-	with Progress() as progress:
-		task = progress.add_task(f"Installing '{dest_package_name}' on depot '{depot_id}'...\n", total=100)
+	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
+		if not config.quiet:
+			task = progress.add_task(f"Installing '{dest_package_name}' on depot '{depot_id}'...\n", total=100)
 		depot_connection.jsonrpc("depot_installPackage", installation_params)
-		progress.update(task, completed=100)
+		if not config.quiet:
+			progress.update(task, completed=100)
 	logger.notice("Finished installation of package %s to depot %s", dest_package_name, depot_id)
 
 
@@ -482,8 +491,10 @@ def uninstall_package(
 	"""
 	uninstallation_params = [product_id, str(force), str(delete_files)]
 	logger.notice("Starting uninstallation of product %s from depot %s", product_id, depot_id)
-	with Progress() as progress:
-		task = progress.add_task(f"Uninstalling '{product_id}' from depot '{depot_id}'...\n", total=100)
+	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
+		if not config.quiet:
+			task = progress.add_task(f"Uninstalling '{product_id}' from depot '{depot_id}'...\n", total=100)
 		depot_connection.jsonrpc("depot_uninstallPackage", uninstallation_params)
-		progress.update(task, completed=100)
+		if not config.quiet:
+			progress.update(task, completed=100)
 	logger.notice("Finished uninstallation of product %s from depot %s", product_id, depot_id)
