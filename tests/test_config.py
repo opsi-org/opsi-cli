@@ -88,7 +88,7 @@ def test_config_item_plugin_user_dir() -> None:
 def test_config_defaults() -> None:
 	config = Config()
 	assert config.color is True
-	assert config.service == "https://localhost:4447"
+	assert config.service is None
 
 
 def test_set_config() -> None:
@@ -157,11 +157,11 @@ def test_config_service_set_default() -> None:
 
 		exit_code, _stdout, _stderr = run_cli(["config", "service", "set-default"])
 		assert exit_code == 0
-		assert config.get_values().get("service") == "https://localhost:4447"
+		assert config.get_values().get("service") is None
 
 		exit_code, _stdout, _stderr = run_cli(["config", "service", "set-default", "nonexisting"])
 		assert exit_code == 1
-		assert config.get_values().get("service") == "https://localhost:4447"
+		assert config.get_values().get("service") is None
 
 
 @pytest.mark.parametrize(
