@@ -19,10 +19,10 @@ from typing import Any
 
 from click import Command  # type: ignore[import]
 from opsicommon.logging import get_logger  # type: ignore[import]
-from opsicommon.utils import Singleton  # type: ignore[import]
 from packaging.version import parse
 
 from opsicli.config import COMPLETION_MODE, config
+from opsicli.utils import Singleton  # type: ignore[import]
 
 logger = get_logger("opsicli")
 

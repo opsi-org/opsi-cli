@@ -5,6 +5,8 @@ opsi-cli Basic command line interface for opsi
 general configuration
 """
 
+from __future__ import annotations
+
 import os
 import platform
 import sys
@@ -13,6 +15,8 @@ from dataclasses import InitVar, asdict, dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any, Callable
+
+from opsicli.utils import Singleton
 
 COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE" in os.environ
 
@@ -38,7 +42,6 @@ from opsicommon.logging import (  # noqa: E402
 	logging_config,
 	secret_filter,
 )
-from opsicommon.utils import Singleton  # noqa: E402
 from ruamel.yaml import YAML  # noqa: E402  # type: ignore[import]
 
 from opsicli.types import (  # noqa: E402

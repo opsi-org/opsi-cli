@@ -6,7 +6,6 @@ Main command
 """
 
 import builtins
-import os
 
 # pylint: disable=wrong-import-position
 import re
@@ -15,22 +14,17 @@ from typing import Any, Sequence
 
 from click.exceptions import Abort, ClickException  # type: ignore[import]
 from click.shell_completion import CompletionItem  # type: ignore[import]
-from opsicommon.config.opsi import OpsiConfig
 from opsicommon.exceptions import OpsiServiceConnectionError
 from opsicommon.logging import get_logger  # type: ignore[import]
-from opsicommon.utils import patch_popen
 
 from opsicli import __version__, prepare_cli_paths
 from opsicli.cache import cache
-from opsicli.config import config
-from opsicli.io import get_console
+from opsicli.config import COMPLETION_MODE, config
 from opsicli.plugin import plugin_manager
 from opsicli.types import LogLevel as TypeLogLevel
 from opsicli.types import OpsiCliRuntimeError
 
 original_print = builtins.print
-
-COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE" in os.environ
 
 if not COMPLETION_MODE:
 	import rich_click as click  # type: ignore[import,no-redef]
@@ -40,6 +34,8 @@ if not COMPLETION_MODE:
 		rich_format_error,
 		rich_format_help,
 	)
+
+	from opsicli.io import get_console
 else:
 	# Loads faster
 	import click  # type: ignore[import,no-redef]
@@ -70,6 +66,8 @@ if not COMPLETION_MODE:
 		if options:
 			click.rich_click.OPTION_GROUPS["opsi-cli"].append({"name": f"{group} options", "options": options})
 
+	from opsicommon.utils import patch_popen
+
 	patch_popen()
 
 logger = get_logger("opsicli")
@@ -94,15 +92,8 @@ class OpsiCLI(click.MultiCommand):  # type: ignore
 			logger.error(err, exc_info=exc_info)
 
 			additional_info = ""
-			if (
-				issubclass(exc_type, OpsiServiceConnectionError)
-				and "localhost" in config.service
-				and OpsiConfig(upgrade_config=False).get("host", "server-role") != "configserver"
-			):
-				additional_info = (
-					"\nAttempted connection to localhost even if not running on opsi server."
-					"\nConfigure connection with [bold cyan]opsi-cli config service add[/bold cyan]"
-				)
+			if issubclass(exc_type, OpsiServiceConnectionError) and not config.service:
+				additional_info = "\nNo config service configured, use [bold cyan]opsi-cli config service add[/bold cyan]"
 
 			if not isinstance(err, ClickException):
 				err = ClickException(str(err))
