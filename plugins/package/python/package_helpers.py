@@ -2,14 +2,17 @@
 Support functions for installing packages.
 """
 
+import shutil
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.logging import get_logger
 from opsicommon.objects import BoolProductProperty, OpsiDepotserver, ProductProperty
 from opsicommon.package import OpsiPackage
+from opsicommon.package.archive import extract_archive
 from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
 from rich.progress import Progress
 
@@ -17,6 +20,9 @@ from OPSI.Util.File.Opsi import parseFilename  # type: ignore[import]
 from OPSI.Util.Repository import WebDAVRepository  # type: ignore[import]
 from opsicli.config import config
 from opsicli.io import get_console, prompt
+from opsicli.utils import download
+
+from .package_progress import PackageProgressListener
 
 logger = get_logger("opsicli")
 DEPOT_REPOSITORY_PATH = "/var/lib/opsi/repository"
@@ -34,6 +40,75 @@ def get_depot_objects(service_client: ServiceClient, depots: str) -> list[OpsiDe
 		else {"type": "OpsiConfigserver"}
 	)
 	return service_client.jsonrpc("host_getObjects", [[], depot_filter])
+
+
+def download_with_progress(url: str, destination: Path) -> None:
+	"""
+	Downloads a file from the given URL to the specified destination with a progress bar.
+	"""
+	with Progress() as progress:
+		task = progress.add_task(f"Downloading '{url}'...", total=100)
+		downloaded_file = download(url, destination)
+		progress.update(task, completed=100)
+	logger.info("Downloaded file to %s", downloaded_file)
+
+
+def download_package(url: str, temp_dir: Path) -> str:
+	"""
+	Downloads a package and its related files from the given URL to the specified temporary directory.
+	Extracts the package if it is an archive and moves relevant files to the temporary directory.
+	"""
+	parsed_url = urlparse(url)
+	filename = Path(parsed_url.path).name
+	local_opsi_file = temp_dir / filename
+
+	download_with_progress(url, temp_dir)
+
+	if filename.endswith(".opsi"):
+		for ext in [".md5", ".zsync"]:
+			download_with_progress(url + ext, temp_dir)
+	elif any(
+		filename.endswith(ext)
+		for ext in {".tar", ".gz", ".gzip", ".bz2", ".bzip2", ".zstd", ".cpio", ".tar.gz", ".tgz", ".tar.bz2", ".tbz", ".tar.xz", ".txz"}
+	):
+		extract_dir = temp_dir / f"extract_{filename}"
+		with Progress() as progress:
+			progress_listener = PackageProgressListener(progress, f"Extracting '{filename}'...")
+
+			extract_archive(
+				archive=local_opsi_file,
+				destination=extract_dir,
+				progress_listener=progress_listener,
+			)
+		logger.info("Extracted file %s to %s", filename, extract_dir)
+
+		relevant_files = (file for file in extract_dir.rglob("*") if file.suffix in {".opsi", ".md5", ".zsync"})
+		for file in relevant_files:
+			final_path = temp_dir / file.name
+			shutil.move(str(file), final_path)
+			logger.info("Moved %s to %s", file, final_path)
+			if file.suffix == ".opsi":
+				local_opsi_file = final_path
+
+	return str(local_opsi_file)
+
+
+def process_local_packages(packages: list[str], temp_dir: Path) -> list[str]:
+	"""
+	Download packages if necessary and return local paths.
+	"""
+	local_packages = set()
+	for package in packages:
+		parsed_url = urlparse(package)
+		if parsed_url.scheme in ("http", "https"):
+			local_package = download_package(package, temp_dir)
+			local_packages.add(local_package)
+		else:
+			package_path = Path(package)
+			if not package_path.exists():
+				raise FileNotFoundError(f"Package '{package}' not found	")
+			local_packages.add(package)
+	return list(local_packages)
 
 
 def map_and_sort_packages(packages: list[str]) -> dict[Path, OpsiPackage]:
