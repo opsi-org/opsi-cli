@@ -27,6 +27,7 @@ command_metadata = {
 			Attribute(id="url", description="The base url of the opsi service", data_type="str"),
 			Attribute(id="username", description="Username to use for authentication", data_type="str"),
 			Attribute(id="password", description="Password to use for authentication", data_type="str"),
+			Attribute(id="default", description="Is the default service?", data_type="bool"),
 		]
 	),
 }

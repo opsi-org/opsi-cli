@@ -184,6 +184,9 @@ class ConfigItem:
 	def set_default(self, value: Any) -> None:
 		self._set_value("default", value, ConfigValueSource.DEFAULT)
 
+	def set_value_to_default(self, source: ConfigValueSource | None = None) -> None:
+		self._set_value("value", self.default, source)
+
 	def _add_value(self, attribute: str, value: Any, source: ConfigValueSource | None = None) -> None:
 		if attribute not in ("default", "value"):
 			raise ValueError(f"Invalid attribute '{attribute}'")
@@ -442,38 +445,44 @@ class Config(metaclass=Singleton):
 			self._config[name].value = value
 
 	def read_config_files(self) -> None:
+		for item in self._config.values():
+			if item.name == "config_file_user":
+				for value in item.get_values(
+					value_only=False, sources=[ConfigValueSource.CONFIG_FILE_SYSTEM, ConfigValueSource.CONFIG_FILE_USER]
+				):
+					item.set_value_to_default(source=value.source)
+
 		for file_type in ("config_file_system", "config_file_user"):
 			config_file = getattr(self, file_type, None)
 			if not config_file or not config_file.exists():
 				continue
 			source = ConfigValueSource.CONFIG_FILE_SYSTEM if file_type == "config_file_system" else ConfigValueSource.CONFIG_FILE_USER
-			with open(config_file, "r", encoding="utf-8") as file:
-				data = YAML().load(file.read())
-				for key, value in data.items():
-					config_item = self._config.get(key)
-					if not config_item:
-						continue
+			data = YAML().load(config_file.read_text(encoding="utf-8"))
+			for key, value in data.items():
+				config_item = self._config.get(key)
+				if not config_item:
+					continue
 
-					if not config_item.multiple and config_item.get_values(value_only=False, sources=[ConfigValueSource.COMMANDLINE]):
-						# Do not override cmdline arguments
-						continue
+				if not config_item.multiple and config_item.get_values(value_only=False, sources=[ConfigValueSource.COMMANDLINE]):
+					# Do not override cmdline arguments
+					continue
 
-					if config_item.key:
-						new_value = []
-						for akey, adict in value.items():
-							adict[config_item.key] = akey
-							new_value.append(adict)
-						value = new_value
+				if config_item.key:
+					new_value = []
+					for akey, adict in value.items():
+						adict[config_item.key] = akey
+						new_value.append(adict)
+					value = new_value
 
-					if config_item.multiple:
-						for val in value:
-							if hasattr(config_item.type, "from_yaml"):
-								val = config_item.type.from_yaml(val)
-							config_item.add_value(val, source)
-					else:
+				if config_item.multiple:
+					for val in value:
 						if hasattr(config_item.type, "from_yaml"):
-							value = config_item.type.from_yaml(value)
-						config_item.set_value(value, source)
+							val = config_item.type.from_yaml(val)
+						config_item.add_value(val, source)
+				else:
+					if hasattr(config_item.type, "from_yaml"):
+						value = config_item.type.from_yaml(value)
+					config_item.set_value(value, source)
 
 	def write_config_files(self, sources: list[ConfigValueSource] | None = None, skip_keys: list[str] | None = None) -> None:
 		logger.info("Writing config files")
@@ -485,17 +494,15 @@ class Config(metaclass=Singleton):
 			if not config_file:
 				continue
 
+			logger.info("Writing %s %r", file_type, config_file)
+
 			data = {}
 			if config_file.exists():
-				with open(config_file, "r", encoding="utf-8") as file:
-					data = YAML().load(file)
+				data = YAML().load(config_file.read_text(encoding="utf-8"))
 
 			for config_item in self._config.values():
 				values = [val for val in config_item.get_values(value_only=False) if val and val.source == source]
-				if not config_item.multiple and not values:
-					continue
 				yaml_values = [val.value.to_yaml() if hasattr(val.value, "to_yaml") else val.value for val in values if val]
-
 				if config_item.multiple:
 					if config_item.key:
 						data[config_item.name] = {}
@@ -505,10 +512,14 @@ class Config(metaclass=Singleton):
 					else:
 						data[config_item.name] = yaml_values
 				else:
-					data[config_item.name] = yaml_values[0]
+					if yaml_values:
+						data[config_item.name] = yaml_values[0]
+					elif config_item.name in data:
+						del data[config_item.name]
+
 			if skip_keys:
 				for key in skip_keys:
-					data.pop(key)
+					data.pop(key, None)
 			if not config_file.parent.exists():
 				logger.debug("Creating directory %s", config_file.parent)
 				config_file.parent.mkdir(parents=True)

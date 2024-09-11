@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Type
 
 import pytest
+from ruamel.yaml import YAML  # noqa: E402  # type: ignore[import]
 
 from opsicli.config import Config, ConfigItem
 from opsicli.types import Bool, Directory, LogLevel, OPSIServiceUrl, Password
@@ -102,8 +103,8 @@ def test_set_config() -> None:
 
 def test_read_write_config() -> None:
 	config = Config()
-	with temp_context() as tempdir:
-		conffile = Path(tempdir) / "conffile.conf"
+	with temp_context() as tmp_path:
+		conffile = tmp_path / "conffile.conf"
 		config.config_file_user = conffile
 		# Write any config value and save
 		exit_code, stdout, _stderr = run_cli(["config", "set", "output_format", "csv"])
@@ -126,9 +127,9 @@ def test_read_write_config() -> None:
 def test_service_config() -> None:
 	config = Config()
 
-	with temp_context() as tempdir:
+	with temp_context() as tmp_path:
 		# config service add writes conffile. Explicitely set here to avoid wiping config file of the user.
-		conffile = Path(tempdir) / "conffile.conf"
+		conffile = tmp_path / "conffile.conf"
 		config.config_file_user = conffile
 		exit_code, _stdout, _stderr = run_cli(
 			["config", "service", "add", "--name=test", "--username=testuser", "--password=testpassword", "https://testurl:4447"]
@@ -140,27 +141,121 @@ def test_service_config() -> None:
 		assert not any(service.name == "test" for service in config.get_values().get("services", []))
 
 
+def test_config_service_add() -> None:
+	config = Config()
+
+	with temp_context() as tmp_path:
+		# config service add writes conffile. Explicitely set here to avoid wiping config file of the user.
+		conffile = tmp_path / "conffile.conf"
+		config.config_file_user = conffile
+
+		exit_code, stdout, _stderr = run_cli(
+			["config", "service", "add", "--name=test", "--username=testuser", "--password=testpassword", "testhost"]
+		)
+		assert exit_code == 0
+		assert stdout == "Successfully added new service 'test' with URL 'https://testhost:4447'.\nThe default service is now 'test'.\n"
+		assert config.get_values()["services"][0].name == "test"
+		assert config.get_values()["services"][0].username == "testuser"
+		assert config.get_values()["services"][0].password == "testpassword"
+		assert config.get_values()["services"][0].url == "https://testhost:4447"
+		# When no default service is set, the first service added is the default
+		assert config.get_values()["service"] == "test"
+
+		exit_code, stdout, _stderr = run_cli(
+			["config", "service", "add", "--name=test2", "--username=testuser", "--password=testpassword", "testhost2:443"]
+		)
+		assert exit_code == 0
+		assert stdout == "Successfully added new service 'test2' with URL 'https://testhost2:443'.\nThe default service is now 'test'.\n"
+		assert config.get_values()["services"][1].name == "test2"
+		assert config.get_values()["services"][1].username == "testuser"
+		assert config.get_values()["services"][1].password == "testpassword"
+		assert config.get_values()["services"][1].url == "https://testhost2:443"
+		# Default service is still the first one added
+		assert config.get_values()["service"] == "test"
+
+		exit_code, stdout, _stderr = run_cli(
+			["config", "service", "add", "--name=test2", "--username=testuser", "--password=testpassword", "--default", "testhost2:443"]
+		)
+		assert exit_code == 0
+		assert stdout == "Successfully added new service 'test2' with URL 'https://testhost2:443'.\nThe default service is now 'test2'.\n"
+		assert config.get_values()["services"][1].name == "test2"
+		assert config.get_values()["services"][1].username == "testuser"
+		assert config.get_values()["services"][1].password == "testpassword"
+		assert config.get_values()["services"][1].url == "https://testhost2:443"
+		# Default service is now test2
+		assert config.get_values()["service"] == "test2"
+
+
+def test_config_service_remove() -> None:
+	config = Config()
+
+	with temp_context() as tmp_path:
+		# config service add writes conffile. Explicitely set here to avoid wiping config file of the user.
+		conffile = tmp_path / "conffile.conf"
+		config.config_file_user = conffile
+
+		exit_code, _stdout, _stderr = run_cli(
+			["config", "service", "add", "--name=test", "--username=testuser", "--password=testpassword", "testhost"]
+		)
+		assert exit_code == 0
+		exit_code, _stdout, _stderr = run_cli(
+			["config", "service", "add", "--name=test2", "--username=testuser", "--password=testpassword", "testhost2", "--default"]
+		)
+		assert exit_code == 0
+
+		exit_code, stdout, _stderr = run_cli(["config", "service", "remove", "test"])
+		assert exit_code == 0
+		assert stdout == "Successfully removed service 'test'.\nThe default service is now 'test2'.\n"
+
+		exit_code, stdout, _stderr = run_cli(["config", "service", "remove", "test2"])
+		assert exit_code == 0
+		assert stdout == "Successfully removed service 'test2'.\nThe default service is now unset.\n"
+
+
 def test_config_service_set_default() -> None:
 	config = Config()
 
-	with temp_context() as tempdir:
+	with temp_context() as tmp_path:
 		# config service add writes conffile. Explicitely set here to avoid wiping config file of the user.
-		conffile = Path(tempdir) / "conffile.conf"
-		config.config_file_user = conffile
+		# conffile = tmp_path / "conffile.conf"
+		config.config_file_user = tmp_path / "config_file_user.conf"
+		config.config_file_system = tmp_path / "config_file_system.conf"
 		exit_code, _stdout, _stderr = run_cli(
 			["config", "service", "add", "--name=test", "--username=testuser", "--password=testpassword", "https://testurl:4447"]
 		)
+		exit_code, _stdout, _stderr = run_cli(
+			["config", "service", "add", "--name=test2", "--username=testuser", "--password=testpassword", "https://testurl2:4447"]
+		)
 
-		exit_code, _stdout, _stderr = run_cli(["config", "service", "set-default", "test"])
+		exit_code, stdout, _stderr = run_cli(["config", "service", "set-default", "test2"])
 		assert exit_code == 0
+		assert stdout == "The default service is now 'test2'.\n"
+		assert config.get_values().get("service") == "test2"
+		config.read_config_files()
+		assert config.get_values().get("service") == "test2"
+
+		assert not config.config_file_system.exists()
+		yaml = YAML().load(config.config_file_user.read_text())
+		assert yaml["service"] == "test2"
+
+		exit_code, stdout, _stderr = run_cli(["config", "service", "set-default", "test"])
+		assert exit_code == 0
+		assert stdout == "The default service is now 'test'.\n"
+		assert config.get_values().get("service") == "test"
+		config.read_config_files()
 		assert config.get_values().get("service") == "test"
 
-		exit_code, _stdout, _stderr = run_cli(["config", "service", "set-default"])
+		exit_code, stdout, _stderr = run_cli(["config", "service", "set-default"])
 		assert exit_code == 0
+		assert stdout == "The default service is now unset.\n"
+		assert config.get_values().get("service") is None
+		config.read_config_files()
 		assert config.get_values().get("service") is None
 
 		exit_code, _stdout, _stderr = run_cli(["config", "service", "set-default", "nonexisting"])
 		assert exit_code == 1
+		assert config.get_values().get("service") is None
+		config.read_config_files()
 		assert config.get_values().get("service") is None
 
 
@@ -171,8 +266,8 @@ def test_config_service_set_default() -> None:
 def test_metadata_bool_flag(config_value: str, call_parameter: str) -> None:
 	config = Config()
 
-	with temp_context() as tempdir:
-		conffile = Path(tempdir) / "conffile.conf"
+	with temp_context() as tmp_path:
+		conffile = tmp_path / "conffile.conf"
 		config.config_file_user = conffile
 		exit_code, _stdout, _stderr = run_cli(["config", "set", "metadata", config_value])
 		assert exit_code == 0
@@ -189,8 +284,8 @@ def test_metadata_bool_flag(config_value: str, call_parameter: str) -> None:
 def test_header_bool_flag(config_value: str, call_parameter: str) -> None:
 	config = Config()
 
-	with temp_context() as tempdir:
-		conffile = Path(tempdir) / "conffile.conf"
+	with temp_context() as tmp_path:
+		conffile = tmp_path / "conffile.conf"
 		config.config_file_user = conffile
 		exit_code, _stdout, _stderr = run_cli(["config", "set", "header", config_value])
 		assert exit_code == 0
