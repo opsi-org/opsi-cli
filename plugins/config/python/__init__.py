@@ -183,11 +183,18 @@ def service_add(
 			or None
 		)
 
-	default_service = config.get_config_item("service").get_value(conf_source)
+	default_service = config.get_config_item("service").get_value()
 	if not default:
 		if interactive:
 			default = (
-				prompt("Set as default service (y/n)?", default="n" if default_service and default_service != name else "y").lower() == "y"
+				str(
+					prompt(
+						"Set as default service?",
+						choices=["y", "n"],
+						default="n" if default_service and default_service != name else "y",
+					)
+				).lower()
+				== "y"
 			)
 		else:
 			default = not default_service
@@ -202,7 +209,7 @@ def service_add(
 		config.get_config_item("service").set_value_to_default()
 	config.write_config_files(sources=[conf_source])
 
-	default_service = config.get_config_item("service").get_value(conf_source)
+	default_service = config.get_config_item("service").get_value()
 	msg = f"Successfully added new service {name!r} with URL {url!r}.\n"
 	msg += f"The default service is now {repr(default_service) if default_service else 'unset'}."
 	logger.notice(msg)
@@ -239,7 +246,7 @@ def service_remove(
 			config_item.remove_value(val)
 			break
 
-	default_service = config.get_config_item("service").get_value(conf_source)
+	default_service = config.get_config_item("service").get_value()
 	if default_service == name:
 		config.get_config_item("service").set_value_to_default(conf_source)
 		default_service = None
