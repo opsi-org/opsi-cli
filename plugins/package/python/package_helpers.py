@@ -17,7 +17,6 @@ from opsicommon.package.archive import extract_archive
 from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
 from rich.progress import Progress
 
-from OPSI.Util.File.Opsi import parseFilename  # type: ignore[import]
 from opsicli.config import config
 from opsicli.io import get_console, prompt
 from opsicli.utils import ProgressCallbackAdapter, download
@@ -364,10 +363,15 @@ def cleanup_packages_from_repo(depot_connection: ServiceClient, product_id: str,
 	)
 
 	for repo_content in depot_connection.webdav_content("/repository"):
-		if repo_content.name in exclude_files:
+		if repo_content.name in exclude_files or not repo_content.name.endswith((".opsi", ".opsi.md5", ".opsi.zsync")):
 			continue
-		repo_file = parseFilename(repo_content.name)
-		if repo_file and repo_file.productId == product_id:
+
+		basename = repo_content.name.rsplit(".opsi", 1)[0]
+		if "_" not in basename:
+			continue
+		repo_product_id = basename.rsplit("_", 1)[0]
+
+		if repo_product_id == product_id:
 			logger.notice("Deleting package %s from depot", repo_content.path)
 			depot_connection.delete(repo_content.path)
 
