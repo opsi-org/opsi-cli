@@ -20,7 +20,7 @@ from collections import defaultdict
 from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Callable, Iterable, Iterator, Type
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Type
 
 from opsicommon.logging import (
 	get_logger,  # type: ignore[import]
@@ -34,6 +34,8 @@ else:
 	import termios
 	import tty
 
+if TYPE_CHECKING:
+	from rich.progress import Progress
 
 logger = get_logger("opsicli")
 
@@ -45,6 +47,19 @@ class Singleton(type):
 		if cls not in cls._instances:
 			cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
 		return cls._instances[cls]
+
+
+class ProgressCallbackAdapter:
+	def __init__(self, progress: Progress, task_message: str):
+		self.progress = progress
+		self.started = False
+		self.task_id = self.progress.add_task(task_message, total=None)
+
+	def progress_callback(self, completed: int, total: int) -> None:
+		if not self.started:
+			self.started = True
+			self.progress.tasks[self.task_id].total = total
+		self.progress.update(self.task_id, completed=completed)
 
 
 def random_string(length: int) -> str:
@@ -178,14 +193,33 @@ def evaluate_rpc_dict_result(
 	return (succeeded, failed)
 
 
-def download(url: str, destination: Path, make_executable: bool = False) -> Path:
+def download(url: str, destination: Path, make_executable: bool = False, progress_callback: Callable | None = None) -> Path:
 	import requests
 
 	new_file = destination / url.split("/")[-1]
 	response = requests.get(url, stream=True, timeout=30)
 	response.raise_for_status()
+	size = int(response.headers.get("Content-Length") or "0")
 	with open(new_file, "wb") as filehandle:
-		shutil.copyfileobj(response.raw, filehandle)
+		if size:
+			position = 0
+			block_size = 128 * 1024
+			if progress_callback:
+				progress_callback(position, size)
+			while True:
+				length = min(block_size, size - position)
+				filehandle.write(response.raw.read(length))
+				position += length
+				position = min(position, size)
+				if progress_callback:
+					progress_callback(position, size)
+				if position == size:
+					break
+		else:
+			shutil.copyfileobj(response.raw, filehandle)
+			if progress_callback:
+				size = filehandle.tell()
+				progress_callback(size, size)
 
 	if make_executable:
 		os.chmod(new_file, os.stat(new_file).st_mode | stat.S_IEXEC)

@@ -18,15 +18,16 @@ from opsicommon.package.associated_files import create_package_md5_file, create_
 from rich.progress import Progress
 
 from OPSI.Util.File.Opsi import parseFilename  # type: ignore[import]
-from OPSI.Util.Repository import WebDAVRepository  # type: ignore[import]
 from opsicli.config import config
 from opsicli.io import get_console, prompt
-from opsicli.utils import download
+from opsicli.utils import ProgressCallbackAdapter, download
 
 from .package_progress import PackageProgressListener
 
-logger = get_logger("opsicli")
 DEPOT_REPOSITORY_PATH = "/var/lib/opsi/repository"
+
+
+logger = get_logger("opsicli")
 
 
 def get_depot_objects(service_client: ServiceClient, depots: str) -> list[OpsiDepotserver]:
@@ -48,11 +49,8 @@ def download_with_progress(url: str, destination: Path) -> None:
 	Downloads a file from the given URL to the specified destination with a progress bar.
 	"""
 	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
-		if not config.quiet:
-			task = progress.add_task(f"Downloading '{url}'...", total=100)
-		downloaded_file = download(url, destination)
-		if not config.quiet:
-			progress.update(task, completed=100)
+		progress_callback = ProgressCallbackAdapter(progress, f"Downloading '{url}'...").progress_callback if not config.quiet else None
+		downloaded_file = download(url, destination, progress_callback=progress_callback)
 	logger.info("Downloaded file to %s", downloaded_file)
 
 
@@ -314,7 +312,6 @@ def get_zsync_file(package_path: Path, temp_dir: Path) -> Path:
 
 def check_pkg_existence_and_integrity(
 	depot_connection: ServiceClient,
-	repository: WebDAVRepository,
 	dest_package_name: str,
 	package_size: int,
 	local_checksum: str,
@@ -323,12 +320,12 @@ def check_pkg_existence_and_integrity(
 	Check if the package already exists in the repository and has the same size and checksum. If it does, skip the upload.
 	"""
 	logger.info("Checking package existence and integrity in the repository")
-	repo_contents = repository.content()
-	if not any(repo_content["name"] == dest_package_name for repo_content in repo_contents):
+	repo_contents = depot_connection.webdav_content("/repository")
+	existing_packages = [rc for rc in repo_contents if rc.name == dest_package_name]
+	if not existing_packages:
 		return False
 
-	repo_file_info = repository.fileInfo(dest_package_name)
-	if repo_file_info["size"] != package_size:
+	if existing_packages[0].size != package_size:
 		logger.info("Size of source and destination differs.")
 		return False
 
@@ -355,7 +352,7 @@ def check_disk_space(depot_connection: ServiceClient, depot_id: str, package_siz
 		raise ValueError(f"Insufficient disk space on depot '{depot_id}'. Needed: {package_size} bytes, available: {available_space} bytes")
 
 
-def cleanup_packages_from_repo(repository: WebDAVRepository, product_id: str, exclude_package_name: str | None = None) -> None:
+def cleanup_packages_from_repo(depot_connection: ServiceClient, product_id: str, exclude_package_name: str | None = None) -> None:
 	"""
 	Deletes packages from the depot repository.
 
@@ -366,14 +363,13 @@ def cleanup_packages_from_repo(repository: WebDAVRepository, product_id: str, ex
 		{exclude_package_name, f"{exclude_package_name}.md5", f"{exclude_package_name}.zsync"} if exclude_package_name else set()
 	)
 
-	repo_contents = repository.content()
-	for repo_content in repo_contents:
-		repo_file = parseFilename(repo_content["name"])
+	for repo_content in depot_connection.webdav_content("/repository"):
+		if repo_content.name in exclude_files:
+			continue
+		repo_file = parseFilename(repo_content.name)
 		if repo_file and repo_file.productId == product_id:
-			if repo_content["name"] in exclude_files:
-				continue
-			logger.notice("Deleting package %s from depot", repo_content["name"])
-			repository.delete(repo_content["name"])
+			logger.notice("Deleting package %s from depot", repo_content.path)
+			depot_connection.delete(repo_content.path)
 
 
 def validate_upload_and_check_disk_space(
@@ -395,7 +391,6 @@ def validate_upload_and_check_disk_space(
 
 def upload_to_repository(
 	depot_connection: ServiceClient,
-	repository: WebDAVRepository,
 	depot_id: str,
 	source_package: Path,
 	dest_package_name: str,
@@ -407,24 +402,31 @@ def upload_to_repository(
 	md5_file, local_checksum = get_md5_file(source_package, temp_dir)
 	package_size = source_package.stat().st_size
 
-	if check_pkg_existence_and_integrity(depot_connection, repository, dest_package_name, package_size, local_checksum):
+	if check_pkg_existence_and_integrity(depot_connection, dest_package_name, package_size, local_checksum):
 		return
+
 	check_disk_space(depot_connection, depot_id, package_size)
 
 	zsync_file = get_zsync_file(source_package, temp_dir)
 
-	logger.notice("Starting upload of package %s to depot %s with MD5 and zsync", dest_package_name, depot_id)
-	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
-		if not config.quiet:
-			task = progress.add_task(f"Uploading '{dest_package_name}' to depot '{depot_id}' with MD5 and zsync...", total=package_size)
-		repository.upload(str(source_package), dest_package_name)
-		repository.upload(str(md5_file), f"{dest_package_name}.md5")
-		repository.upload(str(zsync_file), f"{dest_package_name}.zsync")
-		if not config.quiet:
-			progress.update(task, completed=package_size)
-	logger.notice("Finished upload of package %s to depot %s with MD5 and zsync", dest_package_name, depot_id)
+	for file in [source_package, md5_file, zsync_file]:
+		filename = dest_package_name
+		if file == md5_file:
+			filename = f"{dest_package_name}.md5"
+		elif file == zsync_file:
+			filename = f"{dest_package_name}.zsync"
 
-	cleanup_packages_from_repo(repository, OpsiPackage(source_package).product.id, dest_package_name)
+		logger.notice("Starting upload of file %r to depot %r", filename, depot_id)
+
+		with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
+			progress_callback = (
+				ProgressCallbackAdapter(progress, f"Uploading '{filename}'...").progress_callback if not config.quiet else None
+			)
+			depot_connection.upload(file, f"/repository/{filename}", progress_callback=progress_callback)
+
+		logger.notice("Finished upload of file %r to depot %r", filename, depot_id)
+
+	cleanup_packages_from_repo(depot_connection, OpsiPackage(source_package).product.id, dest_package_name)
 	validate_upload_and_check_disk_space(depot_connection, depot_id, local_checksum, dest_package_name)
 
 
@@ -472,10 +474,10 @@ def install_package(
 	logger.notice("Starting installation of package %s to depot %s", dest_package_name, depot_id)
 	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
 		if not config.quiet:
-			task = progress.add_task(f"Installing '{dest_package_name}' on depot '{depot_id}'...\n", total=100)
+			task = progress.add_task(f"Installing '{dest_package_name}' on depot '{depot_id}'...\n", total=None)
 		depot_connection.jsonrpc("depot_installPackage", installation_params)
 		if not config.quiet:
-			progress.update(task, completed=100)
+			progress.update(task, total=1, completed=1)
 	logger.notice("Finished installation of package %s to depot %s", dest_package_name, depot_id)
 
 

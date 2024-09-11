@@ -18,8 +18,7 @@ from opsicli.decorators import handle_list_attributes
 from opsicli.io import get_console, write_output
 from opsicli.opsiservice import get_depot_connection, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
-from opsicli.repository import get_repository
-from opsicli.utils import create_nested_dict
+from opsicli.utils import ProgressCallbackAdapter, create_nested_dict
 from plugins.package.data.metadata import command_metadata
 
 from .package_helpers import (
@@ -35,7 +34,7 @@ from .package_helpers import (
 	update_product_properties,
 	upload_to_repository,
 )
-from .package_progress import PackageProgressListener, ProgressCallbackAdapter
+from .package_progress import PackageProgressListener
 
 __version__ = "0.2.0"
 __description__ = "Manage opsi packages"
@@ -266,12 +265,12 @@ def install(packages: list[str], depots: str, force: bool, update_properties: bo
 	This subcommand is used to install opsi packages.
 	"""
 	logger.trace("install package")
+	service_client = get_service_connection()
 	with make_temp_dir() as temp_dir:
 		local_packages = process_local_packages(packages, temp_dir)
 
 		path_to_opsipackage_dict = map_and_sort_packages(local_packages)
 
-		service_client = get_service_connection()
 		depot_objects = get_depot_objects(service_client, depots)
 
 		if not force:
@@ -282,11 +281,10 @@ def install(packages: list[str], depots: str, force: bool, update_properties: bo
 
 		for depot in depot_objects:
 			depot_connection = get_depot_connection(depot)
-			repository = get_repository(depot)
 			try:
 				for package_path, opsi_package in path_to_opsipackage_dict.items():
 					dest_package_name = fix_custom_package_name(package_path)
-					upload_to_repository(depot_connection, repository, depot.id, package_path, dest_package_name, temp_dir)
+					upload_to_repository(depot_connection, depot.id, package_path, dest_package_name, temp_dir)
 
 					property_default_values = get_property_default_values(
 						service_client,
@@ -296,7 +294,6 @@ def install(packages: list[str], depots: str, force: bool, update_properties: bo
 					)
 					install_package(depot_connection, depot.id, dest_package_name, force, property_default_values)
 			finally:
-				repository and repository.disconnect()
 				depot_connection.disconnect()
 
 
@@ -324,13 +321,11 @@ def uninstall(product_ids: list[str], depots: str, force: bool, keep_files: bool
 
 	for depot in depot_objects:
 		depot_connection = get_depot_connection(depot)
-		repository = get_repository(depot)
 		try:
 			for product_on_depot in product_on_depot_list:
-				cleanup_packages_from_repo(repository, product_on_depot.productId)
+				cleanup_packages_from_repo(depot_connection, product_on_depot.productId)
 				uninstall_package(depot_connection, depot.id, product_on_depot.productId, force, not keep_files)
 		finally:
-			repository and repository.disconnect()
 			depot_connection.disconnect()
 
 
