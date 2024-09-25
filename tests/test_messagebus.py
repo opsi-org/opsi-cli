@@ -2,11 +2,16 @@
 test_messagebus
 """
 
+import time
+from threading import Thread
+
 import pytest
+from opsicommon.client.opsiservice import ServiceClient
 
 from opsicli.messagebus import JSONRPCMessagebusConnection
+from opsicli.opsiservice import get_service_connection
 
-from .utils import container_connection
+from .utils import container_connection, run_cli
 
 
 @pytest.mark.xfail
@@ -57,3 +62,28 @@ def test_messagebus_jsonrpc_multiple() -> None:
 				"service:config:jsonrpc"
 			]
 			assert result[0].getType() == "OpsiConfigserver"
+
+
+@pytest.mark.requires_testcontainer
+def test_wait_for_event() -> None:
+	class CreateHostThread(Thread):
+		def __init__(self, client: ServiceClient) -> None:
+			super().__init__(daemon=True)
+			self.client = client
+
+		def run(self) -> None:
+			time.sleep(1.5)
+			self.client.jsonrpc("host_createOpsiClient", params=["dummy"])
+
+	with container_connection():
+		cht = CreateHostThread(get_service_connection())
+		cht.start()
+		# with tmp_client(connection, CLIENT1):
+		cmd = ["messagebus", "wait-for-event", "host_created", "--timeout", "2"]
+		exit_code, _stdout, _stderr = run_cli(cmd)
+		cht.join()
+		assert exit_code == 0  # 'host_created' event found
+
+		cmd = ["messagebus", "wait-for-event", "host_created", "--timeout", "1"]
+		exit_code, _stdout, _stderr = run_cli(cmd)
+		assert exit_code == 1  # timeout reached
