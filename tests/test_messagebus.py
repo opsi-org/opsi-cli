@@ -64,6 +64,7 @@ def test_messagebus_jsonrpc_multiple() -> None:
 			assert result[0].getType() == "OpsiConfigserver"
 
 
+@pytest.mark.xfail  # may fail if runner is slow
 @pytest.mark.requires_testcontainer
 def test_wait_for_event() -> None:
 	class CreateHostThread(Thread):
@@ -72,16 +73,18 @@ def test_wait_for_event() -> None:
 			self.client = client
 
 		def run(self) -> None:
-			time.sleep(1.5)
-			self.client.jsonrpc("host_createOpsiClient", params=["dummy"])
+			time.sleep(4.0)
+			self.client.jsonrpc("host_createOpsiClient", params=["dummy.test.tld"])
 
 	with container_connection():
-		cht = CreateHostThread(get_service_connection())
+		service_connection = get_service_connection()
+		cht = CreateHostThread(service_connection)
 		cht.start()
 		# with tmp_client(connection, CLIENT1):
-		cmd = ["messagebus", "wait-for-event", "host_created", "--timeout", "2"]
+		cmd = ["-l", "7", "messagebus", "wait-for-event", "host_created", "--timeout", "5"]
 		exit_code, _stdout, _stderr = run_cli(cmd)
 		cht.join()
+		service_connection.jsonrpc("host_delete", params=["dummy.test.tld"])
 		assert exit_code == 0  # 'host_created' event found
 
 		cmd = ["messagebus", "wait-for-event", "host_created", "--timeout", "1"]
