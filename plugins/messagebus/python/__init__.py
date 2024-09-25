@@ -1,7 +1,7 @@
 """
 opsi-cli basic command line interface for opsi
 
-client-action plugin
+messagebus plugin
 """
 
 import json
@@ -16,7 +16,7 @@ from opsicli.messagebus import MessagebusConnection
 from opsicli.plugin import OPSICLIPlugin
 
 __version__ = "0.3.0"
-__description__ = "This command can be used to manage opsi client actions."
+__description__ = "This command can be used to interact with the opsi message bus."
 
 logger = get_logger("opsicli")
 
