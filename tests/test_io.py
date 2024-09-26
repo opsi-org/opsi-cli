@@ -158,7 +158,7 @@ def test_blocking_input_timeout() -> None:
 		def fileno(self) -> int:
 			return 0
 
-		def read(self) -> bytes:
+		def read(self, size: int | None = None) -> bytes:
 			time.sleep(self.block_seconds)
 			return b""
 
