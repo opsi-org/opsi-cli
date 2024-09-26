@@ -430,12 +430,17 @@ def stdin_readable(timeout: float) -> bool:
 def read_input() -> Any:
 	logger.debug("Reading input")
 	with input_file_bin() as file:
+		data = b""
 		if not config.input_file and not input_file_is_a_tty():
 			logger.debug("No input file explicitly set, checking if stdin is readable")
 			try:
 				is_readable = stdin_readable(0.1)
 				if is_readable:
 					logger.debug("Stdin is readable, reading input from stdin")
+					data += file.read(1)
+					if not data:
+						logger.debug("No data read from stdin, returning None")
+						return None
 				else:
 					logger.debug("Stdin is not readable, returning None")
 					return None
@@ -443,7 +448,7 @@ def read_input() -> Any:
 				logger.debug("Failed to check stdin readability: %s", err)
 
 		logger.debug("Reading input from %s", file)
-		data = file.read()
+		data += file.read()
 	if not data:
 		return None
 
