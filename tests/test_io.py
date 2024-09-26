@@ -3,6 +3,7 @@ test_config
 """
 
 import sys
+import time
 from io import BufferedReader, BytesIO, TextIOWrapper
 from pathlib import Path
 from typing import Any
@@ -145,6 +146,38 @@ def test_input(input_format: str, string: str, data: Any) -> None:
 		result = read_input()
 		sys.stdin = old_stdin
 		assert result == data
+
+
+def test_blocking_input_timeout() -> None:
+	class BlockingInput(BytesIO):
+		def __init__(self, block_seconds: int) -> None:
+			self.block_seconds = block_seconds
+			super().__init__()
+
+		def fileno(self) -> int:
+			return 0
+
+		def read(self) -> bytes:
+			time.sleep(self.block_seconds)
+			return b""
+
+	for input_file in (None, "-"):
+		config.input_file = input_file
+		block_seconds = 2
+		with TextIOWrapper(BufferedReader(BlockingInput(block_seconds=block_seconds))) as inputfile:  # type: ignore[arg-type]
+			old_stdin = sys.stdin
+			sys.stdin = inputfile
+			start = time.time()
+			result = read_input()
+			wait_time = time.time() - start
+			if input_file == "-":
+				# If input-file is "-" (stdin set explicitly) the input must block
+				assert wait_time >= block_seconds
+			else:
+				# If input-file is not set, the input should block for 1 second only
+				assert wait_time < 0.3
+			sys.stdin = old_stdin
+			assert result is None
 
 
 @pytest.mark.parametrize(
