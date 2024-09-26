@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 import pytest
 from _pytest.capture import CaptureFixture
+from opsicommon.logging import use_logging_config
 
 from opsicli.config import config
 from opsicli.io import (
@@ -161,23 +162,24 @@ def test_blocking_input_timeout() -> None:
 			time.sleep(self.block_seconds)
 			return b""
 
-	for input_file in (None, "-"):
-		config.input_file = input_file
-		block_seconds = 2
-		with TextIOWrapper(BufferedReader(BlockingInput(block_seconds=block_seconds))) as inputfile:  # type: ignore[arg-type]
-			old_stdin = sys.stdin
-			sys.stdin = inputfile
-			start = time.time()
-			result = read_input()
-			wait_time = time.time() - start
-			if input_file == "-":
-				# If input-file is "-" (stdin set explicitly) the input must block
-				assert wait_time >= block_seconds
-			else:
-				# If input-file is not set, the input should block for 1 second only
-				assert wait_time < 0.3
-			sys.stdin = old_stdin
-			assert result is None
+	with use_logging_config(stderr_level=8):
+		for input_file in (None, "-"):
+			config.input_file = input_file
+			block_seconds = 2
+			with TextIOWrapper(BufferedReader(BlockingInput(block_seconds=block_seconds))) as inputfile:  # type: ignore[arg-type]
+				old_stdin = sys.stdin
+				sys.stdin = inputfile
+				start = time.time()
+				result = read_input()
+				wait_time = time.time() - start
+				if input_file == "-":
+					# If input-file is "-" (stdin set explicitly) the input must block
+					assert wait_time >= block_seconds
+				else:
+					# If input-file is not set, the input should block for 1 second only
+					assert wait_time < 0.3
+				sys.stdin = old_stdin
+				assert result is None
 
 
 @pytest.mark.parametrize(

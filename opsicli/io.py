@@ -431,13 +431,18 @@ def read_input() -> Any:
 	logger.debug("Reading input")
 	with input_file_bin() as file:
 		if not config.input_file and not input_file_is_a_tty():
-			# No input file explicitly set, try to read from stdin with timeout
+			logger.debug("No input file explicitly set, checking if stdin is readable")
 			try:
-				if not stdin_readable(0.1):
+				is_readable = stdin_readable(0.1)
+				if is_readable:
+					logger.debug("Stdin is readable, reading input from stdin")
+				else:
+					logger.debug("Stdin is not readable, returning None")
 					return None
-			except io.UnsupportedOperation:
-				pass
+			except io.UnsupportedOperation as err:
+				logger.debug("Failed to check stdin readability: %s", err)
 
+		logger.debug("Reading input from %s", file)
 		data = file.read()
 	if not data:
 		return None
