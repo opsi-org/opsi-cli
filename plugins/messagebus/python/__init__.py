@@ -4,7 +4,6 @@ opsi-cli basic command line interface for opsi
 messagebus plugin
 """
 
-import json
 from threading import Event
 from typing import Any
 
