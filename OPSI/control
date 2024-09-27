@@ -1,21 +1,21 @@
 [Package]
 version: 1
-depends: 
+depends:
 
 [Product]
 type: localboot
 id: opsi-cli
 name: opsi-cli
 description: Command line interface for opsi (Windows, Linux, MacOS)
-advice: 
+advice:
 version: 4.3.11.0
 priority: 0
 licenseRequired: False
-productClasses: 
+productClasses:
 setupScript: setup.opsiscript
 uninstallScript: uninstall.opsiscript
-updateScript: 
-alwaysScript: 
-onceScript: 
-customScript: 
-userLoginScript: 
+updateScript:
+alwaysScript:
+onceScript:
+customScript:
+userLoginScript:

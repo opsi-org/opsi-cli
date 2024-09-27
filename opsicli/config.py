@@ -280,15 +280,19 @@ CONFIG_ITEMS = [
 		name="output_file",
 		type=File,
 		group="IO",
-		default="-",
-		description="Write data to the given file.",
+		default=None,
+		description="Write data to the given file. If not set or set to '-', output is written to stdout.",
 	),
 	ConfigItem(
 		name="input_file",
 		type=File,
 		group="IO",
-		default="-",
-		description="Read data from the given file.",
+		default=None,
+		description=(
+			"Read data from the given file. "
+			"If set to '-', input is read from stdin (blocking). "
+			"If not set, ops-cli checks whether stdin is readable and only reads if data is available within one second."
+		),
 	),
 	ConfigItem(name="interactive", type=Bool, group="IO", default=sys.stdin.isatty(), description="Enable or disable interactive mode."),
 	ConfigItem(
