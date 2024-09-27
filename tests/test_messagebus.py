@@ -81,7 +81,7 @@ def test_wait_for_event() -> None:
 		cht = CreateHostThread(service_connection)
 		cht.start()
 		# with tmp_client(connection, CLIENT1):
-		cmd = ["-l", "7", "messagebus", "wait-for-event", "host_created", "--timeout", "5"]
+		cmd = ["-l", "7", "messagebus", "wait-for-event", "host_created", "--timeout", "4"]
 		exit_code, _stdout, _stderr = run_cli(cmd)
 		cht.join()
 		service_connection.jsonrpc("host_delete", params=["dummy.test.tld"])
@@ -89,4 +89,37 @@ def test_wait_for_event() -> None:
 
 		cmd = ["messagebus", "wait-for-event", "host_created", "--timeout", "1"]
 		exit_code, _stdout, _stderr = run_cli(cmd)
+		assert exit_code == 1  # timeout reached
+
+
+@pytest.mark.xfail  # may fail if runner is slow
+@pytest.mark.requires_testcontainer
+def test_wait_for_event_data() -> None:
+	class CreateHostThread(Thread):
+		def __init__(self, client: ServiceClient) -> None:
+			super().__init__(daemon=True)
+			self.client = client
+
+		def run(self) -> None:
+			time.sleep(4.0)
+			self.client.jsonrpc("host_createOpsiClient", params=["dummy.test.tld"])
+
+	with container_connection():
+		service_connection = get_service_connection()
+		cht = CreateHostThread(service_connection)
+		cht.start()
+		# with tmp_client(connection, CLIENT1):
+		cmd = ["-l", "7", "messagebus", "wait-for-event", "host_created", "--data", "id=dummy.test.tld", "--timeout", "4"]
+		exit_code, _stdout, _stderr = run_cli(cmd)
+		cht.join()
+		service_connection.jsonrpc("host_delete", params=["dummy.test.tld"])
+		assert exit_code == 0  # 'host_created' event found
+
+		cht = CreateHostThread(service_connection)
+		cht.start()
+		# with tmp_client(connection, CLIENT1):
+		cmd = ["-l", "7", "messagebus", "wait-for-event", "host_created", "--data", "id=some.other.host", "--timeout", "4"]
+		exit_code, _stdout, _stderr = run_cli(cmd)
+		cht.join()
+		service_connection.jsonrpc("host_delete", params=["dummy.test.tld"])
 		assert exit_code == 1  # timeout reached

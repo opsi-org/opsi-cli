@@ -70,16 +70,16 @@ def cli() -> None:
 
 @cli.command(name="wait-for-event", short_help="Wait for a specific event on the messagebus")
 @click.argument("type", type=str)
-@click.option("--data", help="Data of the event to wait for", type=str)
+@click.option("--data", help="Data of the event to wait for", type=str, multiple=True)
 @click.option("--timeout", help="Timeout in seconds", type=float, default=None)
-def wait_for_event(type: str, data: str, timeout: float | None) -> None:
+def wait_for_event(type: str, data: list[str], timeout: float | None) -> None:
 	"""
 	opsi-cli messagebus wait-for-event command
 	"""
 	mbus_connection = WaitForEventMessagebusConnection()
 	data_dict = None
 	if data:
-		data_dict = json.loads(data)
+		data_dict = {entry[0].strip(): entry[1].strip() for entry in [assignment.split("=", 1) for assignment in data]}
 	mbus_connection.wait_for_event(type=type, data=data_dict, timeout=timeout)
 
 
