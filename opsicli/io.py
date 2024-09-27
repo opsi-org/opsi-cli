@@ -7,6 +7,7 @@ input output
 
 import csv
 import inspect
+import io
 import sys
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
@@ -87,7 +88,7 @@ def sort_data(data: Any) -> Any:
 
 
 def output_file_is_stdout() -> bool:
-	return str(config.output_file) in ("-", "")
+	return not config.output_file or str(config.output_file) == "-"
 
 
 def output_file_is_a_tty() -> bool:
@@ -103,7 +104,7 @@ def output_file_is_a_tty() -> bool:
 
 @contextmanager
 def output_file_bin() -> Iterator[IO[bytes]]:
-	if str(config.output_file) in ("-", ""):
+	if not config.output_file or str(config.output_file) == "-":
 		yield sys.stdout.buffer
 		sys.stdout.flush()
 	else:
@@ -115,7 +116,7 @@ def output_file_bin() -> Iterator[IO[bytes]]:
 @contextmanager
 def output_file_str(encoding: str | None = "utf-8") -> Iterator[IO[str]]:
 	encoding = encoding or "utf-8"
-	if str(config.output_file) in ("-", ""):
+	if not config.output_file or str(config.output_file) == "-":
 		yield sys.stdout
 		sys.stdout.flush()
 	else:
@@ -319,7 +320,7 @@ def write_output_raw(data: bytes | str) -> None:
 
 
 def input_file_is_stdin() -> bool:
-	return str(config.input_file) in ("-", "")
+	return not config.input_file or str(config.input_file) == "-"
 
 
 def input_file_is_a_tty() -> bool:
@@ -335,12 +336,15 @@ def input_file_is_a_tty() -> bool:
 
 @contextmanager
 def input_file_bin() -> Iterator[IO[bytes]]:
-	if str(config.input_file) in ("-", ""):
+	if not config.input_file or str(config.input_file) == "-":
 		if input_file_is_a_tty():
+			logger.debug("Binary input from tty")
 			yield BytesIO()
 		else:
+			logger.debug("Binary input from stdin")
 			yield sys.stdin.buffer
 	else:
+		logger.debug("Binary input from file '%s'", config.input_file)
 		with open(config.input_file, mode="rb") as file:
 			yield file
 
@@ -348,12 +352,15 @@ def input_file_bin() -> Iterator[IO[bytes]]:
 @contextmanager
 def input_file_str(encoding: str | None = "utf-8") -> Iterator[IO[str]]:
 	encoding = encoding or "utf-8"
-	if str(config.input_file) in ("-", ""):
+	if not config.input_file or str(config.input_file) == "-":
 		if input_file_is_a_tty():
+			logger.debug("String input from tty")
 			yield StringIO()
 		else:
+			logger.debug("String input from stdin")
 			yield sys.stdin
 	else:
+		logger.debug("String input from file '%s'", config.input_file)
 		with open(config.input_file, mode="r", encoding=encoding) as file:
 			yield file
 
@@ -401,9 +408,47 @@ def read_input_csv(data: bytes) -> list[dict | list[str]]:
 	return rows
 
 
+def stdin_readable(timeout: float) -> bool:
+	if sys.platform == "win32":
+		import pywintypes
+		import win32api
+		import win32event
+		import win32file
+
+		try:
+			win32file.FlushFileBuffers(win32api.STD_INPUT_HANDLE)
+		except pywintypes.error:
+			pass
+		return win32event.WaitForSingleObject(win32api.STD_INPUT_HANDLE, int(timeout * 1000)) == win32event.WAIT_OBJECT_0
+	else:
+		import select
+
+		rlist, _, _ = select.select([sys.stdin], [], [], timeout)
+		return bool(rlist)
+
+
 def read_input() -> Any:
+	logger.debug("Reading input")
 	with input_file_bin() as file:
-		data = file.read()
+		data = b""
+		if not config.input_file and not input_file_is_a_tty():
+			logger.debug("No input file explicitly set, checking if stdin is readable")
+			try:
+				is_readable = stdin_readable(0.1)
+				if is_readable:
+					logger.debug("Stdin is readable, reading input from stdin")
+					data += file.read(1)
+					if not data:
+						logger.debug("No data read from stdin, returning None")
+						return None
+				else:
+					logger.debug("Stdin is not readable, returning None")
+					return None
+			except io.UnsupportedOperation as err:
+				logger.debug("Failed to check stdin readability: %s", err)
+
+		logger.debug("Reading input from %s", file)
+		data += file.read()
 	if not data:
 		return None
 
