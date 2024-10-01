@@ -2,15 +2,15 @@
 template for opsi-cli plugins
 """
 
-import passlib.hash  # type: ignore[import]
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger
 from opsicommon.objects import Config, ConfigState
+from purecrypt import Crypt, Method  # type: ignore[import]
 
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __description__ = "Plugin to edit bootimage configs"
 
 
@@ -112,7 +112,9 @@ def set_boot_password(ctx: click.Context, password: str) -> None:
 	logger.trace("bootimage set-boot-password subcommand")
 	hashed_password = ""
 	while not hashed_password or "." in hashed_password:
-		hashed_password = passlib.hash.sha512_crypt.hash(password)
+		salt = Crypt.generate_salt(Method.SHA512)
+		salt = salt[:19]  # 16 bytes salt + 3 bytes $6$
+		hashed_password = Crypt.encrypt(password, salt)
 	logger.notice("Setting pwh append parameter")
 	print("Hashed password is:", hashed_password)
 	set_append_values(values={"pwh": hashed_password}, client=ctx.obj["client"])
