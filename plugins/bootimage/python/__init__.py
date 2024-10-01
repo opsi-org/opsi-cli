@@ -135,7 +135,7 @@ def set_boot_password(ctx: click.Context, password: str) -> None:
 		hashed_password = Crypt.encrypt(password, salt)
 	logger.notice("Setting pwh append parameter")
 	print("Hashed password is:", hashed_password)
-	remove_old_password_hashes(client=ctx.obj["client"])
+	remove_old_password_hashes()
 	set_append_values(values={"pwh": hashed_password}, client=ctx.obj["client"])
 
 
