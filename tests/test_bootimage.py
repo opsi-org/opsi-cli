@@ -67,7 +67,7 @@ def test_bootimage_remove_boot_password() -> None:
 		assert exit_code == 0
 		split_length = len("Hashed password is: ")
 		result_first_hash = stdout.split("\n")[0][split_length:]
-		print(result)
+		print(result_first_hash)
 		assert Crypt.is_valid("linux123", result_first_hash)
 		configs = connection.jsonrpc("config_getObjects", params=[[], {"id": "opsi-linux-bootimage.append"}])
 		assert f"pwh={result_first_hash}" in configs[0].defaultValues
