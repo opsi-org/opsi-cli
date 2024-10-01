@@ -40,6 +40,15 @@ def patch_flags(flags: list[str], values: list[str]) -> list[str]:
 	return values
 
 
+def remove_old_password_hashes(client: str | None = None) -> None:
+	service = get_service_connection()
+	configs: list[Config] = service.jsonrpc("config_getObjects", [[], {"id": "opsi-linux-bootimage.append"}])
+	if not configs[0].possibleValues:
+		configs[0].possibleValues = []
+	if not configs[0].defaultValues:
+		configs[0].defaultValues = []
+
+
 def set_append_values(values: dict[str, str] | None = None, flags: list[str] | None = None, client: str | None = None) -> None:
 	values = values or {}
 	flags = flags or []
@@ -117,6 +126,7 @@ def set_boot_password(ctx: click.Context, password: str) -> None:
 		hashed_password = Crypt.encrypt(password, salt)
 	logger.notice("Setting pwh append parameter")
 	print("Hashed password is:", hashed_password)
+	remove_old_password_hashes(client=ctx.obj["client"])
 	set_append_values(values={"pwh": hashed_password}, client=ctx.obj["client"])
 
 

@@ -3,7 +3,7 @@ test crypto plugin
 """
 
 import pytest
-from passlib.hash import sha512_crypt  # type: ignore[import]
+from purecrypt import Crypt  # type: ignore[import]
 
 from opsicli.opsiservice import get_service_connection
 
@@ -54,6 +54,6 @@ def test_bootimage_set_boot_password() -> None:
 		split_length = len("Hashed password is: ")
 		result = stdout.split("\n")[0][split_length:]
 		print(result)
-		assert sha512_crypt.verify("linux123", result)
+		assert Crypt.is_valid("linux123", result)
 		configs = connection.jsonrpc("config_getObjects", params=[[], {"id": "opsi-linux-bootimage.append"}])
 		assert f"pwh={result}" in configs[0].defaultValues
