@@ -57,3 +57,26 @@ def test_bootimage_set_boot_password() -> None:
 		assert Crypt.is_valid("linux123", result)
 		configs = connection.jsonrpc("config_getObjects", params=[[], {"id": "opsi-linux-bootimage.append"}])
 		assert f"pwh={result}" in configs[0].defaultValues
+
+
+@pytest.mark.requires_testcontainer
+def test_bootimage_remove_boot_password() -> None:
+	with container_connection():
+		connection = get_service_connection()
+		exit_code, stdout, _stderr = run_cli(["bootimage", "set-boot-password", "linux123"])
+		assert exit_code == 0
+		split_length = len("Hashed password is: ")
+		result_first_hash = stdout.split("\n")[0][split_length:]
+		print(result)
+		assert Crypt.is_valid("linux123", result_first_hash)
+		configs = connection.jsonrpc("config_getObjects", params=[[], {"id": "opsi-linux-bootimage.append"}])
+		assert f"pwh={result_first_hash}" in configs[0].defaultValues
+		exit_code, stdout, _stderr = run_cli(["bootimage", "set-boot-password", "nt123"])
+		assert exit_code == 0
+		split_length = len("Hashed password is: ")
+		result_second_hash = stdout.split("\n")[0][split_length:]
+		print(result_second_hash)
+		assert Crypt.is_valid("nt123", result_second_hash)
+		configs = connection.jsonrpc("config_getObjects", params=[[], {"id": "opsi-linux-bootimage.append"}])
+		assert f"pwh={result_second_hash}" in configs[0].defaultValues
+		assert f"pwh={result_first_hash}" not in configs[0].defaultValues

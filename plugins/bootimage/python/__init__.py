@@ -43,10 +43,8 @@ def patch_flags(flags: list[str], values: list[str]) -> list[str]:
 def remove_old_password_hashes(client: str | None = None) -> None:
 	service = get_service_connection()
 	configs: list[Config] = service.jsonrpc("config_getObjects", [[], {"id": "opsi-linux-bootimage.append"}])
-	if not configs[0].possibleValues:
-		configs[0].possibleValues = []
-	if not configs[0].defaultValues:
-		configs[0].defaultValues = []
+	new_configs = [x for x in configs if "pwh=" not in x]
+	service.jsonrpc("config_updateObjects", [new_configs])
 
 
 def set_append_values(values: dict[str, str] | None = None, flags: list[str] | None = None, client: str | None = None) -> None:
