@@ -53,7 +53,7 @@ def remove_old_password_hashes(values: dict[str, str] | None = None, flags: list
 		if element.startswith("pwh="):
 			configs[0].possibleValues.remove(element)
 	for element in configs[0].defaultValues:
-		if element.starstwith="pwh="
+		if element.starstwith("pwh="):
 			configs[0].defaultValues.remove(element)
 	service.jsonrpc("config_updateObjects", [configs])
 
