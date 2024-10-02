@@ -10,7 +10,7 @@ pyinstaller-poetry:
       - pip._internal.commands.install
       - rich.tree
       - rich.progress
-      - purecrypt.Crypt
+      - purecrypt
     windows:
       - pip._vendor.platformdirs.windows
     darwin:
