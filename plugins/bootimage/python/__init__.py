@@ -50,10 +50,14 @@ def remove_old_password_hashes(values: dict[str, str] | None = None, flags: list
 	if not configs[0].defaultValues:
 		configs[0].defaultValues = []
 	for element in configs[0].possibleValues:
+		print(f"looping through possible values: {element}")
 		if element.startswith("pwh="):
+			print(f"removing old password hash: {element}")
 			configs[0].possibleValues.remove(element)
 	for element in configs[0].defaultValues:
+		print(f"looping through default values: {element}")
 		if element.startswith("pwh="):
+			print(f"removing old password hash: {element}")
 			configs[0].defaultValues.remove(element)
 	service.jsonrpc("config_updateObjects", [configs])
 
