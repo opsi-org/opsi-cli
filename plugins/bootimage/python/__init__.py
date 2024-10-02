@@ -2,15 +2,15 @@
 template for opsi-cli plugins
 """
 
-import passlib.hash  # type: ignore[import]
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger
 from opsicommon.objects import Config, ConfigState
+from purecrypt import Crypt, Method  # type: ignore[import]
 
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __description__ = "Plugin to edit bootimage configs"
 
 
@@ -38,6 +38,30 @@ def patch_flags(flags: list[str], values: list[str]) -> list[str]:
 			logger.debug("Adding new entry %s", entry)
 			values.append(entry)
 	return values
+
+
+def remove_old_password_hashes(values: dict[str, str] | None = None, flags: list[str] | None = None) -> None:
+	values = values or {}
+	flags = flags or []
+	service = get_service_connection()
+	configs: list[Config] = service.jsonrpc("config_getObjects", [[], {"id": "opsi-linux-bootimage.append"}])
+	if not configs[0].possibleValues:
+		configs[0].possibleValues = []
+	if not configs[0].defaultValues:
+		configs[0].defaultValues = []
+	possible_values: list[str] = []
+	for element in configs[0].possibleValues:
+		if element.startswith("pwh="):
+			possible_values.append(element)
+	for element in possible_values:
+		configs[0].possibleValues.remove(element)
+	default_values: list[str] = []
+	for element in configs[0].defaultValues:
+		if element.startswith("pwh="):
+			default_values.append(element)
+	for element in default_values:
+		configs[0].defaultValues.remove(element)
+	service.jsonrpc("config_updateObjects", [configs])
 
 
 def set_append_values(values: dict[str, str] | None = None, flags: list[str] | None = None, client: str | None = None) -> None:
@@ -112,9 +136,12 @@ def set_boot_password(ctx: click.Context, password: str) -> None:
 	logger.trace("bootimage set-boot-password subcommand")
 	hashed_password = ""
 	while not hashed_password or "." in hashed_password:
-		hashed_password = passlib.hash.sha512_crypt.hash(password)
+		salt = Crypt.generate_salt(Method.SHA512)
+		salt = salt[:19]  # 16 bytes salt + 3 bytes $6$
+		hashed_password = Crypt.encrypt(password, salt)
 	logger.notice("Setting pwh append parameter")
 	print("Hashed password is:", hashed_password)
+	remove_old_password_hashes()
 	set_append_values(values={"pwh": hashed_password}, client=ctx.obj["client"])
 
 
