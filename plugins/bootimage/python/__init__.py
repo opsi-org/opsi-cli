@@ -45,6 +45,8 @@ def remove_old_password_hashes(values: dict[str, str] | None = None, flags: list
 	flags = flags or []
 	service = get_service_connection()
 	configs: list[Config] = service.jsonrpc("config_getObjects", [[], {"id": "opsi-linux-bootimage.append"}])
+	print(type(configs))
+	print(configs)
 	if not configs[0].possibleValues:
 		configs[0].possibleValues = []
 	if not configs[0].defaultValues:
@@ -59,6 +61,10 @@ def remove_old_password_hashes(values: dict[str, str] | None = None, flags: list
 		if element.startswith("pwh="):
 			print(f"removing old password hash: {element}")
 			configs[0].defaultValues.remove(element)
+			try:
+				configs[0].possibleValues.remove(element)
+			except ValueError:
+				pass
 	service.jsonrpc("config_updateObjects", [configs])
 
 
