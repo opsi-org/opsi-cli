@@ -121,10 +121,8 @@ class MessagebusConnection(MessagebusListener):
 	@contextmanager
 	def connection(self) -> Generator[MessagebusConnection, None, None]:
 		try:
-			if not self.service_client.messagebus_connected:
-				logger.debug("Connecting to messagebus.")
-				self.service_client.connect_messagebus()
 			with self.register(self.service_client.messagebus):
+				self.service_client.connect_messagebus()
 				if not self.initial_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
 					raise ConnectionError("Failed to subscribe to session channel.")
 				yield self
