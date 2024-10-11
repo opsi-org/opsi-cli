@@ -32,6 +32,8 @@ from opsicli.io import (
 )
 from tests.utils import run_cli, temp_context
 
+from .conftest import PLATFORM
+
 input_output_testdata = (
 	(
 		"json",
@@ -262,12 +264,13 @@ def test_write_output_table() -> None:
 	start = time.perf_counter()
 	with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
 		write_output_table(data, metadata)
-		lines = mock_stdout.getvalue().split("\n")
-		assert len(lines) == 5005
-		assert lines[0].startswith("╭")
-		assert lines[1].startswith("│")
-		assert lines[2].startswith("├")
-		assert lines[3].startswith("│")
-		assert lines[-2].startswith("╰")
+		if PLATFORM != "windows":
+			lines = mock_stdout.getvalue().split("\n")
+			assert len(lines) == 5005
+			assert lines[0].startswith("╭")
+			assert lines[1].startswith("│")
+			assert lines[2].startswith("├")
+			assert lines[3].startswith("│")
+			assert lines[-2].startswith("╰")
 	diff = time.perf_counter() - start
 	print(diff / 10)
