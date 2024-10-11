@@ -61,7 +61,7 @@ def get_depot_connection(depot: OpsiDepotserver) -> ServiceClient:
 	return connection
 
 
-def get_service_connection() -> ServiceClient:
+def get_service_connection(verify: str | None = None) -> ServiceClient:
 	global service_client
 	if not service_client:
 		address: str | None = None
@@ -101,6 +101,7 @@ def get_service_connection() -> ServiceClient:
 			jsonrpc_create_methods=True,
 			jsonrpc_create_objects=True,
 			auto_connect=False,
+			verify=verify,
 		)
 		service_client.register_connection_listener(OpsiCliConnectionListener())
 		try:
