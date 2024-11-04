@@ -4,6 +4,7 @@ websocket functions
 
 from __future__ import annotations
 
+import asyncio
 import os
 import selectors
 import shutil
@@ -22,6 +23,9 @@ from opsicommon.messagebus import CONNECTION_USER_CHANNEL
 from opsicommon.messagebus.message import (
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
+	FileChunkMessage,
+	FileDownloadRequestMessage,
+	FileDownloadResponseMessage,
 	GeneralErrorMessage,
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
@@ -726,3 +730,42 @@ class TerminalMessagebusConnection(MessagebusConnection):
 						data=data,
 					)
 					self.send_message(message)
+
+
+class FileTransferMessagebusConnection(MessagebusConnection):
+	def __init__(self) -> None:
+		MessagebusConnection.__init__(self)
+		self._message_queue: asyncio.Queue[Message] = asyncio.Queue()
+
+	def send_file_download_request(self, file_id: str, path: str) -> None:
+		message = FileDownloadRequestMessage(file_id=file_id, path=path, sender=CONNECTION_USER_CHANNEL, channel="service:messagebus")
+		self.send_message(message)
+
+	def _on_file_download_response(self, message: FileDownloadResponseMessage) -> None:
+		logger.info(f"Received log download response: file size {message.size} bytes")
+		self._message_queue.put_nowait(message)
+
+	def _on_file_chunk(self, message: FileChunkMessage) -> None:
+		logger.info(f"Received file chunk: {len(message.data)} bytes")
+		sys.stdout.buffer.write(message.data)
+		sys.stdout.flush()
+		self._message_queue.put_nowait(message)
+		if message.last:
+			logger.info("Received last file chunk")
+
+	async def receive_message(self) -> Message:
+		return await self._message_queue.get()
+
+	async def request_file_download(self, file_path: str) -> None:
+		file_id = str(uuid4())
+		self.send_file_download_request(file_id=file_id, path=file_path)
+		while True:
+			response_message = await self.receive_message()
+			if isinstance(response_message, FileDownloadResponseMessage):
+				print(f"File size: {response_message.size} bytes")
+			elif isinstance(response_message, FileChunkMessage):
+				print(response_message.data.decode("utf-8"))
+				if response_message.last:
+					break
+			else:
+				print("Unexpected message type received")
