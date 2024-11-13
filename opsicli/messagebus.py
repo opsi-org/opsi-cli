@@ -24,8 +24,10 @@ from opsicommon.messagebus.message import (
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
 	FileChunkMessage,
+	FileDownloadAbortRequestMessage,
 	FileDownloadRequestMessage,
 	FileDownloadResponseMessage,
+	FileTransferErrorMessage,
 	GeneralErrorMessage,
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
@@ -734,38 +736,47 @@ class TerminalMessagebusConnection(MessagebusConnection):
 
 class FileTransferMessagebusConnection(MessagebusConnection):
 	def __init__(self) -> None:
-		MessagebusConnection.__init__(self)
-		self._message_queue: asyncio.Queue[Message] = asyncio.Queue()
+		super().__init__()
+		self.channel = f"service:depot:{self._get_host_id()}:filetransfer"
+		self.follow = False
+		self.file_id = str(uuid4())
+		self._download_complete_event = asyncio.Event()
 
-	def send_file_download_request(self, file_id: str, path: str) -> None:
-		message = FileDownloadRequestMessage(file_id=file_id, path=path, sender=CONNECTION_USER_CHANNEL, channel="service:messagebus")
+	def _get_host_id(self) -> str:
+		if not hasattr(self, "_host_id"):
+			depots = self.service_client.host_getObjects(attributes=[], type="OpsiConfigserver")  # type: ignore[attr-defined]
+			self._host_id = depots[0].id
+		return self._host_id
+
+	def send_file_download_request(self, path: str, chunk_size: int = 1000, follow: bool = False) -> None:
+		message = FileDownloadRequestMessage(
+			file_id=self.file_id, path=path, sender=CONNECTION_USER_CHANNEL, channel=self.channel, chunk_size=chunk_size, follow=follow
+		)
 		self.send_message(message)
 
 	def _on_file_download_response(self, message: FileDownloadResponseMessage) -> None:
-		logger.info(f"Received log download response: file size {message.size} bytes")
-		self._message_queue.put_nowait(message)
+		logger.info(f"File download started: {message}")
 
 	def _on_file_chunk(self, message: FileChunkMessage) -> None:
-		logger.info(f"Received file chunk: {len(message.data)} bytes")
 		sys.stdout.buffer.write(message.data)
 		sys.stdout.flush()
-		self._message_queue.put_nowait(message)
-		if message.last:
-			logger.info("Received last file chunk")
+		if message.last and not self.follow:
+			logger.info("File download completed")
+			self._download_complete_event.set()
 
-	async def receive_message(self) -> Message:
-		return await self._message_queue.get()
+	def _on_file_transfer_error(self, message: FileTransferErrorMessage) -> None:
+		logger.error(f"Error: {message.error.message}")
+		self._download_complete_event.set()
 
-	async def request_file_download(self, file_path: str) -> None:
-		file_id = str(uuid4())
-		self.send_file_download_request(file_id=file_id, path=file_path)
-		while True:
-			response_message = await self.receive_message()
-			if isinstance(response_message, FileDownloadResponseMessage):
-				print(f"File size: {response_message.size} bytes")
-			elif isinstance(response_message, FileChunkMessage):
-				print(response_message.data.decode("utf-8"))
-				if response_message.last:
-					break
-			else:
-				print("Unexpected message type received")
+	async def view_file(self, file_path: str, chunk_size: int = 1000, follow: bool = False) -> None:
+		with self.connection():
+			self.follow = follow
+			self.send_file_download_request(file_path, chunk_size, follow)
+			await self._download_complete_event.wait()
+
+	def abort_file_download(self) -> None:
+		if self.file_id:
+			message = FileDownloadAbortRequestMessage(sender=CONNECTION_USER_CHANNEL, channel=self.channel, file_id=self.file_id)
+			self.send_message(message)
+			logger.info(f"File download aborted for file_id: {self.file_id}")
+			self._download_complete_event.set()

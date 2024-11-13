@@ -27,7 +27,8 @@ def cli() -> None:
 
 @cli.command(short_help="View the logs")
 @click.argument("host_id", type=str, nargs=-1, required=True)
-async def view(host_id: tuple[str]) -> None:
+@click.option("--follow", is_flag=True, help="Follow the log file", default=False)
+async def view(host_id: str, follow: bool) -> None:
 	"""
 	opsi-cli log view subcommand
 	"""
@@ -35,7 +36,12 @@ async def view(host_id: tuple[str]) -> None:
 	logger.info("Viewing logs for host %s", host_id)
 	log_path = f"/var/log/opsi/clientconnect{host_id}.log"
 	messagebus_connection = FileTransferMessagebusConnection()
-	await messagebus_connection.request_file_download(log_path)
+
+	try:
+		await messagebus_connection.view_file(log_path, follow=follow)
+	except KeyboardInterrupt:
+		logger.info("Aborting file download for host %s", host_id)
+		messagebus_connection.abort_file_download()
 
 
 class CustomPlugin(OPSICLIPlugin):
