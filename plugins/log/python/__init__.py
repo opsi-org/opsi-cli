@@ -2,6 +2,8 @@
 opsi-cli log plugin
 """
 
+import asyncio
+
 import rich_click as click  # type: ignore[import]
 from opsicommon.logging import get_logger
 
@@ -28,13 +30,17 @@ def cli() -> None:
 @cli.command(short_help="View the logs")
 @click.argument("host_id", type=str, nargs=-1, required=True)
 @click.option("--follow", is_flag=True, help="Follow the log file", default=False)
-async def view(host_id: str, follow: bool) -> None:
+def view(host_id: str, follow: bool) -> None:
 	"""
 	opsi-cli log view subcommand
 	"""
+	asyncio.run(view_command(host_id, follow))
+
+
+async def view_command(host_id: str, follow: bool) -> None:
 	logger.trace("log view subcommand")
 	logger.info("Viewing logs for host %s", host_id)
-	log_path = f"/var/log/opsi/clientconnect{host_id}.log"
+	log_path = f"/var/log/opsi/clientconnect/{host_id}.log"
 	messagebus_connection = FileTransferMessagebusConnection()
 
 	try:
