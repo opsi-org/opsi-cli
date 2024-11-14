@@ -30,7 +30,13 @@ def cli() -> None:
 @cli.command(short_help="View the logs")
 @click.argument("host_id", type=str, nargs=-1, required=True)
 @click.option("--follow", is_flag=True, help="Follow the log file", default=False)
-def view(host_id: str, follow: bool) -> None:
+@click.option(
+	"--live",
+	is_flag=True,
+	help="Show live log file from the client directly (Not implemented); otherwise, show the client logs stored on the server",
+	default=False,
+)  # TODO: Implement --live option
+def view(host_id: str, follow: bool, live: bool) -> None:
 	"""
 	opsi-cli log view subcommand
 	"""
@@ -40,8 +46,9 @@ def view(host_id: str, follow: bool) -> None:
 async def view_command(host_id: str, follow: bool) -> None:
 	logger.trace("log view subcommand")
 	logger.info("Viewing logs for host %s", host_id)
-	log_path = f"/var/log/opsi/clientconnect/{host_id}.log"
-	messagebus_connection = FileTransferMessagebusConnection()
+	# log_path = f"/var/log/opsi/clientconnect/{host_id}.log"
+	log_path = "/var/log/opsi/opsiconfd/test.log"
+	messagebus_connection = FileTransferMessagebusConnection(enable_formatting=True)
 
 	try:
 		await messagebus_connection.view_file(log_path, follow=follow)

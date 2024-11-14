@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import selectors
 import shutil
 import sys
@@ -50,8 +51,9 @@ from opsicommon.messagebus.message import (
 from opsicommon.system.info import is_windows
 from opsicommon.types import forceHostId
 from rich.color import ANSI_COLOR_NAMES, Color
+from rich.text import Text
 
-from opsicli.io import get_console, read_input_raw_bin
+from opsicli.io import console_print, get_console, read_input_raw_bin
 from opsicli.opsiservice import get_service_connection
 from opsicli.utils import raw_terminal
 
@@ -735,12 +737,14 @@ class TerminalMessagebusConnection(MessagebusConnection):
 
 
 class FileTransferMessagebusConnection(MessagebusConnection):
-	def __init__(self) -> None:
+	def __init__(self, enable_formatting: bool = False) -> None:
 		super().__init__()
 		self.channel = f"service:depot:{self._get_host_id()}:filetransfer"
 		self.follow = False
 		self.file_id = str(uuid4())
 		self._download_complete_event = asyncio.Event()
+		self.enable_formatting = enable_formatting
+		self.buffer = ""
 
 	def _get_host_id(self) -> str:
 		if not hasattr(self, "_host_id"):
@@ -757,10 +761,48 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 	def _on_file_download_response(self, message: FileDownloadResponseMessage) -> None:
 		logger.info(f"File download started: {message}")
 
+	def _process_line(self, line: str) -> None:
+		log_pattern = re.compile(r"\[(\d+)\] \[(.*?)\] \[(.*?)\] (.*?)\s+\((.*?)\)")
+		match = log_pattern.match(line)
+		if match:
+			log_level, timestamp, _, log_message, file_location = match.groups()
+			formatted_text = Text()
+			formatted_text.append(f"[{log_level}] ", style="bold blue")
+			formatted_text.append(f"[{timestamp}] ", style="bold green")
+			formatted_text.append(f"{log_message}", style="white")
+			formatted_text.append(f"	({file_location}) ", style="bold magenta")
+			console_print(formatted_text)
+		else:
+			console_print(Text(line, style="white"))
+
 	def _on_file_chunk(self, message: FileChunkMessage) -> None:
-		sys.stdout.buffer.write(message.data)
-		sys.stdout.flush()
+		# text = message.data.decode("utf-8")
+		# logger.debug(f"Received file chunk: {text}")
+		# if self.enable_formatting:
+		# 	formatted_text = Text(text, style="white on black")
+		# 	console_print(formatted_text)
+		# else:
+		# 	sys.stdout.write(text)
+		# 	sys.stdout.flush()
+		# if message.last and not self.follow:
+		# 	logger.info("File download completed")
+		# 	self._download_complete_event.set()
+		self.buffer += message.data.decode("utf-8")
+		while "\n" in self.buffer:
+			line, self.buffer = self.buffer.split("\n", 1)
+			if self.enable_formatting:
+				self._process_line(line)
+			else:
+				sys.stdout.write(line + "\n")
+				sys.stdout.flush()
 		if message.last and not self.follow:
+			if self.buffer:
+				if self.enable_formatting:
+					self._process_line(self.buffer)
+				else:
+					sys.stdout.write(self.buffer)
+					sys.stdout.flush()
+				self.buffer = ""
 			logger.info("File download completed")
 			self._download_complete_event.set()
 
