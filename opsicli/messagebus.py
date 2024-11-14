@@ -737,6 +737,19 @@ class TerminalMessagebusConnection(MessagebusConnection):
 
 
 class FileTransferMessagebusConnection(MessagebusConnection):
+	log_pattern = re.compile(r"\[(\d+)\] \[(.*?)\] \[(.*?)\] (.*?)\s+\((.*?)\)")
+	log_colors = {
+		"9": "#D500F9",  # SECRET
+		"8": "#8B8B8B",  # TRACE
+		"7": "#C0C0C0",  # DEBUG
+		"6": "#F5F5F5",  # INFO
+		"5": "#009605",  # NOTICE
+		"4": "#FF9100",  # WARNING
+		"3": "#E51D3B",  # ERROR
+		"2": "#E20066",  # CRITICAL
+		"1": "#2979FF",  # ESSENTIAL
+	}
+
 	def __init__(self, enable_formatting: bool = False) -> None:
 		super().__init__()
 		self.channel = f"service:depot:{self._get_host_id()}:filetransfer"
@@ -762,31 +775,15 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 		logger.info(f"File download started: {message}")
 
 	def _process_line(self, line: str) -> None:
-		log_pattern = re.compile(r"\[(\d+)\] \[(.*?)\] \[(.*?)\] (.*?)\s+\((.*?)\)")
-		match = log_pattern.match(line)
+		match = self.log_pattern.match(line)
 		if match:
 			log_level, timestamp, _, log_message, file_location = match.groups()
-			formatted_text = Text()
-			formatted_text.append(f"[{log_level}] ", style="bold blue")
-			formatted_text.append(f"[{timestamp}] ", style="bold green")
-			formatted_text.append(f"{log_message}", style="white")
-			formatted_text.append(f"	({file_location}) ", style="bold magenta")
-			console_print(formatted_text)
+			color = self.log_colors.get(log_level, "white")
+			console_print(Text(line, style=color))
 		else:
 			console_print(Text(line, style="white"))
 
 	def _on_file_chunk(self, message: FileChunkMessage) -> None:
-		# text = message.data.decode("utf-8")
-		# logger.debug(f"Received file chunk: {text}")
-		# if self.enable_formatting:
-		# 	formatted_text = Text(text, style="white on black")
-		# 	console_print(formatted_text)
-		# else:
-		# 	sys.stdout.write(text)
-		# 	sys.stdout.flush()
-		# if message.last and not self.follow:
-		# 	logger.info("File download completed")
-		# 	self._download_complete_event.set()
 		self.buffer += message.data.decode("utf-8")
 		while "\n" in self.buffer:
 			line, self.buffer = self.buffer.split("\n", 1)

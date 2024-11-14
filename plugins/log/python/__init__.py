@@ -28,7 +28,7 @@ def cli() -> None:
 
 
 @cli.command(short_help="View the logs")
-@click.argument("host_id", type=str, nargs=-1, required=True)
+@click.argument("host_id", type=str, nargs=1, required=True)
 @click.option("--follow", is_flag=True, help="Follow the log file", default=False)
 @click.option(
 	"--live",
@@ -36,19 +36,20 @@ def cli() -> None:
 	help="Show live log file from the client directly (Not implemented); otherwise, show the client logs stored on the server",
 	default=False,
 )  # TODO: Implement --live option
-def view(host_id: str, follow: bool, live: bool) -> None:
+@click.option("--color/--no-color", is_flag=True, help="Enable formatting for the log output", default=True)
+def view(host_id: str, follow: bool, live: bool, color: bool) -> None:
 	"""
 	opsi-cli log view subcommand
 	"""
-	asyncio.run(view_command(host_id, follow))
+	asyncio.run(view_command(host_id, follow, color))
 
 
-async def view_command(host_id: str, follow: bool) -> None:
+async def view_command(host_id: str, follow: bool, color: bool) -> None:
 	logger.trace("log view subcommand")
 	logger.info("Viewing logs for host %s", host_id)
 	# log_path = f"/var/log/opsi/clientconnect/{host_id}.log"
-	log_path = "/var/log/opsi/opsiconfd/test.log"
-	messagebus_connection = FileTransferMessagebusConnection(enable_formatting=True)
+	log_path = f"/var/log/opsi/opsiconfd/{host_id}.log"
+	messagebus_connection = FileTransferMessagebusConnection(enable_formatting=color)
 
 	try:
 		await messagebus_connection.view_file(log_path, follow=follow)
