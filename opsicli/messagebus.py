@@ -72,12 +72,12 @@ def log_message(message: Message) -> None:
 
 
 class MessagebusConnection(MessagebusListener):
-	def __init__(self) -> None:
+	def __init__(self, verify: str | None = None) -> None:
 		MessagebusListener.__init__(self)
 		self.channel_subscription_events: dict[str, Event] = {}
 		self.subscribed_channels: list[str] = []
 		self.initial_subscription_event = Event()
-		self.service_client = get_service_connection()
+		self.service_client = get_service_connection(verify)
 
 	def send_message(self, message: Message) -> None:
 		log_message(message)
@@ -121,10 +121,8 @@ class MessagebusConnection(MessagebusListener):
 	@contextmanager
 	def connection(self) -> Generator[MessagebusConnection, None, None]:
 		try:
-			if not self.service_client.messagebus_connected:
-				logger.debug("Connecting to messagebus.")
-				self.service_client.connect_messagebus()
 			with self.register(self.service_client.messagebus):
+				self.service_client.connect_messagebus()
 				if not self.initial_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
 					raise ConnectionError("Failed to subscribe to session channel.")
 				yield self

@@ -4,7 +4,7 @@ test_config
 
 import sys
 import time
-from io import BufferedReader, BytesIO, TextIOWrapper
+from io import BufferedReader, BytesIO, StringIO, TextIOWrapper
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -28,8 +28,11 @@ from opsicli.io import (
 	read_input_raw_str,
 	write_output,
 	write_output_raw,
+	write_output_table,
 )
 from tests.utils import run_cli, temp_context
+
+from .conftest import PLATFORM
 
 input_output_testdata = (
 	(
@@ -244,3 +247,30 @@ def test_list_attributes() -> None:
 		expected_output = [{"id": "id", "type": "type"}]
 		list_attributes(data)
 		mock_write_output.assert_called_once_with(expected_output, None, "table")
+
+
+def test_write_output_table() -> None:
+	metadata = Metadata(
+		attributes=[
+			Attribute(id="col1", identifier=True, data_type="int"),
+			Attribute(id="col2"),
+			Attribute(id="col3"),
+		]
+	)
+	col2_data = "a" * 50
+	col3_data = "\n".join(5 * ["d" * 50])
+	data = [{"col1": row, "col2": col2_data, "col3": col3_data} for row in range(1000)]
+
+	start = time.perf_counter()
+	with patch("sys.stdout", new_callable=StringIO) as mock_stdout:
+		write_output_table(data, metadata)
+		if PLATFORM != "windows":
+			lines = mock_stdout.getvalue().split("\n")
+			assert len(lines) == 5005
+			assert lines[0].startswith("╭")
+			assert lines[1].startswith("│")
+			assert lines[2].startswith("├")
+			assert lines[3].startswith("│")
+			assert lines[-2].startswith("╰")
+	diff = time.perf_counter() - start
+	print(diff / 10)

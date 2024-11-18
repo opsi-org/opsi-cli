@@ -179,7 +179,6 @@ def write_output_table(data: Any, metadata: Metadata) -> None:
 			return "true" if value else "false"
 		if isinstance(value, (list, tuple)):
 			return ", ".join([to_string(v) for v in value])
-			# return str([to_string(v) for v in value])
 		if inspect.isclass(value):
 			return value.__name__
 		return str(value)
@@ -194,13 +193,15 @@ def write_output_table(data: Any, metadata: Metadata) -> None:
 			table.add_column(header=attribute.id, style=style, no_wrap=no_wrap)
 			row_ids.append(attribute.id)
 
-	for row in data:
-		if isinstance(row, dict):
-			table.add_row(*[to_string(row.get(rid)) for rid in row_ids])
-		elif isinstance(row, list):
-			table.add_row(*[to_string(el) for el in row])
-		else:
-			table.add_row(*[to_string(row)])
+	if data:
+		row_type = type(data[0])
+		for row in data:
+			if row_type is dict:
+				table.add_row(*[to_string(row.get(rid)) for rid in row_ids])
+			elif row_type is list:
+				table.add_row(*[to_string(el) for el in row])
+			else:
+				table.add_row(*[to_string(row)])
 
 	with output_file_str() as file:
 		console = get_console(file, ignore_quiet=True)
