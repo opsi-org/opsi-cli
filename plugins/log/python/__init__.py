@@ -29,27 +29,42 @@ def cli() -> None:
 
 @cli.command(short_help="View the logs")
 @click.argument("host_id", type=str, nargs=1, required=True)
-@click.option("--follow", is_flag=True, help="Follow the log file", default=False)
+@click.option(
+	"--log-type",
+	type=click.Choice(["opsiconfd", "opsiclientd"], case_sensitive=False),
+	default="opsiclientd",
+	help="Specify the type of log to view (opsiconfd or opsiclientd)",
+)
 @click.option(
 	"--live",
 	is_flag=True,
-	help="Show live log file from the client directly (Not implemented); otherwise, show the client logs stored on the server",
+	help="Show live log file from the client directly (only available for opsiclientd); otherwise, show the client logs stored on the server",
 	default=False,
 )  # TODO: Implement --live option
+@click.option("--follow", is_flag=True, help="Follow the log file", default=False)
+@click.option(
+	"--log-level",
+	type=click.IntRange(1, 8),
+	default=6,
+	help="Specify the log level to filter (1 to 8)",
+)
 @click.option("--color/--no-color", is_flag=True, help="Enable formatting for the log output", default=True)
-def view(host_id: str, follow: bool, live: bool, color: bool) -> None:
+def view(host_id: str, log_type: str, live: bool, follow: bool, log_level: int, color: bool) -> None:
 	"""
 	opsi-cli log view subcommand
 	"""
-	asyncio.run(view_command(host_id, follow, color))
+	asyncio.run(view_command(host_id, log_type, live, follow, log_level, color))
 
 
-async def view_command(host_id: str, follow: bool, color: bool) -> None:
+async def view_command(host_id: str, log_type: str, live: bool, follow: bool, log_level: int, color: bool) -> None:
 	logger.trace("log view subcommand")
 	logger.info("Viewing logs for host %s", host_id)
-	# log_path = f"/var/log/opsi/clientconnect/{host_id}.log"
-	log_path = f"/var/log/opsi/opsiconfd/{host_id}.log"
-	messagebus_connection = FileTransferMessagebusConnection(enable_formatting=color)
+	if log_type == "opsiclientd" and not live:
+		log_path = f"/var/log/opsi/clientconnect/{host_id}.log"
+	else:
+		log_path = f"/var/log/opsi/opsiconfd/{host_id}.log"
+
+	messagebus_connection = FileTransferMessagebusConnection(log_level=log_level, enable_formatting=color)
 
 	try:
 		await messagebus_connection.view_file(log_path, follow=follow)

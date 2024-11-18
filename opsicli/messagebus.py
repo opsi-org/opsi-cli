@@ -750,12 +750,13 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 		"1": "#2979FF",  # ESSENTIAL
 	}
 
-	def __init__(self, enable_formatting: bool = False) -> None:
+	def __init__(self, log_level: int = 6, enable_formatting: bool = False) -> None:
 		super().__init__()
 		self.channel = f"service:depot:{self._get_host_id()}:filetransfer"
 		self.follow = False
 		self.file_id = str(uuid4())
 		self._download_complete_event = asyncio.Event()
+		self.log_level = log_level
 		self.enable_formatting = enable_formatting
 		self.buffer = ""
 
@@ -778,27 +779,21 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 		match = self.log_pattern.match(line)
 		if match:
 			log_level, timestamp, _, log_message, file_location = match.groups()
-			color = self.log_colors.get(log_level, "white")
-			console_print(Text(line, style=color))
-		else:
-			console_print(Text(line, style="white"))
+			if int(log_level) <= self.log_level:
+				if self.enable_formatting:
+					color = self.log_colors.get(log_level, "white")
+					console_print(Text(line, style=color))
+				else:
+					console_print(Text(line, style="white"))
 
 	def _on_file_chunk(self, message: FileChunkMessage) -> None:
 		self.buffer += message.data.decode("utf-8")
 		while "\n" in self.buffer:
 			line, self.buffer = self.buffer.split("\n", 1)
-			if self.enable_formatting:
-				self._process_line(line)
-			else:
-				sys.stdout.write(line + "\n")
-				sys.stdout.flush()
+			self._process_line(line)
 		if message.last and not self.follow:
 			if self.buffer:
-				if self.enable_formatting:
-					self._process_line(self.buffer)
-				else:
-					sys.stdout.write(self.buffer)
-					sys.stdout.flush()
+				self._process_line(self.buffer)
 				self.buffer = ""
 			logger.info("File download completed")
 			self._download_complete_event.set()
