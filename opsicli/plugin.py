@@ -29,6 +29,33 @@ logger = get_logger("opsicli")
 PLUGIN_EXTENSION = "opsicliplug"
 
 
+def parse_requirements(file_: Path) -> list[dict[str, str]]:
+	"""
+	Adapted from https://github.com/bndr/pipreqs/blob/master/pipreqs/pipreqs.py
+	"""
+	modules = []
+	delim = ["<", ">", "=", "!", "~"]
+	data = [entry.strip() for entry in file_.read_text().split("\n") if entry.strip()]
+	data = [entry for entry in data if entry[0].isalpha()]
+
+	for x in data:
+		# Check for modules w/o a specifier.
+		if not any([y in x for y in delim]):
+			modules.append({"name": x, "version": None})
+		for y in x:
+			if y in delim:
+				module = x.split(y)
+				module_name = module[0]
+				module_version = module[-1].replace("=", "")
+				module = {"name": module_name, "version": module_version}
+
+				if module not in modules:
+					modules.append(module)
+
+				break
+
+	return modules
+
 class OPSICLIPlugin:
 	name: str = ""
 	description: str = ""
@@ -234,7 +261,6 @@ def install_dependencies(path: Path, target_dir: Path) -> None:
 	# pylint: disable=import-outside-toplevel
 
 	from pip._vendor.distlib import resources
-	from pipreqs import pipreqs  # type: ignore[import]
 
 	logger.debug("Finder registry: %s", resources._finder_registry)
 
@@ -250,17 +276,10 @@ def install_dependencies(path: Path, target_dir: Path) -> None:
 	except ModuleNotFoundError as err:
 		logger.debug(err)
 
-	if (path / "requirements.txt").exists():
-		logger.debug("Reading requirements.txt from %s", path)
-		dependencies = pipreqs.parse_requirements(path / "requirements.txt")
-	else:
-		logger.debug("Generating requirements.txt from package %s", path)
-		# candidates: python libraries (like requests, magic)
-		candidates = pipreqs.get_pkg_names(pipreqs.get_all_imports(path))
-		# dependencies: python package names (like Requests, python_magic)
-		# this failes for packages not available at pypi.python.org (like opsicommon) -> those are ignored	TODO
-		dependencies = pipreqs.get_imports_info(candidates, pypi_server="https://pypi.python.org/pypi/")  # proxy possible
-		pipreqs.generate_requirements_file(path / "requirements.txt", dependencies, symbol=">=")
+	if not (path / "requirements.txt").exists():
+		raise ValueError(f"Create requirements.txt at {path} specifying dependencies.")
+	logger.debug("Reading requirements.txt from %s", path)
+	dependencies = parse_requirements(path / "requirements.txt")
 
 	logger.debug("Got dependencies: %s", dependencies)
 	for dependency in dependencies:

@@ -1,4 +1,4 @@
-image: docker.uib.gmbh/opsi/dev/pybuilder:deb9-py3.11
+image: docker.uib.gmbh/opsi/dev/pybuilder:deb9-py3.13
 
 stages:
   - test_python
@@ -9,7 +9,7 @@ stages:
 pytest-darwin:
   stage: test_python
   tags:
-    - catalina-py311-x64
+    - catalina-py313-x64
   script:
     - export ZIPLAUNCHER_CLEAN_TMP=true
     - poetry lock --no-update --no-cache
@@ -27,7 +27,7 @@ pytest-darwin:
 pytest-windows:
   stage: test_python
   tags:
-    - win10-py311-x86
+    - win10-py313-x86
   script:
     - poetry lock --no-update --no-cache
     - poetry install
@@ -170,7 +170,7 @@ linux-arm64-pyinstaller:
 macos-x64-pyinstaller:
   stage: build
   tags:
-    - catalina-py311-x64
+    - catalina-py313-x64
   script:
     - export LC_ALL=en_US.UTF-8
     - poetry lock --no-update --no-cache
@@ -213,7 +213,7 @@ macos-x64-pyinstaller:
 windows-x86-pyinstaller:
   stage: build
   tags:
-    - win10-py311-x86
+    - win10-py313-x86
   script:
     # Build python environment
     - poetry lock --no-update --no-cache
