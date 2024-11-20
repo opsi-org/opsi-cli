@@ -31,7 +31,11 @@ installed_version_metadata = Metadata(
 	attributes=[
 		Attribute(id="path", description="Location of the binary", identifier=True, data_type="str"),
 		Attribute(id="version", description="Version of the binary", data_type="str"),
-		Attribute(id="in_path", description="Is the binary file located in a directory that is contained in the PATH environment variable?", data_type="bool"),
+		Attribute(
+			id="in_path",
+			description="Is the binary file located in a directory that is contained in the PATH environment variable?",
+			data_type="bool",
+		),
 		Attribute(id="default", description="Default binary (first in PATH)?", data_type="bool"),
 		Attribute(id="writable", description="Is the binary writable?", data_type="bool"),
 	]
@@ -125,7 +129,9 @@ def print_installed_versions() -> None:
 	data = []
 	installed_versions = get_installed_versions()
 	paths = [Path(p) for p in os.environ.get("PATH", "").split(os.pathsep)]
-	installed_versions = {k: installed_versions[k] for k in sorted(installed_versions, key=lambda x: paths.index(x.parent) if x.parent in paths else 999)}
+	installed_versions = {
+		k: installed_versions[k] for k in sorted(installed_versions, key=lambda x: paths.index(x.parent) if x.parent in paths else 999)
+	}
 	for idx, binary in enumerate(installed_versions):
 		data.append(
 			{
@@ -333,7 +339,7 @@ def install(location: str, no_add_to_path: bool, system: bool | None, binary_pat
 	"--source-url",
 	type=str,
 	help="URL from which to pull.",
-	default="https://tools.43.opsi.org",
+	default="https://tools.44.opsi.org",
 	show_default=True,
 )
 @click.option(
