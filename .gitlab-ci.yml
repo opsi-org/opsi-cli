@@ -135,6 +135,7 @@ linux-x64-pyinstaller:
     - ./opsi-cli --version
     - ./opsi-cli --non-interactive plugin new cicdtest --version=1.0
     - sed -i 's/import rich_click as click/import rich_click as click; import flask/' cicdtest/python/__init__.py
+    - echo "flask" >> cicdtest/requirements.txt
     - ./opsi-cli -l 7 plugin add cicdtest
     - time ./opsi-cli --help
     - mv ./opsi-cli opsi-cli-linux-x64.run
@@ -163,6 +164,7 @@ linux-arm64-pyinstaller:
     - ./opsi-cli --version
     - ./opsi-cli --non-interactive plugin new cicdtest --version=1.0
     - sed -i 's/import rich_click as click/import rich_click as click; import flask/' cicdtest/python/__init__.py
+    - echo "flask" >> cicdtest/requirements.txt
     - ./opsi-cli -l 7 plugin add cicdtest
     - time ./opsi-cli --help
     - mv ./opsi-cli opsi-cli-linux-arm64.run
@@ -201,6 +203,7 @@ macos-x64-pyinstaller:
     - ./opsi-cli --version
     - ./opsi-cli --non-interactive plugin new cicdtest --version=1.0
     - sed -i '' 's/import rich_click as click/import rich_click as click; import flask/' cicdtest/python/__init__.py
+    - echo "flask" >> cicdtest/requirements.txt
     - ./opsi-cli -l 7 plugin add cicdtest
     - time ./opsi-cli --help
     - mv ./opsi-cli opsi-cli-macos-x64
@@ -241,6 +244,7 @@ windows-x86-pyinstaller:
     - .\opsi-cli.exe --version
     - .\opsi-cli.exe --non-interactive plugin new cicdtest --version=1.0
     - (get-content cicdtest\python\__init__.py) | %{$_ -replace "import click","import click; import flask"} | Out-File -encoding ascii cicdtest\python\__init__.py
+    - "flask" | Out-File -encoding ascii -FilePath cicdtest\requirements.txt
     - .\opsi-cli.exe -l 7 plugin add cicdtest
     - powershell -command "Measure-Command { .\opsi-cli.exe --help }"
     # Sign ziplauncher binary
