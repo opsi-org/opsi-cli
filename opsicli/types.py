@@ -7,7 +7,6 @@ types
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Type
@@ -116,34 +115,15 @@ class Password(str):
 		return cls(decrypt(value))
 
 
-class File(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public-methods
+class File(Path):  # type: ignore[misc] # pylint: disable=too-few-public-methods
 	click_type = click.Path(dir_okay=False)
-
-	@classmethod
-	def cwd(cls) -> Path:
-		return Path(os.getcwd())
-
-	def __new__(cls: Type[File], *args: Any, **kwargs: Any) -> File:
-		path = super().__new__(cls, *args, **kwargs)
-		if str(path) != "-":
-			path = path.expanduser().absolute()  # TODO: this does not work in __new__ as _raw_paths is set in __init__
-			if path.exists() and not path.is_file():
-				raise ValueError(f"Not a file: {path!r}")
-		return path
 
 	def to_yaml(self) -> str:
 		return str(self)
 
 
-class Directory(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public-methods
+class Directory(Path):  # type: ignore[misc] # pylint: disable=too-few-public-methods
 	click_type = click.Path(file_okay=False)
-
-	def __new__(cls: Type[Directory], *args: Any, **kwargs: Any) -> Directory:
-		path = super().__new__(cls, *args, **kwargs)
-		path = path.expanduser().absolute()  # TODO: this does not work in __new__ as _raw_paths is set in __init__
-		if path.exists() and not path.is_dir():
-			raise ValueError(f"Not a directory: {path!r}")
-		return path
 
 	def to_yaml(self) -> str:
 		return str(self)

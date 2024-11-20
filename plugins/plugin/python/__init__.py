@@ -243,6 +243,7 @@ def new(name: str, version: str, description: str, path: Path) -> None:
 		with open(template_file_path, "r", encoding="utf-8") as templatefile:
 			for line in templatefile.readlines():
 				initfile.write(replace_data(line, replacements))
+	(result_path / "requirements.txt").write_text("")
 	get_console().print(
 		f"Plugin {plugin_id!r} created at path {path}.\n"
 		f"Add code to {path / 'python'} and optional data to {path / 'data'}\n"

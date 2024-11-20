@@ -64,7 +64,7 @@ class Cache(metaclass=Singleton):
 
 	def set(self, name: str, value: Any, ttl: int = 0, store: bool = False) -> None:
 		self._ensure_loaded()
-		self._data[name] = {"date": datetime.utcnow().isoformat(), "ttl": max(int(ttl), 0), "value": value}
+		self._data[name] = {"date": datetime.now(tz=None).isoformat(), "ttl": max(int(ttl), 0), "value": value}
 		self._modified = True
 		if store:
 			self.store()
@@ -76,7 +76,7 @@ class Cache(metaclass=Singleton):
 		self._ensure_loaded()
 		if name not in self._data:
 			return 500_000_000  # ~ 15 years
-		return int((datetime.utcnow() - datetime.fromisoformat(self._data[name]["date"])).total_seconds())
+		return int((datetime.now(tz=None) - datetime.fromisoformat(self._data[name]["date"])).total_seconds())
 
 
 cache = Cache()

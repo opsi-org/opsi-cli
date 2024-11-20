@@ -29,11 +29,12 @@ logger = get_logger("opsicli")
 PLUGIN_EXTENSION = "opsicliplug"
 
 
-def parse_requirements(file_: Path) -> list[dict[str, str]]:
+def parse_requirements(file_: Path) -> list[dict[str, str | None]]:
 	"""
 	Adapted from https://github.com/bndr/pipreqs/blob/master/pipreqs/pipreqs.py
 	"""
-	modules = []
+	modules: list[dict[str, str | None]] = []
+	module: dict[str, str | None]
 	delim = ["<", ">", "=", "!", "~"]
 	data = [entry.strip() for entry in file_.read_text().split("\n") if entry.strip()]
 	data = [entry for entry in data if entry[0].isalpha()]
@@ -44,9 +45,9 @@ def parse_requirements(file_: Path) -> list[dict[str, str]]:
 			modules.append({"name": x, "version": None})
 		for y in x:
 			if y in delim:
-				module = x.split(y)
-				module_name = module[0]
-				module_version = module[-1].replace("=", "")
+				module_parts = x.split(y)
+				module_name = module_parts[0]
+				module_version = module_parts[-1].replace("=", "")
 				module = {"name": module_name, "version": module_version}
 
 				if module not in modules:
@@ -55,6 +56,7 @@ def parse_requirements(file_: Path) -> list[dict[str, str]]:
 				break
 
 	return modules
+
 
 class OPSICLIPlugin:
 	name: str = ""
@@ -215,7 +217,7 @@ def install_plugin(source_dir: Path, name: str, system: bool = False) -> Path:
 	return destination
 
 
-def install_python_package(target_dir: Path, package: dict[str, str]) -> None:
+def install_python_package(target_dir: Path, package: dict[str, str | None]) -> None:
 	# These imports take ~0.25s
 	from pip._internal.commands.install import (
 		InstallCommand,
@@ -241,7 +243,8 @@ def install_python_package(target_dir: Path, package: dict[str, str]) -> None:
 	with warnings.catch_warnings():
 		warnings.filterwarnings("ignore", category=DeprecationWarning, module=".*packaging\\.version")
 		try:
-			install_args = [
+			assert package["name"]
+			install_args: list[str] = [
 				f"{package['name']}>={package['version']}" if package["version"] else package["name"],
 				"--target",
 				str(target_dir),
@@ -283,11 +286,13 @@ def install_dependencies(path: Path, target_dir: Path) -> None:
 
 	logger.debug("Got dependencies: %s", dependencies)
 	for dependency in dependencies:
+		if not dependency["name"]:
+			raise RuntimeError("Invalid requirements.txt file")
 		logger.debug("Checking dependency %s", dependency["name"])
 		try:
 			temp_module = importlib.import_module(dependency["name"])
 			logger.trace("found present %s, version %s", dependency["name"], temp_module.__version__)
-			assert parse(temp_module.__version__) >= parse(dependency["version"])
+			assert not dependency["version"] or parse(temp_module.__version__) >= parse(dependency["version"])
 			logger.debug(
 				"Module %r present in version %s (required %s) - not installing",
 				dependency["name"],

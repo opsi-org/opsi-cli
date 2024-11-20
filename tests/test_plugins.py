@@ -31,11 +31,15 @@ def test_install() -> None:
 def test_plugin_add() -> None:
 	with temp_context():
 		exit_code, stdout, _stderr = run_cli(["plugin", "add", str(TESTPLUGIN)])
+		print(stdout)
+		print(_stderr)
 		assert exit_code == 0
-		exit_code, stdout, _stderr = run_cli(["dummy", "libtest"])
-		assert exit_code == 0
+		exit_code, stdout, _stderr = run_cli(["-l", "8", "dummy", "libtest"])
+		print(stdout)
+		print(_stderr)
 		assert "Response" in stdout  # requests.get("https://opsi.org")
 		assert "default" in stdout  # netifaces.gateways()
+		assert exit_code == 0
 
 
 def test_plugin_fail() -> None:
