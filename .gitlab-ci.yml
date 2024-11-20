@@ -244,7 +244,7 @@ windows-x86-pyinstaller:
     - .\opsi-cli.exe --version
     - .\opsi-cli.exe --non-interactive plugin new cicdtest --version=1.0
     - (get-content cicdtest\python\__init__.py) | %{$_ -replace "import click","import click; import flask"} | Out-File -encoding ascii cicdtest\python\__init__.py
-    - "flask" | Out-File -encoding ascii -FilePath cicdtest\requirements.txt
+    - '"flask" | Out-File -encoding ascii -FilePath cicdtest\requirements.txt'
     - .\opsi-cli.exe -l 7 plugin add cicdtest
     - powershell -command "Measure-Command { .\opsi-cli.exe --help }"
     # Sign ziplauncher binary
