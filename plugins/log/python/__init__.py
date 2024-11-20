@@ -65,7 +65,7 @@ async def view_command(host_id: str, log_type: str, live: bool, follow: bool, lo
 		log_path = "/var/log/opsi/opsiconfd/opsiconfd.log"
 
 	messagebus_connection = FileTransferMessagebusConnection(
-		host_id=host_id, log_type=log_type, log_level=log_level, enable_formatting=color
+		host_id=host_id, log_type=log_type, log_level=log_level, enable_formatting=color, live=live
 	)
 
 	try:

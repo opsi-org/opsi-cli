@@ -750,7 +750,7 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 		"1": "#2979FF",  # ESSENTIAL
 	}
 
-	def __init__(self, host_id: str, log_type: str, log_level: int = 6, enable_formatting: bool = False) -> None:
+	def __init__(self, host_id: str, log_type: str, log_level: int = 6, enable_formatting: bool = False, live: bool = False) -> None:
 		super().__init__()
 		self.host_id = host_id
 		self.log_type = log_type
@@ -760,9 +760,10 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 		self._download_complete_event = asyncio.Event()
 		self.log_level = log_level
 		self.enable_formatting = enable_formatting
+		self.live = live
 		self.buffer = ""
 
-	def _get_host_id(self) -> str:
+	def _get_configserver_id(self) -> str:
 		if not hasattr(self, "_host_id"):
 			depots = self.service_client.host_getObjects(attributes=[], type="OpsiConfigserver")  # type: ignore[attr-defined]
 			self._host_id = depots[0].id
@@ -771,8 +772,10 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 	def _get_channel(self) -> str:
 		if self.log_type == "opsiconfd":
 			return f"service:depot:{self.host_id}:filetransfer"
+		elif self.log_type == "opsiclientd" and self.live:
+			return f"host:{self.host_id}"
 		else:
-			return f"service:depot:{self._get_host_id()}:filetransfer"
+			return f"service:depot:{self._get_configserver_id()}:filetransfer"
 
 	def send_file_download_request(self, path: str, chunk_size: int = 1000, follow: bool = False) -> None:
 		message = FileDownloadRequestMessage(
