@@ -760,7 +760,7 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 		self.follow = False
 		self.file_id = str(uuid4())
 		self._download_complete_event = asyncio.Event()
-		self.buffer = ""
+		self.buffer = []
 		self.channel = self._get_channel()
 
 	def _get_configserver_id(self) -> str:
@@ -784,7 +784,7 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 		self.send_message(message)
 
 	def _on_file_download_response(self, message: FileDownloadResponseMessage) -> None:
-		logger.info(f"File download started: {message}")
+		logger.debug(f"File download started: {message}")
 
 	def _process_line(self, line: str) -> None:
 		match = self.log_pattern.match(line)
@@ -798,14 +798,19 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 					console_print(Text(line, style="white"))
 
 	def _on_file_chunk(self, message: FileChunkMessage) -> None:
-		self.buffer += message.data.decode("utf-8")
-		while "\n" in self.buffer:
-			line, self.buffer = self.buffer.split("\n", 1)
-			self._process_line(line)
+		self.buffer.append(message.data.decode("utf-8"))
+
+		buffer_str = "".join(self.buffer)
+		if "\n" in buffer_str:
+			lines = buffer_str.split("\n")
+			self.buffer = [lines.pop()]
+			for line in lines:
+				self._process_line(line)
+
 		if message.last and not self.follow:
 			if self.buffer:
-				self._process_line(self.buffer)
-				self.buffer = ""
+				self._process_line("".join(self.buffer))
+				self.buffer = []
 			logger.info("File download completed")
 			self._download_complete_event.set()
 
