@@ -29,6 +29,8 @@ pytest-windows:
   tags:
     - win10-py313-x86
   script:
+    - $pythonPath = py -3.13 -c "import sys; print(sys.executable)"
+    - poetry env use $pythonPath
     - poetry lock --no-update --no-cache
     - poetry install
     - poetry run pytest --tb=short -x -o junit_family=xunit2 --junitxml=testreport_windows.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
@@ -216,6 +218,8 @@ windows-x86-pyinstaller:
     - win10-py313-x86
   script:
     # Build python environment
+    - $pythonPath = py -3.13 -c "import sys; print(sys.executable)"
+    - poetry env use $pythonPath
     - poetry lock --no-update --no-cache
     - poetry install
     # Get opsi-dev-tool
