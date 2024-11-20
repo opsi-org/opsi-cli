@@ -79,6 +79,7 @@ def make(
 	"""
 	logger.trace("make package")
 	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
+		assert progress
 		progress_listener = None
 		if not config.quiet:
 			progress_listener = PackageProgressListener(progress, "[cyan]Creating opsi package...")
@@ -229,6 +230,7 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 	destination_dir.mkdir(parents=True, exist_ok=True)
 
 	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
+		assert progress
 		progress_listener = None
 		if not config.quiet:
 			progress_listener = PackageProgressListener(progress, "[cyan]Extracting opsi package...")
