@@ -760,7 +760,7 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 		self.follow = False
 		self.file_id = str(uuid4())
 		self._download_complete_event = asyncio.Event()
-		self.buffer = []
+		self.buffer: list[str] = []
 		self.channel = self._get_channel()
 
 	def _get_configserver_id(self) -> str:
