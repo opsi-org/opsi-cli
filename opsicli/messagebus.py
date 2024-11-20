@@ -754,14 +754,14 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 		super().__init__()
 		self.host_id = host_id
 		self.log_type = log_type
-		self.channel = self._get_channel()
-		self.follow = False
-		self.file_id = str(uuid4())
-		self._download_complete_event = asyncio.Event()
 		self.log_level = log_level
 		self.enable_formatting = enable_formatting
 		self.live = live
+		self.follow = False
+		self.file_id = str(uuid4())
+		self._download_complete_event = asyncio.Event()
 		self.buffer = ""
+		self.channel = self._get_channel()
 
 	def _get_configserver_id(self) -> str:
 		if not hasattr(self, "_host_id"):
