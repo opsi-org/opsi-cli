@@ -40,7 +40,7 @@ def cli() -> None:
 	is_flag=True,
 	help="Show live log file from the client directly (only available for opsiclientd); otherwise, show the client logs stored on the server",
 	default=False,
-)  # TODO: Implement --live option
+)
 @click.option("--follow", is_flag=True, help="Follow the log file", default=False)
 @click.option(
 	"--log-level",
@@ -59,8 +59,11 @@ def view(host_id: str, log_type: str, live: bool, follow: bool, log_level: int, 
 async def view_command(host_id: str, log_type: str, live: bool, follow: bool, log_level: int, color: bool) -> None:
 	logger.trace("log view subcommand")
 	logger.info("Viewing logs for host %s", host_id)
+
 	if log_type == "opsiclientd" and not live:
 		log_path = f"/var/log/opsi/clientconnect/{host_id}.log"
+	elif log_type == "opsiclientd" and live:
+		log_path = "/var/log/opsi-client-agent/opsiclientd.log"
 	else:
 		log_path = "/var/log/opsi/opsiconfd/opsiconfd.log"
 
