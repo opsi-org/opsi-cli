@@ -22,7 +22,7 @@ def test_initial() -> None:
 
 
 def test_install() -> None:
-	package = {"name": "netifaces", "version": "0.11.0"}
+	package: dict[str, str | None] = {"name": "netifaces", "version": "0.11.0"}
 	with temp_context() as tempdir:
 		install_python_package(tempdir, package)
 		assert os.listdir(tempdir) and "netifaces" in os.listdir(tempdir)[0]
