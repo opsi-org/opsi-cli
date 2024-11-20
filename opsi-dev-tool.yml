@@ -32,10 +32,6 @@ pyinstaller-poetry:
   data_files:
     - src: ${VENV_SITE_PACKAGES}/pip/_vendor/certifi/cacert.pem
       dst: pip/_vendor/certifi
-    - src: ${VENV_SITE_PACKAGES}/pipreqs/stdlib
-      dst: pipreqs
-    - src: ${VENV_SITE_PACKAGES}/pipreqs/mapping
-      dst: pipreqs
     - src: plugins/**/*
       dst: plugins
   dirname: opsicli
