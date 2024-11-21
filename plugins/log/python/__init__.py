@@ -60,11 +60,12 @@ async def view_command(host_id: str, log_type: str, live: bool, follow: bool, lo
 	logger.trace("log view subcommand")
 	logger.info("Viewing logs for host %s", host_id)
 
-	if log_type == "opsiclientd" and live:
-		log_path = "/var/log/opsi-client-agent/opsiclientd.log"
-	elif log_type == "opsiclientd":
-		log_path = f"/var/log/opsi/clientconnect/{host_id}.log"
+	if log_type == "opsiclientd":
+		log_path = "/var/log/opsi-client-agent/opsiclientd.log" if live else f"/var/log/opsi/clientconnect/{host_id}.log"
 	else:
+		if live:
+			logger.error("--live option is only available for log type 'opsiclientd'.")
+			raise ValueError("--live option is only available for log type 'opsiclientd'.")
 		log_path = "/var/log/opsi/opsiconfd/opsiconfd.log"
 
 	messagebus_connection = FileTransferMessagebusConnection(
