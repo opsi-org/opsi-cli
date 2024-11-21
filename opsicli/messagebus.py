@@ -750,15 +750,18 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 		"2": "#E20066",  # CRITICAL
 		"1": "#2979FF",  # ESSENTIAL
 	}
+	chunk_size: int = 1000
 
-	def __init__(self, host_id: str, log_type: str, log_level: int = 6, enable_formatting: bool = False, live: bool = False) -> None:
+	def __init__(
+		self, host_id: str, log_type: str, log_level: int = 6, enable_formatting: bool = False, live: bool = False, follow: bool = False
+	) -> None:
 		super().__init__()
 		self.host_id = host_id
 		self.log_type = log_type
 		self.log_level = log_level
 		self.enable_formatting = enable_formatting
 		self.live = live
-		self.follow = False
+		self.follow = follow
 		self.file_id = str(uuid4())
 		self._download_complete_event = asyncio.Event()
 		self.buffer: list[str] = []
@@ -784,9 +787,14 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 		else:
 			return f"service:depot:{configserver_id}:filetransfer"
 
-	def send_file_download_request(self, path: str, chunk_size: int = 1000, follow: bool = False) -> None:
+	def send_file_download_request(self, path: str) -> None:
 		message = FileDownloadRequestMessage(
-			file_id=self.file_id, path=path, sender=CONNECTION_USER_CHANNEL, channel=self.channel, chunk_size=chunk_size, follow=follow
+			file_id=self.file_id,
+			path=path,
+			sender=CONNECTION_USER_CHANNEL,
+			channel=self.channel,
+			chunk_size=self.chunk_size,
+			follow=self.follow,
 		)
 		self.send_message(message)
 
@@ -796,13 +804,10 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 	def _process_line(self, line: str) -> None:
 		match = self.log_pattern.match(line)
 		if match:
-			log_level, timestamp, _, log_message, file_location = match.groups()
+			log_level, _, _, _, _ = match.groups()
 			if int(log_level) <= self.log_level:
-				if self.enable_formatting:
-					color = self.log_colors.get(log_level, "white")
-					console_print(Text(line, style=color))
-				else:
-					console_print(Text(line, style="white"))
+				color = self.log_colors.get(log_level, "white") if self.enable_formatting else "white"
+				console_print(Text(line, style=color))
 
 	def _on_file_chunk(self, message: FileChunkMessage) -> None:
 		self.buffer.append(message.data.decode("utf-8"))
@@ -825,12 +830,11 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 		logger.error(f"Error: {message.error.message}")
 		self._download_complete_event.set()
 
-	async def view_file(self, file_path: str, chunk_size: int = 1000, follow: bool = False) -> None:
+	async def view_file(self, file_path: str) -> None:
 		with self.connection():
-			self.follow = follow
-			self.send_file_download_request(file_path, chunk_size, follow)
+			self.send_file_download_request(file_path)
 			try:
-				if follow:
+				if self.follow:
 					await self._download_complete_event.wait()
 				else:
 					await asyncio.wait_for(self._download_complete_event.wait(), timeout=5)
