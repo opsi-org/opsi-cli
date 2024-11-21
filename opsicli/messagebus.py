@@ -822,7 +822,14 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 		with self.connection():
 			self.follow = follow
 			self.send_file_download_request(file_path, chunk_size, follow)
-			await self._download_complete_event.wait()
+			try:
+				if follow:
+					await self._download_complete_event.wait()
+				else:
+					await asyncio.wait_for(self._download_complete_event.wait(), timeout=5)
+			except asyncio.TimeoutError:
+				logger.info("Download complete event timed out")
+				self.abort_file_download()
 
 	def abort_file_download(self) -> None:
 		if self.file_id:
