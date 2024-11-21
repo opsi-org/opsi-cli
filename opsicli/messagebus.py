@@ -13,6 +13,7 @@ import sys
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from functools import lru_cache
 from threading import Event, Lock
 from types import FrameType
 from typing import Any, Callable, Generator, Literal, cast
@@ -763,19 +764,25 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 		self.buffer: list[str] = []
 		self.channel = self._get_channel()
 
+	@lru_cache(maxsize=1)
 	def _get_configserver_id(self) -> str:
-		if not hasattr(self, "_host_id"):
-			depots = self.service_client.host_getObjects(attributes=[], type="OpsiConfigserver")  # type: ignore[attr-defined]
-			self._host_id = depots[0].id
-		return self._host_id
+		depots = self.service_client.host_getObjects(attributes=[], type="OpsiConfigserver")  # type: ignore[attr-defined]
+		return depots[0].id
 
 	def _get_channel(self) -> str:
+		connected_host_ids = self.service_client.host_getMessagebusConnectedIds()  # type: ignore[attr-defined]
+		configserver_id = self._get_configserver_id()
+
+		host_id = forceHostId(self.host_id)
+		if host_id != configserver_id and host_id not in connected_host_ids:
+			raise ConnectionError(f"Host {host_id} is currently not connected to messagebus")
+
 		if self.log_type == "opsiconfd":
-			return f"service:depot:{self.host_id}:filetransfer"
+			return f"service:depot:{host_id}:filetransfer"
 		elif self.log_type == "opsiclientd" and self.live:
-			return f"host:{self.host_id}"
+			return f"host:{host_id}"
 		else:
-			return f"service:depot:{self._get_configserver_id()}:filetransfer"
+			return f"service:depot:{configserver_id}:filetransfer"
 
 	def send_file_download_request(self, path: str, chunk_size: int = 1000, follow: bool = False) -> None:
 		message = FileDownloadRequestMessage(
