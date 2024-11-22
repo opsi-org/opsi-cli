@@ -13,7 +13,6 @@ import sys
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from functools import lru_cache
 from threading import Event, Lock
 from types import FrameType
 from typing import Any, Callable, Generator, Literal, cast
@@ -764,10 +763,10 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 		self.follow = follow
 		self.file_id = str(uuid4())
 		self._download_complete_event = asyncio.Event()
+		self._error: Exception | None = None
 		self.buffer: list[str] = []
 		self.channel = self._get_channel()
 
-	@lru_cache(maxsize=1)
 	def _get_configserver_id(self) -> str:
 		depots = self.service_client.host_getObjects(attributes=[], type="OpsiConfigserver")  # type: ignore[attr-defined]
 		return depots[0].id
@@ -775,17 +774,16 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 	def _get_channel(self) -> str:
 		connected_host_ids = self.service_client.host_getMessagebusConnectedIds()  # type: ignore[attr-defined]
 		configserver_id = self._get_configserver_id()
-
 		host_id = forceHostId(self.host_id)
+
 		if host_id != configserver_id and host_id not in connected_host_ids:
 			raise ConnectionError(f"Host {host_id} is currently not connected to messagebus")
 
-		if self.log_type == "opsiconfd":
-			return f"service:depot:{host_id}:filetransfer"
-		elif self.log_type == "opsiclientd" and self.live:
-			return f"host:{host_id}"
-		else:
+		if self.log_type == "opsiclientd":
+			if self.live:
+				return f"host:{host_id}"
 			return f"service:depot:{configserver_id}:filetransfer"
+		return f"service:depot:{host_id}:filetransfer"
 
 	def send_file_download_request(self, path: str) -> None:
 		message = FileDownloadRequestMessage(
@@ -810,9 +808,12 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 				console_print(Text(line, style=color))
 
 	def _on_file_chunk(self, message: FileChunkMessage) -> None:
-		self.buffer.append(message.data.decode("utf-8"))
+		if self._error:
+			return
 
+		self.buffer.append(message.data.decode("utf-8"))
 		buffer_str = "".join(self.buffer)
+
 		if "\n" in buffer_str:
 			lines = buffer_str.split("\n")
 			self.buffer = [lines.pop()]
@@ -827,7 +828,7 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 			self._download_complete_event.set()
 
 	def _on_file_transfer_error(self, message: FileTransferErrorMessage) -> None:
-		logger.error(f"Error: {message.error.message}")
+		self._error = RuntimeError(message.error.message)
 		self._download_complete_event.set()
 
 	async def view_file(self, file_path: str) -> None:
@@ -838,6 +839,9 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 					await self._download_complete_event.wait()
 				else:
 					await asyncio.wait_for(self._download_complete_event.wait(), timeout=5)
+				if self._error:
+					logger.error(f"Error: {str(self._error)}")
+					raise self._error
 			except asyncio.TimeoutError:
 				logger.info("Download complete event timed out")
 				self.abort_file_download()
