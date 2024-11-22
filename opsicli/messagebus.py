@@ -750,6 +750,7 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 		"1": "#2979FF",  # ESSENTIAL
 	}
 	chunk_size: int = 1000
+	current_color: str = "white"
 
 	def __init__(
 		self, host_id: str, log_type: str, log_level: int = 6, enable_formatting: bool = False, live: bool = False, follow: bool = False
@@ -758,13 +759,14 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 		self.host_id = host_id
 		self.log_type = log_type
 		self.log_level = log_level
+		self._current_log_level = self.log_level
 		self.enable_formatting = enable_formatting
 		self.live = live
 		self.follow = follow
 		self.file_id = str(uuid4())
 		self._download_complete_event = asyncio.Event()
 		self._error: Exception | None = None
-		self.buffer: list[str] = []
+		self._buffer: list[str] = []
 		self.channel = self._get_channel()
 
 	def _get_configserver_id(self) -> str:
@@ -803,27 +805,31 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 		match = self.log_pattern.match(line)
 		if match:
 			log_level, _, _, _, _ = match.groups()
-			if int(log_level) <= self.log_level:
-				color = self.log_colors.get(log_level, "white") if self.enable_formatting else "white"
-				console_print(Text(line, style=color))
+			self._current_log_level = int(log_level)
+			if self._current_log_level <= self.log_level:
+				self.current_color = self.log_colors.get(log_level, "white") if self.enable_formatting else "white"
+				console_print(Text(line, style=self.current_color))
+		else:
+			if self._current_log_level <= self.log_level:
+				console_print(Text(line, style=self.current_color))
 
 	def _on_file_chunk(self, message: FileChunkMessage) -> None:
 		if self._error:
 			return
 
-		self.buffer.append(message.data.decode("utf-8"))
-		buffer_str = "".join(self.buffer)
+		self._buffer.append(message.data.decode("utf-8"))
+		buffer_str = "".join(self._buffer)
 
 		if "\n" in buffer_str:
 			lines = buffer_str.split("\n")
-			self.buffer = [lines.pop()]
+			self._buffer = [lines.pop()]
 			for line in lines:
 				self._process_line(line)
 
 		if message.last and not self.follow:
-			if self.buffer:
-				self._process_line("".join(self.buffer))
-				self.buffer = []
+			if self._buffer:
+				self._process_line("".join(self._buffer))
+				self._buffer = []
 			logger.info("File download completed")
 			self._download_complete_event.set()
 
