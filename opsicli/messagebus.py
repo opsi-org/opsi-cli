@@ -4,7 +4,9 @@ websocket functions
 
 from __future__ import annotations
 
+import asyncio
 import os
+import re
 import selectors
 import shutil
 import sys
@@ -22,6 +24,11 @@ from opsicommon.messagebus import CONNECTION_USER_CHANNEL
 from opsicommon.messagebus.message import (
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
+	FileChunkMessage,
+	FileDownloadAbortRequestMessage,
+	FileDownloadRequestMessage,
+	FileDownloadResponseMessage,
+	FileTransferErrorMessage,
 	GeneralErrorMessage,
 	JSONRPCRequestMessage,
 	JSONRPCResponseMessage,
@@ -44,8 +51,9 @@ from opsicommon.messagebus.message import (
 from opsicommon.system.info import is_windows
 from opsicommon.types import forceHostId
 from rich.color import ANSI_COLOR_NAMES, Color
+from rich.text import Text
 
-from opsicli.io import get_console, read_input_raw_bin
+from opsicli.io import console_print, get_console, read_input_raw_bin
 from opsicli.opsiservice import get_service_connection
 from opsicli.utils import raw_terminal
 
@@ -726,3 +734,141 @@ class TerminalMessagebusConnection(MessagebusConnection):
 						data=data,
 					)
 					self.send_message(message)
+
+
+class FileTransferMessagebusConnection(MessagebusConnection):
+	log_pattern = re.compile(r"\[(\d+)\] \[(.*?)\] \[(.*?)\] (.*?)\s+\((.*?)\)")
+	log_colors = {
+		"9": "#D500F9",  # SECRET
+		"8": "#8B8B8B",  # TRACE
+		"7": "#C0C0C0",  # DEBUG
+		"6": "#F5F5F5",  # INFO
+		"5": "#009605",  # NOTICE
+		"4": "#FF9100",  # WARNING
+		"3": "#E51D3B",  # ERROR
+		"2": "#E20066",  # CRITICAL
+		"1": "#2979FF",  # ESSENTIAL
+	}
+	chunk_size: int = 1000
+	current_color: str = "white"
+
+	def __init__(
+		self, host_id: str, log_type: str, log_level: int = 6, enable_formatting: bool = False, live: bool = False, follow: bool = False
+	) -> None:
+		super().__init__()
+		self.host_id = host_id
+		self.log_type = log_type
+		self.log_level = log_level
+		self._current_log_level = self.log_level
+		self.enable_formatting = enable_formatting
+		self.live = live
+		self.follow = follow
+		self.file_id: str = str(uuid4())
+		self._download_complete_event = asyncio.Event()
+		self._error: Exception | None = None
+		self._buffer: list[str] = []
+		self.channel = self._get_channel()
+		self._lock = Lock()
+
+	def _get_configserver_id(self) -> str:
+		depots = self.service_client.host_getObjects(attributes=[], type="OpsiConfigserver")  # type: ignore[attr-defined]
+		return depots[0].id
+
+	def _get_channel(self) -> str:
+		connected_host_ids = self.service_client.host_getMessagebusConnectedIds()  # type: ignore[attr-defined]
+		configserver_id = self._get_configserver_id()
+		host_id = forceHostId(self.host_id)
+
+		if host_id != configserver_id and host_id not in connected_host_ids:
+			raise ConnectionError(f"Host {host_id} is currently not connected to messagebus")
+
+		if self.log_type == "opsiclientd":
+			if self.live:
+				return f"host:{host_id}"
+			return f"service:depot:{configserver_id}:filetransfer"
+		return f"service:depot:{host_id}:filetransfer"
+
+	def send_file_download_request(self, path: str) -> None:
+		message = FileDownloadRequestMessage(
+			file_id=self.file_id,
+			path=path,
+			sender=CONNECTION_USER_CHANNEL,
+			channel=self.channel,
+			chunk_size=self.chunk_size,
+			follow=self.follow,
+		)
+		self.send_message(message)
+
+	def _on_file_download_response(self, message: FileDownloadResponseMessage) -> None:
+		logger.debug(f"File download started: {message}")
+
+	def _process_line(self, line: str) -> None:
+		match = self.log_pattern.match(line)
+		if match:
+			log_level, _, _, _, _ = match.groups()
+			self._current_log_level = int(log_level)
+			if self._current_log_level <= self.log_level:
+				self.current_color = self.log_colors.get(log_level, "white") if self.enable_formatting else "white"
+				console_print(Text(line, style=self.current_color))
+		else:
+			if self._current_log_level <= self.log_level:
+				console_print(Text(line, style=self.current_color))
+
+	def _on_file_chunk(self, message: FileChunkMessage) -> None:
+		with self._lock:
+			if self._error:
+				return
+
+			self._buffer.append(message.data.decode("utf-8"))
+			buffer_str = "".join(self._buffer)
+
+			if "\n" in buffer_str:
+				lines = buffer_str.split("\n")
+				self._buffer = [lines.pop()]
+				for line in lines:
+					self._process_line(line)
+
+			if message.last and not self.follow:
+				if self._buffer:
+					self._process_line("".join(self._buffer))
+					self._buffer = []
+				logger.info("File download completed")
+				self._download_complete_event.set()
+
+	def _on_file_transfer_error(self, message: FileTransferErrorMessage) -> None:
+		with self._lock:
+			self._error = RuntimeError(message.error.message)
+			self._download_complete_event.set()
+
+	async def view_file(self, file_path: str) -> None:
+		with self.connection():
+			self.send_file_download_request(file_path)
+			try:
+				if self.follow:
+					await self._download_complete_event.wait()
+				else:
+					await asyncio.wait_for(self._download_complete_event.wait(), timeout=5)
+				if self._error:
+					logger.error(f"Error: {str(self._error)}")
+					raise self._error
+			except asyncio.TimeoutError:
+				logger.info("Download complete event timed out")
+				self.abort_file_download()
+			finally:
+				self.cleanup()
+
+	def abort_file_download(self) -> None:
+		with self._lock:
+			if self.file_id:
+				message = FileDownloadAbortRequestMessage(sender=CONNECTION_USER_CHANNEL, channel=self.channel, file_id=self.file_id)
+				self.send_message(message)
+				logger.info(f"File download aborted for file_id: {self.file_id}")
+				self._download_complete_event.set()
+
+	def cleanup(self) -> None:
+		with self._lock:
+			self.file_id = str(uuid4())
+			self._download_complete_event.clear()
+			self._error = None
+			self._buffer.clear()
+			logger.info("Resources cleaned up")
