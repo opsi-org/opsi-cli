@@ -763,11 +763,12 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 		self.enable_formatting = enable_formatting
 		self.live = live
 		self.follow = follow
-		self.file_id = str(uuid4())
+		self.file_id: str = str(uuid4())
 		self._download_complete_event = asyncio.Event()
 		self._error: Exception | None = None
 		self._buffer: list[str] = []
 		self.channel = self._get_channel()
+		self._lock = Lock()
 
 	def _get_configserver_id(self) -> str:
 		depots = self.service_client.host_getObjects(attributes=[], type="OpsiConfigserver")  # type: ignore[attr-defined]
@@ -814,28 +815,30 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 				console_print(Text(line, style=self.current_color))
 
 	def _on_file_chunk(self, message: FileChunkMessage) -> None:
-		if self._error:
-			return
+		with self._lock:
+			if self._error:
+				return
 
-		self._buffer.append(message.data.decode("utf-8"))
-		buffer_str = "".join(self._buffer)
+			self._buffer.append(message.data.decode("utf-8"))
+			buffer_str = "".join(self._buffer)
 
-		if "\n" in buffer_str:
-			lines = buffer_str.split("\n")
-			self._buffer = [lines.pop()]
-			for line in lines:
-				self._process_line(line)
+			if "\n" in buffer_str:
+				lines = buffer_str.split("\n")
+				self._buffer = [lines.pop()]
+				for line in lines:
+					self._process_line(line)
 
-		if message.last and not self.follow:
-			if self._buffer:
-				self._process_line("".join(self._buffer))
-				self._buffer = []
-			logger.info("File download completed")
-			self._download_complete_event.set()
+			if message.last and not self.follow:
+				if self._buffer:
+					self._process_line("".join(self._buffer))
+					self._buffer = []
+				logger.info("File download completed")
+				self._download_complete_event.set()
 
 	def _on_file_transfer_error(self, message: FileTransferErrorMessage) -> None:
-		self._error = RuntimeError(message.error.message)
-		self._download_complete_event.set()
+		with self._lock:
+			self._error = RuntimeError(message.error.message)
+			self._download_complete_event.set()
 
 	async def view_file(self, file_path: str) -> None:
 		with self.connection():
@@ -851,10 +854,21 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 			except asyncio.TimeoutError:
 				logger.info("Download complete event timed out")
 				self.abort_file_download()
+			finally:
+				self.cleanup()
 
 	def abort_file_download(self) -> None:
-		if self.file_id:
-			message = FileDownloadAbortRequestMessage(sender=CONNECTION_USER_CHANNEL, channel=self.channel, file_id=self.file_id)
-			self.send_message(message)
-			logger.info(f"File download aborted for file_id: {self.file_id}")
-			self._download_complete_event.set()
+		with self._lock:
+			if self.file_id:
+				message = FileDownloadAbortRequestMessage(sender=CONNECTION_USER_CHANNEL, channel=self.channel, file_id=self.file_id)
+				self.send_message(message)
+				logger.info(f"File download aborted for file_id: {self.file_id}")
+				self._download_complete_event.set()
+
+	def cleanup(self) -> None:
+		with self._lock:
+			self.file_id = str(uuid4())
+			self._download_complete_event.clear()
+			self._error = None
+			self._buffer.clear()
+			logger.info("Resources cleaned up")
