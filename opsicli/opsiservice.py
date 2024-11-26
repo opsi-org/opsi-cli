@@ -99,6 +99,7 @@ def get_service_connection(verify: str | None = None) -> ServiceClient:
 			username=username,
 			password=password,
 			totp=totp,
+			sso=config.sso,
 			user_agent=f"opsi-cli/{__version__}",
 			session_lifetime=SESSION_LIFETIME,
 			session_cookie=session_cookie,
@@ -109,7 +110,7 @@ def get_service_connection(verify: str | None = None) -> ServiceClient:
 		)
 		service_client.register_connection_listener(OpsiCliConnectionListener())
 		try:
-			service_client.connect(sso=config.sso)
+			service_client.connect()
 		except OpsiServiceVerificationError as err:
 			if service_client.ca_cert_file and service_client.ca_cert_file.exists():
 				raise OpsiServiceVerificationError(
