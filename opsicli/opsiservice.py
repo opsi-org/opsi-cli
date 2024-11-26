@@ -78,7 +78,7 @@ def get_service_connection(verify: str | None = None) -> ServiceClient:
 				address = config.service
 
 		totp: str | None = None
-		if config.sso:
+		if not config.sso:
 			if config.username:
 				username = config.username
 			if config.password:
