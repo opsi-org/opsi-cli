@@ -76,15 +76,19 @@ def get_service_connection(verify: str | None = None) -> ServiceClient:
 				password = service_conf.password
 			else:
 				address = config.service
-		if config.username:
-			username = config.username
-		if config.password:
-			password = config.password
 
-		totp = str(prompt("Enter the TOTP", password=True)) if config.totp else None
+		totp: str | None = None
+		if config.sso:
+			if config.username:
+				username = config.username
+			if config.password:
+				password = config.password
 
-		if username and not password and config.interactive:
-			password = str(prompt(f"Please enter the password for {username}@{address}", password=True))
+			if username and not password and config.interactive:
+				password = str(prompt(f"Please enter the password for {username}@{address}", password=True))
+
+			if config.totp:
+				totp = str(prompt("Enter the TOTP", password=True))
 
 		session_cookie = cache.get("opsiconfd-session")  # None if previous session expired
 		if session_cookie:
@@ -105,7 +109,7 @@ def get_service_connection(verify: str | None = None) -> ServiceClient:
 		)
 		service_client.register_connection_listener(OpsiCliConnectionListener())
 		try:
-			service_client.connect()
+			service_client.connect(sso=config.sso)
 		except OpsiServiceVerificationError as err:
 			if service_client.ca_cert_file and service_client.ca_cert_file.exists():
 				raise OpsiServiceVerificationError(

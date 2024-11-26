@@ -352,6 +352,13 @@ CONFIG_ITEMS = [
 		default=False,
 		description="This flag triggers an interactive prompt to enter TOTP, assuming the password is stored in the configuration.",
 	),
+	ConfigItem(
+		name="sso",
+		type=Bool,
+		group="opsi service",
+		default=False,
+		description="This flag triggers a Single Sign On (SSO) authentication.",
+	),
 	ConfigItem(name="services", type=OPSIService, description="Configured opsi services.", multiple=True, key="name"),
 	ConfigItem(
 		name="dry_run",
