@@ -102,6 +102,8 @@ class ClientActionWorker:
 	def determine_clients(self, args: ClientActionArgs) -> None:
 		self.clients = set()
 		args.clients = (args.clients or "").lower()
+		all_clients = {client.id for client in self.service.jsonrpc("host_getObjects", [[], {"type": "OpsiClient"}])}
+
 		if not args.clients and not args.client_groups and not args.ip_addresses and not args.clients_from_depots and self.default_all:
 			console = get_console(file=sys.stderr)
 			console.print(
@@ -110,11 +112,14 @@ class ClientActionWorker:
 			)
 			args.clients = "all"
 		if "all" in args.clients:
-			clients: list[OpsiClient] = self.service.jsonrpc("host_getObjects", [[], {"type": "OpsiClient"}])
-			self.clients = {entry.id for entry in clients}
+			self.clients = all_clients
 		else:
 			if args.clients:
-				self.clients.update(forceHostId(entry.strip()) for entry in args.clients.split(","))
+				specified_clients = {forceHostId(entry.strip()) for entry in args.clients.split(",")}
+				clients_not_found = specified_clients - all_clients
+				if clients_not_found:
+					raise ValueError(f"Clients not found: {clients_not_found}")
+				self.clients.update(specified_clients)
 			if args.client_groups:
 				for group in [entry.strip() for entry in args.client_groups.split(",")]:
 					self.clients.update(self.client_ids_from_group(group))
