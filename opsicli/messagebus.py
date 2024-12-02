@@ -53,6 +53,7 @@ from opsicommon.types import forceHostId
 from rich.color import ANSI_COLOR_NAMES, Color
 from rich.text import Text
 
+from opsicli.config import config
 from opsicli.io import console_print, get_console, read_input_raw_bin
 from opsicli.opsiservice import get_service_connection
 from opsicli.utils import raw_terminal
@@ -752,15 +753,13 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 	chunk_size: int = 1000
 	current_color: str = "white"
 
-	def __init__(
-		self, host_id: str, log_type: str, log_level: int = 6, enable_formatting: bool = False, live: bool = False, follow: bool = False
-	) -> None:
+	def __init__(self, host_id: str, log_type: str, log_level: int = 6, live: bool = False, follow: bool = False) -> None:
 		super().__init__()
 		self.host_id = host_id
 		self.log_type = log_type
 		self.log_level = log_level
 		self._current_log_level = self.log_level
-		self.enable_formatting = enable_formatting
+		self.enable_formatting = config.color
 		self.live = live
 		self.follow = follow
 		self.file_id: str = str(uuid4())

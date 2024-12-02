@@ -20,7 +20,7 @@ def test_log_view() -> None:
 		configserver = connection.jsonrpc("host_getObjects", params=[[], {"type": "OpsiConfigserver"}])[0].id
 
 		log_level = 2
-		exit_code, stdout, _ = run_cli(["log", "view", configserver, "--log-type", "opsiconfd", "--log-level", str(log_level), "--color"])
+		exit_code, stdout, _ = run_cli(["log", "view", configserver, "--log-type", "opsiconfd", "--log-level", str(log_level)])
 		assert exit_code == 0
 
 		log_line_pattern = re.compile(r"\[(\d+)\]")
