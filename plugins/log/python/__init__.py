@@ -34,6 +34,7 @@ def cli() -> None:
 	type=click.Choice(["opsiconfd", "opsiclientd"], case_sensitive=False),
 	default="opsiclientd",
 	help="Specify the type of log to view (opsiconfd or opsiclientd)",
+	show_default=True,
 )
 @click.option(
 	"--live",
@@ -47,6 +48,7 @@ def cli() -> None:
 	type=click.IntRange(1, 8),
 	default=6,
 	help="Specify the log level to filter (1 to 8).",
+	show_default=True,
 )
 @click.option("--color/--no-color", is_flag=True, help="Enable or disable color formatting for the log output", default=True)
 def view(host_id: str, log_type: str, live: bool, follow: bool, log_level: int, color: bool) -> None:
