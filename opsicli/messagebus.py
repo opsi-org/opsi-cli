@@ -759,7 +759,6 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 		self.log_type = log_type
 		self.log_level = log_level
 		self._current_log_level = self.log_level
-		self.enable_formatting = config.color
 		self.live = live
 		self.follow = follow
 		self.file_id: str = str(uuid4())
@@ -807,7 +806,7 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 			log_level, _, _, _, _ = match.groups()
 			self._current_log_level = int(log_level)
 			if self._current_log_level <= self.log_level:
-				self.current_color = self.log_colors.get(log_level, "white") if self.enable_formatting else "white"
+				self.current_color = self.log_colors.get(log_level, "white") if config.color else "white"
 				console_print(Text(line, style=self.current_color))
 		else:
 			if self._current_log_level <= self.log_level:
