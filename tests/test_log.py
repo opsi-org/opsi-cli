@@ -20,7 +20,7 @@ def test_log_view() -> None:
 		configserver = connection.jsonrpc("host_getObjects", params=[[], {"type": "OpsiConfigserver"}])[0].id
 
 		log_level = 2
-		exit_code, stdout, _ = run_cli(["log", "view", configserver, "--log-type", "opsiconfd", "--log-level", str(log_level), "--color"])
+		exit_code, stdout, _ = run_cli(["log", "view", configserver, "--log-type", "opsiconfd", "--log-level", str(log_level)])
 		assert exit_code == 0
 
 		log_line_pattern = re.compile(r"\[(\d+)\]")
@@ -40,12 +40,12 @@ def test_file_transfer_messagebus_connection() -> None:
 			configserver = connection.jsonrpc("host_getObjects", params=[[], {"type": "OpsiConfigserver"}])[0].id
 
 			messagebus_connection_1 = FileTransferMessagebusConnection(
-				host_id=configserver, log_type="opsiconfd", log_level=6, enable_formatting=False, live=False, follow=False
+				host_id=configserver, log_type="opsiconfd", log_level=6, live=False, follow=False
 			)
 			assert messagebus_connection_1
 
 			messagebus_connection_2 = FileTransferMessagebusConnection(
-				host_id=configserver, log_type="opsiconfd", log_level=6, enable_formatting=False, live=False, follow=False
+				host_id=configserver, log_type="opsiconfd", log_level=6, live=False, follow=False
 			)
 			assert messagebus_connection_2
 

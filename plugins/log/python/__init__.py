@@ -34,6 +34,7 @@ def cli() -> None:
 	type=click.Choice(["opsiconfd", "opsiclientd"], case_sensitive=False),
 	default="opsiclientd",
 	help="Specify the type of log to view (opsiconfd or opsiclientd)",
+	show_default=True,
 )
 @click.option(
 	"--live",
@@ -47,16 +48,16 @@ def cli() -> None:
 	type=click.IntRange(1, 8),
 	default=6,
 	help="Specify the log level to filter (1 to 8).",
+	show_default=True,
 )
-@click.option("--color/--no-color", is_flag=True, help="Enable or disable color formatting for the log output", default=True)
-def view(host_id: str, log_type: str, live: bool, follow: bool, log_level: int, color: bool) -> None:
+def view(host_id: str, log_type: str, live: bool, follow: bool, log_level: int) -> None:
 	"""
 	opsi-cli log view subcommand
 	"""
-	asyncio.run(view_command(host_id, log_type, live, follow, log_level, color))
+	asyncio.run(view_command(host_id, log_type, live, follow, log_level))
 
 
-async def view_command(host_id: str, log_type: str, live: bool, follow: bool, log_level: int, color: bool) -> None:
+async def view_command(host_id: str, log_type: str, live: bool, follow: bool, log_level: int) -> None:
 	logger.trace("log view subcommand")
 	logger.info("Viewing logs for host %s", host_id)
 
@@ -69,7 +70,7 @@ async def view_command(host_id: str, log_type: str, live: bool, follow: bool, lo
 		log_path = "/var/log/opsi/opsiconfd/opsiconfd.log"
 
 	messagebus_connection = FileTransferMessagebusConnection(
-		host_id=host_id, log_type=log_type, log_level=log_level, enable_formatting=color, live=live, follow=follow
+		host_id=host_id, log_type=log_type, log_level=log_level, live=live, follow=follow
 	)
 
 	try:
