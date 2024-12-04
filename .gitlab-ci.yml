@@ -44,7 +44,7 @@ pytest-windows:
 pytest-linux:
   stage: test_python
   services:
-    - name: mysql:latest
+    - name: mysql:8.0
       command:
         - --max_connections=1000
         - --default-authentication-plugin=mysql_native_password
