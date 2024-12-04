@@ -76,15 +76,19 @@ def get_service_connection(verify: str | None = None) -> ServiceClient:
 				password = service_conf.password
 			else:
 				address = config.service
-		if config.username:
-			username = config.username
-		if config.password:
-			password = config.password
 
-		totp = str(prompt("Enter the TOTP", password=True)) if config.totp else None
+		totp: str | None = None
+		if not config.sso:
+			if config.username:
+				username = config.username
+			if config.password:
+				password = config.password
 
-		if username and not password and config.interactive:
-			password = str(prompt(f"Please enter the password for {username}@{address}", password=True))
+			if username and not password and config.interactive:
+				password = str(prompt(f"Please enter the password for {username}@{address}", password=True))
+
+			if config.totp:
+				totp = str(prompt("Enter the TOTP", password=True))
 
 		session_cookie = cache.get("opsiconfd-session")  # None if previous session expired
 		if session_cookie:
@@ -95,6 +99,7 @@ def get_service_connection(verify: str | None = None) -> ServiceClient:
 			username=username,
 			password=password,
 			totp=totp,
+			sso=config.sso,
 			user_agent=f"opsi-cli/{__version__}",
 			session_lifetime=SESSION_LIFETIME,
 			session_cookie=session_cookie,
