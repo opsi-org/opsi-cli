@@ -249,7 +249,9 @@ def test_control_to_toml(setup_test_product: Path) -> None:
 @pytest.mark.requires_testcontainer
 def test_package_list() -> None:
 	with container_connection():
-		exit_code, _stdout, _stderr = run_cli(["package", "list"])
+		exit_code, _stdout, _stderr = run_cli(["-l7", "package", "list"])
+		print(_stdout)
+		print(_stderr)
 		assert exit_code == 0
 
 		exit_code, _stdout, _stderr = run_cli(["package", "list", "opsi*"])
@@ -285,11 +287,12 @@ def test_combine_products() -> None:
 	assert combine_products(product_dict, product_on_depot_dict) == expected
 
 
+@pytest.mark.docker_linux  # we need docker to handle name resolution to connect to depot fqdn
 @pytest.mark.requires_testcontainer
 def test_package_install_and_uninstall() -> None:
 	with container_connection():
 		# Test installing with a missing dependency
-		exit_code, _, _stderr = run_cli(["package", "install", str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi")])
+		exit_code, _, _stderr = run_cli(["-l7", "package", "install", str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi")])
 		assert exit_code != 0
 		assert "Dependency 'testdependency5' for package 'testdependency4' is not specified." in _stderr
 
@@ -302,6 +305,7 @@ def test_package_install_and_uninstall() -> None:
 				str(TEST_DATA_PATH / "testdependency5_1.2-2.opsi"),
 			]
 		)
+		print(_stderr)
 		assert exit_code != 0
 		assert "Opsi rpc error:" in _stderr
 
@@ -383,6 +387,7 @@ def test_package_install_and_uninstall() -> None:
 			assert not (Path("/var/lib/opsi/repository") / file).exists()
 
 
+@pytest.mark.docker_linux  # we need docker to handle name resolution to connect to depot fqdn
 @pytest.mark.requires_testcontainer
 def test_custom_package_installation() -> None:
 	with container_connection():
@@ -396,6 +401,7 @@ def test_custom_package_installation() -> None:
 		assert exit_code == 0
 
 
+@pytest.mark.docker_linux  # we need docker to handle name resolution to connect to depot fqdn
 @pytest.mark.requires_testcontainer
 def test_package_installation_from_urls() -> None:
 	with container_connection():

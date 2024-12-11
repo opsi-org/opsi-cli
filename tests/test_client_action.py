@@ -232,4 +232,4 @@ def test_trigger_event() -> None:
 		with tmp_client(connection, CLIENT1):
 			cmd = ["client-action", "--clients", CLIENT1, "trigger-event", "--wakeup", "--wakeup-timeout", "0.5"]
 			exit_code, _stdout, _stderr = run_cli(cmd)
-			assert exit_code == 0  # No way to actually trigger an event or wake up a client
+			assert exit_code == 1  # No way to actually trigger an event or wake up a client

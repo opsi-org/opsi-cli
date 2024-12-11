@@ -66,6 +66,7 @@ pytest-linux:
     OPSI_HOST_ROLE: configserver
     OPSI_HOST_ID: "test.uib.gmbh"
     OPSI_TFTPBOOT: "false"
+    OPSICONFD_SSL_SERVER_CERT_SANS: opsiconfd
     # when restoring the test backup, this job takes > 60 seconds to start, so gitlab-ci kills it
     #OPSICONFD_RESTORE_BACKUP_URL: "http://binaryindex.uib.gmbh/development/testbackup/all/all/testbackup_all_all_1.1.tar.gz"
     # issue for individually configurable timeouts https://gitlab.com/gitlab-org/gitlab/-/issues/30353

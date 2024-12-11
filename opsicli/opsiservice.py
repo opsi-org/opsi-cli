@@ -69,12 +69,15 @@ def get_service_connection(verify: str | None = None) -> ServiceClient:
 		password: str | None = None
 
 		if config.service:
+			print("config.service is configured to", config.service)
 			service_conf = config.get_service_by_name(config.service)
 			if service_conf:
+				print("service_conf found:", service_conf)
 				address = service_conf.url
 				username = service_conf.username
 				password = service_conf.password
 			else:
+				print("service_conf not found, using", config.service)
 				address = config.service
 
 		totp: str | None = None
