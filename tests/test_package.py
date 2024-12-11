@@ -309,18 +309,17 @@ def test_package_install_and_uninstall() -> None:
 		assert exit_code != 0
 		assert "Opsi rpc error:" in _stderr
 
-		"""
-		# Verify files exist after failed install
-		for file in [
-			"testdependency4_1.0-5.opsi",
-			"testdependency4_1.0-5.opsi.md5",
-			"testdependency4_1.0-5.opsi.zsync",
-			"testdependency5_1.2-2.opsi",
-			"testdependency5_1.2-2.opsi.md5",
-			"testdependency5_1.2-2.opsi.zsync",
-		]:
-			assert (Path("/var/lib/opsi/repository") / file).exists()
-		"""
+		if Path("/var/lib/opsi/repository").exists():  # we are probably running on the opsi-server itself (not just on same docker host)
+			# Verify files exist after failed install
+			for file in [
+				"testdependency4_1.0-5.opsi",
+				"testdependency4_1.0-5.opsi.md5",
+				"testdependency4_1.0-5.opsi.zsync",
+				"testdependency5_1.2-2.opsi",
+				"testdependency5_1.2-2.opsi.md5",
+				"testdependency5_1.2-2.opsi.zsync",
+			]:
+				assert (Path("/var/lib/opsi/repository") / file).exists()
 
 		# Test with correct dependency version
 		exit_code, _, _stderr = run_cli(
@@ -350,23 +349,21 @@ def test_package_install_and_uninstall() -> None:
 			in _stdout.replace("\n", " ").replace("  ", " ")
 		)
 
-		"""
-		# Verify correct files exist after successful install
-		for file in [
-			"testdependency4_1.0-5.opsi",
-			"testdependency4_1.0-5.opsi.md5",
-			"testdependency4_1.0-5.opsi.zsync",
-			"testdependency5_2-0.opsi",
-			"testdependency5_2-0.opsi.md5",
-			"testdependency5_2-0.opsi.zsync",
-		]:
-			assert (Path("/var/lib/opsi/repository") / file).exists()
+		if Path("/var/lib/opsi/repository").exists():  # we are probably running on the opsi-server itself (not just on same docker host)
+			# Verify correct files exist after successful install
+			for file in [
+				"testdependency4_1.0-5.opsi",
+				"testdependency4_1.0-5.opsi.md5",
+				"testdependency4_1.0-5.opsi.zsync",
+				"testdependency5_2-0.opsi",
+				"testdependency5_2-0.opsi.md5",
+				"testdependency5_2-0.opsi.zsync",
+			]:
+				assert (Path("/var/lib/opsi/repository") / file).exists()
 
-		# Verify incorrect files do not exist
-		for file in ["testdependency5_1.2-2.opsi", "testdependency5_1.2-2.opsi.md5", "testdependency5_1.2-2.opsi.zsync"]:
-			assert not (Path("/var/lib/opsi/repository") / file).exists()
-
-		"""
+			# Verify incorrect files do not exist
+			for file in ["testdependency5_1.2-2.opsi", "testdependency5_1.2-2.opsi.md5", "testdependency5_1.2-2.opsi.zsync"]:
+				assert not (Path("/var/lib/opsi/repository") / file).exists()
 
 		# Test uninstalling packages
 		exit_code, _stdout, _stderr = run_cli(
@@ -380,18 +377,17 @@ def test_package_install_and_uninstall() -> None:
 		assert exit_code == 0
 		assert "Uninstalling" in _stdout
 
-		"""
-		# Verify files do not exist after uninstall
-		for file in [
-			"testdependency4_1.0-5.opsi",
-			"testdependency4_1.0-5.opsi.md5",
-			"testdependency4_1.0-5.opsi.zsync",
-			"testdependency5_2-0.opsi",
-			"testdependency5_2-0.opsi.md5",
-			"testdependency5_2-0.opsi.zsync",
-		]:
-			assert not (Path("/var/lib/opsi/repository") / file).exists()
-		"""
+		if Path("/var/lib/opsi/repository").exists():  # we are probably running on the opsi-server itself (not just on same docker host)
+			# Verify files do not exist after uninstall
+			for file in [
+				"testdependency4_1.0-5.opsi",
+				"testdependency4_1.0-5.opsi.md5",
+				"testdependency4_1.0-5.opsi.zsync",
+				"testdependency5_2-0.opsi",
+				"testdependency5_2-0.opsi.md5",
+				"testdependency5_2-0.opsi.zsync",
+			]:
+				assert not (Path("/var/lib/opsi/repository") / file).exists()
 
 
 @pytest.mark.docker_linux  # we need docker to handle name resolution to connect to depot fqdn
@@ -401,8 +397,9 @@ def test_custom_package_installation() -> None:
 		# Test case where the package has "~custom" name and has local md5 and zsync files, which are not updated.
 		exit_code, _, _ = run_cli(["package", "install", str(TEST_DATA_PATH / "test2_1.0-6~custom1.opsi")])
 		assert exit_code == 0
-		for file in ["test2_1.0-6.opsi", "test2_1.0-6.opsi.md5", "test2_1.0-6.opsi.zsync"]:
-			assert (Path("/var/lib/opsi/repository") / file).exists()
+		if Path("/var/lib/opsi/repository").exists():  # we are probably running on the opsi-server itself (not just on same docker host)
+			for file in ["test2_1.0-6.opsi", "test2_1.0-6.opsi.md5", "test2_1.0-6.opsi.zsync"]:
+				assert (Path("/var/lib/opsi/repository") / file).exists()
 
 		exit_code, _, _ = run_cli(["package", "uninstall", "test2"])
 		assert exit_code == 0
