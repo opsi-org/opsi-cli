@@ -63,6 +63,7 @@ def get_depot_connection(depot: OpsiDepotserver) -> ServiceClient:
 
 def get_service_connection(verify: str | None = None) -> ServiceClient:
 	global service_client
+	service_client = None
 	if not service_client:
 		address: str | None = None
 		username: str | None = None

@@ -14,7 +14,6 @@ from opsicli.opsiservice import get_service_connection
 from .utils import container_connection, run_cli
 
 
-@pytest.mark.xfail
 @pytest.mark.requires_testcontainer
 def test_messagebus_jsonrpc() -> None:
 	with container_connection():
@@ -25,7 +24,6 @@ def test_messagebus_jsonrpc() -> None:
 	assert "opsiVersion" in result
 
 
-@pytest.mark.xfail
 @pytest.mark.requires_testcontainer
 def test_messagebus_jsonrpc_params() -> None:
 	with container_connection():
@@ -35,10 +33,9 @@ def test_messagebus_jsonrpc_params() -> None:
 				"service:config:jsonrpc"
 			]
 	assert len(result) == 1
-	assert result[0].getType() == "OpsiConfigserver"
+	assert result[0]["type"] == "OpsiConfigserver"
 
 
-@pytest.mark.xfail
 @pytest.mark.requires_testcontainer
 def test_messagebus_jsonrpc_error() -> None:
 	with container_connection():
@@ -50,7 +47,6 @@ def test_messagebus_jsonrpc_error() -> None:
 	assert "Invalid method" in result["data"].get("details")
 
 
-@pytest.mark.xfail
 @pytest.mark.requires_testcontainer
 def test_messagebus_jsonrpc_multiple() -> None:
 	with container_connection():
@@ -61,10 +57,9 @@ def test_messagebus_jsonrpc_multiple() -> None:
 			result = connection.jsonrpc(["service:config:jsonrpc"], "host_getObjects", ([], {"type": "OpsiConfigserver"}))[
 				"service:config:jsonrpc"
 			]
-			assert result[0].getType() == "OpsiConfigserver"
+			assert result[0]["type"] == "OpsiConfigserver"
 
 
-@pytest.mark.xfail  # may fail if runner is slow
 @pytest.mark.requires_testcontainer
 def test_wait_for_event() -> None:
 	class CreateHostThread(Thread):
@@ -73,7 +68,7 @@ def test_wait_for_event() -> None:
 			self.client = client
 
 		def run(self) -> None:
-			time.sleep(4.0)
+			time.sleep(4.0)  # Resetting dropped connection: localhost - Waiting 5 seconds before reconnect
 			self.client.jsonrpc("host_createOpsiClient", params=["dummy.test.tld"])
 
 	with container_connection():
@@ -92,7 +87,6 @@ def test_wait_for_event() -> None:
 		assert exit_code == 1  # timeout reached
 
 
-@pytest.mark.xfail  # may fail if runner is slow
 @pytest.mark.requires_testcontainer
 def test_wait_for_event_data() -> None:
 	class CreateHostThread(Thread):

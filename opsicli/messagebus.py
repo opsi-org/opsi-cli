@@ -137,7 +137,6 @@ class MessagebusConnection(MessagebusListener):
 				yield self
 		finally:
 			if self.service_client.messagebus_connected:
-				logger.debug("Disconnecting from messagebus.")
 				self.service_client.disconnect_messagebus()
 
 
