@@ -153,6 +153,12 @@ def execute(
 	"""
 	opsi-cli client-action execute command
 	"""
+	if opsiscript:
+		try:
+			opsiscript.encode("utf-8", errors="strict")
+		except UnicodeEncodeError:
+			raise ValueError("The opsi-script content is not valid UTF-8")
+
 	worker = ExecuteWorker(ctx.obj)
 	exit_code = worker.execute(
 		command, timeout=timeout, shell=shell, concurrent=concurrent, show_host_names=host_names, encoding=encoding, opsiscript=opsiscript

@@ -4,11 +4,10 @@ opsi-cli basic command line interface for opsi
 execute_worker
 """
 
-import base64
-
 from opsicommon.logging import get_logger
 
 from opsicli.config import config
+from opsicli.io import console_print
 from opsicli.messagebus import JSONRPCMessagebusConnection, ProcessMessagebusConnection
 
 from .client_action_worker import ClientActionArgs, ClientActionWorker
@@ -56,29 +55,30 @@ class ExecuteWorker(ClientActionWorker):
 
 	def _execute_opsiscript(self, channels: list[str], opsiscript: str) -> int:
 		logger.debug("Executing opsiscript on %d hosts", len(channels))
-		encoded_opsiscript = base64.b64encode(opsiscript.encode("utf-8")).decode("utf-8")
-
 		with self.jsonrpc_mbus_connection.connection():
-			results = self.jsonrpc_mbus_connection.jsonrpc(channels=channels, method="runOpsiScriptContent", params=(encoded_opsiscript,))
+			results = self.jsonrpc_mbus_connection.jsonrpc(channels=channels, method="runOpsiScriptContent", params=(opsiscript,))
 			for channel, result in results.items():
 				if isinstance(result, Exception):
 					logger.error("Error executing opsiscript on %s: %s", channel, result)
 					continue
 
 				exit_code = result.get("exit_code")
+				stdout = result.get("stdout")
+				stderr = result.get("stderr")
 				log_content = result.get("log_content")
 
-				if exit_code is None or log_content is None:
-					raise ValueError(f"Missing exit code or log content in result for channel {channel}")
+				if None in (exit_code, stdout, stderr, log_content):
+					raise ValueError(f"Missing exit code, stdout, stderr or log content in result for channel {channel}")
 
-				if exit_code != 0:
-					logger.error("Opsiscript execution failed on %s with exit code %d", channel, exit_code)
-				else:
-					logger.info("Opsiscript executed on %s with exit code %d", channel, exit_code)
+				if stderr:
+					raise RuntimeError(f"Opsiscript execution failed on {channel} with exit code {exit_code}: {stderr}")
 
-				log_file_path = f"{channel.replace(':', '_')}_opsiscript.log"
-				with open(log_file_path, "w", encoding="utf-8") as log_file:
-					log_file.write(log_content)
-				logger.info("Opsiscript log content for %s written to %s", channel, log_file_path)
+				logger.info("Opsiscript executed on %s with exit code %d: %s", channel, exit_code, stdout)
+
+				for content, label in [(stdout, "Standard Output"), (log_content, "Log Content")]:
+					if content:
+						console_print(f"===========  {label} for {channel}  ===========")
+						console_print(content)
+						console_print(f"===========  End of {label} for {channel}  ===========")
 
 		return exit_code
