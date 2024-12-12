@@ -12,7 +12,7 @@ def test_python_version() -> None:
 	exit_code, stdout, _stderr = run_cli(["python", "--version"])
 	assert exit_code == 0
 	print(sys.version)
-	assert stdout.startswith(f"Python {sys.version.split()[0]}")
+	assert stdout.startswith(f"Python {sys.version.split()[0].split('rc')[0]}")
 
 
 def test_python_cmd() -> None:
