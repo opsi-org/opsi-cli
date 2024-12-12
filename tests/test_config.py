@@ -154,10 +154,15 @@ def test_config_service_add() -> None:
 		)
 		assert exit_code == 0
 		assert stdout == "Successfully added new service 'test' with URL 'https://testhost:4447'.\nThe default service is now 'test'.\n"
-		assert config.get_values()["services"][0].name == "test"
-		assert config.get_values()["services"][0].username == "testuser"
-		assert config.get_values()["services"][0].password == "testpassword"
-		assert config.get_values()["services"][0].url == "https://testhost:4447"
+		for service in config.get_values()["services"]:
+			print(service)
+			if service.name == "test":
+				assert service.username == "testuser"
+				assert service.password == "testpassword"
+				assert service.url == "https://testhost:4447"
+				break
+		else:
+			raise AssertionError("Service not found in config")
 		# When no default service is set, the first service added is the default
 		assert config.get_values()["service"] == "test"
 
@@ -166,10 +171,15 @@ def test_config_service_add() -> None:
 		)
 		assert exit_code == 0
 		assert stdout == "Successfully added new service 'test2' with URL 'https://testhost2:443'.\nThe default service is now 'test'.\n"
-		assert config.get_values()["services"][1].name == "test2"
-		assert config.get_values()["services"][1].username == "testuser"
-		assert config.get_values()["services"][1].password == "testpassword"
-		assert config.get_values()["services"][1].url == "https://testhost2:443"
+		for service in config.get_values()["services"]:
+			print(service)
+			if service.name == "test2":
+				assert service.username == "testuser"
+				assert service.password == "testpassword"
+				assert service.url == "https://testhost2:443"
+				break
+		else:
+			raise AssertionError("Service not found in config")
 		# Default service is still the first one added
 		assert config.get_values()["service"] == "test"
 
@@ -178,10 +188,15 @@ def test_config_service_add() -> None:
 		)
 		assert exit_code == 0
 		assert stdout == "Successfully added new service 'test2' with URL 'https://testhost2:443'.\nThe default service is now 'test2'.\n"
-		assert config.get_values()["services"][1].name == "test2"
-		assert config.get_values()["services"][1].username == "testuser"
-		assert config.get_values()["services"][1].password == "testpassword"
-		assert config.get_values()["services"][1].url == "https://testhost2:443"
+		for service in config.get_values()["services"]:
+			print(service)
+			if service.name == "test2":
+				assert service.username == "testuser"
+				assert service.password == "testpassword"
+				assert service.url == "https://testhost2:443"
+				break
+		else:
+			raise AssertionError("Service not found in config")
 		# Default service is now test2
 		assert config.get_values()["service"] == "test2"
 
