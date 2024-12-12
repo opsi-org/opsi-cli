@@ -495,9 +495,12 @@ class Config(metaclass=Singleton):
 						value = config_item.type.from_yaml(value)
 					config_item.set_value(value, source)
 
-	def write_config_files(self, sources: list[ConfigValueSource] | None = None, skip_keys: list[str] | None = None) -> None:
+	def write_config_files(
+		self, sources: list[ConfigValueSource] | None = None, skip_keys: list[str] | None = None, user_only: bool = False
+	) -> None:
 		logger.info("Writing config files")
-		for file_type in ("config_file_system", "config_file_user"):
+		file_types = ["config_file_system", "config_file_user"] if not user_only else ["config_file_user"]
+		for file_type in file_types:
 			config_file = getattr(self, file_type, None)
 			source = ConfigValueSource.CONFIG_FILE_SYSTEM if file_type == "config_file_system" else ConfigValueSource.CONFIG_FILE_USER
 			if sources and source not in sources:
