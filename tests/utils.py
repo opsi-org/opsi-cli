@@ -121,8 +121,10 @@ def container_connection() -> Generator[None, None, None]:
 		config.set_values({"username": OPSI_USERNAME})
 		config.set_values({"password": OPSI_PASSWORD})
 		config.set_values({"service": f"https://{OPSI_HOSTNAME}:4447"})
+		config.write_config_files(user_only=True)
 		yield
 	finally:
 		config.set_values({"username": old_username})
 		config.set_values({"password": old_password})
 		config.set_values({"service": old_service})
+		config.write_config_files(user_only=True)

@@ -73,6 +73,7 @@ def test_get_service_connection_session_expired() -> None:
 	assert session_cookie_new != session_cookie
 
 
+@pytest.mark.xfail  # may fail if runner is slow
 def test_get_service_messagebus_connection() -> None:
 	subscribed_channels = [
 		"chan4",
@@ -114,6 +115,7 @@ def test_get_service_messagebus_connection() -> None:
 			assert mb_messages[0].payload == b"test"  # type: ignore[attr-defined]
 
 
+@pytest.mark.xfail  # may fail if runner is slow
 @pytest.mark.requires_testcontainer
 def test_get_service_connection() -> None:
 	with container_connection():

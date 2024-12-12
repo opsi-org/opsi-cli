@@ -9,17 +9,17 @@ from opsicli.opsiservice import get_service_connection
 
 def status_color_id(entry: dict[str, Any]) -> str:
 	if entry["check_status"] == "ok":
-		return f"[green]{entry['check_id']}[/green]"
+		return f"[green]{entry['check']['id']}[/green]"
 	if entry["check_status"] == "warning":
-		return f"[yellow]{entry['check_id']}[/yellow]"
-	return f"[red]{entry['check_id']}[/red]"
+		return f"[yellow]{entry['check']['id']}[/yellow]"
+	return f"[red]{entry['check']['id']}[/red]"
 
 
 def category_health_check(category: str) -> list[dict[str, Any]]:
 	service_data = get_service_connection().jsonrpc("service_healthCheck")
 	data = []
 	for entry in service_data:
-		if not entry["check_id"] == category:
+		if not entry["check"]["id"] == category:
 			continue
 		data.append({"id": status_color_id(entry), "details": f"[bold white]{entry['message']}[/bold white]"})
 		for partial in entry["partial_results"]:
