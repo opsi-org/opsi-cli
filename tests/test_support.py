@@ -11,6 +11,7 @@ from .utils import container_connection, run_cli
 def test_healthcheck() -> None:
 	with container_connection():
 		exit_code, stdout, _stderr = run_cli(["-l7", "--output-format=json", "support", "health-check"])
+		print(stdout)
 		print(_stderr)
 		assert exit_code == 0
 		keywords = ("opsiconfd_config", "disk_usage", "redis", "mysql")
@@ -26,7 +27,7 @@ def test_healthcheck_detailed() -> None:
 		assert "No problems detected" in stdout
 		exit_code, stdout, _stderr = run_cli(["--output-format=json", "support", "health-check", "mysql"])
 		assert exit_code == 0
-		assert "Connection to MySQL is working" in stdout
+		assert "No MySQL issues found." in stdout
 
 
 # test_support_client_logs requires live client
