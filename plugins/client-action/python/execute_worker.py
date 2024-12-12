@@ -63,18 +63,22 @@ class ExecuteWorker(ClientActionWorker):
 			for channel, result in results.items():
 				if isinstance(result, Exception):
 					logger.error("Error executing opsiscript on %s: %s", channel, result)
-					raise result
+					continue
 
-				exit_code = result["exit_code"]
+				exit_code = result.get("exit_code")
+				log_content = result.get("log_content")
+
+				if exit_code is None or log_content is None:
+					raise ValueError(f"Missing exit code or log content in result for channel {channel}")
+
 				if exit_code != 0:
 					logger.error("Opsiscript execution failed on %s with exit code %d", channel, exit_code)
-					return exit_code
+				else:
+					logger.info("Opsiscript executed on %s with exit code %d", channel, exit_code)
 
-				logger.info("Opsiscript executed on %s with exit code %d", channel, exit_code)
-
-				log_content = result["log_content"]
 				log_file_path = f"{channel.replace(':', '_')}_opsiscript.log"
 				with open(log_file_path, "w", encoding="utf-8") as log_file:
 					log_file.write(log_content)
 				logger.info("Opsiscript log content for %s written to %s", channel, log_file_path)
-		return 0
+
+		return exit_code
