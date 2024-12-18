@@ -24,7 +24,7 @@ from .utils import container_connection
 
 @pytest.mark.skipif(not Path("/etc/opsi/backends").exists(), reason="need local backend for this test")
 def test_get_service_connection_local() -> None:
-	local_connection = get_service_connection()
+	local_connection = get_service_connection(recreate=True)
 	assert local_connection
 	result = local_connection.jsonrpc("backend_getInterface")
 	print(result)
@@ -37,7 +37,7 @@ def test_get_service_connection_half_configured_service() -> None:
 	service_client = None
 	config.services.append(OPSIService("pytest_test_service", "https://localhost:4447"))
 	config.service = "pytest_test_service"
-	connection = get_service_connection()
+	connection = get_service_connection(recreate=True)
 	result = connection.jsonrpc("backend_getInterface")
 	print(result)
 	assert "host_getObjects" in str(result)
@@ -65,7 +65,7 @@ def test_get_service_connection_session_expired() -> None:
 
 	wait_time = session_lifetime + 1
 	time.sleep(wait_time)
-	connection = get_service_connection()
+	connection = get_service_connection(recreate=True)
 	assert connection
 
 	session_cookie_new = cache.get("opsiconfd-session")
@@ -73,7 +73,6 @@ def test_get_service_connection_session_expired() -> None:
 	assert session_cookie_new != session_cookie
 
 
-@pytest.mark.xfail  # may fail if runner is slow
 def test_get_service_messagebus_connection() -> None:
 	subscribed_channels = [
 		"chan4",
@@ -101,7 +100,7 @@ def test_get_service_messagebus_connection() -> None:
 		response_headers={"server": "opsiconfd 4.3.0.0 (uvicorn)"},
 	) as server:
 		config.service = f"https://localhost:{server.port}"
-		messagebus_connection = MessagebusConnection(verify="accept_all")
+		messagebus_connection = MessagebusConnection(verify="accept_all", recreate=True)
 		with messagebus_connection.connection() as connection:
 			connection.send_message(
 				TraceRequestMessage(sender=CONNECTION_USER_CHANNEL, channel=CONNECTION_SESSION_CHANNEL, payload=b"test", trace={})
@@ -115,11 +114,10 @@ def test_get_service_messagebus_connection() -> None:
 			assert mb_messages[0].payload == b"test"  # type: ignore[attr-defined]
 
 
-@pytest.mark.xfail  # may fail if runner is slow
 @pytest.mark.requires_testcontainer
 def test_get_service_connection() -> None:
 	with container_connection():
-		connection = get_service_connection()
+		connection = get_service_connection(recreate=True)
 		assert connection
 		result = connection.jsonrpc("backend_getInterface")
 		print(result)

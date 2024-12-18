@@ -81,12 +81,12 @@ def log_message(message: Message) -> None:
 
 
 class MessagebusConnection(MessagebusListener):
-	def __init__(self, verify: str | None = None) -> None:
+	def __init__(self, verify: str | None = None, recreate: bool = False) -> None:
 		MessagebusListener.__init__(self)
 		self.channel_subscription_events: dict[str, Event] = {}
 		self.subscribed_channels: list[str] = []
 		self.initial_subscription_event = Event()
-		self.service_client = get_service_connection(verify)
+		self.service_client = get_service_connection(verify, recreate=recreate)
 
 	def send_message(self, message: Message) -> None:
 		log_message(message)
@@ -141,8 +141,8 @@ class MessagebusConnection(MessagebusListener):
 
 
 class JSONRPCMessagebusConnection(MessagebusConnection):
-	def __init__(self) -> None:
-		MessagebusConnection.__init__(self)
+	def __init__(self, **kwargs: Any) -> None:
+		MessagebusConnection.__init__(self, **kwargs)
 		self.jsonrpc_response_events: dict[str | int, Event] = {}
 		self.jsonrpc_responses: dict[str | int, Any] = {}
 
@@ -314,7 +314,7 @@ class ProcessMessagebusConnection(MessagebusConnection):
 		if "white" not in c and "black" not in c and "red" not in c and "grey" not in c and "gray" not in c and "bright" not in c
 	]
 
-	def __init__(self) -> None:
+	def __init__(self, **kwargs: Any) -> None:
 		self.console = get_console()
 		self.out_lock = Lock()
 		self.show_host_names = False
@@ -323,7 +323,7 @@ class ProcessMessagebusConnection(MessagebusConnection):
 		self.output_encoding = "cp437" if is_windows() else "utf-8"
 		self.processes: dict[str, MessagebusProcess] = {}
 		self.color_position = 0
-		MessagebusConnection.__init__(self)
+		MessagebusConnection.__init__(self, **kwargs)
 
 	def _on_process_data_read(self, message: ProcessDataReadMessage) -> None:
 		logger.debug("Received process data read message")
@@ -523,10 +523,10 @@ class ProcessMessagebusConnection(MessagebusConnection):
 
 class TerminalMessagebusConnection(MessagebusConnection):
 	terminal_id: str
-	shell: str | None
+	shell: str | None = None
 
-	def __init__(self) -> None:
-		MessagebusConnection.__init__(self)
+	def __init__(self, **kwargs: Any) -> None:
+		MessagebusConnection.__init__(self, **kwargs)
 		self._should_close = Event()
 		self._terminal_write_channel: str | None = None
 		self._terminal_read_channel: str | None = None
@@ -752,8 +752,8 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 	chunk_size: int = 1000
 	current_color: str = "white"
 
-	def __init__(self, host_id: str, log_type: str, log_level: int = 6, live: bool = False, follow: bool = False) -> None:
-		super().__init__()
+	def __init__(self, host_id: str, log_type: str, log_level: int = 6, live: bool = False, follow: bool = False, **kwargs: Any) -> None:
+		MessagebusConnection.__init__(self, **kwargs)
 		self.host_id = host_id
 		self.log_type = log_type
 		self.log_level = log_level

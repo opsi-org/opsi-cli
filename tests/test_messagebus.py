@@ -72,7 +72,7 @@ def test_wait_for_event() -> None:
 			self.client.jsonrpc("host_createOpsiClient", params=["dummy.test.tld"])
 
 	with container_connection():
-		service_connection = get_service_connection()
+		service_connection = get_service_connection(recreate=True)
 		cht = CreateHostThread(service_connection)
 		cht.start()
 		# with tmp_client(connection, CLIENT1):
@@ -99,7 +99,7 @@ def test_wait_for_event_data() -> None:
 			self.client.jsonrpc("host_createOpsiClient", params=["dummy.test.tld"])
 
 	with container_connection():
-		service_connection = get_service_connection()
+		service_connection = get_service_connection(recreate=True)
 		cht = CreateHostThread(service_connection)
 		cht.start()
 		# with tmp_client(connection, CLIENT1):
