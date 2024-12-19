@@ -171,15 +171,3 @@ def test_wait_for_installation(action_request: str, success: bool) -> None:
 			exit_code, _stdout, _stderr = run_cli(cmd)
 			cht.join()
 			assert exit_code == 0 if success else 1
-
-	waiting = [
-		{"clientId": "client1.test.tld", "productId": "testproduct", "actionRequest": "none", "installationStatus": "installed"},
-		{"clientId": "client1.test.tld", "productId": "testproduct", "actionRequest": "none", "installationStatus": "unknown"},
-	]
-	found = {
-		"productId": "testproduct",
-		"productType": "LocalbootProduct",
-		"clientId": "client1.test.tld",
-		"installationStatus": "installed",
-		"actionRequest": "none",
-	}
