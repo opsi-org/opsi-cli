@@ -143,7 +143,7 @@ def test_wait_for_installation(action_request: str, success: bool) -> None:
 			self.client.jsonrpc("productOnClient_updateObjects", params=[self.poc])
 
 	with container_connection():
-		service_connection = get_service_connection()  # recreate=True
+		service_connection = get_service_connection(recreate=True)
 		with (
 			tmp_client(service_connection, "client1.test.tld"),
 			tmp_product(service_connection, "testproduct"),
