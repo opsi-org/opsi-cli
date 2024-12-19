@@ -8,7 +8,6 @@ pyinstaller-poetry:
       - orjson
       - psutil
       - pip._internal.commands.install
-      - pip._vendor.requests.adapters
       - rich.tree
       - rich.progress
       - purecrypt
