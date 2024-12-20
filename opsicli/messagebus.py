@@ -141,8 +141,8 @@ class MessagebusConnection(MessagebusListener):
 
 
 class JSONRPCMessagebusConnection(MessagebusConnection):
-	def __init__(self, **kwargs: Any) -> None:
-		MessagebusConnection.__init__(self, **kwargs)
+	def __init__(self) -> None:
+		MessagebusConnection.__init__(self)
 		self.jsonrpc_response_events: dict[str | int, Event] = {}
 		self.jsonrpc_responses: dict[str | int, Any] = {}
 
@@ -314,7 +314,7 @@ class ProcessMessagebusConnection(MessagebusConnection):
 		if "white" not in c and "black" not in c and "red" not in c and "grey" not in c and "gray" not in c and "bright" not in c
 	]
 
-	def __init__(self, **kwargs: Any) -> None:
+	def __init__(self) -> None:
 		self.console = get_console()
 		self.out_lock = Lock()
 		self.show_host_names = False
@@ -323,7 +323,7 @@ class ProcessMessagebusConnection(MessagebusConnection):
 		self.output_encoding = "cp437" if is_windows() else "utf-8"
 		self.processes: dict[str, MessagebusProcess] = {}
 		self.color_position = 0
-		MessagebusConnection.__init__(self, **kwargs)
+		MessagebusConnection.__init__(self)
 
 	def _on_process_data_read(self, message: ProcessDataReadMessage) -> None:
 		logger.debug("Received process data read message")
@@ -525,8 +525,8 @@ class TerminalMessagebusConnection(MessagebusConnection):
 	terminal_id: str
 	shell: str | None = None
 
-	def __init__(self, **kwargs: Any) -> None:
-		MessagebusConnection.__init__(self, **kwargs)
+	def __init__(self) -> None:
+		MessagebusConnection.__init__(self)
 		self._should_close = Event()
 		self._terminal_write_channel: str | None = None
 		self._terminal_read_channel: str | None = None
@@ -752,8 +752,8 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 	chunk_size: int = 1000
 	current_color: str = "white"
 
-	def __init__(self, host_id: str, log_type: str, log_level: int = 6, live: bool = False, follow: bool = False, **kwargs: Any) -> None:
-		MessagebusConnection.__init__(self, **kwargs)
+	def __init__(self, host_id: str, log_type: str, log_level: int = 6, live: bool = False, follow: bool = False) -> None:
+		MessagebusConnection.__init__(self)
 		self.host_id = host_id
 		self.log_type = log_type
 		self.log_level = log_level
