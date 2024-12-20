@@ -125,10 +125,10 @@ def test_wait_for_event_data() -> None:
 		assert exit_code == 1  # timeout reached
 
 
-@pytest.mark.parametrize("action_request", ["setup", "uninstall"])
+@pytest.mark.parametrize("installation_status", ["installed", "not_installed"])
 @pytest.mark.parametrize("success", [True, False])
 @pytest.mark.requires_testcontainer
-def test_wait_for_installation(action_request: str, success: bool) -> None:
+def test_wait_for_installation(installation_status: str, success: bool) -> None:
 	LISTENER_SETUP_WAIT = 2.0  # Waiting to make sure listener is set up
 	LISTENING_TIMEOUT = 4.0  # Time to wait for the event to occur
 
@@ -139,21 +139,20 @@ def test_wait_for_installation(action_request: str, success: bool) -> None:
 			self.poc = poc
 
 		def run(self) -> None:
-			time.sleep(LISTENER_SETUP_WAIT)
+			time.sleep(LISTENER_SETUP_WAIT + 5.0)  # TODO: remove in 4.4 with lru_cache
 			self.client.jsonrpc("productOnClient_updateObjects", params=[self.poc])
 
 	with container_connection():
-		service_connection = get_service_connection(recreate=True)
+		service_connection = get_service_connection()
 		with (
 			tmp_client(service_connection, "client1.test.tld"),
 			tmp_product(service_connection, "testproduct"),
 		):
-			wanted_status = "installed" if action_request == "setup" else "not_installed"
 			poc = {
 				"clientId": "client1.test.tld",
 				"productId": "testproduct",
 				"actionRequest": "none",
-				"installationStatus": wanted_status if success else "unknown",
+				"installationStatus": installation_status if success else "unknown",
 				"productType": "LocalbootProduct",
 			}
 			cht = FakeInstallationThread(service_connection, poc)
@@ -164,7 +163,7 @@ def test_wait_for_installation(action_request: str, success: bool) -> None:
 				"wait-for-installation",
 				"client1.test.tld",
 				"testproduct",
-				action_request,
+				installation_status,
 				"--timeout",
 				str(LISTENING_TIMEOUT),
 			]
