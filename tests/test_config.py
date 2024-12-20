@@ -84,6 +84,10 @@ def test_config_item_plugin_user_dir() -> None:
 	elif PLATFORM in ("linux", "darwin"):
 		item = ConfigItem(name="plugin_user_dir", type=Directory, value="/path1")
 		assert item.value == Path("/path1")
+		item = ConfigItem(name="plugin_user_dir", type=Directory, value="~/path1")
+		print(item.value)
+		assert "~" not in str(Path(item.value))
+
 
 
 def test_config_defaults() -> None:

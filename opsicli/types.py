@@ -118,12 +118,32 @@ class Password(str):
 class File(Path):  # type: ignore[misc] # pylint: disable=too-few-public-methods
 	click_type = click.Path(dir_okay=False)
 
+	def __init__(self, *args: Any, **kwargs: Any) -> None:
+		args_list = list(args)
+		for index,entry in enumerate(args):
+			if isinstance(entry, str) and "~" in entry:
+				args_list[index] = Path(entry).expanduser().absolute()
+			elif isinstance(entry, Path):
+				args_list[index] = entry.expanduser().absolute()
+
+		super().__init__(*args_list, **kwargs)
+
 	def to_yaml(self) -> str:
 		return str(self)
 
 
 class Directory(Path):  # type: ignore[misc] # pylint: disable=too-few-public-methods
 	click_type = click.Path(file_okay=False)
+
+	def __init__(self, *args: Any, **kwargs: Any) -> None:
+		args_list = list(args)
+		for index,entry in enumerate(args):
+			if isinstance(entry, str) and "~" in entry:
+				args_list[index] = Path(entry).expanduser().absolute()
+			elif isinstance(entry, Path):
+				args_list[index] = entry.expanduser().absolute()
+
+		super().__init__(*args_list, **kwargs)
 
 	def to_yaml(self) -> str:
 		return str(self)
