@@ -11,17 +11,15 @@ This file is part of opsi - https://www.opsi.org
 import builtins
 import os
 import platform
-import warnings
 from typing import Any
 
 import pytest
 import requests  # type: ignore[import]
-import urllib3  # type: ignore[import]
-from _pytest.config import Config as PytestConfig
 from _pytest.logging import LogCaptureHandler
 from _pytest.nodes import Item
 
 from opsicli.config import config
+from opsicli.opsiservice import get_service_connection
 
 from . import OPSI_HOSTNAME
 
@@ -36,8 +34,8 @@ LogCaptureHandler.emit = emit  # type: ignore[assignment]
 
 
 @pytest.fixture(autouse=True)
-def disable_insecure_request_warning() -> None:
-	warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
+def clear_service_client_cache() -> None:
+	get_service_connection.cache_clear()
 
 
 @pytest.fixture(autouse=True)
@@ -45,23 +43,6 @@ def reset_config() -> None:
 	for item in config.get_config_items():
 		item.set_value(item.default)
 	builtins.print = builtins_print
-
-
-@pytest.hookimpl()
-def pytest_configure(config: PytestConfig) -> None:
-	# https://pypi.org/project/pytest-asyncio
-	# When the mode is auto, all discovered async tests are considered
-	# asyncio-driven even if they have no @pytest.mark.asyncio marker.
-	config.option.asyncio_mode = "auto"
-	# register custom markers
-	config.addinivalue_line("markers", "docker_linux: mark test to run only on linux in docker")
-	config.addinivalue_line("markers", "not_in_docker: mark test to run only if not running in docker")
-	config.addinivalue_line("markers", "admin_permissions: mark test to run only if user has admin permissions")
-	config.addinivalue_line("markers", "windows: mark test to run only on windows")
-	config.addinivalue_line("markers", "linux: mark test to run only on linux")
-	config.addinivalue_line("markers", "darwin: mark test to run only on darwin")
-	config.addinivalue_line("markers", "posix: mark test to run only on posix")
-	config.addinivalue_line("markers", "requires_testcontainer: requires testcontainer")
 
 
 def running_in_docker() -> bool:

@@ -14,10 +14,7 @@ from opsicommon.testing.helpers import HTTPTestServerRequestHandler, http_test_s
 from opsicli.cache import cache
 from opsicli.config import OPSIService, config
 from opsicli.messagebus import MessagebusConnection
-from opsicli.opsiservice import (
-	get_service_connection,
-	service_client,  # noqa: F401
-)
+from opsicli.opsiservice import get_service_connection
 
 from .utils import container_connection
 
@@ -33,8 +30,6 @@ def test_get_service_connection_local() -> None:
 
 @pytest.mark.skipif(not Path("/etc/opsi/backends").exists(), reason="need local backend for this test")
 def test_get_service_connection_half_configured_service() -> None:
-	global service_client
-	service_client = None
 	config.services.append(OPSIService("pytest_test_service", "https://localhost:4447"))
 	config.service = "pytest_test_service"
 	connection = get_service_connection()
@@ -73,7 +68,6 @@ def test_get_service_connection_session_expired() -> None:
 	assert session_cookie_new != session_cookie
 
 
-@pytest.mark.xfail  # may fail if runner is slow
 def test_get_service_messagebus_connection() -> None:
 	subscribed_channels = [
 		"chan4",
@@ -115,7 +109,6 @@ def test_get_service_messagebus_connection() -> None:
 			assert mb_messages[0].payload == b"test"  # type: ignore[attr-defined]
 
 
-@pytest.mark.xfail  # may fail if runner is slow
 @pytest.mark.requires_testcontainer
 def test_get_service_connection() -> None:
 	with container_connection():

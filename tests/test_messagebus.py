@@ -14,7 +14,6 @@ from opsicli.opsiservice import get_service_connection
 from .utils import container_connection, run_cli
 
 
-@pytest.mark.xfail
 @pytest.mark.requires_testcontainer
 def test_messagebus_jsonrpc() -> None:
 	with container_connection():
@@ -25,7 +24,6 @@ def test_messagebus_jsonrpc() -> None:
 	assert "opsiVersion" in result
 
 
-@pytest.mark.xfail
 @pytest.mark.requires_testcontainer
 def test_messagebus_jsonrpc_params() -> None:
 	with container_connection():
@@ -35,10 +33,9 @@ def test_messagebus_jsonrpc_params() -> None:
 				"service:config:jsonrpc"
 			]
 	assert len(result) == 1
-	assert result[0].getType() == "OpsiConfigserver"
+	assert result[0]["type"] == "OpsiConfigserver"
 
 
-@pytest.mark.xfail
 @pytest.mark.requires_testcontainer
 def test_messagebus_jsonrpc_error() -> None:
 	with container_connection():
@@ -50,7 +47,6 @@ def test_messagebus_jsonrpc_error() -> None:
 	assert "Invalid method" in result["data"].get("details")
 
 
-@pytest.mark.xfail
 @pytest.mark.requires_testcontainer
 def test_messagebus_jsonrpc_multiple() -> None:
 	with container_connection():
@@ -61,27 +57,28 @@ def test_messagebus_jsonrpc_multiple() -> None:
 			result = connection.jsonrpc(["service:config:jsonrpc"], "host_getObjects", ([], {"type": "OpsiConfigserver"}))[
 				"service:config:jsonrpc"
 			]
-			assert result[0].getType() == "OpsiConfigserver"
+			assert result[0]["type"] == "OpsiConfigserver"
 
 
-@pytest.mark.xfail  # may fail if runner is slow
 @pytest.mark.requires_testcontainer
 def test_wait_for_event() -> None:
+	LISTENER_SETUP_WAIT = 2.0  # Waiting to make sure listener is set up
+	LISTENING_TIMEOUT = 4.0  # Time to wait for the event to occur
+
 	class CreateHostThread(Thread):
 		def __init__(self, client: ServiceClient) -> None:
 			super().__init__(daemon=True)
 			self.client = client
 
 		def run(self) -> None:
-			time.sleep(4.0)
+			time.sleep(LISTENER_SETUP_WAIT)
 			self.client.jsonrpc("host_createOpsiClient", params=["dummy.test.tld"])
 
 	with container_connection():
 		service_connection = get_service_connection()
 		cht = CreateHostThread(service_connection)
 		cht.start()
-		# with tmp_client(connection, CLIENT1):
-		cmd = ["-l", "7", "messagebus", "wait-for-event", "host_created", "--timeout", "4"]
+		cmd = ["-l7", "messagebus", "wait-for-event", "host_created", "--timeout", str(LISTENING_TIMEOUT)]
 		exit_code, _stdout, _stderr = run_cli(cmd)
 		cht.join()
 		service_connection.jsonrpc("host_delete", params=["dummy.test.tld"])
@@ -92,24 +89,34 @@ def test_wait_for_event() -> None:
 		assert exit_code == 1  # timeout reached
 
 
-@pytest.mark.xfail  # may fail if runner is slow
 @pytest.mark.requires_testcontainer
 def test_wait_for_event_data() -> None:
+	LISTENER_SETUP_WAIT = 2.0  # Waiting to make sure listener is set up
+	LISTENING_TIMEOUT = 4.0  # Time to wait for the event to occur
+
 	class CreateHostThread(Thread):
 		def __init__(self, client: ServiceClient) -> None:
 			super().__init__(daemon=True)
 			self.client = client
 
 		def run(self) -> None:
-			time.sleep(4.0)
+			time.sleep(LISTENER_SETUP_WAIT)
 			self.client.jsonrpc("host_createOpsiClient", params=["dummy.test.tld"])
 
 	with container_connection():
 		service_connection = get_service_connection()
 		cht = CreateHostThread(service_connection)
 		cht.start()
-		# with tmp_client(connection, CLIENT1):
-		cmd = ["-l", "7", "messagebus", "wait-for-event", "host_created", "--data", "id=dummy.test.tld", "--timeout", "4"]
+		cmd = [
+			"-l7",
+			"messagebus",
+			"wait-for-event",
+			"host_created",
+			"--data",
+			"id=dummy.test.tld",
+			"--timeout",
+			str(LISTENING_TIMEOUT),
+		]
 		exit_code, _stdout, _stderr = run_cli(cmd)
 		cht.join()
 		service_connection.jsonrpc("host_delete", params=["dummy.test.tld"])
@@ -117,8 +124,16 @@ def test_wait_for_event_data() -> None:
 
 		cht = CreateHostThread(service_connection)
 		cht.start()
-		# with tmp_client(connection, CLIENT1):
-		cmd = ["-l", "7", "messagebus", "wait-for-event", "host_created", "--data", "id=some.other.host", "--timeout", "4"]
+		cmd = [
+			"-l7",
+			"messagebus",
+			"wait-for-event",
+			"host_created",
+			"--data",
+			"id=some.other.host",
+			"--timeout",
+			str(LISTENING_TIMEOUT),
+		]
 		exit_code, _stdout, _stderr = run_cli(cmd)
 		cht.join()
 		service_connection.jsonrpc("host_delete", params=["dummy.test.tld"])

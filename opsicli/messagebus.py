@@ -137,7 +137,6 @@ class MessagebusConnection(MessagebusListener):
 				yield self
 		finally:
 			if self.service_client.messagebus_connected:
-				logger.debug("Disconnecting from messagebus.")
 				self.service_client.disconnect_messagebus()
 
 
@@ -524,7 +523,7 @@ class ProcessMessagebusConnection(MessagebusConnection):
 
 class TerminalMessagebusConnection(MessagebusConnection):
 	terminal_id: str
-	shell: str | None
+	shell: str | None = None
 
 	def __init__(self) -> None:
 		MessagebusConnection.__init__(self)
@@ -754,7 +753,7 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 	current_color: str = "white"
 
 	def __init__(self, host_id: str, log_type: str, log_level: int = 6, live: bool = False, follow: bool = False) -> None:
-		super().__init__()
+		MessagebusConnection.__init__(self)
 		self.host_id = host_id
 		self.log_type = log_type
 		self.log_level = log_level
