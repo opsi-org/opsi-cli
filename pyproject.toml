@@ -55,6 +55,12 @@ opsi-cli = "opsicli.__main__:main"
 [tool.ruff.format]
 indent-style = "tab"
 
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [ "admin_permissions: mark test to run only if user has admin permissions.", "docker_linux: mark test to run only on linux in docker", "not_in_docker: mark test to run only if not running in docker", "windows: mark test to run only on windows", "linux: mark test to run only on linux", "darwin: mark test to run only on darwin", "posix: mark test to run only on posix", "requires_testcontainer: requires testcontainer",]
+filterwarnings = [ "ignore::urllib3.exceptions.InsecureRequestWarning",]
+
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.4"
 pyinstaller = "^6.0"
@@ -62,20 +68,3 @@ pytest = "^8.0"
 pytest-cov = "^6.0"
 ruff = "^0.7"
 types-requests = "^2.31"
-
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "function"
-markers = [
-	"admin_permissions: mark test to run only if user has admin permissions.",
-	"docker_linux: mark test to run only on linux in docker",
-	"not_in_docker: mark test to run only if not running in docker",
-	"windows: mark test to run only on windows",
-	"linux: mark test to run only on linux",
-	"darwin: mark test to run only on darwin",
-	"posix: mark test to run only on posix",
-	"requires_testcontainer: requires testcontainer"
-]
-filterwarnings = [
-	"ignore::urllib3.exceptions.InsecureRequestWarning"
-]
