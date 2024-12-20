@@ -81,12 +81,12 @@ def log_message(message: Message) -> None:
 
 
 class MessagebusConnection(MessagebusListener):
-	def __init__(self, verify: str | None = None, recreate: bool = False) -> None:
+	def __init__(self, verify: str | None = None) -> None:
 		MessagebusListener.__init__(self)
 		self.channel_subscription_events: dict[str, Event] = {}
 		self.subscribed_channels: list[str] = []
 		self.initial_subscription_event = Event()
-		self.service_client = get_service_connection(verify, recreate=recreate)
+		self.service_client = get_service_connection(verify)
 
 	def send_message(self, message: Message) -> None:
 		log_message(message)

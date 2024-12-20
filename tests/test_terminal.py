@@ -9,6 +9,7 @@ from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.logging import use_logging_config
 
 from opsicli.messagebus import TerminalMessagebusConnection
+from opsicli.opsiservice import get_service_connection
 
 from .utils import container_connection
 
@@ -21,7 +22,7 @@ def get_configserver_channel(service_client: ServiceClient) -> str:
 @pytest.mark.requires_testcontainer
 def test_messagebus_terminal() -> None:
 	with container_connection():
-		connection = TerminalMessagebusConnection(recreate=True)
+		connection = TerminalMessagebusConnection()
 		assert connection
 		connection.terminal_id = str(uuid4())
 		with connection.connection():
@@ -36,7 +37,7 @@ def test_messagebus_terminal() -> None:
 def test_messagebus_reconnect() -> None:
 	with container_connection():
 		for iteration in range(2):
-			connection = TerminalMessagebusConnection(recreate=True)
+			connection = TerminalMessagebusConnection()
 			connection.terminal_id = str(uuid4())
 			print(f"Iteration {iteration} terminal_id: {connection.terminal_id}")
 			with connection.connection():
@@ -49,9 +50,10 @@ def test_messagebus_reconnect() -> None:
 def test_messagebus_with_two_connections() -> None:
 	term_id = str(uuid4())
 	with container_connection():
-		first = TerminalMessagebusConnection(recreate=True)
+		first = TerminalMessagebusConnection()
 		first.terminal_id = term_id
-		second = TerminalMessagebusConnection(recreate=True)
+		get_service_connection.cache_clear()
+		second = TerminalMessagebusConnection()
 		second.terminal_id = term_id
 		with first.connection():
 			first.open_terminal(get_configserver_channel(first.service_client))
