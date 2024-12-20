@@ -93,7 +93,7 @@ def wait_for_event(type: str, data: list[str], timeout: float | None) -> None:
 	print(result.data)
 
 
-@cli.command(name="wait-for-installation", short_help="Wait for a specific event on the messagebus")
+@cli.command(name="wait-for-installation", short_help="Wait for a a product installation on a client")
 @click.argument("client", type=str)
 @click.argument("product", type=str)
 @click.argument("installation-status", type=str)
