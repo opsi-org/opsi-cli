@@ -96,16 +96,15 @@ def wait_for_event(type: str, data: list[str], timeout: float | None) -> None:
 @cli.command(name="wait-for-installation", short_help="Wait for a specific event on the messagebus")
 @click.argument("client", type=str)
 @click.argument("product", type=str)
-@click.argument("action-request", type=str)
+@click.argument("installation-status", type=str)
 @click.option("--timeout", help="Timeout in seconds", type=float, default=None)
-def wait_for_installation(client: str, product: str, action_request: str, timeout: float | None) -> None:
+def wait_for_installation(client: str, product: str, installation_status: str, timeout: float | None) -> None:
 	"""
 	opsi-cli messagebus wait-for-installation command
 	"""
 	mbus_connection = WaitForEventMessagebusConnection()
-	wanted_status = "not_installed" if action_request == "uninstall" else "installed"
 	wait_for_data = [
-		{"clientId": client, "productId": product, "actionRequest": "none", "installationStatus": wanted_status},
+		{"clientId": client, "productId": product, "actionRequest": "none", "installationStatus": installation_status},
 		{"clientId": client, "productId": product, "actionRequest": "none", "installationStatus": "unknown"},
 	]
 	result = mbus_connection.wait_for_event(type="productOnClient_updated", data=wait_for_data, timeout=timeout)
