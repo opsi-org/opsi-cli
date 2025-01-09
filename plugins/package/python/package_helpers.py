@@ -48,6 +48,7 @@ def download_with_progress(url: str, destination: Path) -> None:
 	Downloads a file from the given URL to the specified destination with a progress bar.
 	"""
 	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
+		assert progress
 		progress_callback = ProgressCallbackAdapter(progress, f"Downloading '{url}'...").progress_callback if not config.quiet else None
 		downloaded_file = download(url, destination, progress_callback=progress_callback)
 	logger.info("Downloaded file to %s", downloaded_file)
@@ -73,6 +74,7 @@ def download_package(url: str, temp_dir: Path) -> str:
 	):
 		extract_dir = temp_dir / f"extract_{filename}"
 		with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
+			assert progress
 			progress_listener = None
 			if not config.quiet:
 				progress_listener = PackageProgressListener(progress, f"Extracting '{filename}'...")
@@ -423,6 +425,7 @@ def upload_to_repository(
 		logger.notice("Starting upload of file %r to depot %r", filename, depot_id)
 
 		with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
+			assert progress
 			progress_callback = (
 				ProgressCallbackAdapter(progress, f"Uploading '{filename}'...").progress_callback if not config.quiet else None
 			)
@@ -477,6 +480,7 @@ def install_package(
 	installation_params = [remote_package_file, str(force), property_default_values]
 	logger.notice("Starting installation of package %s to depot %s", dest_package_name, depot_id)
 	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
+		assert progress
 		if not config.quiet:
 			task = progress.add_task(f"Installing '{dest_package_name}' on depot '{depot_id}'...\n", total=None)
 		depot_connection.jsonrpc("depot_installPackage", installation_params)
@@ -498,6 +502,7 @@ def uninstall_package(
 	uninstallation_params = [product_id, str(force), str(delete_files)]
 	logger.notice("Starting uninstallation of product %s from depot %s", product_id, depot_id)
 	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
+		assert progress
 		if not config.quiet:
 			task = progress.add_task(f"Uninstalling '{product_id}' from depot '{depot_id}'...\n", total=100)
 		depot_connection.jsonrpc("depot_uninstallPackage", uninstallation_params)
