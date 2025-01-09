@@ -13,6 +13,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+import packaging.version
 import psutil  # type: ignore[import]
 import rich_click as click  # type: ignore[import]
 from click.shell_completion import get_completion_class  # type: ignore[import]
@@ -31,7 +32,11 @@ installed_version_metadata = Metadata(
 	attributes=[
 		Attribute(id="path", description="Location of the binary", identifier=True, data_type="str"),
 		Attribute(id="version", description="Version of the binary", data_type="str"),
-		Attribute(id="in_path", description="Is the binary file located in a directory that is contained in the PATH environment variable?", data_type="bool"),
+		Attribute(
+			id="in_path",
+			description="Is the binary file located in a directory that is contained in the PATH environment variable?",
+			data_type="bool",
+		),
 		Attribute(id="default", description="Default binary (first in PATH)?", data_type="bool"),
 		Attribute(id="writable", description="Is the binary writable?", data_type="bool"),
 	]
@@ -125,7 +130,9 @@ def print_installed_versions() -> None:
 	data = []
 	installed_versions = get_installed_versions()
 	paths = [Path(p) for p in os.environ.get("PATH", "").split(os.pathsep)]
-	installed_versions = {k: installed_versions[k] for k in sorted(installed_versions, key=lambda x: paths.index(x.parent) if x.parent in paths else 999)}
+	installed_versions = {
+		k: installed_versions[k] for k in sorted(installed_versions, key=lambda x: paths.index(x.parent) if x.parent in paths else 999)
+	}
 	for idx, binary in enumerate(installed_versions):
 		data.append(
 			{
@@ -342,7 +349,13 @@ def install(location: str, no_add_to_path: bool, system: bool | None, binary_pat
 	help="Where to install opsi-cli. Can be 'current' (default), 'user', 'system', 'all' or an explicit path.\n",
 	default="current",
 )
-def upgrade(branch: str, source_url: str, location: str) -> None:
+@click.option(
+	"--allow-downgrade",
+	is_flag=True,
+	help="Allow to 'upgrade' to a version that is older than the current instance.",
+	default=False,
+)
+def upgrade(branch: str, source_url: str, location: str, allow_downgrade: bool) -> None:
 	"""
 	opsi-cli self upgrade subcommand.
 
@@ -373,6 +386,10 @@ def upgrade(branch: str, source_url: str, location: str) -> None:
 				raise
 
 		new_binary, new_version = download_binary()
+		if packaging.version.parse(new_version) < packaging.version.parse(opsi_cli_version) and not allow_downgrade:
+			logger.error("New version '%s' is older than current version '%s'", new_version, opsi_cli_version)
+			get_console().print(f"[red]New version '{new_version}' is older than current version '{opsi_cli_version}'[/red]")
+			sys.exit(1)
 
 		for binary in binary_paths:
 			try:
