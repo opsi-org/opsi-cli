@@ -6,7 +6,7 @@ import shutil
 from pathlib import Path
 
 import zstandard
-from msgspec import json, msgpack
+from opsicommon.utils import json_decode, msgpack_decode
 
 from .utils import run_cli
 
@@ -18,7 +18,7 @@ def read_metafile(file: Path) -> dict:
 	if ".zstd" in file.suffixes:
 		decompressor = zstandard.ZstdDecompressor()
 		bdata = decompressor.decompress(bdata)
-	data = msgpack.decode(bdata) if ".msgpack" in file.suffixes else json.decode(bdata)
+	data = msgpack_decode(bdata) if ".msgpack" in file.suffixes else json_decode(bdata)
 	return data
 
 

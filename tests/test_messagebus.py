@@ -11,7 +11,7 @@ from opsicommon.client.opsiservice import ServiceClient
 from opsicli.messagebus import JSONRPCMessagebusConnection
 from opsicli.opsiservice import get_service_connection
 
-from .utils import container_connection, run_cli
+from .utils import container_connection, run_cli, tmp_client, tmp_product
 
 
 @pytest.mark.xfail
@@ -123,3 +123,50 @@ def test_wait_for_event_data() -> None:
 		cht.join()
 		service_connection.jsonrpc("host_delete", params=["dummy.test.tld"])
 		assert exit_code == 1  # timeout reached
+
+
+@pytest.mark.parametrize("installation_status", ["installed", "not_installed"])
+@pytest.mark.parametrize("success", [True, False])
+@pytest.mark.requires_testcontainer
+def test_wait_for_installation(installation_status: str, success: bool) -> None:
+	LISTENER_SETUP_WAIT = 2.0  # Waiting to make sure listener is set up
+	LISTENING_TIMEOUT = 4.0  # Time to wait for the event to occur
+
+	class FakeInstallationThread(Thread):
+		def __init__(self, client: ServiceClient, poc: dict[str, str]) -> None:
+			super().__init__(daemon=True)
+			self.client = client
+			self.poc = poc
+
+		def run(self) -> None:
+			time.sleep(LISTENER_SETUP_WAIT + 5.0)  # TODO: remove in 4.4 with lru_cache
+			self.client.jsonrpc("productOnClient_updateObjects", params=[self.poc])
+
+	with container_connection():
+		service_connection = get_service_connection()
+		with (
+			tmp_client(service_connection, "client1.test.tld"),
+			tmp_product(service_connection, "testproduct"),
+		):
+			poc = {
+				"clientId": "client1.test.tld",
+				"productId": "testproduct",
+				"actionRequest": "none",
+				"installationStatus": installation_status if success else "unknown",
+				"productType": "LocalbootProduct",
+			}
+			cht = FakeInstallationThread(service_connection, poc)
+			cht.start()
+			cmd = [
+				"-l7",
+				"messagebus",
+				"wait-for-installation",
+				"client1.test.tld",
+				"testproduct",
+				installation_status,
+				"--timeout",
+				str(LISTENING_TIMEOUT),
+			]
+			exit_code, _stdout, _stderr = run_cli(cmd)
+			cht.join()
+			assert exit_code == 0 if success else 1

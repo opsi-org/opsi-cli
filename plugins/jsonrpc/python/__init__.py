@@ -88,7 +88,8 @@ def complete_params(ctx: click.Context, param: click.Parameter, incomplete: str)
 @cli.command(short_help="Execute JSONRPC")
 @click.argument("method", type=str, shell_complete=complete_methods)
 @click.argument("params", type=str, nargs=-1, shell_complete=complete_params)
-def execute(method: str, params: list[str] | None = None) -> None:
+@click.option("--timeout", type=float, help="Timeout in seconds")
+def execute(method: str, params: list[str] | None = None, timeout: float | None = None) -> None:
 	"""
 	opsi-cli jsonrpc execute subcommand.
 	"""
@@ -118,7 +119,7 @@ def execute(method: str, params: list[str] | None = None) -> None:
 
 	client = get_service_connection()
 	logger.info("Calling method %s with params %s", method, params)
-	data = client.jsonrpc(method, params, create_objects=False)
+	data = client.jsonrpc(method, params, create_objects=False, read_timeout=float(timeout) if timeout else None)
 	write_output(data, default_output_format=default_output_format)
 
 

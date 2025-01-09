@@ -57,7 +57,7 @@ class OPSICLIPlugin:
 
 class PluginImporter(BuiltinImporter):
 	@classmethod
-	def find_spec(cls, fullname: str, path: None = None, target: None = None) -> ModuleSpec | None:
+	def find_spec(cls, fullname: str, path: None = None, target: None = None) -> ModuleSpec | None:  # type: ignore[override]
 		if not fullname.startswith("opsicli.addon"):
 			return None
 		plugin_path = bytes.fromhex(fullname.split("_", 1)[1]).decode("utf-8")
