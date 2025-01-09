@@ -233,3 +233,17 @@ def test_trigger_event() -> None:
 			cmd = ["client-action", "--clients", CLIENT1, "trigger-event", "--wakeup", "--wakeup-timeout", "0.5"]
 			exit_code, _stdout, _stderr = run_cli(cmd)
 			assert exit_code == 1  # No way to actually trigger an event or wake up a client
+
+
+@pytest.mark.requires_testcontainer
+def test_execute_opsiscript() -> None:
+	opsiscript_content = '[Actions]\nMessage "Hello, World!"\nMessage "This is a multi-line opsi script."'
+	with container_connection():
+		connection = get_service_connection()
+		with (
+			tmp_client(connection, CLIENT1),
+			tmp_client(connection, CLIENT2),
+		):
+			cmd = ["client-action", "--clients", f"{CLIENT1},{CLIENT2}", "execute", "--opsiscript", opsiscript_content]
+			exit_code, _, _ = run_cli(cmd)
+			assert exit_code == 0
