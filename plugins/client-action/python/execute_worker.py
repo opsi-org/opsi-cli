@@ -57,6 +57,7 @@ class ExecuteWorker(ClientActionWorker):
 		logger.debug("Executing opsiscript on %d hosts", len(channels))
 		with self.jsonrpc_mbus_connection.connection():
 			results = self.jsonrpc_mbus_connection.jsonrpc(channels=channels, method="runOpsiScriptContent", params=(opsiscript,))
+			console_print("=========== EXECUTION SUMMARY ===========")
 			for channel, result in results.items():
 				if isinstance(result, Exception):
 					logger.error("Error executing opsiscript on %s: %s", channel, result)
@@ -70,15 +71,24 @@ class ExecuteWorker(ClientActionWorker):
 				if None in (exit_code, stdout, stderr, log_content):
 					raise ValueError(f"Missing exit code, stdout, stderr or log content in result for channel {channel}")
 
+				console_print(f"{channel}	| EXIT CODE: {exit_code}")
+
+				if stdout:
+					console_print(f"{channel}	| OUTPUT:")
+					for line in stdout.splitlines():
+						console_print(f"{channel}	| {line}")
+
+				if log_content:
+					console_print(f"{channel}	| LOG:")
+					for line in log_content.splitlines():
+						console_print(f"{channel}	| {line}")
+
 				if stderr:
-					raise RuntimeError(f"Opsiscript execution failed on {channel} with exit code {exit_code}: {stderr}")
+					console_print(f"{channel}	| ERROR:")
+					for line in stderr.splitlines():
+						console_print(f"{channel}	| {line}")
 
-				logger.info("Opsiscript executed on %s with exit code %d: %s", channel, exit_code, stdout)
-
-				for content, label in [(stdout, "Standard Output"), (log_content, "Log Content")]:
-					if content:
-						console_print(f"===========  {label} for {channel}  ===========")
-						console_print(content)
-						console_print(f"===========  End of {label} for {channel}  ===========")
+				console_print("-----------------------------------------")
+			console_print("=========================================")
 
 		return exit_code
