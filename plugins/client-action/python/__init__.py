@@ -131,7 +131,7 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool, wakeup_timeout: 
 	context_settings={"ignore_unknown_options": True, "allow_interspersed_args": False},
 )
 @click.pass_context
-@click.argument("command", nargs=-1, required=True)
+@click.argument("command", nargs=-1)
 @click.option("--shell", help="Execute command in a shell", is_flag=True, default=False)
 @click.option("--host-names/--no-host-names", help="Prepend the host name on output", is_flag=True, default=True)
 @click.option(
@@ -153,6 +153,8 @@ def execute(
 	"""
 	opsi-cli client-action execute command
 	"""
+	if not command and not opsiscript:
+		raise click.UsageError("Missing argument 'COMMAND...' or '--opsiscript' option.")
 	if opsiscript:
 		try:
 			opsiscript.encode("utf-8", errors="strict")
