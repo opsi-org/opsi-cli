@@ -55,15 +55,18 @@ class ExecuteWorker(ClientActionWorker):
 
 	def _execute_opsiscript(self, channels: list[str], opsiscript: str) -> int:
 		logger.debug("Executing opsiscript on %d hosts", len(channels))
+		highest_exit_code = 0
 		with self.jsonrpc_mbus_connection.connection():
 			results = self.jsonrpc_mbus_connection.jsonrpc(channels=channels, method="runOpsiScriptContent", params=(opsiscript,))
 			console_print("=========== EXECUTION SUMMARY ===========")
 			for channel, result in results.items():
 				if isinstance(result, Exception):
 					logger.error("Error executing opsiscript on %s: %s", channel, result)
+					highest_exit_code = max(highest_exit_code, 1)
 					continue
 
 				exit_code = result.get("exit_code")
+				highest_exit_code = max(highest_exit_code, exit_code)
 				stdout = result.get("stdout")
 				stderr = result.get("stderr")
 				log_content = result.get("log_content")
@@ -91,4 +94,4 @@ class ExecuteWorker(ClientActionWorker):
 				console_print("-----------------------------------------")
 			console_print("=========================================")
 
-		return exit_code
+		return highest_exit_code
