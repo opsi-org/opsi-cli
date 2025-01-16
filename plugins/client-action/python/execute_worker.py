@@ -5,6 +5,7 @@ execute_worker
 """
 
 from opsicommon.logging import get_logger
+from rich.text import Text
 
 from opsicli.config import config
 from opsicli.io import console_print
@@ -16,6 +17,18 @@ logger = get_logger("opsicli")
 
 
 class ExecuteWorker(ClientActionWorker):
+	log_colors = {
+		"9": "#D500F9",  # SECRET
+		"8": "#8B8B8B",  # TRACE
+		"7": "#C0C0C0",  # DEBUG
+		"6": "#F5F5F5",  # INFO
+		"5": "#009605",  # NOTICE
+		"4": "#FF9100",  # WARNING
+		"3": "#E51D3B",  # ERROR
+		"2": "#E20066",  # CRITICAL
+		"1": "#2979FF",  # ESSENTIAL
+	}
+
 	def __init__(self, args: ClientActionArgs) -> None:
 		super().__init__(args, default_all=False)
 		self.mbus_connection = ProcessMessagebusConnection()
@@ -60,8 +73,11 @@ class ExecuteWorker(ClientActionWorker):
 			results = self.jsonrpc_mbus_connection.jsonrpc(channels=channels, method="runOpsiScriptContent", params=(opsiscript,))
 			console_print("=========== EXECUTION SUMMARY ===========")
 			for channel, result in results.items():
+				host_name = channel.split(":")[1]
+				line_prefix = f"[green]{host_name} | [/green]"
 				if isinstance(result, Exception):
 					logger.error("Error executing opsiscript on %s: %s", channel, result)
+					console_print(f"{line_prefix}[red]{result}[/red]")
 					highest_exit_code = max(highest_exit_code, 1)
 					continue
 
@@ -74,22 +90,32 @@ class ExecuteWorker(ClientActionWorker):
 				if None in (exit_code, stdout, stderr, log_content):
 					raise ValueError(f"Missing exit code, stdout, stderr or log content in result for channel {channel}")
 
-				console_print(f"{channel}	| EXIT CODE: {exit_code}")
+				console_print(
+					f"{line_prefix}EXIT CODE: {'[green]' if exit_code == 0 else '[red]'}{exit_code}{'[/green]' if exit_code == 0 else '[/red]'}"
+				)
 
 				if stdout:
-					console_print(f"{channel}	| OUTPUT:")
+					console_print(f"{line_prefix}STDOUT:")
 					for line in stdout.splitlines():
-						console_print(f"{channel}	| {line}")
+						console_print(f"{line_prefix}{line}")
 
 				if log_content:
-					console_print(f"{channel}	| LOG:")
+					console_print(f"{line_prefix}LOG:")
+					previous_color = "white"
 					for line in log_content.splitlines():
-						console_print(f"{channel}	| {line}")
+						parts = line.split(" ", 1)
+						if parts[0] in self.log_colors:
+							log_level = parts[0]
+							color = self.log_colors.get(log_level, "white")
+							previous_color = color
+						else:
+							color = previous_color
+						console_print(f"{line_prefix}" + Text(line, style=color))
 
 				if stderr:
-					console_print(f"{channel}	| ERROR:")
+					console_print(f"{line_prefix}STDERR:")
 					for line in stderr.splitlines():
-						console_print(f"{channel}	| {line}")
+						console_print(f"{line_prefix}[red]{line}[/red]")
 
 				console_print("-----------------------------------------")
 			console_print("=========================================")
