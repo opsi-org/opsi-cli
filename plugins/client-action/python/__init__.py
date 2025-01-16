@@ -146,13 +146,39 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool, wakeup_timeout: 
 )
 @click.option("--timeout", help="Number of seconds until command should be interrupted (0 = no timeout)", type=float, default=0.0)
 @click.option("--concurrent", help="Maximum number of concurrent executions", type=int, default=100)
-@click.option("--opsiscript", help="Content of an opsi script to execute", type=str)
+@click.option(
+	"--opsiscript",
+	help=(
+		"Provide the content of an opsi-script directly. "
+		"No command is needed when using this option. "
+		"Use --log-level to filter logs in the execution summary."
+	),
+	type=str,
+)
+@click.option(
+	"--log-level",
+	type=click.IntRange(1, 8),
+	default=6,
+	help="Specify the log level to filter (1 to 8). Only available with --opsiscript",
+	show_default=True,
+)
 def execute(
-	ctx: click.Context, command: tuple[str], shell: bool, host_names: bool, encoding: str, timeout: float, concurrent: int, opsiscript: str
+	ctx: click.Context,
+	command: tuple[str],
+	shell: bool,
+	host_names: bool,
+	encoding: str,
+	timeout: float,
+	concurrent: int,
+	opsiscript: str,
+	log_level: int,
 ) -> None:
 	"""
 	opsi-cli client-action execute command
 	"""
+	if log_level and not opsiscript:
+		raise click.UsageError("--log-level can only be used with --opsiscript")
+
 	if not command and not opsiscript:
 		raise click.UsageError("Missing argument 'COMMAND...' or '--opsiscript' option.")
 	if opsiscript:
@@ -163,7 +189,14 @@ def execute(
 
 	worker = ExecuteWorker(ctx.obj)
 	exit_code = worker.execute(
-		command, timeout=timeout, shell=shell, concurrent=concurrent, show_host_names=host_names, encoding=encoding, opsiscript=opsiscript
+		command,
+		timeout=timeout,
+		shell=shell,
+		concurrent=concurrent,
+		show_host_names=host_names,
+		encoding=encoding,
+		opsiscript=opsiscript,
+		log_level=log_level,
 	)
 	sys.exit(exit_code)
 
