@@ -2,6 +2,8 @@
 test_client_action
 """
 
+from unittest.mock import patch
+
 import pytest
 from opsicommon.objects import ProductOnClient
 
@@ -18,6 +20,7 @@ from .utils import (
 
 CLIENT1 = "pytest-client1.test.tld"
 CLIENT2 = "pytest-client2.test.tld"
+CLIENT3 = "pytest-client3.test.tld"
 PRODUCT1 = "pytest-product1"
 PRODUCT2 = "pytest-product2"
 H_GROUP1 = "pytest-test-host-group"
@@ -237,13 +240,38 @@ def test_trigger_event() -> None:
 
 @pytest.mark.requires_testcontainer
 def test_execute_opsiscript() -> None:
-	opsiscript_content = '[Actions]\nMessage "Hello, World!"\nMessage "This is a multi-line opsi script."'
-	with container_connection():
-		connection = get_service_connection()
-		with (
-			tmp_client(connection, CLIENT1),
-			tmp_client(connection, CLIENT2),
-		):
-			cmd = ["client-action", "--clients", f"{CLIENT1},{CLIENT2}", "execute", "--opsiscript", opsiscript_content]
-			exit_code, _, _ = run_cli(cmd)
-			assert exit_code == 0
+	opsiscript_content = '[Actions]\\nMessage \\"Hello, World!\\"\\nMessage \\"This is a multi-line opsi script.\\"'
+	mock_results = {
+		f"host:{CLIENT1}": Exception("Test exception"),
+		f"host:{CLIENT2}": {
+			"exit_code": 2,
+			"stdout": "",
+			"stderr": "Test error",
+			"log_content": "[1] Essential log message\n[2] Critical log message\n[3] Error log message\n[4] Warning log message\n[5] Notice log message\n[6] Info log message\n[7] Debug log message\n[8] Trace log message\n[9] Secret log message",
+		},
+		f"host:{CLIENT3}": {
+			"exit_code": 0,
+			"stdout": "Hello, World!\nThis is a multi-line opsi script.",
+			"stderr": "",
+			"log_content": "[1] Essential log message\n[2] Critical log message\n[3] Error log message\n[4] Warning log message\n[5] Notice log message\n[6] Info log message\n[7] Debug log message\n[8] Trace log message\n[9] Secret log message",
+		},
+	}
+
+	with patch("opsicli.messagebus.JSONRPCMessagebusConnection.jsonrpc", return_value=mock_results):
+		with container_connection():
+			connection = get_service_connection()
+			with (
+				tmp_client(connection, CLIENT1),
+				tmp_client(connection, CLIENT2),
+				tmp_client(connection, CLIENT3),
+			):
+				cmd = [
+					"client-action",
+					"--clients",
+					f"{CLIENT1},{CLIENT2},{CLIENT3}",
+					"execute",
+					"--opsiscript",
+					opsiscript_content,
+				]
+				exit_code, _, _ = run_cli(cmd)
+				assert exit_code == 2
