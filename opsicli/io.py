@@ -26,6 +26,18 @@ from opsicli.config import config
 
 logger = get_logger("opsicli")
 
+LOG_COLORS = {
+	"9": "#D500F9",  # SECRET
+	"8": "#8B8B8B",  # TRACE
+	"7": "#C0C0C0",  # DEBUG
+	"6": "#F5F5F5",  # INFO
+	"5": "#009605",  # NOTICE
+	"4": "#FF9100",  # WARNING
+	"3": "#E51D3B",  # ERROR
+	"2": "#E20066",  # CRITICAL
+	"1": "#2979FF",  # ESSENTIAL
+}
+
 
 @dataclass
 class Attribute:

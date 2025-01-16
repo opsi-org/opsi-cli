@@ -54,7 +54,7 @@ from rich.color import ANSI_COLOR_NAMES, Color
 from rich.text import Text
 
 from opsicli.config import config
-from opsicli.io import console_print, get_console, read_input_raw_bin
+from opsicli.io import LOG_COLORS, console_print, get_console, read_input_raw_bin
 from opsicli.opsiservice import get_service_connection
 from opsicli.utils import raw_terminal
 
@@ -739,17 +739,6 @@ class TerminalMessagebusConnection(MessagebusConnection):
 
 class FileTransferMessagebusConnection(MessagebusConnection):
 	log_pattern = re.compile(r"\[(\d+)\] \[(.*?)\] \[(.*?)\] (.*?)\s+\((.*?)\)")
-	log_colors = {
-		"9": "#D500F9",  # SECRET
-		"8": "#8B8B8B",  # TRACE
-		"7": "#C0C0C0",  # DEBUG
-		"6": "#F5F5F5",  # INFO
-		"5": "#009605",  # NOTICE
-		"4": "#FF9100",  # WARNING
-		"3": "#E51D3B",  # ERROR
-		"2": "#E20066",  # CRITICAL
-		"1": "#2979FF",  # ESSENTIAL
-	}
 	chunk_size: int = 1000
 	current_color: str = "white"
 
@@ -806,7 +795,7 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 			log_level, _, _, _, _ = match.groups()
 			self._current_log_level = int(log_level)
 			if self._current_log_level <= self.log_level:
-				self.current_color = self.log_colors.get(log_level, "white") if config.color else "white"
+				self.current_color = LOG_COLORS.get(log_level, "white") if config.color else "white"
 				console_print(Text(line, style=self.current_color))
 		else:
 			if self._current_log_level <= self.log_level:
