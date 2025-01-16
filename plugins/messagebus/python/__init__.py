@@ -109,7 +109,7 @@ def wait_for_installation(client: str, product: str, installation_status: str, t
 	]
 	result = mbus_connection.wait_for_event(type="productOnClient_updated", data=wait_for_data, timeout=timeout)
 	print(result.data)
-	if result.data.get("installation_status") == "unknown":
+	if result.data.get("installationStatus") == "unknown":
 		logger.error("Installation failed")
 		sys.exit(1)
 
