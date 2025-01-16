@@ -176,11 +176,12 @@ def execute(
 	"""
 	opsi-cli client-action execute command
 	"""
+	if not command and not opsiscript:
+		raise click.UsageError("Missing argument 'COMMAND...' or '--opsiscript' option.")
+
 	if log_level and not opsiscript:
 		raise click.UsageError("--log-level can only be used with --opsiscript")
 
-	if not command and not opsiscript:
-		raise click.UsageError("Missing argument 'COMMAND...' or '--opsiscript' option.")
 	if opsiscript:
 		try:
 			opsiscript.encode("utf-8", errors="strict")

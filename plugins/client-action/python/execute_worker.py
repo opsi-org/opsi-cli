@@ -31,6 +31,7 @@ class ExecuteWorker(ClientActionWorker):
 		timeout: float = 0.0,
 		encoding: str = "auto",
 		opsiscript: str | None = None,
+		log_level: int = 6,
 	) -> int:
 		if config.dry_run:
 			logger.notice("Operating in dry-run mode - not performing any actions")
@@ -39,7 +40,7 @@ class ExecuteWorker(ClientActionWorker):
 		channels = [f"host:{client}" for client in self.clients]
 
 		if opsiscript:
-			return self._execute_opsiscript(channels, opsiscript)
+			return self._execute_opsiscript(channels, opsiscript, log_level)
 
 		logger.debug("Executing %s with shell=%s on %d hosts", command, shell, len(channels))
 
@@ -54,51 +55,59 @@ class ExecuteWorker(ClientActionWorker):
 				encoding=encoding,
 			)
 
-	def _execute_opsiscript(self, channels: list[str], opsiscript: str) -> int:
+	def _execute_opsiscript(self, channels: list[str], opsiscript: str, log_level: int) -> int:
 		logger.debug("Executing opsiscript on %d hosts", len(channels))
 		highest_exit_code = 0
+
 		with self.jsonrpc_mbus_connection.connection():
 			results = self.jsonrpc_mbus_connection.jsonrpc(channels=channels, method="runOpsiScriptContent", params=(opsiscript,))
-			console_print("====================== EXECUTION SUMMARY ======================")
+
 			for channel, result in results.items():
 				host_name = channel.split(":")[1]
-				line_prefix = f"[green]{host_name} | [/green]"
+				line_prefix = Text(f"{host_name} | ", style="green")
+				console_print()
+				console_print(rule=f"{host_name}", style="white")
+
 				if isinstance(result, Exception):
 					logger.error("Error executing opsiscript on %s: %s", channel, result)
-					console_print(f"{line_prefix}[red]{result}[/red]")
+					console_print(line_prefix + Text(str(result), style="red"))
 					highest_exit_code = max(highest_exit_code, 1)
 					continue
 
-				exit_code = result.get("exit_code")
+				exit_code = result.get("exit_code", 1)
 				highest_exit_code = max(highest_exit_code, exit_code)
 				stdout = result.get("stdout")
 				stderr = result.get("stderr")
 				log_content = result.get("log_content")
 
-				if None in (exit_code, stdout, stderr, log_content):
-					raise ValueError(f"Missing exit code, stdout, stderr or log content in result for channel {channel}")
-
 				console_print(
-					f"{line_prefix}EXIT CODE: {'[green]' if exit_code == 0 else '[red]'}{exit_code}{'[/green]' if exit_code == 0 else '[/red]'}"
+					line_prefix
+					+ Text("EXIT CODE: ", style="white")
+					+ Text(
+						f"{exit_code}",
+						style="green" if exit_code == 0 else "red" if exit_code != 0 else "white",
+					)
 				)
 
 				if stdout:
-					console_print(f"{line_prefix}STDOUT:")
-					console_print("\n".join(f"{line_prefix}{line}" for line in stdout.splitlines()))
+					console_print(Text("\n") + line_prefix + Text("STDOUT:", style="white"))
+					for line in stdout.splitlines():
+						console_print(line_prefix + Text(line, style="white"))
 
 				if log_content:
-					console_print(f"{line_prefix}LOG:")
+					console_print(Text("\n") + line_prefix + Text("LOG:", style="white"))
 					previous_color = "white"
 					for line in log_content.splitlines():
 						parts = line.split(" ", 1)
-						color = LOG_COLORS.get(parts[0], previous_color)
-						previous_color = color
-						console_print(Text(f"{line_prefix}") + Text(line, style=color))
+						log_level_value = int(parts[0].strip("[]"))
+						if log_level_value <= log_level:
+							color = LOG_COLORS.get(parts[0].strip("[]"), previous_color)
+							previous_color = color
+							console_print(line_prefix + Text(line, style=color))
 
 				if stderr:
-					console_print(f"{line_prefix}STDERR:")
-					console_print("\n".join(f"{line_prefix}[red]{line}[/red]" for line in stderr.splitlines()))
+					console_print(Text("\n") + line_prefix + Text("STDERR:", style="white"))
+					for line in stderr.splitlines():
+						console_print(line_prefix + Text(line, style="red"))
 
-				console_print("-------------------------------------------------------------")
-			console_print("===============================================================")
 		return highest_exit_code
