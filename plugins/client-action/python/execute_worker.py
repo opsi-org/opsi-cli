@@ -110,7 +110,7 @@ class ExecuteWorker(ClientActionWorker):
 							previous_color = color
 						else:
 							color = previous_color
-						console_print(f"{line_prefix}" + Text(line, style=color))
+						console_print(Text(f"{line_prefix}") + Text(line, style=color))
 
 				if stderr:
 					console_print(f"{line_prefix}STDERR:")
