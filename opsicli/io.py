@@ -151,11 +151,19 @@ def get_console(file: IO[str] | None = None, ignore_quiet: bool = False) -> Cons
 	return Console(file=file, color_system="auto" if config.color else None)
 
 
-def console_print(*args: Any, **kwargs: Any) -> None:
+def console_print(
+	*args: Any,
+	rule: str | None = None,
+	**kwargs: Any,
+) -> None:
 	"""
 	Print to console
 	"""
-	get_console().print(*args, **kwargs)
+	console = get_console()
+	if rule:
+		console.rule(rule, **kwargs)
+	else:
+		console.print(*args, **kwargs)
 
 
 def prompt(
