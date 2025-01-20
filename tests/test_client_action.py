@@ -3,7 +3,7 @@ test_client_action
 """
 
 from unittest.mock import patch
-
+import re
 import pytest
 from opsicommon.objects import ProductOnClient
 
@@ -238,15 +238,18 @@ def test_trigger_event() -> None:
 			assert exit_code == 1  # No way to actually trigger an event or wake up a client
 
 
-@pytest.mark.requires_testcontainer
+
 def test_execute_opsiscript() -> None:
+	test_exception = Exception("Test exception")
+	test_error = RuntimeError("Test error")
+	highest_exit_code = 2
 	opsiscript_content = '[Actions]\\nMessage \\"Hello, World!\\"\\nMessage \\"This is a multi-line opsi script.\\"'
 	mock_results = {
-		f"host:{CLIENT1}": Exception("Test exception"),
+		f"host:{CLIENT1}": test_exception,
 		f"host:{CLIENT2}": {
-			"exit_code": 2,
+			"exit_code": highest_exit_code,
 			"stdout": "",
-			"stderr": "Test error",
+			"stderr": test_error,
 			"log_content": "[1] Essential log message\n[2] Critical log message\n[3] Error log message\n[4] Warning log message\n[5] Notice log message\n[6] Info log message\n[7] Debug log message\n[8] Trace log message\n[9] Secret log message",
 		},
 		f"host:{CLIENT3}": {
@@ -273,5 +276,36 @@ def test_execute_opsiscript() -> None:
 					"--opsiscript",
 					opsiscript_content,
 				]
-				exit_code, _, _ = run_cli(cmd)
-				assert exit_code == 2
+				exit_code, _stdout, _stderr = run_cli(cmd)
+				assert exit_code == highest_exit_code
+
+				expected_output_pattern = (
+					rf"\n─────────────────────────── {CLIENT1} ────────────────────────────\n"
+					rf"{CLIENT1} \| {re.escape(str(test_exception))}\n\n"
+					rf"─────────────────────────── {CLIENT2} ────────────────────────────\n"
+					rf"{CLIENT2} \| EXIT CODE: {highest_exit_code}\n\n"
+					rf"{CLIENT2} \| LOG:\n"
+					rf"{CLIENT2} \| \[1\] Essential log message\n"
+					rf"{CLIENT2} \| \[2\] Critical log message\n"
+					rf"{CLIENT2} \| \[3\] Error log message\n"
+					rf"{CLIENT2} \| \[4\] Warning log message\n"
+					rf"{CLIENT2} \| \[5\] Notice log message\n"
+					rf"{CLIENT2} \| \[6\] Info log message\n\n"
+					rf"{CLIENT2} \| STDERR:\n"
+					rf"{CLIENT2} \| {re.escape(str(test_error))}\n\n"
+					rf"─────────────────────────── {CLIENT3} ────────────────────────────\n"
+					rf"{CLIENT3} \| EXIT CODE: 0\n\n"
+					rf"{CLIENT3} \| STDOUT:\n"
+					rf"{CLIENT3} \| Hello, World!\n"
+					rf"{CLIENT3} \| This is a multi-line opsi script.\n\n"
+					rf"{CLIENT3} \| LOG:\n"
+					rf"{CLIENT3} \| \[1\] Essential log message\n"
+					rf"{CLIENT3} \| \[2\] Critical log message\n"
+					rf"{CLIENT3} \| \[3\] Error log message\n"
+					rf"{CLIENT3} \| \[4\] Warning log message\n"
+					rf"{CLIENT3} \| \[5\] Notice log message\n"
+					rf"{CLIENT3} \| \[6\] Info log message\n"
+				)
+
+				assert re.fullmatch(expected_output_pattern, _stdout)
+				assert _stderr == ""
