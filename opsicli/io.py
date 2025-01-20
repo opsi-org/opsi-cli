@@ -13,11 +13,11 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from io import BytesIO, StringIO
 from typing import IO, Any, Iterator, Type
-
 import msgpack  # type: ignore[import]
 import orjson
 from opsicommon.logging import get_logger
 from rich import print_json  # type: ignore[import]
+from rich.color import ANSI_COLOR_NAMES  # type: ignore[import]
 from rich.console import Console  # type: ignore[import]
 from rich.prompt import FloatPrompt, IntPrompt, Prompt  # type: ignore[import]
 from rich.table import Table, box  # type: ignore[import]
@@ -37,6 +37,12 @@ LOG_COLORS = {
 	"2": "#E20066",  # CRITICAL
 	"1": "#2979FF",  # ESSENTIAL
 }
+
+COLORS = [
+	c
+	for c in ANSI_COLOR_NAMES
+	if "white" not in c and "black" not in c and "red" not in c and "grey" not in c and "gray" not in c and "bright" not in c
+]
 
 
 @dataclass

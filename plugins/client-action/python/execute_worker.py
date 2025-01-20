@@ -8,7 +8,7 @@ from opsicommon.logging import get_logger
 from rich.text import Text
 
 from opsicli.config import config
-from opsicli.io import LOG_COLORS, console_print
+from opsicli.io import LOG_COLORS, console_print, COLORS
 from opsicli.messagebus import JSONRPCMessagebusConnection, ProcessMessagebusConnection
 
 from .client_action_worker import ClientActionArgs, ClientActionWorker
@@ -21,6 +21,7 @@ class ExecuteWorker(ClientActionWorker):
 		super().__init__(args, default_all=False)
 		self.mbus_connection = ProcessMessagebusConnection()
 		self.jsonrpc_mbus_connection = JSONRPCMessagebusConnection()
+		self.color_position = 0
 
 	def execute(
 		self,
@@ -63,7 +64,9 @@ class ExecuteWorker(ClientActionWorker):
 
 			for channel, result in results.items():
 				host_name = channel.split(":")[1]
-				line_prefix = Text(f"{host_name} | ", style="green")
+				line_prefix_color = COLORS[self.color_position]
+				self.color_position = (self.color_position + 1) % len(COLORS)
+				line_prefix = Text(f"{host_name} | ", style=line_prefix_color)
 				console_print()
 				console_print(rule=f"{host_name}", style="white")
 
