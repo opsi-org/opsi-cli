@@ -268,6 +268,13 @@ CONFIG_ITEMS = [
 		default="none",
 		description=f"The log level for the console (stderr). Possible values are:\n\n{LogLevel.possible_values_for_description}.",
 	),
+	ConfigItem(
+		name="log_level",
+		type=LogLevel,
+		group="General",
+		default=6,
+		description=f"Specify the log level to filter the output logs. Possible values are:\n\n{LogLevel.possible_values_for_description}.",
+	),
 	ConfigItem(name="color", type=Bool, group="General", default=True, description="Enable or disable colorized output."),
 	ConfigItem(
 		name="output_format",

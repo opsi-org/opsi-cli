@@ -155,13 +155,6 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool, wakeup_timeout: 
 	),
 	type=str,
 )
-@click.option(
-	"--log-level",
-	type=click.IntRange(1, 8),
-	default=6,
-	help="Specify the log level to filter (1 to 8). Only available with --opsiscript",
-	show_default=True,
-)
 def execute(
 	ctx: click.Context,
 	command: tuple[str],
@@ -171,16 +164,12 @@ def execute(
 	timeout: float,
 	concurrent: int,
 	opsiscript: str,
-	log_level: int,
 ) -> None:
 	"""
 	opsi-cli client-action execute command
 	"""
 	if not command and not opsiscript:
 		raise click.UsageError("Missing argument 'COMMAND...' or '--opsiscript' option.")
-
-	if log_level and not opsiscript:
-		raise click.UsageError("--log-level can only be used with --opsiscript")
 
 	if opsiscript:
 		try:
@@ -197,7 +186,6 @@ def execute(
 		show_host_names=host_names,
 		encoding=encoding,
 		opsiscript=opsiscript,
-		log_level=log_level,
 	)
 	sys.exit(exit_code)
 

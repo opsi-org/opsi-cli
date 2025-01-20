@@ -31,7 +31,6 @@ class ExecuteWorker(ClientActionWorker):
 		timeout: float = 0.0,
 		encoding: str = "auto",
 		opsiscript: str | None = None,
-		log_level: int = 6,
 	) -> int:
 		if config.dry_run:
 			logger.notice("Operating in dry-run mode - not performing any actions")
@@ -40,7 +39,7 @@ class ExecuteWorker(ClientActionWorker):
 		channels = [f"host:{client}" for client in self.clients]
 
 		if opsiscript:
-			return self._execute_opsiscript(channels, opsiscript, log_level)
+			return self._execute_opsiscript(channels, opsiscript)
 
 		logger.debug("Executing %s with shell=%s on %d hosts", command, shell, len(channels))
 
@@ -55,7 +54,7 @@ class ExecuteWorker(ClientActionWorker):
 				encoding=encoding,
 			)
 
-	def _execute_opsiscript(self, channels: list[str], opsiscript: str, log_level: int) -> int:
+	def _execute_opsiscript(self, channels: list[str], opsiscript: str) -> int:
 		logger.debug("Executing opsiscript on %d hosts", len(channels))
 		highest_exit_code = 0
 
@@ -100,7 +99,7 @@ class ExecuteWorker(ClientActionWorker):
 					for line in log_content.splitlines():
 						parts = line.split(" ", 1)
 						log_level_value = int(parts[0].strip("[]"))
-						if log_level_value <= log_level:
+						if log_level_value <= config.log_level:
 							color = LOG_COLORS.get(parts[0].strip("[]"), previous_color)
 							previous_color = color
 							console_print(line_prefix + Text(line, style=color))

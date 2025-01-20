@@ -171,6 +171,7 @@ def quiet_print(*args: Any, **kwargs: Any) -> None:
 @config.get_click_option("log_file")
 @config.get_click_option("log_level_file")
 @config.get_click_option("log_level_stderr", short_option="-l")
+@config.get_click_option("log_level")
 @config.get_click_option("color", long_option="--color/--no-color", is_eager=True, envvar="NO_COLOR")
 @config.get_click_option("interactive", long_option="--interactive/--non-interactive")
 @config.get_click_option("quiet", is_flag=True, help=f"{config.get_description('quiet')}")
