@@ -109,7 +109,7 @@ class ExecuteWorker(ClientActionWorker):
 
 				if stderr:
 					console_print(Text("\n") + line_prefix + Text("STDERR:", style="white"))
-					for line in stderr.splitlines():
+					for line in str(stderr).splitlines():
 						console_print(line_prefix + Text(line, style="red"))
 
 		return highest_exit_code
