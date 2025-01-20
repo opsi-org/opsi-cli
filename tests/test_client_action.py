@@ -238,7 +238,7 @@ def test_trigger_event() -> None:
 			assert exit_code == 1  # No way to actually trigger an event or wake up a client
 
 
-
+@pytest.mark.requires_testcontainer
 def test_execute_opsiscript() -> None:
 	test_exception = Exception("Test exception")
 	test_error = RuntimeError("Test error")
