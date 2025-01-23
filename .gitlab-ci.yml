@@ -12,7 +12,7 @@ pytest-darwin:
     - catalina-py311-x64
   script:
     - export ZIPLAUNCHER_CLEAN_TMP=true
-    - poetry lock --no-update --no-cache
+    - poetry lock --no-cache
     - poetry install
     - poetry run pytest --tb=short -x -o junit_family=xunit2 --junitxml=testreport_darwin.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - mv .coverage coverage_darwin
@@ -29,7 +29,7 @@ pytest-windows:
   tags:
     - win10-py311-x86
   script:
-    - poetry lock --no-update --no-cache
+    - poetry lock --no-cache
     - poetry install
     - poetry run pytest --tb=short -x -o junit_family=xunit2 --junitxml=testreport_windows.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - Rename-Item -Path .coverage -NewName coverage_windows
@@ -71,7 +71,7 @@ pytest-linux:
     #OPSICONFD_RESTORE_BACKUP_URL: "http://binaryindex.uib.gmbh/development/testbackup/all/all/testbackup_all_all_1.1.tar.gz"
     # issue for individually configurable timeouts https://gitlab.com/gitlab-org/gitlab/-/issues/30353
   script:
-    - poetry lock --no-update --no-cache
+    - poetry lock --no-cache
     - poetry install
     - poetry run pytest --tb=short -x -o junit_family=xunit2 --junitxml=testreport_linux.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - mv .coverage coverage_linux
@@ -97,7 +97,7 @@ lint-pytest:
     - apt-get update
     - apt-get --yes --allow-downgrades install libsqlite3-0=3.16.2-5+deb9u1
     - apt-get --yes install sqlite3
-    - poetry lock --no-update --no-cache
+    - poetry lock --no-cache
     - poetry install
     - poetry run ruff check opsicli tests
     - poetry run mypy opsicli tests
@@ -127,7 +127,7 @@ linux-x64-pyinstaller:
     - wget "$OPSIDEVTOOLS_URL_LINUX_X64" -O - | tar xzf -
     - mv opsi-dev-tool opsi-dev-cli
     - ./opsi-dev-cli binary pull ziplaunch
-    - poetry lock --no-update --no-cache
+    - poetry lock --no-cache
     - poetry install
     - poetry run ./opsi-dev-cli -l info pyinstaller build
     - ./ziplaunch/ziplaunch dist/opsicli ./ziplaunch_data/ziplaunch.ini opsi-cli
@@ -155,7 +155,7 @@ linux-arm64-pyinstaller:
     - wget "$OPSIDEVTOOLS_URL_LINUX_ARM64" -O - | tar xzf -
     - mv opsi-dev-tool opsi-dev-cli
     - ./opsi-dev-cli binary pull ziplaunch
-    - poetry lock --no-update --no-cache
+    - poetry lock --no-cache
     - poetry install
     - poetry run ./opsi-dev-cli -l info pyinstaller build
     - ./ziplaunch/ziplaunch dist/opsicli ./ziplaunch_data/ziplaunch.ini opsi-cli
@@ -174,7 +174,7 @@ macos-x64-pyinstaller:
     - catalina-py311-x64
   script:
     - export LC_ALL=en_US.UTF-8
-    - poetry lock --no-update --no-cache
+    - poetry lock --no-cache
     - poetry install
     - curl -o opsi-dev-tools.tar.gz "$OPSIDEVTOOLS_URL_DARWIN_X64"
     - tar -xvf opsi-dev-tools.tar.gz
@@ -217,7 +217,7 @@ windows-x86-pyinstaller:
     - win10-py311-x86
   script:
     # Build python environment
-    - poetry lock --no-update --no-cache
+    - poetry lock --no-cache
     - poetry install
     # Get opsi-dev-tool
     - Invoke-WebRequest -UseBasicParsing -Uri "$OPSIDEVTOOLS_URL_WINDOWS_X86" -OutFile opsi-dev-tools.zip
