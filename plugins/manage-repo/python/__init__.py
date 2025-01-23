@@ -6,6 +6,7 @@ from pathlib import Path
 
 import requests  # type: ignore[import]
 import rich_click as click  # type: ignore[import]
+from click.shell_completion import CompletionItem
 from opsicommon.logging import get_logger
 from opsicommon.package.repo_meta import (
 	RepoMetaPackage,
@@ -176,9 +177,19 @@ def add_package(directory: Path, package: Path, num_allowed_versions: int, compa
 		packages_metadata.write_metafile(meta_file)
 
 
+def complete_package_name(directory: Path, ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
+	current_meta_files = list(directory.glob("packages.*"))
+	if not current_meta_files:
+		return []
+
+	packages_metadata = RepoMetaPackageCollection()
+	packages_metadata.read_metafile(current_meta_files[0])
+	return [CompletionItem(package) for package in packages_metadata.packages]
+
+
 @metafile.command(short_help="Removes a package from repository metadata files.", name="remove-package")
 @argument_directory
-@click.argument("name", nargs=1, type=str)
+@click.argument("name", nargs=1, type=str, shell_complete=complete_package_name)
 @click.argument("version", nargs=1, type=str)
 def remove_package(directory: Path, name: str, version: str) -> None:
 	"""
