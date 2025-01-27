@@ -22,10 +22,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Type
 
-from opsicommon.logging import (
-	get_logger,  # type: ignore[import]
-	use_logging_config,
-)
+from opsicommon.logging import get_logger  # type: ignore[import]
+from opsicommon.logging import use_logging_config
 from opsicommon.system.info import is_posix, is_windows
 
 if is_windows():
@@ -104,7 +102,7 @@ def add_to_env_variable(key: str, value: str, system: bool = False) -> None:
 
 	import winreg
 
-	import win32process  # type: ignore[import] # pylint: disable=import-outside-toplevel,import-error
+	import win32process  # type: ignore[import]
 
 	key_handle = winreg.CreateKey(  # type: ignore[attr-defined]
 		winreg.HKEY_LOCAL_MACHINE if system else winreg.HKEY_CURRENT_USER,  # type: ignore[attr-defined]
