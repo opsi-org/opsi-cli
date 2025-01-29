@@ -277,7 +277,7 @@ def test_execute_opsiscript() -> None:
 					"--opsiscript",
 					opsiscript_content,
 					"--opsi-script-log-level",
-					6,
+					str(6),
 				]
 				exit_code, _stdout, _stderr = run_cli(cmd)
 				assert exit_code == highest_exit_code
