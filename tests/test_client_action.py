@@ -2,8 +2,9 @@
 test_client_action
 """
 
-from unittest.mock import patch
 import re
+from unittest.mock import patch
+
 import pytest
 from opsicommon.objects import ProductOnClient
 
@@ -275,6 +276,8 @@ def test_execute_opsiscript() -> None:
 					"execute",
 					"--opsiscript",
 					opsiscript_content,
+					"--opsi-script-log-level",
+					6,
 				]
 				exit_code, _stdout, _stderr = run_cli(cmd)
 				assert exit_code == highest_exit_code
