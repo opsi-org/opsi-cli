@@ -21,7 +21,7 @@ logger = get_logger("opsicli")
 @click.version_option(__version__, message="opsi-cli plugin log, version %(version)s")
 def cli() -> None:
 	"""
-	opsi-cli log command
+	opsi-cli log command.
 	This command provides funtionality to view logs using messagebus.
 	"""
 	logger.trace("log command")
@@ -33,26 +33,26 @@ def cli() -> None:
 	"--log-type",
 	type=click.Choice(["opsiconfd", "opsiclientd"], case_sensitive=False),
 	default="opsiclientd",
-	help="Specify the type of log to view (opsiconfd or opsiclientd)",
+	help="Specify the type of log to view.",
 	show_default=True,
 )
 @click.option(
 	"--live",
 	is_flag=True,
-	help="Show live log file from the client directly (only available for opsiclientd); otherwise, show the client logs stored on the server",
+	help="Show live logs directly from the client (only for opsiclientd) or view client logs stored on the server.",
 	default=False,
 )
-@click.option("--follow", is_flag=True, help="Follow the log file for real-time updates", default=False)
+@click.option("--follow", is_flag=True, help="Follow the log file for real-time updates.", default=False)
 @click.option(
 	"--log-level",
 	type=click.IntRange(1, 8),
 	default=6,
-	help="Specify the log level to filter (1 to 8).",
+	help="Specify the log level to filter.",
 	show_default=True,
 )
 def view(host_id: str, log_type: str, live: bool, follow: bool, log_level: int) -> None:
 	"""
-	opsi-cli log view subcommand
+	View logs for a specified host.
 	"""
 	asyncio.run(view_command(host_id, log_type, live, follow, log_level))
 
