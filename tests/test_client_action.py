@@ -274,7 +274,7 @@ def test_execute_opsiscript() -> None:
 					"--clients",
 					f"{CLIENT1},{CLIENT2},{CLIENT3}",
 					"execute",
-					"--opsiscript",
+					"--opsi-script",
 					opsiscript_content,
 					"--opsi-script-log-level",
 					str(6),

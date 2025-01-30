@@ -147,7 +147,7 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool, wakeup_timeout: 
 @click.option("--timeout", help="Number of seconds until command should be interrupted (0 = no timeout)", type=float, default=0.0)
 @click.option("--concurrent", help="Maximum number of concurrent executions", type=int, default=100)
 @click.option(
-	"--opsiscript",
+	"--opsi-script",
 	help=(
 		"Provide the content of an opsi-script directly. "
 		"No command is needed when using this option. "
@@ -159,7 +159,7 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool, wakeup_timeout: 
 	"--opsi-script-log-level",
 	type=click.IntRange(1, 8),
 	default=4,
-	help="Specify the log level to filter (1 to 8). Only available with --opsiscript",
+	help="Specify the log level to filter (1 to 8). Only available with --opsi-script",
 	show_default=True,
 )
 def execute(
@@ -170,21 +170,21 @@ def execute(
 	encoding: str,
 	timeout: float,
 	concurrent: int,
-	opsiscript: str,
+	opsi_script: str,
 	opsi_script_log_level: int,
 ) -> None:
 	"""
 	opsi-cli client-action execute command
 	"""
-	if not command and not opsiscript:
-		raise click.UsageError("Missing argument 'COMMAND...' or '--opsiscript' option.")
+	if not command and not opsi_script:
+		raise click.UsageError("Missing argument 'COMMAND...' or '--opsi-script' option.")
 
-	if opsi_script_log_level and not opsiscript:
-		raise click.UsageError("--opsi-script-log-level can only be used with --opsiscript")
+	if opsi_script_log_level and not opsi_script:
+		raise click.UsageError("--opsi-script-log-level can only be used with --opsi-script")
 
-	if opsiscript:
+	if opsi_script:
 		try:
-			opsiscript.encode("utf-8", errors="strict")
+			opsi_script.encode("utf-8", errors="strict")
 		except UnicodeEncodeError:
 			raise ValueError("The opsi-script content is not valid UTF-8")
 
@@ -196,7 +196,7 @@ def execute(
 		concurrent=concurrent,
 		show_host_names=host_names,
 		encoding=encoding,
-		opsiscript=opsiscript,
+		opsiscript=opsi_script,
 		opsiscript_log_level=opsi_script_log_level,
 	)
 	sys.exit(exit_code)
