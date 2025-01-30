@@ -53,7 +53,6 @@ from opsicommon.types import forceHostId
 from rich.color import Color
 from rich.text import Text
 
-from opsicli.config import config
 from opsicli.io import LOG_COLORS, console_print, get_console, read_input_raw_bin, COLORS
 from opsicli.opsiservice import get_service_connection
 from opsicli.utils import raw_terminal
