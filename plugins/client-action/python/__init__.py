@@ -171,7 +171,7 @@ def execute(
 	timeout: float,
 	concurrent: int,
 	opsiscript: str,
-	opsiscript_log_level: int,
+	opsi_script_log_level: int,
 ) -> None:
 	"""
 	opsi-cli client-action execute command
@@ -179,7 +179,7 @@ def execute(
 	if not command and not opsiscript:
 		raise click.UsageError("Missing argument 'COMMAND...' or '--opsiscript' option.")
 
-	if opsiscript_log_level and not opsiscript:
+	if opsi_script_log_level and not opsiscript:
 		raise click.UsageError("--opsi-script-log-level can only be used with --opsiscript")
 
 	if opsiscript:
@@ -197,7 +197,7 @@ def execute(
 		show_host_names=host_names,
 		encoding=encoding,
 		opsiscript=opsiscript,
-		opsiscript_log_level=opsiscript_log_level,
+		opsiscript_log_level=opsi_script_log_level,
 	)
 	sys.exit(exit_code)
 
