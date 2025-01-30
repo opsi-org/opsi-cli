@@ -789,7 +789,7 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 			log_level, _, _, _, _ = match.groups()
 			self._current_log_level = int(log_level)
 			if self._current_log_level <= self.log_level:
-				self.current_color = LOG_COLORS.get(log_level, "white") if config.color else "white"
+				self.current_color = LOG_COLORS.get(log_level, "white")
 				console_print(Text(line, style=self.current_color))
 		else:
 			if self._current_log_level <= self.log_level:
