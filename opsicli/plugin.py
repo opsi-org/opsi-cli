@@ -86,7 +86,7 @@ class OPSICLIPlugin:
 
 class PluginImporter(BuiltinImporter):
 	@classmethod
-	def find_spec(cls, fullname: str, path: None = None, target: None = None) -> ModuleSpec | None:
+	def find_spec(cls, fullname: str, path: None = None, target: None = None) -> ModuleSpec | None:  # type: ignore[override]
 		if not fullname.startswith("opsicli.addon"):
 			return None
 		plugin_path = bytes.fromhex(fullname.split("_", 1)[1]).decode("utf-8")
@@ -219,12 +219,8 @@ def install_plugin(source_dir: Path, name: str, system: bool = False) -> Path:
 
 def install_python_package(target_dir: Path, package: dict[str, str | None]) -> None:
 	# These imports take ~0.25s
-	from pip._internal.commands.install import (
-		InstallCommand,
-	)
-	from pip._vendor.distlib.scripts import (
-		ScriptMaker,
-	)
+	from pip._internal.commands.install import InstallCommand
+	from pip._vendor.distlib.scripts import ScriptMaker
 
 	def monkeypatched_make_multiple(
 		self: ScriptMaker,
@@ -261,7 +257,6 @@ def install_python_package(target_dir: Path, package: dict[str, str | None]) -> 
 
 def install_dependencies(path: Path, target_dir: Path) -> None:
 	# Import is slow (python requests/urllib3)
-	# pylint: disable=import-outside-toplevel
 
 	from pip._vendor.distlib import resources
 
@@ -269,7 +264,6 @@ def install_dependencies(path: Path, target_dir: Path) -> None:
 
 	try:
 		import _frozen_importlib_external  # type: ignore[import-not-found]
-
 		import pyimod02_importers  # type: ignore[import-not-found]
 
 		resources._finder_registry[pyimod02_importers.PyiFrozenImporter] = resources._finder_registry[

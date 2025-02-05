@@ -6,8 +6,6 @@ Main command
 """
 
 import builtins
-
-# pylint: disable=wrong-import-position
 import re
 import sys
 from typing import Any, Sequence

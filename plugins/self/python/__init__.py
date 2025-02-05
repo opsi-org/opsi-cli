@@ -13,6 +13,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+import packaging.version
 import psutil  # type: ignore[import]
 import rich_click as click  # type: ignore[import]
 from click.shell_completion import get_completion_class  # type: ignore[import]
@@ -339,7 +340,7 @@ def install(location: str, no_add_to_path: bool, system: bool | None, binary_pat
 	"--source-url",
 	type=str,
 	help="URL from which to pull.",
-	default="https://tools.44.opsi.org",
+	default="https://tools.5.opsi.org",
 	show_default=True,
 )
 @click.option(
@@ -348,7 +349,13 @@ def install(location: str, no_add_to_path: bool, system: bool | None, binary_pat
 	help="Where to install opsi-cli. Can be 'current' (default), 'user', 'system', 'all' or an explicit path.\n",
 	default="current",
 )
-def upgrade(branch: str, source_url: str, location: str) -> None:
+@click.option(
+	"--allow-downgrade",
+	is_flag=True,
+	help="Allow to 'upgrade' to a version that is older than the current instance.",
+	default=False,
+)
+def upgrade(branch: str, source_url: str, location: str, allow_downgrade: bool) -> None:
 	"""
 	opsi-cli self upgrade subcommand.
 
@@ -379,6 +386,10 @@ def upgrade(branch: str, source_url: str, location: str) -> None:
 				raise
 
 		new_binary, new_version = download_binary()
+		if packaging.version.parse(new_version) < packaging.version.parse(opsi_cli_version) and not allow_downgrade:
+			logger.error("New version '%s' is older than current version '%s'", new_version, opsi_cli_version)
+			get_console().print(f"[red]New version '{new_version}' is older than current version '{opsi_cli_version}'[/red]")
+			sys.exit(1)
 
 		for binary in binary_paths:
 			try:

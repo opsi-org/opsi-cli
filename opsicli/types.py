@@ -20,10 +20,8 @@ else:
 	# Loads faster
 	import click  # type: ignore[import,no-redef]
 
-from opsicommon.logging import (  # type: ignore[import]
-	LEVEL_TO_OPSI_LEVEL,
-	NAME_TO_LEVEL,
-)
+from opsicommon.logging import LEVEL_TO_OPSI_LEVEL  # type: ignore[import]
+from opsicommon.logging import NAME_TO_LEVEL
 
 from opsicli.utils import decrypt, encrypt
 
@@ -99,7 +97,7 @@ class OPSIServiceUrlOrServiceName(str):
 
 
 class Password(str):
-	def __new__(cls: Type[Password], value: str | None) -> Password:
+	def __new__(cls: Type[Password], value: str | None) -> Password:  # type: ignore[misc]
 		return super().__new__(cls, value or "")
 
 	def __repr__(self) -> str:
@@ -115,35 +113,33 @@ class Password(str):
 		return cls(decrypt(value))
 
 
-class File(Path):  # type: ignore[misc] # pylint: disable=too-few-public-methods
+class File(Path):  # type: ignore[misc]
 	click_type = click.Path(dir_okay=False)
 
-	def __init__(self, *args: Any, **kwargs: Any) -> None:
-		args_list = list(args)
-		for index,entry in enumerate(args):
-			if isinstance(entry, str) and "~" in entry:
-				args_list[index] = Path(entry).expanduser().absolute()
-			elif isinstance(entry, Path):
-				args_list[index] = entry.expanduser().absolute()
+	@classmethod
+	def cwd(cls) -> Path:  # type: ignore[override]
+		return Path(os.getcwd())
 
-		super().__init__(*args_list, **kwargs)
+	def __new__(cls: Type[File], *args: Any, **kwargs: Any) -> Type[Path]:  # type: ignore[misc]
+		path = Path(*args, **kwargs)
+		if str(path) != "-":
+			path = path.expanduser().absolute()
+			if path.exists() and not path.is_file():
+				raise ValueError(f"Not a file: {path!r}")
+		return path  # type: ignore[return-value]
 
 	def to_yaml(self) -> str:
 		return str(self)
 
 
-class Directory(Path):  # type: ignore[misc] # pylint: disable=too-few-public-methods
+class Directory(Path):  # type: ignore[misc]
 	click_type = click.Path(file_okay=False)
 
-	def __init__(self, *args: Any, **kwargs: Any) -> None:
-		args_list = list(args)
-		for index,entry in enumerate(args):
-			if isinstance(entry, str) and "~" in entry:
-				args_list[index] = Path(entry).expanduser().absolute()
-			elif isinstance(entry, Path):
-				args_list[index] = entry.expanduser().absolute()
-
-		super().__init__(*args_list, **kwargs)
+	def __new__(cls: Type[Directory], *args: Any, **kwargs: Any) -> Type[Path]:  # type: ignore[misc]
+		path = Path(*args, **kwargs).expanduser().absolute()
+		if path.exists() and not path.is_dir():
+			raise ValueError(f"Not a directory: {path!r}")
+		return path  # type: ignore[return-value]
 
 	def to_yaml(self) -> str:
 		return str(self)

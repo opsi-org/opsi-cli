@@ -62,7 +62,7 @@ def testcontainer_running() -> bool:
 	try:
 		result = requests.get(f"https://{OPSI_HOSTNAME}:4447/public", timeout=5, verify=False)
 		return result.status_code == 200
-	except requests.exceptions.ConnectionError:
+	except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout):
 		return False
 
 

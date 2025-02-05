@@ -45,14 +45,26 @@ def test_self_install() -> None:
 		assert config.config_file_user.exists()
 
 
+@pytest.mark.xfail  # opsi 5 repos not available yet
 @pytest.mark.parametrize("location", ["current", "all"])
 def test_self_upgrade(location: str) -> None:
-	with patch("opsicli.utils.install_binary", lambda *args, **kwargs: None):
+	with (
+		patch("opsicli.utils.install_binary", lambda *args, **kwargs: None),
+		patch("opsicli.__version__", "99.99.99.99"),
+	):
 		cmd = ["-l", "7", "--dry-run", "self", "upgrade", "--location", location, "--branch=experimental"]
 		exit_code, stdout, stderr = run_cli(cmd)
 		print(stdout)
 		print(stderr)
+		assert "Would upgrade" not in stdout
+		assert exit_code == 1
+
+		cmd = ["-l", "7", "--dry-run", "self", "upgrade", "--location", location, "--allow-downgrade"]
+		exit_code, stdout, stderr = run_cli(cmd)
+		print(stdout)
+		print(stderr)
 		assert "Would upgrade" in stdout
+		assert exit_code == 0
 
 
 def test_self_uninstall() -> None:

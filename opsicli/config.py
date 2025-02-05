@@ -382,7 +382,7 @@ CONFIG_ITEMS.extend(
 )
 
 if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-	_plugin_bundle_dir = Path(sys._MEIPASS) / "plugins"  # type: ignore[attr-defined] # pylint: disable=protected-access
+	_plugin_bundle_dir = Path(sys._MEIPASS) / "plugins"  # type: ignore[attr-defined]
 else:
 	_plugin_bundle_dir = Path("plugins").resolve()
 

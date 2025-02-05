@@ -50,11 +50,10 @@ from opsicommon.messagebus.message import (
 )
 from opsicommon.system.info import is_windows
 from opsicommon.types import forceHostId
-from rich.color import ANSI_COLOR_NAMES, Color
+from rich.color import Color
 from rich.text import Text
 
-from opsicli.config import config
-from opsicli.io import console_print, get_console, read_input_raw_bin
+from opsicli.io import LOG_COLORS, console_print, get_console, read_input_raw_bin, COLORS
 from opsicli.opsiservice import get_service_connection
 from opsicli.utils import raw_terminal
 
@@ -308,12 +307,6 @@ class MessagebusProcess:
 
 
 class ProcessMessagebusConnection(MessagebusConnection):
-	COLORS = [
-		c
-		for c in ANSI_COLOR_NAMES
-		if "white" not in c and "black" not in c and "red" not in c and "grey" not in c and "gray" not in c and "bright" not in c
-	]
-
 	def __init__(self) -> None:
 		self.console = get_console()
 		self.out_lock = Lock()
@@ -425,9 +418,9 @@ class ProcessMessagebusConnection(MessagebusConnection):
 
 		color = "NO_COLOR" not in os.environ
 		for channel in channels:
-			prefix_color = Color.parse(self.COLORS[self.color_position]) if color else None
+			prefix_color = Color.parse(COLORS[self.color_position]) if color else None
 			self.color_position += 1
-			if self.color_position >= len(self.COLORS):
+			if self.color_position >= len(COLORS):
 				self.color_position = 0
 			message = ProcessStartRequestMessage(
 				command=command,
@@ -738,17 +731,6 @@ class TerminalMessagebusConnection(MessagebusConnection):
 
 class FileTransferMessagebusConnection(MessagebusConnection):
 	log_pattern = re.compile(r"\[(\d+)\] \[(.*?)\] \[(.*?)\] (.*?)\s+\((.*?)\)")
-	log_colors = {
-		"9": "#D500F9",  # SECRET
-		"8": "#8B8B8B",  # TRACE
-		"7": "#C0C0C0",  # DEBUG
-		"6": "#F5F5F5",  # INFO
-		"5": "#009605",  # NOTICE
-		"4": "#FF9100",  # WARNING
-		"3": "#E51D3B",  # ERROR
-		"2": "#E20066",  # CRITICAL
-		"1": "#2979FF",  # ESSENTIAL
-	}
 	chunk_size: int = 1000
 	current_color: str = "white"
 
@@ -805,7 +787,7 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 			log_level, _, _, _, _ = match.groups()
 			self._current_log_level = int(log_level)
 			if self._current_log_level <= self.log_level:
-				self.current_color = self.log_colors.get(log_level, "white") if config.color else "white"
+				self.current_color = LOG_COLORS.get(log_level, "white")
 				console_print(Text(line, style=self.current_color))
 		else:
 			if self._current_log_level <= self.log_level:

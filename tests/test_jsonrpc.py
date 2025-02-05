@@ -34,3 +34,14 @@ def test_create_delete_object() -> None:
 		print(stdout)
 		assert exit_code == 0
 		assert testclient not in stdout
+
+
+@pytest.mark.requires_testcontainer
+def test_timeout() -> None:
+	with container_connection():
+		exit_code, stdout, _stderr = run_cli(["jsonrpc", "execute", "host_getObjects"])
+		assert exit_code == 0
+
+		exit_code, stdout, _stderr = run_cli(["jsonrpc", "execute", "host_getObjects", "--timeout=0.000001"])
+		print(stdout)
+		assert exit_code != 0
