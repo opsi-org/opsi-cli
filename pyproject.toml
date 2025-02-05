@@ -10,7 +10,6 @@ homepage = "https://www.opsi.org"
 license = "AGPL-3.0"
 authors = [ "uib GmbH <info@uib.de>",]
 maintainers = [ "uib GmbH <info@uib.de>",]
-
 [[tool.poetry.packages]]
 include = "opsicli"
 
