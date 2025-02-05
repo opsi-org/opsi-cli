@@ -53,7 +53,7 @@ from opsicommon.types import forceHostId
 from rich.color import Color
 from rich.text import Text
 
-from opsicli.io import LOG_COLORS, console_print, get_console, read_input_raw_bin, COLORS
+from opsicli.io import COLORS, LOG_COLORS, console_print, get_console, read_input_raw_bin
 from opsicli.opsiservice import get_service_connection
 from opsicli.utils import raw_terminal
 
@@ -671,7 +671,7 @@ class TerminalMessagebusConnection(MessagebusConnection):
 						raise self._terminal_error
 					data = b""
 					if self._is_windows:
-						if con_buf_in.GetNumberOfConsoleInputEvents() == 0:
+						if con_buf_in.GetNumberOfConsoleInputEvents() == 0:  # type: ignore[no-untyped-call]
 							time.sleep(0.005)
 							continue
 						for event in con_buf_in.ReadConsoleInput(1024):

@@ -22,12 +22,14 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Type
 
-from opsicommon.logging import get_logger  # type: ignore[import]
-from opsicommon.logging import use_logging_config
+from opsicommon.logging import (
+	get_logger,
+	use_logging_config,
+)
 from opsicommon.system.info import is_posix, is_windows
 
 if is_windows():
-	import win32console  # type: ignore[import-not-found]
+	import win32console  # type: ignore
 else:
 	import termios
 	import tty
@@ -141,9 +143,9 @@ def raw_terminal() -> Iterator[None]:
 	with use_logging_config(stderr_level=0):
 		if is_windows():
 			con_buf_in = win32console.GetStdHandle(-10)  # STD_INPUT_HANDLE /  CONIN$
-			mode_in = con_buf_in.GetConsoleMode()
+			mode_in = con_buf_in.GetConsoleMode()  # type: ignore[no-untyped-call]
 			con_buf_out = win32console.GetStdHandle(-11)  # STD_OUTPUT_HANDLE /  CONOUT$
-			mode_out = con_buf_out.GetConsoleMode()
+			mode_out = con_buf_out.GetConsoleMode()  # type: ignore[no-untyped-call]
 			# Disable line input, echo input
 			# con_buf_in.SetConsoleMode(mode_in & ~0x2  & ~0x4)
 			con_buf_in.SetConsoleMode(mode_in & ~0x1 & ~0x2 & ~0x4)

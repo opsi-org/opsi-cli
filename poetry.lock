@@ -2121,6 +2121,22 @@ url = "https://pypi.uib.gmbh/simple"
 reference = "uibpypi"
 
 [[package]]
+name = "types-pywin32"
+version = "308.0.0.20250128"
+description = "Typing stubs for pywin32"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "types_pywin32-308.0.0.20250128-py3-none-any.whl", hash = "sha256:496556e88a25867be62decf2b6ae397368cd03586936e1a5ac285093dac11dd5"},
+    {file = "types_pywin32-308.0.0.20250128.tar.gz", hash = "sha256:75f4e0f4518bdcf7979e4333dcd7f60e7604024c4e2ad15295a0788bc61c59b6"},
+]
+
+[package.source]
+type = "legacy"
+url = "https://pypi.uib.gmbh/simple"
+reference = "uibpypi"
+
+[[package]]
 name = "types-requests"
 version = "2.32.0.20241016"
 description = "Typing stubs for requests"
@@ -2460,4 +2476,4 @@ reference = "uibpypi"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.13,<3.14"
-content-hash = "8b5ab0ffd37817b0887436c5e93e66ae53d220c2dd9c70f7b3da105862b1c1b3"
+content-hash = "bea65efba7c63bd1adfb9177d03248b5583690c14270f909d9d43f73991970c5"
