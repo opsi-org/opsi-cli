@@ -222,9 +222,9 @@ def write_output_table(data: Any, metadata: Metadata) -> None:
 	if data:
 		row_type = type(data[0])
 		for row in data:
-			if row_type is dict:
+			if issubclass(row_type, dict):
 				table.add_row(*[to_string(row.get(rid)) for rid in row_ids])
-			elif row_type is list:
+			elif issubclass(row_type, list):
 				table.add_row(*[to_string(el) for el in row])
 			else:
 				table.add_row(*[to_string(row)])
