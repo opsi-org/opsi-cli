@@ -509,3 +509,48 @@ def uninstall_package(
 		if not config.quiet:
 			progress.update(task, completed=100)
 	logger.notice("Finished uninstallation of product %s from depot %s", product_id, depot_id)
+
+
+def set_action_request_where_installed(
+	service_client: ServiceClient,
+	depot_id: str,
+	opsi_package: OpsiPackage,
+	action_request: str,
+	dependency: bool,
+) -> None:
+	"""
+	Sets the action request to 'where_installed' for the product.
+	"""
+	logger.notice("Setting action request to '%s' for product %s on depot %s", action_request, opsi_package.product.id, depot_id)
+	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
+		assert progress
+		if not config.quiet:
+			task = progress.add_task(
+				f"Setting action request to '{action_request}' for product '{opsi_package.product.id}' on depot '{depot_id}'...\n",
+				total=100,
+			)
+
+		client_id_list = []
+		for client_to_depot in service_client.jsonrpc("configState_getClientToDepotserver", [[depot_id]]):
+			client_id_list.append(client_to_depot["clientId"])
+		if not client_id_list:
+			return
+
+		product_on_clients = service_client.jsonrpc(
+			"productOnClient_getObjects",
+			[[], {"clientId": client_id_list, "productId": opsi_package.product.id, "installationStatus": "installed"}],
+		)
+		if not product_on_clients:
+			return
+
+		if dependency:
+			for client in [poc.clientId for poc in product_on_clients]:
+				service_client.jsonrpc("setProductActionRequestWithDependencies", [opsi_package.product.id, client, action_request])
+			return
+
+		client_id_list.sort()
+
+		service_client.jsonrpc("setProductActionRequest", [opsi_package.product.id, client_id_list, action_request])
+		if not config.quiet:
+			progress.update(task, completed=100)
+	logger.notice("Finished setting action request to '%s' for product %s on depot %s", action_request, opsi_package.product.id, depot_id)

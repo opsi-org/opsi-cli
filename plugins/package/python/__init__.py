@@ -30,6 +30,7 @@ from .package_helpers import (
 	install_package,
 	map_and_sort_packages,
 	process_local_packages,
+	set_action_request_where_installed,
 	uninstall_package,
 	update_product_properties,
 	upload_to_repository,
@@ -261,7 +262,18 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 	default=False,
 )
 @click.option("--force", is_flag=True, help="Force installation.", default=False)
-def install(packages: list[str], depots: str, force: bool, update_properties: bool) -> None:
+@click.option("--setup-where-installed", is_flag=True, help="Setup where installed.", default=False)
+@click.option("--setup-where-installed-with-dependencies", is_flag=True, help="Setup where installed with dependencies.", default=False)
+@click.option("--update-where-installed", is_flag=True, help="Update where installed.", default=False)
+def install(
+	packages: list[str],
+	depots: str,
+	force: bool,
+	update_properties: bool,
+	setup_where_installed: bool,
+	setup_where_installed_with_dependencies: bool,
+	update_where_installed: bool,
+) -> None:
 	"""
 	opsi-cli package install subcommand.
 	This subcommand is used to install opsi packages.
@@ -295,6 +307,21 @@ def install(packages: list[str], depots: str, force: bool, update_properties: bo
 						update_properties,
 					)
 					install_package(depot_connection, depot.id, dest_package_name, force, property_default_values)
+					if setup_where_installed or setup_where_installed_with_dependencies or update_where_installed:
+						action_request = "update" if update_where_installed else "setup"
+						if opsi_package.product.getSetupScript():
+							dependency = True if setup_where_installed_with_dependencies else False
+							set_action_request_where_installed(
+								service_client,
+								depot.id,
+								opsi_package,
+								action_request=action_request,
+								dependency=dependency,
+							)
+						else:
+							logger.warning("Setup script not found for product '%s'", opsi_package.product.id)
+							get_console().print(f"Setup script not found for product '{opsi_package.product.id}'")
+
 			finally:
 				depot_connection.disconnect()
 
