@@ -482,7 +482,7 @@ def install_package(
 	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
 		assert progress
 		if not config.quiet:
-			task = progress.add_task(f"Installing '{dest_package_name}' on depot '{depot_id}'...\n", total=None)
+			task = progress.add_task(f"Installing '{dest_package_name}' on depot '{depot_id}'...", total=None)
 		depot_connection.jsonrpc("depot_installPackage", installation_params)
 		if not config.quiet:
 			progress.update(task, total=1, completed=1)
@@ -504,7 +504,7 @@ def uninstall_package(
 	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
 		assert progress
 		if not config.quiet:
-			task = progress.add_task(f"Uninstalling '{product_id}' from depot '{depot_id}'...\n", total=100)
+			task = progress.add_task(f"Uninstalling '{product_id}' from depot '{depot_id}'...", total=100)
 		depot_connection.jsonrpc("depot_uninstallPackage", uninstallation_params)
 		if not config.quiet:
 			progress.update(task, completed=100)
@@ -515,22 +515,26 @@ def handle_action_request(service_client: ServiceClient, depot_id: str, product:
 	if not validate_action_request(product, action_request):
 		return
 
+	clients_from_depot = get_clients_from_depot(service_client, depot_id)
+	if not clients_from_depot:
+		logger.warning("No clients found for depot %s. Skipping setting action request.", depot_id)
+		get_console().print(f"No clients found for depot '{depot_id}'. Skipping setting action request.")
+		return
+
+	product_on_clients = get_product_on_clients(service_client, tuple(clients_from_depot), product.id)
+	if not product_on_clients:
+		logger.warning("No productOnClient found for product %s. Skipping setting action request.", product.id)
+		get_console().print(f"No productOnClient found for product '{product.id}'. Skipping setting action request.")
+		return
+
 	logger.notice("Setting action request to '%s' for product %s on depot %s", action_request, product.id, depot_id)
 	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
 		assert progress
 		if not config.quiet:
 			task = progress.add_task(
-				f"Setting action request to '{action_request}' for product '{product.id}' on depot '{depot_id}'...\n",
+				f"Setting action request to '{action_request}' for product '{product.id}' on depot '{depot_id}'...",
 				total=100,
 			)
-
-		clients_from_depot = get_clients_from_depot(service_client, depot_id)
-		if not clients_from_depot:
-			return
-
-		product_on_clients = get_product_on_clients(service_client, tuple(clients_from_depot), product.id)
-		if not product_on_clients:
-			return
 
 		set_action_request(service_client, product.id, action_request, product_on_clients, dependency)
 
@@ -542,8 +546,8 @@ def handle_action_request(service_client: ServiceClient, depot_id: str, product:
 @lru_cache(maxsize=100)
 def validate_action_request(product: Product, action_request: str) -> bool:
 	if action_request == "update" and not product.getUpdateScript() or action_request == "setup" and not product.getSetupScript():
-		logger.warning("%s script not found for product '%s'", action_request.capitalize(), product.id)
-		get_console().print(f"{action_request.capitalize()} script not found for product '{product.id}'")
+		logger.warning("%s script not found for product '%s'.", action_request.capitalize(), product.id)
+		get_console().print(f"{action_request.capitalize()} script not found for product '{product.id}'.")
 		return False
 	return True
 
