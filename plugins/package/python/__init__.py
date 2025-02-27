@@ -27,10 +27,10 @@ from .package_helpers import (
 	fix_custom_package_name,
 	get_depot_objects,
 	get_property_default_values,
+	handle_action_request,
 	install_package,
 	map_and_sort_packages,
 	process_local_packages,
-	set_action_request_where_installed,
 	uninstall_package,
 	update_product_properties,
 	upload_to_repository,
@@ -307,21 +307,11 @@ def install(
 						update_properties,
 					)
 					install_package(depot_connection, depot.id, dest_package_name, force, property_default_values)
+
 					if setup_where_installed or setup_where_installed_with_dependencies or update_where_installed:
 						action_request = "update" if update_where_installed else "setup"
-						if opsi_package.product.getSetupScript():
-							dependency = True if setup_where_installed_with_dependencies else False
-							set_action_request_where_installed(
-								service_client,
-								depot.id,
-								opsi_package,
-								action_request=action_request,
-								dependency=dependency,
-							)
-						else:
-							logger.warning("Setup script not found for product '%s'", opsi_package.product.id)
-							get_console().print(f"Setup script not found for product '{opsi_package.product.id}'")
-
+						dependency = setup_where_installed_with_dependencies if setup_where_installed_with_dependencies else False
+						handle_action_request(service_client, depot.id, opsi_package.product, action_request, dependency)
 			finally:
 				depot_connection.disconnect()
 
