@@ -561,7 +561,7 @@ def get_clients_from_depot(service_client: ServiceClient, depot_id: str) -> list
 def get_product_on_clients(service_client: ServiceClient, clients_from_depot: tuple[str, ...], product_id: str) -> list[ProductOnClient]:
 	return service_client.jsonrpc(
 		"productOnClient_getObjects",
-		[[], {"clientId": clients_from_depot, "productId": product_id, "installationStatus": "installed"}],
+		[[], {"clientId": list(clients_from_depot), "productId": product_id, "installationStatus": "installed"}],
 	)
 
 

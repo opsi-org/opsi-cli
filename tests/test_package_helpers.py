@@ -3,11 +3,12 @@ test_package_helpers.py is a test file for the helpers functions used in the pac
 """
 
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
+from opsicommon.objects import Product, ProductOnClient
 from opsicommon.package import OpsiPackage
 
-from plugins.package.python.package_helpers import map_and_sort_packages, update_product_properties
+from plugins.package.python.package_helpers import handle_action_request, map_and_sort_packages, update_product_properties
 
 TEST_DATA_PATH = Path("tests/test_data/plugins/package")
 
@@ -77,3 +78,45 @@ def test_update_product_properties() -> None:
 			assert product_property.defaultValues == ["new1", "value1"]
 		else:
 			assert product_property.defaultValues == [True]
+
+
+def test_handle_action_request() -> None:
+	service_client = MagicMock()
+	service_client.jsonrpc.side_effect = [
+		[{"depotId": "pytest-depot1.test.tld", "clientId": "pytest-client1.test.tld"}],  # get_clients_from_depot
+		[
+			ProductOnClient(
+				clientId="pytest-client1.test.tld",
+				productId="testproduct",
+				installationStatus="installed",
+				productType="LocalbootProduct",
+				productVersion="1.0",
+				packageVersion="1",
+			)
+		],  # get_product_on_clients
+		[],  # call to productOnClient_updateObjects
+	]
+	product = Product(id="testproduct", productVersion="1.0", packageVersion="1")
+	product.setSetupScript("setup_script")
+
+	handle_action_request(service_client, "pytest-depot1.test.tld", product, "setup", False)
+
+	service_client.jsonrpc.assert_any_call("configState_getClientToDepotserver", ["pytest-depot1.test.tld"])
+	service_client.jsonrpc.assert_any_call(
+		"productOnClient_getObjects",
+		[[], {"clientId": ["pytest-client1.test.tld"], "productId": "testproduct", "installationStatus": "installed"}],
+	)
+	service_client.jsonrpc.assert_any_call(
+		"productOnClient_updateObjects",
+		[
+			[
+				ProductOnClient(
+					clientId="pytest-client1.test.tld",
+					productId="testproduct",
+					installationStatus="installed",
+					actionRequest="setup",
+					productType="LocalbootProduct",
+				)
+			]
+		],
+	)
