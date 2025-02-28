@@ -177,7 +177,7 @@ def package_list(depots: str, product_type: str, product_ids: list[str]) -> None
 
 	try:
 		service_client = get_service_connection()
-		product_list = service_client.jsonrpc("product_getObjects")
+		product_list = service_client.jsonrpc("product_getObjects", [[], {"id": product_ids, "type": product_type}])
 		product_on_depot_list = service_client.jsonrpc(
 			"productOnDepot_getObjects", [[], {"depotId": depot_list, "productId": product_ids, "productType": product_type}]
 		)
