@@ -419,3 +419,14 @@ def test_package_installation_from_urls() -> None:
 
 			exit_code, _, _ = run_cli(["package", "uninstall", "test2", "7zip"])
 			assert exit_code == 0
+
+
+@pytest.mark.docker_linux
+@pytest.mark.requires_testcontainer
+def test_package_installation_with_action_request_setup() -> None:
+	with container_connection():
+		exit_code, _, _ = run_cli(["package", "install", str(TEST_DATA_PATH / "testdependency5_2-0.opsi"), "--setup-where-installed"])
+		assert exit_code == 0
+
+		exit_code, _, _ = run_cli(["package", "uninstall", "testdependency5"])
+		assert exit_code == 0
