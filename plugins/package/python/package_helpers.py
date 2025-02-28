@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 
 from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.logging import get_logger
-from opsicommon.objects import BoolProductProperty, OpsiDepotserver, ProductProperty
+from opsicommon.objects import BoolProductProperty, OpsiDepotserver, Product, ProductOnClient, ProductProperty
 from opsicommon.package import OpsiPackage
 from opsicommon.package.archive import extract_archive
 from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
@@ -482,7 +482,7 @@ def install_package(
 	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
 		assert progress
 		if not config.quiet:
-			task = progress.add_task(f"Installing '{dest_package_name}' on depot '{depot_id}'...\n", total=None)
+			task = progress.add_task(f"Installing '{dest_package_name}' on depot '{depot_id}'...", total=None)
 		depot_connection.jsonrpc("depot_installPackage", installation_params)
 		if not config.quiet:
 			progress.update(task, total=1, completed=1)
@@ -504,8 +504,75 @@ def uninstall_package(
 	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
 		assert progress
 		if not config.quiet:
-			task = progress.add_task(f"Uninstalling '{product_id}' from depot '{depot_id}'...\n", total=100)
+			task = progress.add_task(f"Uninstalling '{product_id}' from depot '{depot_id}'...", total=100)
 		depot_connection.jsonrpc("depot_uninstallPackage", uninstallation_params)
 		if not config.quiet:
 			progress.update(task, completed=100)
 	logger.notice("Finished uninstallation of product %s from depot %s", product_id, depot_id)
+
+
+def handle_action_request(service_client: ServiceClient, depot_id: str, product: Product, action_request: str, dependency: bool) -> None:
+	if not validate_action_request(product, action_request):
+		return
+
+	clients_from_depot = get_clients_from_depot(service_client, depot_id)
+	if not clients_from_depot:
+		logger.warning("No clients found for depot %s. Skipping setting action request.", depot_id)
+		get_console().print(f"No clients found for depot '{depot_id}'. Skipping setting action request.")
+		return
+
+	product_on_clients = get_product_on_clients(service_client, tuple(clients_from_depot), product.id)
+	if not product_on_clients:
+		logger.warning("No productOnClient found for product %s. Skipping setting action request.", product.id)
+		get_console().print(f"No productOnClient found for product '{product.id}'. Skipping setting action request.")
+		return
+
+	logger.notice("Setting action request to '%s' for product %s on depot %s", action_request, product.id, depot_id)
+	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
+		assert progress
+		if not config.quiet:
+			task = progress.add_task(
+				f"Setting action request to '{action_request}' for product '{product.id}' on depot '{depot_id}'...",
+				total=100,
+			)
+
+		set_action_request(service_client, product.id, action_request, product_on_clients, dependency)
+
+		if not config.quiet:
+			progress.update(task, completed=100)
+	logger.notice("Finished setting action request to '%s' for product %s on depot %s", action_request, product.id, depot_id)
+
+
+@lru_cache(maxsize=100)
+def validate_action_request(product: Product, action_request: str) -> bool:
+	if action_request == "update" and not product.getUpdateScript() or action_request == "setup" and not product.getSetupScript():
+		logger.warning("%s script not found for product '%s'.", action_request.capitalize(), product.id)
+		get_console().print(f"{action_request.capitalize()} script not found for product '{product.id}'.")
+		return False
+	return True
+
+
+@lru_cache(maxsize=100)
+def get_clients_from_depot(service_client: ServiceClient, depot_id: str) -> list[str]:
+	return [client_to_depot["clientId"] for client_to_depot in service_client.jsonrpc("configState_getClientToDepotserver", [depot_id])]
+
+
+@lru_cache(maxsize=100)
+def get_product_on_clients(service_client: ServiceClient, clients_from_depot: tuple[str, ...], product_id: str) -> list[ProductOnClient]:
+	return service_client.jsonrpc(
+		"productOnClient_getObjects",
+		[[], {"clientId": list(clients_from_depot), "productId": product_id, "installationStatus": "installed"}],
+	)
+
+
+def set_action_request(
+	service_client: ServiceClient, product_id: str, action_request: str, product_on_clients: list[ProductOnClient], dependency: bool
+) -> None:
+	if dependency:
+		logger.notice("Setting action request to '%s' with dependencies for product %s", action_request, product_id)
+		for poc in product_on_clients:
+			service_client.jsonrpc("setProductActionRequestWithDependencies", [product_id, poc.clientId, action_request])
+	else:
+		for poc in product_on_clients:
+			poc.actionRequest = action_request
+		service_client.jsonrpc("productOnClient_updateObjects", [product_on_clients])
