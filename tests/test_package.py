@@ -260,6 +260,7 @@ def test_package_list() -> None:
 		assert exit_code == 0
 
 
+@pytest.mark.requires_testcontainer
 def test_package_list_filter_by_product_type() -> None:
 	with container_connection():
 		connection = get_service_connection()
