@@ -258,7 +258,7 @@ def test_package_list() -> None:
 		exit_code, _stdout, _stderr = run_cli(["package", "list", "--depots", "all", "opsi-client-agent"])
 		assert exit_code == 0
 
-		exit_code, _stdout, _stderr = run_cli(["-l7", "package", "list", "--product-type", "localbootproduct"])
+		exit_code, _stdout, _stderr = run_cli(["-l7", "package", "list", "--product-type", "localboot"])
 		assert exit_code == 0
 
 

@@ -158,7 +158,7 @@ def combine_products(product_dict: dict, product_on_depot_dict: dict) -> list:
 @click.option("--depots", help="Depot IDs (comma-separated) or 'all'", default="all")
 @click.option(
 	"--product-type",
-	type=click.Choice(["LocalbootProduct", "NetbootProduct"], case_sensitive=False),
+	type=click.Choice(["localboot", "netboot"], case_sensitive=False),
 	help="Filter by product type",
 	default=None,
 )
@@ -174,6 +174,9 @@ def package_list(depots: str, product_type: str, product_ids: list[str]) -> None
 	logger.trace("list packages")
 	depots = depots.strip() or "all"
 	depot_list = [depot.strip() for depot in depots.split(",") if depot.strip() != "all"]
+
+	if product_type:
+		product_type = {"localboot": "LocalbootProduct", "netboot": "NetbootProduct"}.get(product_type.lower(), product_type)
 
 	try:
 		service_client = get_service_connection()
