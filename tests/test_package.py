@@ -282,6 +282,7 @@ def test_combine_products() -> None:
 			"description": "Test Product Description",
 			"product_version": "1.0",
 			"package_version": "1",
+			"product_type": "LocalbootProduct",
 		}
 	]
 
