@@ -250,14 +250,15 @@ def test_control_to_toml(setup_test_product: Path) -> None:
 def test_package_list() -> None:
 	with container_connection():
 		exit_code, _stdout, _stderr = run_cli(["-l7", "package", "list"])
-		print(_stdout)
-		print(_stderr)
 		assert exit_code == 0
 
 		exit_code, _stdout, _stderr = run_cli(["package", "list", "opsi*"])
 		assert exit_code == 0
 
 		exit_code, _stdout, _stderr = run_cli(["package", "list", "--depots", "all", "opsi-client-agent"])
+		assert exit_code == 0
+
+		exit_code, _stdout, _stderr = run_cli(["-l7", "package", "list", "--product-type", "localbootproduct"])
 		assert exit_code == 0
 
 
@@ -305,7 +306,6 @@ def test_package_install_and_uninstall() -> None:
 				str(TEST_DATA_PATH / "testdependency5_1.2-2.opsi"),
 			]
 		)
-		print(_stderr)
 		assert exit_code != 0
 		assert "Opsi rpc error:" in _stderr
 

@@ -147,6 +147,7 @@ def combine_products(product_dict: dict, product_on_depot_dict: dict) -> list:
 						"description": product.description,
 						"product_version": product.productVersion,
 						"package_version": product.packageVersion,
+						"product_type": pod.productType,
 					}
 				)
 	return combined_products
@@ -154,8 +155,14 @@ def combine_products(product_dict: dict, product_on_depot_dict: dict) -> list:
 
 @cli.command(name="list", short_help="List opsi packages")
 @click.option("--depots", help="Depot IDs (comma-separated) or 'all'", default="all")
+@click.option(
+	"--product-type",
+	type=click.Choice(["LocalbootProduct", "NetbootProduct"], case_sensitive=False),
+	help="Filter by product type",
+	default=None,
+)
 @click.argument("product_ids", type=str, nargs=-1)
-def package_list(depots: str, product_ids: list[str]) -> None:
+def package_list(depots: str, product_type: str, product_ids: list[str]) -> None:
 	"""
 	opsi-cli package list subcommand.
 	This subcommand is used to list opsi packages.
@@ -170,7 +177,9 @@ def package_list(depots: str, product_ids: list[str]) -> None:
 	try:
 		service_client = get_service_connection()
 		product_list = service_client.jsonrpc("product_getObjects")
-		product_on_depot_list = service_client.jsonrpc("productOnDepot_getObjects", [[], {"depotId": depot_list, "productId": product_ids}])
+		product_on_depot_list = service_client.jsonrpc(
+			"productOnDepot_getObjects", [[], {"depotId": depot_list, "productId": product_ids, "productType": product_type}]
+		)
 	except Exception as err:
 		logger.error(err, exc_info=True)
 		raise err
