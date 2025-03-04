@@ -11,7 +11,7 @@ from click.shell_completion import CompletionItem  # type: ignore[import]
 from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.logging import get_logger
 
-from opsicli.config import ConfigValueSource, config
+from opsicli.config import DEFAULT_SESSION_LIFETIME, ConfigValueSource, config
 from opsicli.decorators import handle_list_attributes
 from opsicli.io import console_print, prompt, write_output
 from opsicli.plugin import OPSICLIPlugin
@@ -131,6 +131,7 @@ def service_list() -> None:
 				"username": item.username,
 				"password": "*****" if item.password else "",
 				"default": item.name == default_service,
+				"session_lifetime": item.session_lifetime,
 			}
 		)
 
@@ -144,6 +145,7 @@ def service_list() -> None:
 @click.option("--password", type=str, required=False, default=None)
 @click.option("--default", is_flag=True, type=bool, required=False, default=False)
 @click.option("--system", is_flag=True, type=bool, required=False, default=False)
+@click.option("--session-lifetime", type=int, required=False, default=DEFAULT_SESSION_LIFETIME)
 def service_add(
 	url: str | None = None,
 	name: str | None = None,
@@ -151,6 +153,7 @@ def service_add(
 	password: str | None = None,
 	default: bool = False,
 	system: bool = False,
+	session_lifetime: int = DEFAULT_SESSION_LIFETIME,
 ) -> None:
 	"""
 	opsi-cli config service add subcommand.
@@ -199,7 +202,7 @@ def service_add(
 		else:
 			default = not default_service
 
-	new_service = OPSIService(name=name, url=url, username=username, password=Password(password))
+	new_service = OPSIService(name=name, url=url, username=username, password=Password(password), session_lifetime=session_lifetime)
 	config.get_config_item("services").add_value(new_service, conf_source)
 	if default:
 		logger.info("Setting default config service to %r", name)

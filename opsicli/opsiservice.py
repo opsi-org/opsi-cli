@@ -7,14 +7,10 @@ opsi service
 
 from urllib.parse import urlparse
 
-from opsicommon.client.opsiservice import (
-	OpsiServiceVerificationError,
-	ServiceClient,
-	ServiceConnectionListener,
-	get_service_client,
-)
+from opsicommon.client.opsiservice import OpsiServiceVerificationError, ServiceClient, ServiceConnectionListener, get_service_client
 from opsicommon.logging import get_logger
 from opsicommon.objects import OpsiDepotserver
+from opsicommon.utils import unix_timestamp
 
 from opsicli import __version__
 from opsicli.cache import cache
@@ -23,15 +19,24 @@ from opsicli.io import prompt
 
 logger = get_logger("opsicli")
 service_client = None
-SESSION_LIFETIME = 150  # seconds
 
 
 class OpsiCliConnectionListener(ServiceConnectionListener):
 	def connection_established(self, service_client: ServiceClient) -> None:
 		logger.trace("Connection has been established, cookies: %s", service_client._session.cookies)
-		session_cookie = service_client._session.cookies.get_dict().get("opsiconfd-session")  # type: ignore[no-untyped-call]
-		if session_cookie:
-			cache.set("opsiconfd-session", f"opsiconfd-session={session_cookie}", SESSION_LIFETIME - 10)
+		cookies = [cookie for cookie in service_client._session.cookies if cookie.domain and cookie.name == "opsiconfd-session"]
+		if not cookies:
+			logger.warning("No session cookie received")
+			return
+		cookie = cookies[0]
+		current_timestamp = unix_timestamp()
+		seconds_left = round(cookie.expires - current_timestamp)
+		if seconds_left <= 0:
+			logger.warning("Session cookie expired")
+			return
+		logger.debug("Session cookie expires in %d seconds", seconds_left)
+		if seconds_left > 10:
+			cache.set("opsiconfd-session", f"opsiconfd-session={cookie.value}", seconds_left - 10)
 
 
 def get_depot_connection(depot: OpsiDepotserver) -> ServiceClient:
@@ -101,13 +106,14 @@ def get_service_connection(verify: str | None = None) -> ServiceClient:
 			totp=totp,
 			sso=config.sso,
 			user_agent=f"opsi-cli/{__version__}",
-			session_lifetime=SESSION_LIFETIME,
+			session_lifetime=config.session_lifetime,
 			session_cookie=session_cookie,
 			jsonrpc_create_methods=True,
 			jsonrpc_create_objects=True,
 			auto_connect=False,
 			verify=verify,
 		)
+
 		service_client.register_connection_listener(OpsiCliConnectionListener())
 		try:
 			service_client.connect()

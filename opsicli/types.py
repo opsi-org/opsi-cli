@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, Type
 from urllib.parse import urlparse
 
-from opsicli.config import COMPLETION_MODE
+from opsicli.config import COMPLETION_MODE, DEFAULT_SESSION_LIFETIME
 
 if not COMPLETION_MODE:  # type: ignore[has-type]
 	import rich_click as click  # type: ignore[import]
@@ -21,8 +21,10 @@ else:
 	# Loads faster
 	import click  # type: ignore[import,no-redef]
 
-from opsicommon.logging import LEVEL_TO_OPSI_LEVEL  # type: ignore[import]
-from opsicommon.logging import NAME_TO_LEVEL
+from opsicommon.logging import (
+	LEVEL_TO_OPSI_LEVEL,  # type: ignore[import]
+	NAME_TO_LEVEL,
+)
 
 from opsicli.utils import decrypt, encrypt
 
@@ -152,6 +154,7 @@ class OPSIService:
 	url: str
 	username: str | None = None
 	password: Password | None = None
+	session_lifetime: int = DEFAULT_SESSION_LIFETIME
 
 	def __setattr__(self, name: str, value: Any) -> None:
 		if name == "password" and not isinstance(value, Password):
