@@ -310,7 +310,7 @@ def install(location: str, no_add_to_path: bool, system: bool | None, binary_pat
 				install_binary(source=src_binary, destination=binary)
 		except Exception as err:
 			exit_code = 1
-			logger.error("Failed to install opsi-cli to '%s': %s", binary, err)
+			logger.error("Failed to install opsi-cli to '%s': %s", binary, err, exc_info=True)
 			get_console().print(f"[red]Failed to install opsi-cli to '{binary}': {err}[/red]")
 			continue
 

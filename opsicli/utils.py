@@ -22,8 +22,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Type
 
-from opsicommon.logging import get_logger  # type: ignore[import]
-from opsicommon.logging import use_logging_config
+from opsicommon.logging import get_logger, use_logging_config
 from opsicommon.system.info import is_posix, is_windows
 
 if is_windows():
@@ -258,14 +257,14 @@ def install_binary(source: Path | str, destination: Path | str) -> None:
 		backup_path = destination.with_suffix(destination.suffix + ".old")
 		if backup_path.exists():
 			backup_path.unlink()
-		shutil.move(destination, backup_path)
+		destination.rename(backup_path)
 	try:
 		shutil.copy(source, destination)
 	except Exception as err:
 		logger.error("Failed to install binary from '%s' to '%s': %s", source, destination, err)
 		if backup_path:
 			logger.warning("Restoring backup.")
-			shutil.move(backup_path, destination)
+			backup_path.rename(destination)
 		raise
 	else:
 		if backup_path:
