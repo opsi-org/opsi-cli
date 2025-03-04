@@ -30,7 +30,7 @@ class OpsiCliConnectionListener(ServiceConnectionListener):
 			return
 		cookie = cookies[0]
 		current_timestamp = unix_timestamp()
-		seconds_left = round(cookie.expires - current_timestamp)
+		seconds_left = round(cookie.expires or 0 - current_timestamp)
 		if seconds_left <= 0:
 			logger.warning("Session cookie expired")
 			return
