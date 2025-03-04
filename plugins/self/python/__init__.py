@@ -402,7 +402,7 @@ def upgrade(branch: str, source_url: str, location: str, allow_downgrade: bool) 
 					install_binary(destination=binary, source=new_binary)
 			except Exception as err:
 				exit_code = 1
-				logger.error("Failed to install opsi-cli to '%s': %s", binary, err)
+				logger.error("Failed to install opsi-cli to '%s': %s", binary, err, exc_info=True)
 				get_console().print(f"[red]Failed to install opsi-cli to '{binary}': {err}[/red]")
 				continue
 

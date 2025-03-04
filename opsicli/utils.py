@@ -254,10 +254,15 @@ def install_binary(source: Path | str, destination: Path | str) -> None:
 
 	backup_path = None
 	if destination.exists() and destination.is_file():
-		backup_path = destination.with_suffix(destination.suffix + ".old")
-		if backup_path.exists():
-			backup_path.unlink()
-		destination.rename(backup_path)
+		try:
+			backup_path = destination.with_suffix(destination.suffix + ".old")
+			if backup_path.exists():
+				backup_path.unlink()
+			destination.rename(backup_path)
+		except Exception as err:
+			logger.error("Failed to create backup '%s' of existing binary '%s': %s", destination, backup_path, err, exc_info=True)
+			backup_path = None
+
 	try:
 		shutil.copy(source, destination)
 	except Exception as err:
