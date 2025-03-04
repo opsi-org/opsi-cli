@@ -273,7 +273,11 @@ def install_binary(source: Path | str, destination: Path | str) -> None:
 		raise
 	else:
 		if backup_path:
-			backup_path.unlink()
+			try:
+				backup_path.unlink()
+			except Exception as err:
+				# Windows does not allow to delete a file that is in use
+				logger.debug("Failed to delete backup '%s': %s", backup_path, err)
 		if is_posix():
 			os.chmod(destination, 0o755)
 
