@@ -13,6 +13,7 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from io import BytesIO, StringIO
 from typing import IO, Any, Iterator, Type
+
 import msgpack  # type: ignore[import]
 import orjson
 from opsicommon.logging import get_logger
@@ -160,6 +161,7 @@ def get_console(file: IO[str] | None = None, ignore_quiet: bool = False) -> Cons
 def console_print(
 	*args: Any,
 	rule: str | None = None,
+	style: str | None = None,
 	**kwargs: Any,
 ) -> None:
 	"""
@@ -169,7 +171,7 @@ def console_print(
 	if rule:
 		console.rule(rule, **kwargs)
 	else:
-		console.print(*args, **kwargs)
+		console.print(*args, style=style, **kwargs)
 
 
 def prompt(

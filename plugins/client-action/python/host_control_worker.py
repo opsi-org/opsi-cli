@@ -10,7 +10,7 @@ from opsicommon.logging import get_logger
 from opsicommon.messagebus.message import EventMessage
 
 from opsicli.config import config
-from opsicli.io import get_console
+from opsicli.io import console_print
 from opsicli.messagebus import MessagebusConnection
 from opsicli.utils import evaluate_rpc_dict_result
 
@@ -106,7 +106,9 @@ class HostControlWorker(ClientActionWorker):
 
 	def trigger_event(self, event: str = "on_demand", wakeup: bool = False, wakeup_timeout: float = 60.0) -> None:
 		if config.dry_run:
-			logger.notice("Operating in dry-run mode - not performing any actions")
+			msg = "Operating in dry-run mode - not performing any actions"
+			logger.notice(msg)
+			console_print(msg + "\n", style="yellow")
 
 		reachable_clients, unreachable_clients = self.divide_clients_by_reachable()
 		errors = []
@@ -140,7 +142,7 @@ class HostControlWorker(ClientActionWorker):
 
 		msg = f"Successfully triggered event on {client_count} clients"
 		logger.notice(msg)
-		get_console().print(msg)
+		console_print(msg + "\n", style="green")
 
 		if errors:
 			raise RuntimeError("\n".join(errors))
@@ -154,7 +156,7 @@ class HostControlWorker(ClientActionWorker):
 		if config.dry_run:
 			msg = f"Operating in dry-run mode - would shutdown {client_count} clients"
 			logger.notice(msg)
-			get_console().print(msg)
+			console_print(msg + "\n", style="yellow")
 			return
 
 		logger.notice("Shutting down clients %s", self.clients)
@@ -164,7 +166,7 @@ class HostControlWorker(ClientActionWorker):
 		if not failed:
 			msg = f"Successfully shutdown {client_count} clients"
 			logger.notice(msg)
-			get_console().print(msg)
+			console_print(msg + "\n", style="green")
 			return
 
 		err = "\n".join(f"{client}: {error}" for client, error in failed.items())
@@ -179,7 +181,7 @@ class HostControlWorker(ClientActionWorker):
 		if config.dry_run:
 			msg = f"Operating in dry-run mode - would wake {client_count} clients"
 			logger.notice(msg)
-			get_console().print(msg)
+			console_print(msg + "\n", style="yellow")
 			return
 
 		failed = self._wakeup_clients(self.clients, wakeup_timeout=wakeup_timeout)[1]
@@ -187,7 +189,7 @@ class HostControlWorker(ClientActionWorker):
 		if not failed:
 			msg = f"Successfully woke {client_count} clients"
 			logger.notice(msg)
-			get_console().print(msg)
+			console_print(msg + "\n", style="green")
 			return
 
 		err = "\n".join(f"{client}: {error}" for client, error in failed.items())

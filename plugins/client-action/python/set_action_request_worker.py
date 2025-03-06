@@ -8,6 +8,7 @@ from opsicommon.logging import get_logger
 from opsicommon.objects import Product, ProductDependency, ProductGroup, ProductOnClient, ProductOnDepot
 
 from opsicli.config import config
+from opsicli.io import console_print
 
 from .client_action_worker import ClientActionArgs, ClientActionWorker
 
@@ -206,7 +207,9 @@ class SetActionRequestWorker(ClientActionWorker):
 
 	def set_action_request(self, **kwargs: str) -> None:
 		if config.dry_run:
-			logger.notice("Operating in dry-run mode - not performing any actions")
+			msg = "Dry-run mode enabled - no actions will be performed"
+			logger.notice(msg)
+			console_print(f"{msg}\n", style="yellow")
 
 		self.request_type = kwargs.get("request_type", self.request_type)
 		self.determine_products(
@@ -217,7 +220,8 @@ class SetActionRequestWorker(ClientActionWorker):
 			use_default_excludes=bool(kwargs.get("where_outdated", False)) or bool(kwargs.get("where_failed", False)),
 		)
 		if not self.products:
-			raise ValueError("No products selected")
+			raise ValueError("No product/s to set action request on. The specified product/s might not exist or might have been excluded.")
+
 		if kwargs.get("uninstall_where_only_uninstall"):
 			logger.notice("Uninstalling products (where installed): %s", self.products_with_only_uninstall)
 
@@ -264,7 +268,12 @@ class SetActionRequestWorker(ClientActionWorker):
 			new_pocs.extend(self.set_action_requests_for_all(self.clients, self.products, force=True))
 
 		if not new_pocs:
-			logger.info("Nothing to do.")
+			msg = "No action requests to set."
+			logger.notice(msg)
+			console_print(f"{msg}\n")
 		elif not config.dry_run:
 			logger.debug("Updating ProductOnClient")
 			self.service.jsonrpc("productOnClient_updateObjects", [new_pocs])
+			console_print("Action requests have been set. Here are the updated ProductOnClient objects:\n", style="green")
+			console_print(f"{'Client ID':<30} {'Product ID':<30} {'Action Request':<30}\n" + "-" * 90)
+			console_print("\n".join([f"{poc.clientId:<30} {poc.productId:<30} {poc.actionRequest:<30}" for poc in new_pocs]))
