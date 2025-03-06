@@ -7,6 +7,7 @@ client-action plugin
 import sys
 
 import rich_click as click  # type: ignore[import]
+from click.core import ParameterSource
 from opsicommon.logging import get_logger
 
 from opsicli.plugin import OPSICLIPlugin
@@ -178,9 +179,6 @@ def execute(
 	"""
 	if not command and not opsi_script:
 		raise click.UsageError("Missing argument 'COMMAND...' or '--opsi-script' option.")
-
-	if opsi_script_log_level and not opsi_script:
-		raise click.UsageError("--opsi-script-log-level can only be used with --opsi-script")
 
 	if opsi_script:
 		try:
