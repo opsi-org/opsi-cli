@@ -108,7 +108,7 @@ class ClientActionWorker:
 			console = get_console(file=sys.stderr)
 			console.print(
 				"[bright_yellow]No clients selected, defaulting to all clients.\n"
-				"This is deprecated, please use `--clients all` to select all clients.[/bright_yellow]"
+				"This is deprecated, please use `--clients all` to select all clients.[/bright_yellow]\n"
 			)
 			args.clients = "all"
 		if "all" in args.clients:

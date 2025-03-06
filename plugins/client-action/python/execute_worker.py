@@ -35,7 +35,9 @@ class ExecuteWorker(ClientActionWorker):
 		opsiscript_log_level: int = 0,
 	) -> int:
 		if config.dry_run:
-			logger.notice("Operating in dry-run mode - not performing any actions")
+			msg = "Operating in dry-run mode - not performing any actions"
+			logger.notice(msg)
+			console_print(msg + "\n", style="yellow")
 			return 0
 
 		channels = [f"host:{client}" for client in self.clients]
