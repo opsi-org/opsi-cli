@@ -7,7 +7,6 @@ client-action plugin
 import sys
 
 import rich_click as click  # type: ignore[import]
-from click.core import ParameterSource
 from opsicommon.logging import get_logger
 
 from opsicli.plugin import OPSICLIPlugin
