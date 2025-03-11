@@ -25,21 +25,21 @@ logger = get_logger("opsicli")
 @click.group(name="client-action", short_help="Command group to manage client actions")
 @click.version_option(__version__, message="opsi-cli plugin client-action, version %(version)s")
 @click.pass_context
-@click.option("--clients", help="Comma-separated list of clients or 'all'")
-@click.option("--client-groups", help="Comma-separated list of host groups")
-@click.option("--clients-from-depots", help="Comma-separated list of depots to get associated clients")
-@click.option("--exclude-clients", help="Do not perform actions for these clients")
-@click.option("--exclude-client-groups", help="Do not perform actions for these client groups")
+@click.option("--clients", help="Select clients IDs (comma-separated list) or use 'all' for all clients.")
+@click.option("--client-groups", help="Select clients from these client groups (comma-separated list).")
+@click.option("--clients-from-depots", help="Select clients from these depots.")
+@click.option("--exclude-clients", help="Exclude these clients IDs (comma-separated list).")
+@click.option("--exclude-client-groups", help="Do not perform actions for these client groups (comma-separated list).")
 @click.option(
 	"--only-online",
-	help="Limit actions to clients that are connected to the messagebus",
+	help="Limit actions to clients that are connected to the messagebus.",
 	is_flag=True,
 	default=False,
 )
-@click.option("--ip-addresses", help="Comma-separated list ip addresses or networks")
+@click.option("--ip-addresses", help="Select clients by IP addresses or networks (comma-separated list).")
 @click.option(
 	"--exclude-ip-addresses",
-	help="Comma-separamted list of ip addresses or networks to exclude",
+	help="Exclude clients by IP addresses or networks (comma-separated list).",
 )
 def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 	"""
@@ -53,43 +53,55 @@ def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 @click.pass_context
 @click.option(
 	"--where-failed",
-	help="Set this to add actionRequests for all selected failed products",
+	help="Set this to add actionRequests where the selected products failed.",
 	is_flag=True,
 	default=False,
 )
 @click.option(
 	"--where-outdated",
-	help="Set this to add actionRequests for all selected outdated products",
+	help="Set this to add actionRequests where the selected products are outdated.",
 	is_flag=True,
 	default=False,
 )
 @click.option(
 	"--uninstall-where-only-uninstall",
-	help="If this is set, any installed package which only has an uninstall script will be set to uninstall",
+	help="If this is set, any installed package which only has an uninstall script will be set to uninstall.",
 	is_flag=True,
 	default=False,
 )
-@click.option("--exclude-products", help="Do not set actionRequests for these products")
-@click.option("--products", help="Set actionRequests for these products")
+@click.option("--exclude-products", help="Do not set actionRequests for these products (comma-separated list).")
+@click.option("--products", help="Set actionRequests for these products (comma-separated list).")
 @click.option(
 	"--product-groups",
-	help="Set actionRequests for the products of these product groups",
+	help="Set actionRequests for the products of these product groups (comma-separated list).",
 )
 @click.option(
 	"--exclude-product-groups",
-	help="Do not set actionRequests for these product groups",
+	help="Do not set actionRequests for these product groups (comma-separated list).",
 )
 @click.option(
 	"--request-type",
-	help="The type of action request to set",
+	help="The type of action request to set.",
 	show_default=True,
 	default="setup",
 )
 @click.option(
 	"--setup-on-action",
-	help="After actionRequest was set for a client, set these products to setup",
+	help="If an actionRequest has been set for a client, also set these products to setup (comma-separated list).",
 )
-def set_action_request(ctx: click.Context, **kwargs: str) -> None:
+@click.option(
+	"--process",
+	help="Process the action requests immediately.",
+	is_flag=True,
+	default=False,
+)
+@click.option(
+	"--process-visibility",
+	type=click.Choice(["visible", "hidden"], case_sensitive=False),
+	help="The visibility of action processing on the client. Client default, if not specified.",
+	default=None,
+)
+def set_action_request(ctx: click.Context, **kwargs: str | bool) -> None:
 	"""
 	opsi-cli client-action set-action-request command
 	"""

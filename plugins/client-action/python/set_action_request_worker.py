@@ -205,7 +205,7 @@ class SetActionRequestWorker(ClientActionWorker):
 				new_pocs.extend(self.set_single_action_request(poc, request_type or self.request_type, force=force))
 		return new_pocs
 
-	def set_action_request(self, **kwargs: str) -> None:
+	def set_action_request(self, **kwargs: str | bool) -> None:
 		if config.dry_run:
 			msg = "Dry-run mode enabled - no actions will be performed"
 			logger.notice(msg)
@@ -274,6 +274,22 @@ class SetActionRequestWorker(ClientActionWorker):
 		elif not config.dry_run:
 			logger.debug("Updating ProductOnClient")
 			self.service.jsonrpc("productOnClient_updateObjects", [new_pocs])
-			console_print("Action requests have been set. Here are the updated ProductOnClient objects:\n", style="green")
+			pocs_by_client = {}
+			msg = "Action requests have been set"
+			if kwargs.get("process"):
+				msg += " and processing was started"
+				logger.debug("Processing action requests")
+				for poc in new_pocs:
+					if poc.clientId not in pocs_by_client:
+						pocs_by_client[poc.clientId] = []
+					pocs_by_client[poc.clientId].append(poc)
+
+				for client_id, pocs in pocs_by_client.items():
+					res = self.service.jsonrpc(
+						"hostControl_processActionRequests",
+						[[client_id], [poc.productId for poc in pocs], kwargs.get("process_visibility")],
+					)
+					logger.debug("Result of hostControl_processActionRequests: %s", res)
+			console_print(f"{msg}. Here are the updated ProductOnClient objects:\n", style="green")
 			console_print(f"{'Client ID':<30} {'Product ID':<30} {'Action Request':<30}\n" + "-" * 90)
 			console_print("\n".join([f"{poc.clientId:<30} {poc.productId:<30} {poc.actionRequest:<30}" for poc in new_pocs]))
