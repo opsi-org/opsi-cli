@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 opsi-cli Basic command line interface for opsi
 """
@@ -7,7 +6,7 @@ import sys
 
 from opsicli.config import config
 
-__version__ = "4.3.10.0"
+__version__ = "4.3.15.0"
 
 
 def prepare_cli_paths() -> None:

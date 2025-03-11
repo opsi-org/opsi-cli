@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 opsi-cli Basic command line interface for opsi
 
@@ -18,11 +17,11 @@ from types import ModuleType
 from typing import Any
 
 from click import Command  # type: ignore[import]
-from opsicommon.logging import get_logger  # type: ignore[import]
+from opsicommon.logging import get_logger
 from packaging.version import parse
 
 from opsicli.config import COMPLETION_MODE, config
-from opsicli.utils import Singleton  # type: ignore[import]
+from opsicli.singelton import Singleton
 
 logger = get_logger("opsicli")
 
@@ -235,6 +234,7 @@ def install_dependencies(path: Path, target_dir: Path) -> None:
 
 	try:
 		import _frozen_importlib_external  # type: ignore[import-not-found]
+
 		import pyimod02_importers  # type: ignore[import-not-found]
 
 		resources._finder_registry[pyimod02_importers.PyiFrozenImporter] = resources._finder_registry[

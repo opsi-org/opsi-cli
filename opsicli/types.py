@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 opsi-cli - command line interface for opsi
 

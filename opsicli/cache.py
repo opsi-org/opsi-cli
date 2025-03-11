@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 opsi-cli Basic command line interface for opsi
 
@@ -13,7 +12,7 @@ import orjson
 from opsicommon.logging import get_logger  # type: ignore[import]
 
 from opsicli.config import config
-from opsicli.utils import Singleton  # type: ignore[import]
+from opsicli.singelton import Singleton
 
 logger = get_logger("opsicli")
 

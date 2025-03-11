@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 opsi-cli - command line interface for opsi
 
@@ -23,9 +22,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Type
 
 from opsicommon.logging import get_logger, use_logging_config
-from opsicommon.system.info import is_posix, is_windows
 
-if is_windows():
+if sys.platform == "win32":
 	import win32console  # type: ignore[import-not-found]
 else:
 	import termios
@@ -35,15 +33,6 @@ if TYPE_CHECKING:
 	from rich.progress import Progress
 
 logger = get_logger("opsicli")
-
-
-class Singleton(type):
-	_instances: dict[type, type] = {}
-
-	def __call__(cls: Singleton, *args: Any, **kwargs: Any) -> type:
-		if cls not in cls._instances:
-			cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
-		return cls._instances[cls]
 
 
 class ProgressCallbackAdapter:
@@ -91,7 +80,7 @@ def decrypt(cipher: str) -> str:
 
 
 def add_to_env_variable(key: str, value: str, system: bool = False) -> None:
-	if not is_windows():
+	if sys.platform != "win32":
 		raise NotImplementedError(
 			f"add_to_env_variable is currently only implemented for windows - If necessary, manually add {value} to {key}"
 		)
@@ -138,7 +127,7 @@ def add_to_env_variable(key: str, value: str, system: bool = False) -> None:
 @contextmanager
 def raw_terminal() -> Iterator[None]:
 	with use_logging_config(stderr_level=0):
-		if is_windows():
+		if sys.platform == "win32":
 			con_buf_in = win32console.GetStdHandle(-10)  # STD_INPUT_HANDLE /  CONIN$
 			mode_in = con_buf_in.GetConsoleMode()
 			con_buf_out = win32console.GetStdHandle(-11)  # STD_OUTPUT_HANDLE /  CONOUT$
@@ -278,7 +267,7 @@ def install_binary(source: Path | str, destination: Path | str) -> None:
 			except Exception as err:
 				# Windows does not allow to delete a file that is in use
 				logger.debug("Failed to delete backup '%s': %s", backup_path, err)
-		if is_posix():
+		if sys.platform in ("linux", "darwin"):
 			os.chmod(destination, 0o755)
 
 

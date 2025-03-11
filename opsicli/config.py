@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 opsi-cli Basic command line interface for opsi
 
@@ -16,7 +15,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Callable
 
-from opsicli.utils import Singleton
+from opsicli.singelton import Singleton
 
 DEFAULT_SESSION_LIFETIME = 150
 COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE" in os.environ
