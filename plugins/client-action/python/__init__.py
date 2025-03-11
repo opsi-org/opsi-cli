@@ -14,7 +14,7 @@ from opsicli.plugin import OPSICLIPlugin
 from .client_action_worker import ClientActionArgs
 from .execute_worker import ExecuteWorker
 from .host_control_worker import HostControlWorker
-from .set_action_request_worker import SetActionRequestWorker
+from .set_action_request_worker import SetActionRequestArgs, SetActionRequestWorker
 
 __version__ = "0.3.0"
 __description__ = "This command can be used to manage opsi client actions."
@@ -106,7 +106,7 @@ def set_action_request(ctx: click.Context, **kwargs: str | bool) -> None:
 	opsi-cli client-action set-action-request command
 	"""
 	worker = SetActionRequestWorker(ctx.obj)
-	worker.set_action_request(**kwargs)
+	worker.set_action_request(SetActionRequestArgs(**kwargs))  # type: ignore[arg-type]
 
 
 @cli.command(name="trigger-event", short_help="Trigger an event for selected clients")
