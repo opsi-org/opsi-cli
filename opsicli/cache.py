@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
 """
 opsi-cli Basic command line interface for opsi
 
 general configuration
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +12,7 @@ import orjson
 from opsicommon.logging import get_logger  # type: ignore[import]
 
 from opsicli.config import config
-from opsicli.utils import Singleton  # type: ignore[import]
+from opsicli.singelton import Singleton
 
 logger = get_logger("opsicli")
 
@@ -64,7 +63,7 @@ class Cache(metaclass=Singleton):
 
 	def set(self, name: str, value: Any, ttl: int = 0, store: bool = False) -> None:
 		self._ensure_loaded()
-		self._data[name] = {"date": datetime.utcnow().isoformat(), "ttl": max(int(ttl), 0), "value": value}
+		self._data[name] = {"date": datetime.now(tz=timezone.utc).isoformat(), "ttl": max(int(ttl), 0), "value": value}
 		self._modified = True
 		if store:
 			self.store()
@@ -76,7 +75,10 @@ class Cache(metaclass=Singleton):
 		self._ensure_loaded()
 		if name not in self._data:
 			return 500_000_000  # ~ 15 years
-		return int((datetime.utcnow() - datetime.fromisoformat(self._data[name]["date"])).total_seconds())
+		iso_date = self._data[name]["date"]
+		if "+" not in iso_date:
+			iso_date += "+00:00"
+		return int((datetime.now(tz=timezone.utc) - datetime.fromisoformat(iso_date)).total_seconds())
 
 
 cache = Cache()

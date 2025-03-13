@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 opsi-cli Basic command line interface for opsi
 
@@ -18,6 +17,7 @@ import msgpack  # type: ignore[import]
 import orjson
 from opsicommon.logging import get_logger
 from rich import print_json  # type: ignore[import]
+from rich.color import ANSI_COLOR_NAMES  # type: ignore[import]
 from rich.console import Console  # type: ignore[import]
 from rich.prompt import FloatPrompt, IntPrompt, Prompt  # type: ignore[import]
 from rich.table import Table, box  # type: ignore[import]
@@ -25,6 +25,24 @@ from rich.table import Table, box  # type: ignore[import]
 from opsicli.config import config
 
 logger = get_logger("opsicli")
+
+LOG_COLORS = {
+	"9": "#D500F9",  # SECRET
+	"8": "#8B8B8B",  # TRACE
+	"7": "#C0C0C0",  # DEBUG
+	"6": "#F5F5F5",  # INFO
+	"5": "#009605",  # NOTICE
+	"4": "#FF9100",  # WARNING
+	"3": "#E51D3B",  # ERROR
+	"2": "#E20066",  # CRITICAL
+	"1": "#2979FF",  # ESSENTIAL
+}
+
+COLORS = [
+	c
+	for c in ANSI_COLOR_NAMES
+	if "white" not in c and "black" not in c and "red" not in c and "grey" not in c and "gray" not in c and "bright" not in c
+]
 
 
 @dataclass
@@ -139,11 +157,20 @@ def get_console(file: IO[str] | None = None, ignore_quiet: bool = False) -> Cons
 	return Console(file=file, color_system="auto" if config.color else None)
 
 
-def console_print(*args: Any, **kwargs: Any) -> None:
+def console_print(
+	*args: Any,
+	rule: str | None = None,
+	style: str | None = None,
+	**kwargs: Any,
+) -> None:
 	"""
 	Print to console
 	"""
-	get_console().print(*args, **kwargs)
+	console = get_console()
+	if rule:
+		console.rule(rule, **kwargs)
+	else:
+		console.print(*args, style=style, **kwargs)
 
 
 def prompt(
@@ -196,9 +223,9 @@ def write_output_table(data: Any, metadata: Metadata) -> None:
 	if data:
 		row_type = type(data[0])
 		for row in data:
-			if row_type is dict:
+			if issubclass(row_type, dict):
 				table.add_row(*[to_string(row.get(rid)) for rid in row_ids])
-			elif row_type is list:
+			elif issubclass(row_type, list):
 				table.add_row(*[to_string(el) for el in row])
 			else:
 				table.add_row(*[to_string(row)])

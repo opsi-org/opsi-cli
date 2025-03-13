@@ -27,6 +27,7 @@ from .package_helpers import (
 	fix_custom_package_name,
 	get_depot_objects,
 	get_property_default_values,
+	handle_action_request,
 	install_package,
 	map_and_sort_packages,
 	process_local_packages,
@@ -147,6 +148,7 @@ def combine_products(product_dict: dict, product_on_depot_dict: dict) -> list:
 						"description": product.description,
 						"product_version": product.productVersion,
 						"package_version": product.packageVersion,
+						"product_type": pod.productType,
 					}
 				)
 	return combined_products
@@ -154,8 +156,14 @@ def combine_products(product_dict: dict, product_on_depot_dict: dict) -> list:
 
 @cli.command(name="list", short_help="List opsi packages")
 @click.option("--depots", help="Depot IDs (comma-separated) or 'all'", default="all")
+@click.option(
+	"--product-type",
+	type=click.Choice(["localboot", "netboot"], case_sensitive=False),
+	help="Filter by product type",
+	default=None,
+)
 @click.argument("product_ids", type=str, nargs=-1)
-def package_list(depots: str, product_ids: list[str]) -> None:
+def package_list(depots: str, product_type: str, product_ids: list[str]) -> None:
 	"""
 	opsi-cli package list subcommand.
 	This subcommand is used to list opsi packages.
@@ -167,10 +175,15 @@ def package_list(depots: str, product_ids: list[str]) -> None:
 	depots = depots.strip() or "all"
 	depot_list = [depot.strip() for depot in depots.split(",") if depot.strip() != "all"]
 
+	if product_type:
+		product_type = {"localboot": "LocalbootProduct", "netboot": "NetbootProduct"}.get(product_type.lower(), product_type)
+
 	try:
 		service_client = get_service_connection()
-		product_list = service_client.jsonrpc("product_getObjects")
-		product_on_depot_list = service_client.jsonrpc("productOnDepot_getObjects", [[], {"depotId": depot_list, "productId": product_ids}])
+		product_list = service_client.jsonrpc("product_getObjects", [[], {"id": product_ids, "type": product_type}])
+		product_on_depot_list = service_client.jsonrpc(
+			"productOnDepot_getObjects", [[], {"depotId": depot_list, "productId": product_ids, "productType": product_type}]
+		)
 	except Exception as err:
 		logger.error(err, exc_info=True)
 		raise err
@@ -261,7 +274,18 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 	default=False,
 )
 @click.option("--force", is_flag=True, help="Force installation.", default=False)
-def install(packages: list[str], depots: str, force: bool, update_properties: bool) -> None:
+@click.option("--setup-where-installed", is_flag=True, help="Setup where installed.", default=False)
+@click.option("--setup-where-installed-with-dependencies", is_flag=True, help="Setup where installed with dependencies.", default=False)
+@click.option("--update-where-installed", is_flag=True, help="Update where installed.", default=False)
+def install(
+	packages: list[str],
+	depots: str,
+	force: bool,
+	update_properties: bool,
+	setup_where_installed: bool,
+	setup_where_installed_with_dependencies: bool,
+	update_where_installed: bool,
+) -> None:
 	"""
 	opsi-cli package install subcommand.
 	This subcommand is used to install opsi packages.
@@ -295,6 +319,11 @@ def install(packages: list[str], depots: str, force: bool, update_properties: bo
 						update_properties,
 					)
 					install_package(depot_connection, depot.id, dest_package_name, force, property_default_values)
+
+					if setup_where_installed or setup_where_installed_with_dependencies or update_where_installed:
+						action_request = "update" if update_where_installed else "setup"
+						dependency = setup_where_installed_with_dependencies if setup_where_installed_with_dependencies else False
+						handle_action_request(service_client, depot.id, opsi_package.product, action_request, dependency)
 			finally:
 				depot_connection.disconnect()
 

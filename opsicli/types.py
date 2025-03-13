@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 opsi-cli - command line interface for opsi
 
@@ -13,7 +12,7 @@ from pathlib import Path
 from typing import Any, Type
 from urllib.parse import urlparse
 
-from opsicli.config import COMPLETION_MODE
+from opsicli.config import COMPLETION_MODE, DEFAULT_SESSION_LIFETIME
 
 if not COMPLETION_MODE:  # type: ignore[has-type]
 	import rich_click as click  # type: ignore[import]
@@ -21,8 +20,8 @@ else:
 	# Loads faster
 	import click  # type: ignore[import,no-redef]
 
-from opsicommon.logging import (  # type: ignore[import]
-	LEVEL_TO_OPSI_LEVEL,
+from opsicommon.logging import (
+	LEVEL_TO_OPSI_LEVEL,  # type: ignore[import]
 	NAME_TO_LEVEL,
 )
 
@@ -100,7 +99,7 @@ class OPSIServiceUrlOrServiceName(str):
 
 
 class Password(str):
-	def __new__(cls: Type[Password], value: str | None) -> Password:
+	def __new__(cls: Type[Password], value: str | None) -> Password:  # type: ignore[misc]
 		return super().__new__(cls, value or "")
 
 	def __repr__(self) -> str:
@@ -116,34 +115,33 @@ class Password(str):
 		return cls(decrypt(value))
 
 
-class File(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public-methods
+class File(Path):  # type: ignore[misc]
 	click_type = click.Path(dir_okay=False)
 
 	@classmethod
-	def cwd(cls) -> Path:
+	def cwd(cls) -> Path:  # type: ignore[override]
 		return Path(os.getcwd())
 
-	def __new__(cls: Type[File], *args: Any, **kwargs: Any) -> File:
-		path = super().__new__(cls, *args, **kwargs)
+	def __new__(cls: Type[File], *args: Any, **kwargs: Any) -> Type[Path]:  # type: ignore[misc]
+		path = Path(*args, **kwargs)
 		if str(path) != "-":
 			path = path.expanduser().absolute()
 			if path.exists() and not path.is_file():
 				raise ValueError(f"Not a file: {path!r}")
-		return path
+		return path  # type: ignore[return-value]
 
 	def to_yaml(self) -> str:
 		return str(self)
 
 
-class Directory(type(Path())):  # type: ignore[misc] # pylint: disable=too-few-public-methods
+class Directory(Path):  # type: ignore[misc]
 	click_type = click.Path(file_okay=False)
 
-	def __new__(cls: Type[Directory], *args: Any, **kwargs: Any) -> Directory:
-		path = super().__new__(cls, *args, **kwargs)
-		path = path.expanduser().absolute()
+	def __new__(cls: Type[Directory], *args: Any, **kwargs: Any) -> Type[Path]:  # type: ignore[misc]
+		path = Path(*args, **kwargs).expanduser().absolute()
 		if path.exists() and not path.is_dir():
 			raise ValueError(f"Not a directory: {path!r}")
-		return path
+		return path  # type: ignore[return-value]
 
 	def to_yaml(self) -> str:
 		return str(self)
@@ -155,6 +153,7 @@ class OPSIService:
 	url: str
 	username: str | None = None
 	password: Password | None = None
+	session_lifetime: int = DEFAULT_SESSION_LIFETIME
 
 	def __setattr__(self, name: str, value: Any) -> None:
 		if name == "password" and not isinstance(value, Password):

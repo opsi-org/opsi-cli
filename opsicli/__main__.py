@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 opsi-cli Basic command line interface for opsi
 
@@ -6,8 +5,6 @@ Main command
 """
 
 import builtins
-
-# pylint: disable=wrong-import-position
 import re
 import sys
 from typing import Any, Sequence
@@ -28,12 +25,7 @@ original_print = builtins.print
 
 if not COMPLETION_MODE:
 	import rich_click as click  # type: ignore[import,no-redef]
-	from rich_click.rich_click import (  # type: ignore[import]
-		_get_rich_formatter,
-		rich_abort_error,
-		rich_format_error,
-		rich_format_help,
-	)
+	from rich_click.rich_click import _get_rich_formatter, rich_abort_error, rich_format_error, rich_format_help  # type: ignore[import]
 
 	from opsicli.io import get_console
 else:
@@ -192,6 +184,7 @@ def quiet_print(*args: Any, **kwargs: Any) -> None:
 @config.get_click_option("service")
 @config.get_click_option("username", short_option="-u")
 @config.get_click_option("password", short_option="-p")
+@config.get_click_option("session_lifetime", help=f"{config.get_description('session_lifetime')}")
 @config.get_click_option("totp", is_flag=True, help=f"{config.get_description('totp')}")
 @config.get_click_option("sso", is_flag=True, help=f"{config.get_description('sso')}")
 @config.get_click_option("dry_run", long_option="--dry-run/--no-dry-run")

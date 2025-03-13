@@ -15,6 +15,7 @@ command_metadata = {
 			Attribute(id="description", description="Description", data_type="str"),
 			Attribute(id="product_version", description="Product Version", data_type="str"),
 			Attribute(id="package_version", description="Package Version", data_type="str"),
+			Attribute(id="product_type", description="Product Type", data_type="str"),
 		]
 	)
 }

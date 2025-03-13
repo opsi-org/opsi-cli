@@ -132,10 +132,27 @@ def test_service_config() -> None:
 		conffile = tmp_path / "conffile.conf"
 		config.config_file_user = conffile
 		exit_code, _stdout, _stderr = run_cli(
-			["config", "service", "add", "--name=test", "--username=testuser", "--password=testpassword", "https://testurl:4447"]
+			[
+				"config",
+				"service",
+				"add",
+				"--name=test",
+				"--username=testuser",
+				"--password=testpassword",
+				"https://testurl:4447",
+				"--session-lifetime",
+				"300",
+			]
 		)
 		assert exit_code == 0
-		assert any(service.name == "test" for service in config.get_values().get("services", []))
+		service_conf = [service for service in config.get_values().get("services", []) if service.name == "test"]
+		assert service_conf
+		assert service_conf[0].name == "test"
+		assert service_conf[0].username == "testuser"
+		assert service_conf[0].password == "testpassword"
+		assert service_conf[0].url == "https://testurl:4447"
+		assert service_conf[0].session_lifetime == 300
+
 		exit_code, _stdout, _stderr = run_cli(["config", "service", "remove", "test"])
 		assert exit_code == 0
 		assert not any(service.name == "test" for service in config.get_values().get("services", []))

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 opsi-cli Basic command line interface for opsi
 
@@ -18,11 +17,11 @@ from types import ModuleType
 from typing import Any
 
 from click import Command  # type: ignore[import]
-from opsicommon.logging import get_logger  # type: ignore[import]
+from opsicommon.logging import get_logger
 from packaging.version import parse
 
 from opsicli.config import COMPLETION_MODE, config
-from opsicli.utils import Singleton  # type: ignore[import]
+from opsicli.singelton import Singleton
 
 logger = get_logger("opsicli")
 
@@ -190,12 +189,8 @@ def install_plugin(source_dir: Path, name: str, system: bool = False) -> Path:
 
 def install_python_package(target_dir: Path, package: dict[str, str]) -> None:
 	# These imports take ~0.25s
-	from pip._internal.commands.install import (
-		InstallCommand,
-	)
-	from pip._vendor.distlib.scripts import (
-		ScriptMaker,
-	)
+	from pip._internal.commands.install import InstallCommand
+	from pip._vendor.distlib.scripts import ScriptMaker
 
 	def monkeypatched_make_multiple(
 		self: ScriptMaker,
@@ -231,7 +226,6 @@ def install_python_package(target_dir: Path, package: dict[str, str]) -> None:
 
 def install_dependencies(path: Path, target_dir: Path) -> None:
 	# Import is slow (python requests/urllib3)
-	# pylint: disable=import-outside-toplevel
 
 	from pip._vendor.distlib import resources
 	from pipreqs import pipreqs  # type: ignore[import]

@@ -9,9 +9,10 @@ import pytest
 from opsicommon.objects import LocalbootProduct, ProductOnDepot
 from opsicommon.testing.helpers import http_test_server
 
+from opsicli.opsiservice import get_service_connection
 from plugins.package.python import combine_products
 
-from .utils import container_connection, run_cli
+from .utils import container_connection, run_cli, tmp_product
 
 TEST_DATA_PATH = Path("tests/test_data/plugins/package")
 
@@ -250,8 +251,6 @@ def test_control_to_toml(setup_test_product: Path) -> None:
 def test_package_list() -> None:
 	with container_connection():
 		exit_code, _stdout, _stderr = run_cli(["-l7", "package", "list"])
-		print(_stdout)
-		print(_stderr)
 		assert exit_code == 0
 
 		exit_code, _stdout, _stderr = run_cli(["package", "list", "opsi*"])
@@ -259,6 +258,25 @@ def test_package_list() -> None:
 
 		exit_code, _stdout, _stderr = run_cli(["package", "list", "--depots", "all", "opsi-client-agent"])
 		assert exit_code == 0
+
+
+@pytest.mark.requires_testcontainer
+def test_package_list_filter_by_product_type() -> None:
+	with container_connection():
+		connection = get_service_connection()
+		with (
+			tmp_product(connection, "pytest-product1"),
+			tmp_product(connection, "pytest-product2", product_type="NetbootProduct"),
+		):
+			exit_code, _stdout, _ = run_cli(["package", "list", "--product-type", "netboot"])
+			assert exit_code == 0
+			assert "pytest-product2" in _stdout
+			assert "pytest-product1" not in _stdout
+
+			exit_code, _stdout, _ = run_cli(["package", "list", "--product-type", "localboot"])
+			assert exit_code == 0
+			assert "pytest-product1" in _stdout
+			assert "pytest-product2" not in _stdout
 
 
 def test_combine_products() -> None:
@@ -281,6 +299,7 @@ def test_combine_products() -> None:
 			"description": "Test Product Description",
 			"product_version": "1.0",
 			"package_version": "1",
+			"product_type": "LocalbootProduct",
 		}
 	]
 
@@ -305,7 +324,6 @@ def test_package_install_and_uninstall() -> None:
 				str(TEST_DATA_PATH / "testdependency5_1.2-2.opsi"),
 			]
 		)
-		print(_stderr)
 		assert exit_code != 0
 		assert "Opsi rpc error:" in _stderr
 
@@ -419,3 +437,14 @@ def test_package_installation_from_urls() -> None:
 
 			exit_code, _, _ = run_cli(["package", "uninstall", "test2", "7zip"])
 			assert exit_code == 0
+
+
+@pytest.mark.docker_linux
+@pytest.mark.requires_testcontainer
+def test_package_installation_with_action_request_setup() -> None:
+	with container_connection():
+		exit_code, _, _ = run_cli(["package", "install", str(TEST_DATA_PATH / "testdependency5_2-0.opsi"), "--setup-where-installed"])
+		assert exit_code == 0
+
+		exit_code, _, _ = run_cli(["package", "uninstall", "testdependency5"])
+		assert exit_code == 0

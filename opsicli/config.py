@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 opsi-cli Basic command line interface for opsi
 
@@ -16,8 +15,9 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Callable
 
-from opsicli.utils import Singleton
+from opsicli.singelton import Singleton
 
+DEFAULT_SESSION_LIFETIME = 150
 COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE" in os.environ
 
 if COMPLETION_MODE:
@@ -27,12 +27,7 @@ else:
 	import rich_click as click  # type: ignore[import,no-redef]
 
 from click.core import ParameterSource  # noqa: E402
-from click.shell_completion import (  # noqa: E402
-	CompletionItem,
-	ShellComplete,
-	add_completion_class,
-	split_arg_string,
-)
+from click.shell_completion import CompletionItem, ShellComplete, add_completion_class, split_arg_string  # noqa: E402
 from opsicommon.logging import (  # noqa: E402
 	DEFAULT_COLORED_FORMAT,
 	DEFAULT_FORMAT,
@@ -346,6 +341,13 @@ CONFIG_ITEMS = [
 		description="Password for opsi service connection. For 2FA, append TOTP to the password",
 	),
 	ConfigItem(
+		name="session_lifetime",
+		type=int,
+		group="opsi service",
+		default=DEFAULT_SESSION_LIFETIME,
+		description="Session lifetime in seconds for the opsi service connection.",
+	),
+	ConfigItem(
 		name="totp",
 		type=Bool,
 		group="opsi service",
@@ -382,7 +384,7 @@ CONFIG_ITEMS.extend(
 )
 
 if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-	_plugin_bundle_dir = Path(sys._MEIPASS) / "plugins"  # type: ignore[attr-defined] # pylint: disable=protected-access
+	_plugin_bundle_dir = Path(sys._MEIPASS) / "plugins"  # type: ignore[attr-defined]
 else:
 	_plugin_bundle_dir = Path("plugins").resolve()
 

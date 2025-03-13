@@ -14,7 +14,7 @@ from opsicli.plugin import OPSICLIPlugin
 from .client_action_worker import ClientActionArgs
 from .execute_worker import ExecuteWorker
 from .host_control_worker import HostControlWorker
-from .set_action_request_worker import SetActionRequestWorker
+from .set_action_request_worker import SetActionRequestArgs, SetActionRequestWorker
 
 __version__ = "0.3.0"
 __description__ = "This command can be used to manage opsi client actions."
@@ -25,21 +25,21 @@ logger = get_logger("opsicli")
 @click.group(name="client-action", short_help="Command group to manage client actions")
 @click.version_option(__version__, message="opsi-cli plugin client-action, version %(version)s")
 @click.pass_context
-@click.option("--clients", help="Comma-separated list of clients or 'all'")
-@click.option("--client-groups", help="Comma-separated list of host groups")
-@click.option("--clients-from-depots", help="Comma-separated list of depots to get associated clients")
-@click.option("--exclude-clients", help="Do not perform actions for these clients")
-@click.option("--exclude-client-groups", help="Do not perform actions for these client groups")
+@click.option("--clients", help="Select clients IDs (comma-separated list) or use 'all' for all clients.")
+@click.option("--client-groups", help="Select clients from these client groups (comma-separated list).")
+@click.option("--clients-from-depots", help="Select clients from these depots.")
+@click.option("--exclude-clients", help="Exclude these clients IDs (comma-separated list).")
+@click.option("--exclude-client-groups", help="Do not perform actions for these client groups (comma-separated list).")
 @click.option(
 	"--only-online",
-	help="Limit actions to clients that are connected to the messagebus",
+	help="Limit actions to clients that are connected to the messagebus.",
 	is_flag=True,
 	default=False,
 )
-@click.option("--ip-addresses", help="Comma-separated list ip addresses or networks")
+@click.option("--ip-addresses", help="Select clients by IP addresses or networks (comma-separated list).")
 @click.option(
 	"--exclude-ip-addresses",
-	help="Comma-separamted list of ip addresses or networks to exclude",
+	help="Exclude clients by IP addresses or networks (comma-separated list).",
 )
 def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 	"""
@@ -53,48 +53,60 @@ def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 @click.pass_context
 @click.option(
 	"--where-failed",
-	help="Set this to add actionRequests for all selected failed products",
+	help="Set this to add actionRequests where the selected products failed.",
 	is_flag=True,
 	default=False,
 )
 @click.option(
 	"--where-outdated",
-	help="Set this to add actionRequests for all selected outdated products",
+	help="Set this to add actionRequests where the selected products are outdated.",
 	is_flag=True,
 	default=False,
 )
 @click.option(
 	"--uninstall-where-only-uninstall",
-	help="If this is set, any installed package which only has an uninstall script will be set to uninstall",
+	help="If this is set, any installed package which only has an uninstall script will be set to uninstall.",
 	is_flag=True,
 	default=False,
 )
-@click.option("--exclude-products", help="Do not set actionRequests for these products")
-@click.option("--products", help="Set actionRequests for these products")
+@click.option("--exclude-products", help="Do not set actionRequests for these products (comma-separated list).")
+@click.option("--products", help="Set actionRequests for these products (comma-separated list).")
 @click.option(
 	"--product-groups",
-	help="Set actionRequests for the products of these product groups",
+	help="Set actionRequests for the products of these product groups (comma-separated list).",
 )
 @click.option(
 	"--exclude-product-groups",
-	help="Do not set actionRequests for these product groups",
+	help="Do not set actionRequests for these product groups (comma-separated list).",
 )
 @click.option(
 	"--request-type",
-	help="The type of action request to set",
+	help="The type of action request to set.",
 	show_default=True,
 	default="setup",
 )
 @click.option(
 	"--setup-on-action",
-	help="After actionRequest was set for a client, set these products to setup",
+	help="If an actionRequest has been set for a client, also set these products to setup (comma-separated list).",
 )
-def set_action_request(ctx: click.Context, **kwargs: str) -> None:
+@click.option(
+	"--process",
+	help="Process the action requests immediately.",
+	is_flag=True,
+	default=False,
+)
+@click.option(
+	"--process-visibility",
+	type=click.Choice(["visible", "hidden"], case_sensitive=False),
+	help="The visibility of action processing on the client. Client default, if not specified.",
+	default=None,
+)
+def set_action_request(ctx: click.Context, **kwargs: str | bool) -> None:
 	"""
 	opsi-cli client-action set-action-request command
 	"""
 	worker = SetActionRequestWorker(ctx.obj)
-	worker.set_action_request(**kwargs)
+	worker.set_action_request(SetActionRequestArgs(**kwargs))  # type: ignore[arg-type]
 
 
 @cli.command(name="trigger-event", short_help="Trigger an event for selected clients")
@@ -131,7 +143,7 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool, wakeup_timeout: 
 	context_settings={"ignore_unknown_options": True, "allow_interspersed_args": False},
 )
 @click.pass_context
-@click.argument("command", nargs=-1, required=True)
+@click.argument("command", nargs=-1)
 @click.option("--shell", help="Execute command in a shell", is_flag=True, default=False)
 @click.option("--host-names/--no-host-names", help="Prepend the host name on output", is_flag=True, default=True)
 @click.option(
@@ -146,12 +158,56 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool, wakeup_timeout: 
 )
 @click.option("--timeout", help="Number of seconds until command should be interrupted (0 = no timeout)", type=float, default=0.0)
 @click.option("--concurrent", help="Maximum number of concurrent executions", type=int, default=100)
-def execute(ctx: click.Context, command: tuple[str], shell: bool, host_names: bool, encoding: str, timeout: float, concurrent: int) -> None:
+@click.option(
+	"--opsi-script",
+	help=(
+		"Provide the content of an opsi-script directly. "
+		"No command is needed when using this option. "
+		"Use --opsi-script-log-level to filter logs in the execution summary."
+	),
+	type=str,
+)
+@click.option(
+	"--opsi-script-log-level",
+	type=click.IntRange(1, 8),
+	default=4,
+	help="Specify the log level to filter (1 to 8). Only available with --opsi-script",
+	show_default=True,
+)
+def execute(
+	ctx: click.Context,
+	command: tuple[str],
+	shell: bool,
+	host_names: bool,
+	encoding: str,
+	timeout: float,
+	concurrent: int,
+	opsi_script: str,
+	opsi_script_log_level: int,
+) -> None:
 	"""
 	opsi-cli client-action execute command
 	"""
+	if not command and not opsi_script:
+		raise click.UsageError("Missing argument 'COMMAND...' or '--opsi-script' option.")
+
+	if opsi_script:
+		try:
+			opsi_script.encode("utf-8", errors="strict")
+		except UnicodeEncodeError:
+			raise ValueError("The opsi-script content is not valid UTF-8")
+
 	worker = ExecuteWorker(ctx.obj)
-	exit_code = worker.execute(command, timeout=timeout, shell=shell, concurrent=concurrent, show_host_names=host_names, encoding=encoding)
+	exit_code = worker.execute(
+		command,
+		timeout=timeout,
+		shell=shell,
+		concurrent=concurrent,
+		show_host_names=host_names,
+		encoding=encoding,
+		opsiscript=opsi_script,
+		opsiscript_log_level=opsi_script_log_level,
+	)
 	sys.exit(exit_code)
 
 

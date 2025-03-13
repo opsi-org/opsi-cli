@@ -28,6 +28,7 @@ command_metadata = {
 			Attribute(id="username", description="Username to use for authentication", data_type="str"),
 			Attribute(id="password", description="Password to use for authentication", data_type="str"),
 			Attribute(id="default", description="Is the default service?", data_type="bool"),
+			Attribute(id="session_lifetime", description="The session lifetime in seconds", data_type="int"),
 		]
 	),
 }
