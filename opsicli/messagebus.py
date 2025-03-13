@@ -53,7 +53,7 @@ from opsicommon.types import forceHostId
 from rich.color import Color
 from rich.text import Text
 
-from opsicli.io import LOG_COLORS, console_print, get_console, read_input_raw_bin, COLORS
+from opsicli.io import COLORS, LOG_COLORS, console_print, get_console, read_input_raw_bin
 from opsicli.opsiservice import get_service_connection
 from opsicli.utils import raw_terminal
 
@@ -148,7 +148,7 @@ class JSONRPCMessagebusConnection(MessagebusConnection):
 
 	def _on_jsonrpc_response(self, message: JSONRPCResponseMessage) -> None:
 		logger.notice("Received jsonrpc response message")
-		self.jsonrpc_responses[message.rpc_id] = message.error if message.error else message.result
+		self.jsonrpc_responses[message.rpc_id] = {"error": message.error} if message.error else message.result
 		self.jsonrpc_response_events[message.rpc_id].set()
 
 	def jsonrpc(self, channels: list[str], method: str, params: tuple | None = None, timeout: float = JSONRPC_TIMEOUT) -> dict[str, Any]:
