@@ -67,7 +67,7 @@ def add(paths: list[Path], system: bool) -> None:
 		get_console().print(f"Plugin {plugin_id!r} installed into '{path}'.")
 
 
-def complete_plugin_id(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
+def complete_plugin_id(incomplete: str) -> list[CompletionItem]:
 	plugin_ids = plugin_manager.get_plugins(dirs=[config.plugin_user_dir, config.plugin_system_dir])
 	return [CompletionItem(plugin_id) for plugin_id in plugin_ids if plugin_id.startswith(incomplete)]
 

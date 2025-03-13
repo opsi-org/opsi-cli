@@ -219,10 +219,10 @@ def service_add(
 	console_print(msg)
 
 
-def complete_service_name(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
+def complete_service_name(ctx: click.Context, incomplete: str) -> list[CompletionItem]:
 	conf_source = ConfigValueSource.CONFIG_FILE_SYSTEM if ctx.params.get("system") else ConfigValueSource.CONFIG_FILE_USER
-	names = sorted(val.value.name for val in config.get_config_item("services").get_values(value_only=False, sources=[conf_source]))
-	return [CompletionItem(name) for name in names if name.startswith(incomplete)]
+	services = config.get_config_item("services").get_values(value_only=False, sources=[conf_source])
+	return [CompletionItem(service.value.name) for service in services if service.value.name.startswith(incomplete)]
 
 
 @service.command(name="remove", short_help="Remove an opsi service")

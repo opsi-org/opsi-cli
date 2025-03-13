@@ -177,14 +177,14 @@ def add_package(directory: Path, package: Path, num_allowed_versions: int, compa
 		packages_metadata.write_metafile(meta_file)
 
 
-def complete_package_name(directory: Path, ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
+def complete_package_name(directory: Path, incomplete: str) -> list[CompletionItem]:
 	current_meta_files = list(directory.glob("packages.*"))
 	if not current_meta_files:
 		return []
 
 	packages_metadata = RepoMetaPackageCollection()
 	packages_metadata.read_metafile(current_meta_files[0])
-	return [CompletionItem(package) for package in packages_metadata.packages]
+	return [CompletionItem(package) for package in packages_metadata.packages if package.startswith(incomplete)]
 
 
 @metafile.command(short_help="Removes a package from repository metadata files.", name="remove-package")
