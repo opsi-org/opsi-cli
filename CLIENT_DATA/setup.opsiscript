@@ -42,4 +42,3 @@ if not(GetLastExitcode = "0")
 	LogError "opsi-cli self install failed"
 	IsFatalError "opsi-cli self install failed"
 endif
-ShellCall("opsi-cli --version")
