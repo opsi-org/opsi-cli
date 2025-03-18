@@ -74,9 +74,16 @@ class ExecuteWorker(ClientActionWorker):
 				console_print(rule=f"{host_name}", style="white")
 
 				if isinstance(result, Exception):
-					logger.error("Error executing opsiscript on %s: %s", channel, result)
+					logger.error("Exception occured while executing opsiscript on %s: %s", channel, result)
 					console_print(line_prefix + Text(str(result), style="red"))
 					highest_exit_code = max(highest_exit_code, 1)
+					continue
+
+				if "error" in result:
+					error_message = result["error"].get("message", "Unknown error")
+					logger.error("Error occurred while executing opsiscript on %s: %s", channel, error_message)
+					console_print(line_prefix + Text(error_message, style="red"))
+					highest_exit_code = max(highest_exit_code, result["error"].get("code", 1))
 					continue
 
 				exit_code = result.get("exit_code", 1)
