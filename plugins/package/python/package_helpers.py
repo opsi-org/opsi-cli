@@ -162,7 +162,7 @@ def map_and_sort_packages(packages: list[str]) -> dict[Path, OpsiPackage]:
 			visit(path)
 		except Exception as err:
 			logger.error(err, exc_info=True)
-			raise RuntimeError(f"Failed to process package '{path}': {err}") from err
+			raise RuntimeError(f"Failed to analyze package '{path}': {err}") from err
 	return result
 
 

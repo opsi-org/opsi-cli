@@ -2,6 +2,7 @@
 test_package.py is a test file for the package plugin.
 """
 
+import re
 from pathlib import Path
 from typing import Optional, Union
 
@@ -313,7 +314,11 @@ def test_package_install_and_uninstall() -> None:
 		# Test installing with a missing dependency
 		exit_code, _, _stderr = run_cli(["-l7", "package", "install", str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi")])
 		assert exit_code != 0
-		assert "Dependency 'testdependency5' for package 'testdependency4' is not specified." in _stderr
+		_stderr = re.sub(r"\s+", " ", re.sub(r"[\n│]", "", _stderr))
+		assert (
+			"Failed to analyze package 'tests/test_data/plugins/package/testdependency4_1.0-5.opsi': "
+			"Dependency 'testdependency5' for package 'testdependency4' is not specified." in _stderr
+		)
 
 		# Test with unfulfilled package dependency, this will lock the product 'testdependency4'
 		exit_code, _, _stderr = run_cli(
