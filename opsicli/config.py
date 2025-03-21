@@ -17,7 +17,7 @@ from typing import Any, Callable
 
 from opsicli.singelton import Singleton
 
-DEFAULT_SESSION_LIFETIME = 150
+DEFAULT_SESSION_LIFETIME = 900
 COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE" in os.environ
 
 if COMPLETION_MODE:
