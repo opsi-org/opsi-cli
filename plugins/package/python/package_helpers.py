@@ -121,8 +121,18 @@ def map_and_sort_packages(packages: list[str]) -> dict[Path, OpsiPackage]:
 
 	Each package is placed after its dependencies in the dictionary.
 	"""
-	path_to_opsipackage_dict = {Path(pkg): OpsiPackage(Path(pkg)) for pkg in packages}
-	product_id_to_path = {pkg.product.id: path for path, pkg in path_to_opsipackage_dict.items()}
+	path_to_opsipackage: dict[Path, OpsiPackage] = {}
+	product_id_to_path: dict[str, Path] = {}
+	for pkg in packages:
+		try:
+			opsi_package = OpsiPackage(Path(pkg))
+		except Exception as err:
+			logger.error(err, exc_info=True)
+			raise RuntimeError(f"Failed to process package '{pkg}': {err}") from err
+
+		path_to_opsipackage[Path(pkg)] = opsi_package
+		product_id_to_path[opsi_package.product.id] = Path(pkg)
+
 	result = {}
 	visited = set()
 
@@ -130,7 +140,7 @@ def map_and_sort_packages(packages: list[str]) -> dict[Path, OpsiPackage]:
 		if path in visited:
 			return
 		visited.add(path)
-		opsi_package = path_to_opsipackage_dict[path]
+		opsi_package = path_to_opsipackage[path]
 		for dep in opsi_package.package_dependencies or []:
 			dep_path = product_id_to_path.get(dep.package)
 			if dep_path is None:
@@ -138,8 +148,12 @@ def map_and_sort_packages(packages: list[str]) -> dict[Path, OpsiPackage]:
 			visit(dep_path)
 		result[path] = opsi_package
 
-	for path in path_to_opsipackage_dict:
-		visit(path)
+	for path in path_to_opsipackage:
+		try:
+			visit(path)
+		except Exception as err:
+			logger.error(err, exc_info=True)
+			raise RuntimeError(f"Failed to process package '{path}': {err}") from err
 	return result
 
 
