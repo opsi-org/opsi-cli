@@ -295,20 +295,20 @@ def install(
 	with make_temp_dir() as temp_dir:
 		local_packages = process_local_packages(packages, temp_dir)
 
-		path_to_opsipackage_dict = map_and_sort_packages(local_packages)
+		path_to_opsipackage = map_and_sort_packages(local_packages)
 
 		depot_objects = get_depot_objects(service_client, depots)
 
 		if not force:
-			check_locked_products(service_client, depot_objects, path_to_opsipackage_dict)
+			check_locked_products(service_client, depot_objects, path_to_opsipackage)
 
 		if update_properties and config.interactive:
-			update_product_properties(path_to_opsipackage_dict)
+			update_product_properties(path_to_opsipackage)
 
 		for depot in depot_objects:
 			depot_connection = get_depot_connection(depot)
 			try:
-				for package_path, opsi_package in path_to_opsipackage_dict.items():
+				for package_path, opsi_package in path_to_opsipackage.items():
 					dest_package_name = fix_custom_package_name(package_path)
 					upload_to_repository(depot_connection, depot.id, package_path, dest_package_name, temp_dir)
 

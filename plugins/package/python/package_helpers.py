@@ -123,15 +123,24 @@ def map_and_sort_packages(packages: list[str]) -> dict[Path, OpsiPackage]:
 	"""
 	path_to_opsipackage: dict[Path, OpsiPackage] = {}
 	product_id_to_path: dict[str, Path] = {}
-	for pkg in packages:
-		try:
-			opsi_package = OpsiPackage(Path(pkg))
-		except Exception as err:
-			logger.error(err, exc_info=True)
-			raise RuntimeError(f"Failed to process package '{pkg}': {err}") from err
+	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
+		assert progress
+		if not config.quiet:
+			num_packages = len(packages)
+			task = progress.add_task(f"Analyzing {num_packages} package{'s' if num_packages > 1 else ''}...", total=num_packages)
+		for pkg in packages:
+			logger.info("Analyzing package: '%s'", pkg)
+			try:
+				opsi_package = OpsiPackage(Path(pkg))
+			except Exception as err:
+				logger.error(err, exc_info=True)
+				raise RuntimeError(f"Failed to analyze package '{pkg}': {err}") from err
 
-		path_to_opsipackage[Path(pkg)] = opsi_package
-		product_id_to_path[opsi_package.product.id] = Path(pkg)
+			path_to_opsipackage[Path(pkg)] = opsi_package
+			product_id_to_path[opsi_package.product.id] = Path(pkg)
+
+			if not config.quiet:
+				progress.update(task, advance=1)
 
 	result = {}
 	visited = set()
