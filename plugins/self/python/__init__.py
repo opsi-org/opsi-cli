@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from contextlib import nullcontext
 from pathlib import Path
 
 import packaging.version
@@ -19,6 +20,7 @@ import rich_click as click  # type: ignore[import]
 from click.shell_completion import get_completion_class  # type: ignore[import]
 from opsicommon.logging import get_logger  # type: ignore[import]
 from opsicommon.system.info import is_posix, is_windows
+from rich.progress import Progress
 from rich.tree import Tree
 
 from opsicli import __version__ as opsi_cli_version
@@ -26,7 +28,15 @@ from opsicli.config import ConfigValueSource, config
 from opsicli.io import Attribute, Metadata, get_console, write_output
 from opsicli.plugin import OPSICLIPlugin, plugin_manager
 from opsicli.types import File
-from opsicli.utils import add_to_env_variable, download, get_opsi_cli_download_filename, install_binary, retry, user_is_admin
+from opsicli.utils import (
+	ProgressCallbackAdapter,
+	add_to_env_variable,
+	download,
+	get_opsi_cli_download_filename,
+	install_binary,
+	retry,
+	user_is_admin,
+)
 
 installed_version_metadata = Metadata(
 	attributes=[
@@ -377,7 +387,12 @@ def upgrade(branch: str, source_url: str, location: str, allow_downgrade: bool) 
 		def download_binary() -> tuple[Path, str]:
 			download_url = f"{source_url}/{branch}/{get_opsi_cli_download_filename()}"
 			get_console().print(f"Downloading opsi-cli from '{download_url}'.")
-			new_binary = download(download_url, tmp_dir, make_executable=True)
+			with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
+				assert progress
+				progress_callback = (
+					ProgressCallbackAdapter(progress, "Downloading opsi-cli...").progress_callback if not config.quiet else None
+				)
+				new_binary = download(download_url, tmp_dir, make_executable=True, progress_callback=progress_callback)
 			try:
 				new_version = subprocess.check_output([str(new_binary), "--version"]).decode("utf-8").strip().split()[-1]
 				return new_binary, new_version
@@ -398,8 +413,14 @@ def upgrade(branch: str, source_url: str, location: str, allow_downgrade: bool) 
 					get_console().print(f"Would upgrade '{binary}' to '{new_version}', but --dry-run is set.")
 				else:
 					logger.notice("Replacing '%s' with '%s'", binary, new_binary)
-					get_console().print(f"Upgrading '{binary}' to '{new_version}'.")
+					version_parts = new_version.split(".")
+					opsi_major_version = version_parts[0]
+					if int(opsi_major_version) < 5:
+						opsi_major_version = f"{version_parts[0]}.{version_parts[1]}"
+					changelog_url = f"https://changelog.opsi.org/TOOL-{opsi_major_version}-{branch}/opsi-cli/changelog.txt"
+					get_console().print(f"Upgrading '{binary}' to [link={changelog_url}]{new_version}[/link].")
 					install_binary(destination=binary, source=new_binary)
+
 			except Exception as err:
 				exit_code = 1
 				logger.error("Failed to install opsi-cli to '%s': %s", binary, err, exc_info=True)
