@@ -8,11 +8,11 @@ import os
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator, Iterator, Sequence, TypeVar
+from typing import Generator, Iterator, Sequence
 
 from click.testing import CliRunner  # type: ignore[import]
 
-from opsicommon.objects import LocalbootProduct, NetbootProduct, ProductOnDepot, Product
+from opsicommon.objects import LocalbootProduct, ProductOnDepot, Product
 from opsicli.__main__ import main
 from opsicli.config import config
 from opsicli.opsiservice import ServiceClient
