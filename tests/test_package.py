@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Optional, Union
 
 import pytest
-from opsicommon.objects import LocalbootProduct, ProductOnDepot
+from opsicommon.objects import LocalbootProduct, ProductOnDepot, NetbootProduct
 from opsicommon.testing.helpers import http_test_server
 
 from opsicli.opsiservice import get_service_connection
@@ -267,7 +267,7 @@ def test_package_list_filter_by_product_type() -> None:
 		connection = get_service_connection()
 		with (
 			tmp_product(connection, "pytest-product1"),
-			tmp_product(connection, "pytest-product2", product_type="NetbootProduct"),
+			tmp_product(connection, "pytest-product2", product_type=NetbootProduct),
 		):
 			exit_code, _stdout, _ = run_cli(["package", "list", "--product-type", "netboot"])
 			assert exit_code == 0

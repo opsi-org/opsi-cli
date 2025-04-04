@@ -4,8 +4,9 @@ opsi-cli basic command line interface for opsi
 client_action_worker
 """
 
+from collections import defaultdict
 from dataclasses import dataclass
-from typing import Literal
+from typing import Iterable, Literal
 
 from opsicommon.logging import get_logger
 from opsicommon.objects import Product, ProductDependency, ProductGroup, ProductOnClient, ProductOnDepot
@@ -49,6 +50,7 @@ logger = get_logger("opsicli")
 class SetActionRequestArgs:
 	where_failed: bool = False
 	where_outdated: bool = False
+	where_installed: bool = False
 	uninstall_where_only_uninstall: bool = False
 	products: str | None = None
 	exclude_products: str | None = None
@@ -175,7 +177,7 @@ class SetActionRequestWorker(ClientActionWorker):
 
 		if product_on_client.productId in self.depending_products:
 			logger.notice(
-				"Setting '%s' ProductActionRequest with Dependencies: %s -> %s",
+				"Setting '%s' ProductActionRequest with dependencies: %s -> %s",
 				request_type or self.request_type,
 				product_on_client.productId,
 				product_on_client.clientId,
@@ -193,12 +195,11 @@ class SetActionRequestWorker(ClientActionWorker):
 			product_on_client.clientId,
 		)
 		# Remark: request_type="none" instead of None for compatibility with file backend
-		if not config.dry_run:
-			product_on_client.actionRequest = request_type or self.request_type
+		product_on_client.actionRequest = request_type or self.request_type
 		return [product_on_client]
 
 	def set_action_requests_for_all(
-		self, clients: set[str], products: list[str], request_type: str | None = None, force: bool = False
+		self, clients: Iterable[str], products: list[str], request_type: str | None = None, force: bool = False
 	) -> list[ProductOnClient]:
 		new_pocs: list[ProductOnClient] = []
 		existing_pocs: dict[str, dict[str, ProductOnClient]] = {}
@@ -224,18 +225,13 @@ class SetActionRequestWorker(ClientActionWorker):
 		return new_pocs
 
 	def set_action_request(self, args: SetActionRequestArgs) -> None:
-		if config.dry_run:
-			msg = "Dry-run mode enabled - no actions will be performed"
-			logger.notice(msg)
-			console_print(f"{msg}\n", style="yellow")
-
 		self.request_type = args.request_type or self.request_type
 		self.determine_products(
 			products_string=args.products,
 			exclude_products_string=args.exclude_products,
 			product_groups_string=args.product_groups,
 			exclude_product_groups_string=args.exclude_product_groups,
-			use_default_excludes=args.where_outdated or args.where_failed,
+			use_default_excludes=args.where_outdated or args.where_failed or args.where_installed,
 		)
 		if not self.products:
 			raise ValueError("No product/s to set action request on. The specified product/s might not exist or might have been excluded.")
@@ -243,9 +239,8 @@ class SetActionRequestWorker(ClientActionWorker):
 		if args.uninstall_where_only_uninstall:
 			logger.notice("Uninstalling products (where installed): %s", self.products_with_only_uninstall)
 
-		new_pocs: list[ProductOnClient] = []
-		if args.where_failed or args.where_outdated or args.uninstall_where_only_uninstall:
-			modified_clients = set()
+		new_pocs: dict[str, dict[str, ProductOnClient]] = defaultdict(lambda: dict())
+		if args.where_failed or args.where_outdated or args.where_installed or args.uninstall_where_only_uninstall:
 			pocs: list[ProductOnClient] = self.service.jsonrpc(
 				"productOnClient_getObjects",
 				[[], {"clientId": list(self.clients), "productType": "LocalbootProduct", "productId": self.products}],
@@ -262,52 +257,65 @@ class SetActionRequestWorker(ClientActionWorker):
 				except KeyError:
 					logger.error("Skipping check of %s %s (product not available on depot)", poc.clientId, poc.productId)
 					continue
+
+				add_pocs = []
 				if args.uninstall_where_only_uninstall and poc.productId in self.products_with_only_uninstall:
-					new_pocs.extend(self.set_single_action_request(poc, "uninstall"))
-					modified_clients.add(poc.clientId)
+					add_pocs = self.set_single_action_request(poc, "uninstall")
 				elif args.where_failed and poc.actionResult == "failed":
-					new_pocs.extend(self.set_single_action_request(poc))
-					modified_clients.add(poc.clientId)
+					add_pocs = self.set_single_action_request(poc)
+				elif args.where_installed and poc.installationStatus == "installed":
+					add_pocs = self.set_single_action_request(poc)
 				elif (
 					args.where_outdated
 					and poc.installationStatus == "installed"
 					and f"{poc.productVersion}-{poc.packageVersion}" != available
 				):
-					new_pocs.extend(self.set_single_action_request(poc))
-					modified_clients.add(poc.clientId)
+					add_pocs = self.set_single_action_request(poc)
+				for add_poc in add_pocs:
+					new_pocs[add_poc.clientId][add_poc.productId] = add_poc
+
+			modified_clients = list(new_pocs)
 			if args.setup_on_action and modified_clients:
 				setup_on_action_products = [entry.strip() for entry in args.setup_on_action.split(",")]
 				logger.notice("Setting setup for all modified clients and products: %s", setup_on_action_products)
-				new_pocs.extend(self.set_action_requests_for_all(modified_clients, setup_on_action_products, "setup"))
+				for add_poc in self.set_action_requests_for_all(modified_clients, setup_on_action_products, "setup"):
+					if add_poc.productId not in new_pocs[poc.clientId]:
+						new_pocs[poc.clientId][poc.productId] = add_poc
+
 		# if neither where_failed nor where_outdated nor uninstall_where_only_uninstall is set, set action request for every selected client
 		else:
 			if not args.products and not args.product_groups:
 				raise ValueError("When unconditionally setting actionRequests, you must supply --products or --product-groups.")
-			new_pocs.extend(self.set_action_requests_for_all(self.clients, self.products, force=True))
+			for add_poc in self.set_action_requests_for_all(self.clients, self.products, force=True):
+				new_pocs[poc.clientId][poc.productId] = add_poc
 
 		if not new_pocs:
 			msg = "No action requests to set."
 			logger.notice(msg)
 			console_print(f"{msg}\n")
-		elif not config.dry_run:
-			logger.debug("Updating ProductOnClient")
-			self.service.jsonrpc("productOnClient_updateObjects", [new_pocs])
-			pocs_by_client: dict[str, list[ProductOnClient]] = {}
-			msg = "Action requests have been set"
-			if args.process:
-				msg += " and processing was started"
-				logger.debug("Processing action requests")
-				for poc in new_pocs:
-					if poc.clientId not in pocs_by_client:
-						pocs_by_client[poc.clientId] = []
-					pocs_by_client[poc.clientId].append(poc)
+			return
 
-				for client_id, pocs in pocs_by_client.items():
+		update_pocs = []
+		for client_id in sorted(new_pocs):
+			for product_id in sorted(new_pocs[client_id]):
+				update_pocs.append(new_pocs[client_id][product_id])
+
+		if not config.dry_run:
+			logger.debug("Updating ProductOnClient")
+			self.service.jsonrpc("productOnClient_updateObjects", [update_pocs])
+
+		msg = f"Action requests {'would ' if config.dry_run else ''}have been set"
+		if args.process:
+			msg += f" and processing {'would have been started' if config.dry_run else 'was started'}"
+			if not config.dry_run:
+				logger.debug("Processing action requests")
+				for client_id, pocs_by_product in new_pocs.items():
 					res = self.service.jsonrpc(
 						"hostControl_processActionRequests",
-						[[client_id], [poc.productId for poc in pocs], args.process_visibility],
+						[[client_id], [poc.productId for poc in pocs_by_product.values()], args.process_visibility],
 					)
 					logger.debug("Result of hostControl_processActionRequests: %s", res)
-			console_print(f"{msg}. Here are the updated ProductOnClient objects:\n", style="green")
-			console_print(f"{'Client ID':<30} {'Product ID':<30} {'Action Request':<30}\n" + "-" * 90)
-			console_print("\n".join([f"{poc.clientId:<30} {poc.productId:<30} {poc.actionRequest:<30}" for poc in new_pocs]))
+
+		console_print(f"{msg}. Here are the updated ProductOnClient objects:\n", style="green")
+		console_print(f"{'Client ID':<30} {'Product ID':<30} {'Action Request':<30}\n" + "-" * 90)
+		console_print("\n".join([f"{poc.clientId:<30} {poc.productId:<30} {poc.actionRequest:<30}" for poc in update_pocs]))

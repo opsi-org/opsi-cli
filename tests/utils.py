@@ -8,10 +8,11 @@ import os
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator, Iterator, Sequence
+from typing import Generator, Iterator, Sequence, TypeVar
 
 from click.testing import CliRunner  # type: ignore[import]
 
+from opsicommon.objects import LocalbootProduct, NetbootProduct, ProductOnDepot, Product
 from opsicli.__main__ import main
 from opsicli.config import config
 from opsicli.opsiservice import ServiceClient
@@ -36,20 +37,25 @@ def tmp_client(service: ServiceClient, name: str) -> Generator[None, None, None]
 
 
 @contextmanager
-def tmp_product(service: ServiceClient, name: str, product_type: str = "LocalbootProduct") -> Generator[None, None, None]:
+def tmp_product(service: ServiceClient, name: str, product_type: type[Product] = LocalbootProduct) -> Generator[Product, None, None]:
 	try:
-		product_dict = {
-			"id": name,
-			"type": product_type,
-			"productVersion": "1",
-			"packageVersion": "1",
-			"setupScript": "setup.opsiscript",
-		}
 		depot_id = service.jsonrpc("host_getObjects", [[], {"type": "OpsiConfigserver"}])[0].id
-		service.jsonrpc("product_createObjects", params=[product_dict])
-		pod_dict = {"productId": name, "depotId": depot_id, "productType": product_type, "productVersion": "1", "packageVersion": "1"}
-		service.jsonrpc("productOnDepot_createObjects", params=[pod_dict])
-		yield
+		product = product_type(
+			id=name,
+			productVersion="1",
+			packageVersion="1",
+			setupScript="setup.opsiscript",
+		)
+		product_on_depot = ProductOnDepot(
+			productId=product.id,
+			productType=product.getType(),
+			productVersion=product.productVersion,
+			packageVersion=product.packageVersion,
+			depotId=depot_id,
+		)
+		service.jsonrpc("product_createObjects", params=[[product]])
+		service.jsonrpc("productOnDepot_createObjects", params=[[product_on_depot]])
+		yield product
 	finally:
 		service.jsonrpc("productOnDepot_delete", params=[name, depot_id])
 		service.jsonrpc("product_delete", params=[name])
