@@ -110,7 +110,7 @@ def test_set_action_request_where(selection: Literal["failed", "outdated", "inst
 			tmp_product(connection, PRODUCT3) as product3,
 		):
 			# Create product on clients
-			pocs = [
+			pocs: list[ProductOnClient] = [
 				# product1 failed on client1
 				ProductOnClient(
 					clientId=CLIENT1,
@@ -190,7 +190,7 @@ def test_set_action_request_where(selection: Literal["failed", "outdated", "inst
 
 				assert exit_code == 0
 
-				pocs: list[ProductOnClient] = sorted(
+				pocs = sorted(
 					connection.jsonrpc(
 						"productOnClient_getObjects",
 						params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2, PRODUCT3]}],
