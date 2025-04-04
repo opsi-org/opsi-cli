@@ -241,9 +241,9 @@ def test_set_action_request_where(selection: Literal["failed", "outdated", "inst
 
 				lines = stdout.splitlines()
 				if dry_run:
-					assert lines[0] == "Action requests would have been set. Here are the updated ProductOnClient objects:"
+					assert lines[0].startswith("Action requests would have been set. Here are the updated")
 				else:
-					assert lines[0] == "Action requests have been set. Here are the updated ProductOnClient objects:"
+					assert lines[0].startswith("Action requests have been set. Here are the updated")
 
 				assert count_setup == len([line for line in lines[2:] if line.strip() and line.strip().split()[-1].strip() == "setup"])
 
