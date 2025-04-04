@@ -287,7 +287,7 @@ class SetActionRequestWorker(ClientActionWorker):
 			if not args.products and not args.product_groups:
 				raise ValueError("When unconditionally setting actionRequests, you must supply --products or --product-groups.")
 			for add_poc in self.set_action_requests_for_all(self.clients, self.products, force=True):
-				new_pocs[poc.clientId][poc.productId] = add_poc
+				new_pocs[add_poc.clientId][add_poc.productId] = add_poc
 
 		if not new_pocs:
 			msg = "No action requests to set."
