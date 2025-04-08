@@ -124,3 +124,8 @@ def get_service_connection(verify: str | None = None) -> ServiceClient:
 			raise
 
 	return service_client
+
+
+def reset_service_connection() -> None:
+	global service_client
+	service_client = None

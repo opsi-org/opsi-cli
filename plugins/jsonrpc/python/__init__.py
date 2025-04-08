@@ -7,9 +7,9 @@ jsonrpc plugin
 from typing import Any
 
 import orjson
-import rich_click as click  # type: ignore[import]
-from click.shell_completion import CompletionItem  # type: ignore[import]
-from opsicommon.logging import get_logger  # type: ignore[import]
+import rich_click as click
+from click.shell_completion import CompletionItem
+from opsicommon.logging import get_logger
 
 from opsicli.cache import cache
 from opsicli.config import config

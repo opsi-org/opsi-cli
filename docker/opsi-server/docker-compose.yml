@@ -1,0 +1,53 @@
+version: '3.8'
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+  opsi_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+services:
+  mysql:
+    image: mariadb:10.7
+    restart: ${RESTART_POLICY}
+    hostname: ${MYSQL_HOST}
+    command: --max_connections=${MYSQL_MAX_CONNECTIONS} --max_allowed_packet=${MYSQL_MAX_ALLOWED_PACKET} --sort_buffer_size=${MYSQL_SORT_BUFFER_SIZE}
+    env_file:
+      - .env
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  redis:
+    image: redislabs/redistimeseries:latest
+    restart: ${RESTART_POLICY}
+    hostname: ${REDIS_HOST}
+    command: sh -c "redis-server --requirepass $$REDIS_PASSWORD --loadmodule /usr/lib/redis/modules/redistimeseries.so"
+    env_file:
+      - .env
+    volumes:
+      - redis_data:/data
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: ${RESTART_POLICY}
+    hostname: ${GRAFANA_HOST}
+    env_file:
+      - .env
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+  opsi-server:
+    image: $DOCKER_IMAGE_OPSI_SERVER
+    depends_on:
+      - mysql
+      - redis
+    hostname: ${OPSI_HOST}
+    domainname: ${DOMAINNAME}
+    env_file:
+      - .env
+    volumes:
+      - opsi_data:/data

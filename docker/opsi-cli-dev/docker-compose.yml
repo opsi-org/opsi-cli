@@ -1,0 +1,16 @@
+version: '3.8'
+
+include:
+  - ../opsi-server/docker-compose.yml
+
+services:
+  opsi-cli-dev:
+    build:
+      args:
+        DEV_USER: ${USER}
+    hostname: opsi-cli-dev
+    volumes:
+      - ${LOCAL_WORKSPACE_DIR}:/workspace:cached
+    command: sleep infinity
+    env_file:
+      - .env

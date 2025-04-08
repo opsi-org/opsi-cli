@@ -11,19 +11,23 @@ This file is part of opsi - https://www.opsi.org
 import builtins
 import os
 import platform
-import warnings
-from typing import Any
+from contextlib import contextmanager
+from functools import lru_cache
+from pathlib import Path
+from typing import Any, Generator
 
 import pytest
-import requests  # type: ignore[import]
-import urllib3  # type: ignore[import]
-from _pytest.config import Config as PytestConfig
 from _pytest.logging import LogCaptureHandler
 from _pytest.nodes import Item
+from opsicommon.client.opsiservice import ServiceClient
+from opsicommon.objects import OpsiConfigserver
+from pytest import fixture
 
+from opsicli.cache import cache
 from opsicli.config import config
+from opsicli.opsiservice import reset_service_connection
 
-from . import OPSI_HOSTNAME
+PLATFORM = platform.system().lower()
 
 builtins_print = builtins.print
 
@@ -36,81 +40,104 @@ LogCaptureHandler.emit = emit  # type: ignore[assignment]
 
 
 @pytest.fixture(autouse=True)
-def disable_insecure_request_warning() -> None:
-	warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
-
-
-@pytest.fixture(autouse=True)
 def reset_config() -> None:
 	for item in config.get_config_items():
 		item.set_value(item.default)
+
+
+@pytest.fixture(autouse=True)
+def clear_cache() -> None:
+	cache.clear()
+
+
+@pytest.fixture(autouse=True)
+def reset_print() -> None:
 	builtins.print = builtins_print
 
 
-@pytest.hookimpl()
-def pytest_configure(config: PytestConfig) -> None:
-	# https://pypi.org/project/pytest-asyncio
-	# When the mode is auto, all discovered async tests are considered
-	# asyncio-driven even if they have no @pytest.mark.asyncio marker.
-	config.option.asyncio_mode = "auto"
-	# register custom markers
-	config.addinivalue_line("markers", "docker_linux: mark test to run only on linux in docker")
-	config.addinivalue_line("markers", "not_in_docker: mark test to run only if not running in docker")
-	config.addinivalue_line("markers", "admin_permissions: mark test to run only if user has admin permissions")
-	config.addinivalue_line("markers", "windows: mark test to run only on windows")
-	config.addinivalue_line("markers", "linux: mark test to run only on linux")
-	config.addinivalue_line("markers", "darwin: mark test to run only on darwin")
-	config.addinivalue_line("markers", "posix: mark test to run only on posix")
-	config.addinivalue_line("markers", "requires_testcontainer: requires testcontainer")
+@pytest.fixture(autouse=True)
+def reset_service_client() -> None:
+	reset_service_connection()
 
 
-def running_in_docker() -> bool:
-	return os.path.exists("/.dockerenv")
-
-
-def admin_permissions() -> bool:
-	try:
-		return os.geteuid() == 0
-	except AttributeError:
-		import ctypes
-
-		return ctypes.windll.shell32.IsUserAnAdmin() != 0  # type: ignore[attr-defined]
-
-
-def testcontainer_running() -> bool:
-	try:
-		result = requests.get(f"https://{OPSI_HOSTNAME}:4447/public", timeout=5, verify=False)
-		return result.status_code == 200
-	except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout):
-		return False
-
-
-PLATFORM = platform.system().lower()
-RUNNING_IN_DOCKER = running_in_docker()
-ADMIN_PERMISSIONS = admin_permissions()
-TESTCONTAINER_RUNNING = testcontainer_running()
+def _update_depot_info() -> None:
+	configserver_address = admin_service_connection_params()[0]
+	with get_admin_service_client() as service_client:
+		server: OpsiConfigserver = service_client.jsonrpc("host_getObjects", [[], {"type": "OpsiConfigserver"}])[0]
+		server_host = configserver_address.split("://", 1)[-1].split("/", 1)[0]  # remove protocol
+		server.repositoryRemoteUrl = f"webdavs://{server_host}/repository"
+		service_client.jsonrpc("host_updateObjects", [server])
 
 
 def pytest_runtest_setup(item: Item) -> None:
-	supported_platforms = []
+	if _opsi_service_available():
+		_update_depot_info()
 	for marker in item.iter_markers():
-		if marker.name == "docker_linux" and not RUNNING_IN_DOCKER:
-			pytest.skip("Must run in docker")
+		if marker.name == "opsi_service" and not _opsi_service_available():
+			pytest.skip("No opsi service available")
 			return
-		if marker.name == "not_in_docker" and RUNNING_IN_DOCKER:
-			pytest.skip("Cannot run in docker")
+		if marker.name == "not_windows" and PLATFORM == "windows":
+			pytest.skip("Not running test on Windows")
 			return
-		if marker.name == "admin_permissions" and not ADMIN_PERMISSIONS:
-			pytest.skip("No admin permissions")
-			return
-		if marker.name == "requires_testcontainer" and not TESTCONTAINER_RUNNING:
-			pytest.skip("Cannot run without testcontainer")
-			return
-		if marker.name in ("windows", "linux", "darwin", "posix"):
-			if marker.name == "posix":
-				supported_platforms.extend(["linux", "darwin"])
-			else:
-				supported_platforms.append(marker.name)
 
-	if supported_platforms and PLATFORM not in supported_platforms:
-		pytest.skip(f"Cannot run on {PLATFORM}")
+
+@lru_cache
+def _get_opsi_server_env() -> dict[str, str]:
+	env_file = Path("docker/opsi-server/.env")
+	env_vars = {}
+	for line in env_file.read_text().splitlines():
+		line = line.strip()
+		if not line or line.startswith("#") or "=" not in line:
+			continue
+		key, value = line.split("=", 1)
+		env_vars[key.strip()] = value.strip().strip('"')
+	return env_vars
+
+
+def admin_service_connection_params() -> tuple[str, str, str]:
+	try:
+		server_env = _get_opsi_server_env()
+		return (
+			"https://opsi-server:4447",
+			"adminuser",
+			server_env["OPSI_ADMIN_PASSWORD"],
+		)
+	except FileNotFoundError:
+		pass
+	return (
+		os.environ.get("OPSI_HOST") or "",
+		os.environ.get("OPSI_USERNAME") or "adminuser",
+		os.environ.get("OPSI_ADMIN_PASSWORD") or os.environ.get("OPSI_PASSWORD") or "",
+	)
+
+
+@lru_cache
+def _opsi_service_available() -> bool:
+	opsi_service_address = admin_service_connection_params()[0]
+	if opsi_service_address:
+		print("Using opsi service address:", opsi_service_address)
+		return True
+	print("No opsi service address set.")
+	return False
+
+
+@contextmanager
+def get_admin_service_client(user_agent: str | None = None) -> Generator[ServiceClient, None, None]:
+	address, username, password = admin_service_connection_params()
+	service_client = ServiceClient(
+		address=address,
+		username=username,
+		password=password,
+		verify="accept_all",
+		user_agent=user_agent,
+		jsonrpc_create_methods=True,
+		jsonrpc_create_objects=True,
+	)
+	yield service_client
+	service_client.stop()
+
+
+@fixture()
+def admin_service_client() -> Generator[ServiceClient, None, None]:
+	with get_admin_service_client() as service_client:
+		yield service_client

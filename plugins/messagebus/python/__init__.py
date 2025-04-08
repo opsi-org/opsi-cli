@@ -8,7 +8,7 @@ import sys
 from threading import Event
 from typing import Any
 
-import rich_click as click  # type: ignore[import]
+import rich_click as click
 from opsicommon.logging import get_logger
 from opsicommon.messagebus.message import EventMessage
 

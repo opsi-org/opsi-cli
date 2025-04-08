@@ -58,7 +58,7 @@ from opsicli.opsiservice import get_service_connection
 from opsicli.utils import raw_terminal
 
 if is_windows():
-	import win32console  # type: ignore[import-not-found]
+	import win32console
 else:
 	import fcntl
 	from signal import SIGWINCH, signal
@@ -516,11 +516,10 @@ class ProcessMessagebusConnection(MessagebusConnection):
 
 
 class TerminalMessagebusConnection(MessagebusConnection):
-	terminal_id: str
-	shell: str | None
-
-	def __init__(self) -> None:
+	def __init__(self, terminal_id: str | None = None, shell: str | None = None) -> None:
 		MessagebusConnection.__init__(self)
+		self.terminal_id = terminal_id or str(uuid4())
+		self.shell: str | None = shell
 		self._should_close = Event()
 		self._terminal_write_channel: str | None = None
 		self._terminal_read_channel: str | None = None
@@ -623,10 +622,8 @@ class TerminalMessagebusConnection(MessagebusConnection):
 		self._should_close.set()
 		sys.stdout.write(f"\r\n> {message} <\r\n")
 
-	def run_terminal(self, target: str, terminal_id: str | None = None, shell: str | None = None) -> None:
+	def run_terminal(self, target: str) -> None:
 		target = target.lower()
-		self.terminal_id = terminal_id or str(uuid4())
-		self.shell = shell
 
 		self.service_client.connect()
 		connected_host_ids = self.service_client.host_getMessagebusConnectedIds()  # type: ignore[attr-defined]
@@ -672,7 +669,7 @@ class TerminalMessagebusConnection(MessagebusConnection):
 						raise self._terminal_error
 					data = b""
 					if self._is_windows:
-						if con_buf_in.GetNumberOfConsoleInputEvents() == 0:
+						if con_buf_in.GetNumberOfConsoleInputEvents() == 0:  # type: ignore[no-untyped-call]
 							time.sleep(0.005)
 							continue
 						for event in con_buf_in.ReadConsoleInput(1024):

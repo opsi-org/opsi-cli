@@ -10,8 +10,8 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-import rich_click as click  # type: ignore[import]
-from opsicommon.logging import get_logger  # type: ignore[import]
+import rich_click as click
+from opsicommon.logging import get_logger
 
 from opsicli.config import config
 from opsicli.decorators import handle_list_attributes

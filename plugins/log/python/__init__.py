@@ -4,7 +4,7 @@ opsi-cli log plugin
 
 import asyncio
 
-import rich_click as click  # type: ignore[import]
+import rich_click as click
 from opsicommon.logging import get_logger
 
 from opsicli.messagebus import FileTransferMessagebusConnection

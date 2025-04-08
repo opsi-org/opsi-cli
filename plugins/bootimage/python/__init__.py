@@ -2,7 +2,7 @@
 template for opsi-cli plugins
 """
 
-import rich_click as click  # type: ignore[import]
+import rich_click as click
 from opsicommon.logging import get_logger
 from opsicommon.objects import Config, ConfigState
 from purecrypt import Crypt, Method  # type: ignore[import]

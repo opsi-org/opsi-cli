@@ -8,7 +8,7 @@ import code
 import sys
 from pathlib import Path
 
-import rich_click as click  # type: ignore[import]
+import rich_click as click
 
 from opsicli.plugin import OPSICLIPlugin
 
