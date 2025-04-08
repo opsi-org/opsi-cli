@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Type
 from opsicommon.logging import get_logger, use_logging_config
 
 if sys.platform == "win32":
-	import win32console  # type: ignore[import-not-found]
+	import win32console
 else:
 	import termios
 	import tty
@@ -90,7 +90,7 @@ def add_to_env_variable(key: str, value: str, system: bool = False) -> None:
 
 	import winreg
 
-	import win32process  # type: ignore[import]
+	import win32process
 
 	key_handle = winreg.CreateKey(  # type: ignore[attr-defined]
 		winreg.HKEY_LOCAL_MACHINE if system else winreg.HKEY_CURRENT_USER,  # type: ignore[attr-defined]

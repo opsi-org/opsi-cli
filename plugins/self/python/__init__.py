@@ -15,10 +15,10 @@ from contextlib import nullcontext
 from pathlib import Path
 
 import packaging.version
-import psutil  # type: ignore[import]
-import rich_click as click  # type: ignore[import]
-from click.shell_completion import get_completion_class  # type: ignore[import]
-from opsicommon.logging import get_logger  # type: ignore[import]
+import psutil
+import rich_click as click
+from click.shell_completion import get_completion_class
+from opsicommon.logging import get_logger
 from opsicommon.system.info import is_posix, is_windows
 from rich.progress import Progress
 from rich.tree import Tree
@@ -171,7 +171,12 @@ SUPPORTED_SHELLS = ["zsh", "bash", "fish", "powershell"]
 
 def get_running_shell() -> str:
 	proc = psutil.Process(os.getpid())
-	for ancestor_name in [proc.parent().name(), proc.parent().parent().name()]:
+	ancestor_names = []
+	if parent := proc.parent():
+		ancestor_names.append(parent.name())
+		if parent := parent.parent():
+			ancestor_names.append(parent.name())
+	for ancestor_name in ancestor_names:
 		logger.debug("Checking if ancestor process  %r is a supported shell", ancestor_name)
 		if ancestor_name in SUPPORTED_SHELLS:
 			logger.info("Found supported shell %r in ancestor process", ancestor_name)

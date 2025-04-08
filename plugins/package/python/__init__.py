@@ -5,7 +5,7 @@ opsi-cli package plugin
 from contextlib import nullcontext
 from pathlib import Path
 
-import rich_click as click  # type: ignore[import]
+import rich_click as click
 from opsicommon.logging import get_logger
 from opsicommon.objects import ProductOnDepot
 from opsicommon.package import OpsiPackage

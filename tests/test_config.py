@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Type
 
 import pytest
-from ruamel.yaml import YAML  # noqa: E402  # type: ignore[import]
+from ruamel.yaml import YAML
 
 from opsicli.config import Config, ConfigItem
 from opsicli.types import Bool, Directory, LogLevel, OPSIServiceUrl, Password
@@ -167,7 +167,8 @@ def test_config_service_add() -> None:
 		config.config_file_user = conffile
 
 		exit_code, stdout, _stderr = run_cli(
-			["config", "service", "add", "--name=test", "--username=testuser", "--password=testpassword", "testhost"]
+			["config", "service", "add", "--name=test", "--username=testuser", "--password=testpassword", "testhost"],
+			service_config=False,
 		)
 		assert exit_code == 0
 		assert stdout == "Successfully added new service 'test' with URL 'https://testhost:4447'.\nThe default service is now 'test'.\n"
@@ -184,7 +185,8 @@ def test_config_service_add() -> None:
 		assert config.get_values()["service"] == "test"
 
 		exit_code, stdout, _stderr = run_cli(
-			["config", "service", "add", "--name=test2", "--username=testuser", "--password=testpassword", "testhost2:443"]
+			["config", "service", "add", "--name=test2", "--username=testuser", "--password=testpassword", "testhost2:443"],
+			service_config=False,
 		)
 		assert exit_code == 0
 		assert stdout == "Successfully added new service 'test2' with URL 'https://testhost2:443'.\nThe default service is now 'test'.\n"
@@ -201,7 +203,8 @@ def test_config_service_add() -> None:
 		assert config.get_values()["service"] == "test"
 
 		exit_code, stdout, _stderr = run_cli(
-			["config", "service", "add", "--name=test2", "--username=testuser", "--password=testpassword", "--default", "testhost2:443"]
+			["config", "service", "add", "--name=test2", "--username=testuser", "--password=testpassword", "--default", "testhost2:443"],
+			service_config=False,
 		)
 		assert exit_code == 0
 		assert stdout == "Successfully added new service 'test2' with URL 'https://testhost2:443'.\nThe default service is now 'test2'.\n"
@@ -227,19 +230,20 @@ def test_config_service_remove() -> None:
 		config.config_file_user = conffile
 
 		exit_code, _stdout, _stderr = run_cli(
-			["config", "service", "add", "--name=test", "--username=testuser", "--password=testpassword", "testhost"]
+			["config", "service", "add", "--name=test", "--username=testuser", "--password=testpassword", "testhost"], service_config=False
 		)
 		assert exit_code == 0
 		exit_code, _stdout, _stderr = run_cli(
-			["config", "service", "add", "--name=test2", "--username=testuser", "--password=testpassword", "testhost2", "--default"]
+			["config", "service", "add", "--name=test2", "--username=testuser", "--password=testpassword", "testhost2", "--default"],
+			service_config=False,
 		)
 		assert exit_code == 0
 
-		exit_code, stdout, _stderr = run_cli(["config", "service", "remove", "test"])
+		exit_code, stdout, _stderr = run_cli(["config", "service", "remove", "test"], service_config=False)
 		assert exit_code == 0
 		assert stdout == "Successfully removed service 'test'.\nThe default service is now 'test2'.\n"
 
-		exit_code, stdout, _stderr = run_cli(["config", "service", "remove", "test2"])
+		exit_code, stdout, _stderr = run_cli(["config", "service", "remove", "test2"], service_config=False)
 		assert exit_code == 0
 		assert stdout == "Successfully removed service 'test2'.\nThe default service is now unset.\n"
 
@@ -253,13 +257,15 @@ def test_config_service_set_default() -> None:
 		config.config_file_user = tmp_path / "config_file_user.conf"
 		config.config_file_system = tmp_path / "config_file_system.conf"
 		exit_code, _stdout, _stderr = run_cli(
-			["config", "service", "add", "--name=test", "--username=testuser", "--password=testpassword", "https://testurl:4447"]
+			["config", "service", "add", "--name=test", "--username=testuser", "--password=testpassword", "https://testurl:4447"],
+			service_config=False,
 		)
 		exit_code, _stdout, _stderr = run_cli(
-			["config", "service", "add", "--name=test2", "--username=testuser", "--password=testpassword", "https://testurl2:4447"]
+			["config", "service", "add", "--name=test2", "--username=testuser", "--password=testpassword", "https://testurl2:4447"],
+			service_config=False,
 		)
 
-		exit_code, stdout, _stderr = run_cli(["config", "service", "set-default", "test2"])
+		exit_code, stdout, _stderr = run_cli(["config", "service", "set-default", "test2"], service_config=False)
 		assert exit_code == 0
 		assert stdout == "The default service is now 'test2'.\n"
 		assert config.get_values().get("service") == "test2"
@@ -270,21 +276,21 @@ def test_config_service_set_default() -> None:
 		yaml = YAML().load(config.config_file_user.read_text())
 		assert yaml["service"] == "test2"
 
-		exit_code, stdout, _stderr = run_cli(["config", "service", "set-default", "test"])
+		exit_code, stdout, _stderr = run_cli(["config", "service", "set-default", "test"], service_config=False)
 		assert exit_code == 0
 		assert stdout == "The default service is now 'test'.\n"
 		assert config.get_values().get("service") == "test"
 		config.read_config_files()
 		assert config.get_values().get("service") == "test"
 
-		exit_code, stdout, _stderr = run_cli(["config", "service", "set-default"])
+		exit_code, stdout, _stderr = run_cli(["config", "service", "set-default"], service_config=False)
 		assert exit_code == 0
 		assert stdout == "The default service is now unset.\n"
 		assert config.get_values().get("service") is None
 		config.read_config_files()
 		assert config.get_values().get("service") is None
 
-		exit_code, _stdout, _stderr = run_cli(["config", "service", "set-default", "nonexisting"])
+		exit_code, _stdout, _stderr = run_cli(["config", "service", "set-default", "nonexisting"], service_config=False)
 		assert exit_code == 1
 		assert config.get_values().get("service") is None
 		config.read_config_files()
@@ -303,7 +309,7 @@ def test_metadata_bool_flag(config_value: str, call_parameter: str) -> None:
 		config.config_file_user = conffile
 		exit_code, _stdout, _stderr = run_cli(["config", "set", "metadata", config_value])
 		assert exit_code == 0
-		exit_code, stdout, _stderr = run_cli(["--output-format=json", call_parameter, "config", "service", "list"])
+		exit_code, stdout, _stderr = run_cli(["--output-format=json", call_parameter, "config", "service", "list"], service_config=False)
 		assert exit_code == 0
 		print("config_value: ", config_value, "\ncall_parameter: ", call_parameter, "\noutput: ", stdout, "\n")
 		assert (call_parameter == "--metadata") == ("metadata" in stdout)
@@ -321,7 +327,7 @@ def test_header_bool_flag(config_value: str, call_parameter: str) -> None:
 		config.config_file_user = conffile
 		exit_code, _stdout, _stderr = run_cli(["config", "set", "header", config_value])
 		assert exit_code == 0
-		exit_code, stdout, _stderr = run_cli([call_parameter, "config", "service", "list"])
+		exit_code, stdout, _stderr = run_cli([call_parameter, "config", "service", "list"], service_config=False)
 		assert exit_code == 0
 		assert (call_parameter == "--header") == ("name" in stdout and "url" in stdout)
 
@@ -331,7 +337,7 @@ def test_list_attributes_flag() -> None:
 	try:
 		exit_code, _stdout, _stderr = run_cli(["--list-attributes", "config", "list"])
 		assert exit_code == 0
-		exit_code, _stdout, _stderr = run_cli(["--list-attributes", "config", "service", "list"])
+		exit_code, _stdout, _stderr = run_cli(["--list-attributes", "config", "service", "list"], service_config=False)
 		assert exit_code == 0
 	finally:
 		config.list_attributes = False

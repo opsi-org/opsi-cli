@@ -7,13 +7,13 @@ from pathlib import Path
 from typing import Optional, Union
 
 import pytest
-from opsicommon.objects import LocalbootProduct, ProductOnDepot, NetbootProduct
+from opsicommon.client.opsiservice import ServiceClient
+from opsicommon.objects import LocalbootProduct, NetbootProduct, ProductOnDepot
 from opsicommon.testing.helpers import http_test_server
 
-from opsicli.opsiservice import get_service_connection
 from plugins.package.python import combine_products
 
-from .utils import container_connection, run_cli, tmp_product
+from .utils import run_cli, tmp_product
 
 TEST_DATA_PATH = Path("tests/test_data/plugins/package")
 
@@ -240,46 +240,6 @@ def test_extract(tmp_path: Path, setup_test_product: Path) -> None:
 	assert exit_code == 0 and extracted_dir.exists()
 
 
-@pytest.mark.parametrize("setup_test_product", [{"control_file_content": CONTROL_FILE, "control_toml_content": None}], indirect=True)
-def test_control_to_toml(setup_test_product: Path) -> None:
-	source_dir = setup_test_product
-	exit_code, _stdout, _stderr = run_cli(["package", "control-to-toml", str(source_dir)])
-	control_toml = source_dir / "OPSI" / CONTROL_TOML_FILE_NAME
-	assert exit_code == 0 and control_toml.exists()
-
-
-@pytest.mark.requires_testcontainer
-def test_package_list() -> None:
-	with container_connection():
-		exit_code, _stdout, _stderr = run_cli(["-l7", "package", "list"])
-		assert exit_code == 0
-
-		exit_code, _stdout, _stderr = run_cli(["package", "list", "opsi*"])
-		assert exit_code == 0
-
-		exit_code, _stdout, _stderr = run_cli(["package", "list", "--depots", "all", "opsi-client-agent"])
-		assert exit_code == 0
-
-
-@pytest.mark.requires_testcontainer
-def test_package_list_filter_by_product_type() -> None:
-	with container_connection():
-		connection = get_service_connection()
-		with (
-			tmp_product(connection, "pytest-product1"),
-			tmp_product(connection, "pytest-product2", product_type=NetbootProduct),
-		):
-			exit_code, _stdout, _ = run_cli(["package", "list", "--product-type", "netboot"])
-			assert exit_code == 0
-			assert "pytest-product2" in _stdout
-			assert "pytest-product1" not in _stdout
-
-			exit_code, _stdout, _ = run_cli(["package", "list", "--product-type", "localboot"])
-			assert exit_code == 0
-			assert "pytest-product1" in _stdout
-			assert "pytest-product2" not in _stdout
-
-
 def test_combine_products() -> None:
 	product = LocalbootProduct(
 		id="testproduct", name="Test Product", productVersion="1.0", packageVersion="1", description="Test Product Description"
@@ -307,149 +267,178 @@ def test_combine_products() -> None:
 	assert combine_products(product_dict, product_on_depot_dict) == expected
 
 
-@pytest.mark.docker_linux  # we need docker to handle name resolution to connect to depot fqdn
-@pytest.mark.requires_testcontainer
+@pytest.mark.parametrize("setup_test_product", [{"control_file_content": CONTROL_FILE, "control_toml_content": None}], indirect=True)
+def test_control_to_toml(setup_test_product: Path) -> None:
+	source_dir = setup_test_product
+	exit_code, _stdout, _stderr = run_cli(["package", "control-to-toml", str(source_dir)])
+	control_toml = source_dir / "OPSI" / CONTROL_TOML_FILE_NAME
+	assert exit_code == 0 and control_toml.exists()
+
+
+@pytest.mark.opsi_service
+def test_package_list() -> None:
+	exit_code, _stdout, _stderr = run_cli(["package", "list"])
+	assert exit_code == 0
+
+	exit_code, _stdout, _stderr = run_cli(["package", "list", "opsi*"])
+	assert exit_code == 0
+
+	exit_code, _stdout, _stderr = run_cli(["package", "list", "--depots", "all", "opsi-client-agent"])
+	assert exit_code == 0
+
+
+@pytest.mark.opsi_service
+def test_package_list_filter_by_product_type(admin_service_client: ServiceClient) -> None:
+	with (
+		tmp_product(admin_service_client, "pytest-product1"),
+		tmp_product(admin_service_client, "pytest-product2", product_type=NetbootProduct),
+	):
+		exit_code, _stdout, _ = run_cli(["package", "list", "--product-type", "netboot"])
+		assert exit_code == 0
+		assert "pytest-product2" in _stdout
+		assert "pytest-product1" not in _stdout
+
+		exit_code, _stdout, _ = run_cli(["package", "list", "--product-type", "localboot"])
+		assert exit_code == 0
+		assert "pytest-product1" in _stdout
+		assert "pytest-product2" not in _stdout
+
+
+@pytest.mark.opsi_service
 def test_package_install_and_uninstall() -> None:
-	with container_connection():
-		# Test installing with a missing dependency
-		exit_code, _, _stderr = run_cli(["-l7", "package", "install", str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi")])
-		assert exit_code != 0
-		_stderr = re.sub(r"\s+", " ", re.sub(r"[\n│]", "", _stderr))
-		assert (
-			"Failed to analyze package 'tests/test_data/plugins/package/testdependency4_1.0-5.opsi': "
-			"Dependency 'testdependency5' for package 'testdependency4' is not specified." in _stderr
-		)
+	# Test installing with a missing dependency
+	exit_code, _, _stderr = run_cli(["package", "install", str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi")])
+	assert exit_code != 0
+	_stderr = re.sub(r"\s+", " ", re.sub(r"[\n│]", "", _stderr))
+	assert (
+		"Failed to analyze package 'tests/test_data/plugins/package/testdependency4_1.0-5.opsi': "
+		"Dependency 'testdependency5' for package 'testdependency4' is not specified." in _stderr
+	)
 
-		# Test with unfulfilled package dependency, this will lock the product 'testdependency4'
-		exit_code, _, _stderr = run_cli(
-			[
-				"package",
-				"install",
-				str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi"),
-				str(TEST_DATA_PATH / "testdependency5_1.2-2.opsi"),
-			]
-		)
-		assert exit_code != 0
-		assert "Opsi rpc error:" in _stderr
+	# Test with unfulfilled package dependency, this will lock the product 'testdependency4'
+	exit_code, _, _stderr = run_cli(
+		[
+			"package",
+			"install",
+			str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi"),
+			str(TEST_DATA_PATH / "testdependency5_1.2-2.opsi"),
+		]
+	)
+	assert exit_code != 0
+	assert "Opsi rpc error:" in _stderr
 
-		if Path("/var/lib/opsi/repository").exists():  # we are probably running on the opsi-server itself (not just on same docker host)
-			# Verify files exist after failed install
-			for file in [
-				"testdependency4_1.0-5.opsi",
-				"testdependency4_1.0-5.opsi.md5",
-				"testdependency4_1.0-5.opsi.zsync",
-				"testdependency5_1.2-2.opsi",
-				"testdependency5_1.2-2.opsi.md5",
-				"testdependency5_1.2-2.opsi.zsync",
-			]:
-				assert (Path("/var/lib/opsi/repository") / file).exists()
+	if Path("/var/lib/opsi/repository").exists():  # we are probably running on the opsi-server itself (not just on same docker host)
+		# Verify files exist after failed install
+		for file in [
+			"testdependency4_1.0-5.opsi",
+			"testdependency4_1.0-5.opsi.md5",
+			"testdependency4_1.0-5.opsi.zsync",
+			"testdependency5_1.2-2.opsi",
+			"testdependency5_1.2-2.opsi.md5",
+			"testdependency5_1.2-2.opsi.zsync",
+		]:
+			assert (Path("/var/lib/opsi/repository") / file).exists()
 
-		# Test with correct dependency version
-		exit_code, _, _stderr = run_cli(
-			[
-				"package",
-				"install",
-				str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi"),
-				str(TEST_DATA_PATH / "testdependency5_2-0.opsi"),
-			]
-		)
-		assert exit_code != 0
-		assert "Locked products found:" in _stderr
+	# Test with correct dependency version
+	exit_code, _, _stderr = run_cli(
+		[
+			"package",
+			"install",
+			str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi"),
+			str(TEST_DATA_PATH / "testdependency5_2-0.opsi"),
+		]
+	)
+	assert exit_code != 0
+	assert "Locked products found:" in _stderr
 
-		# Force install with correct dependency version
-		exit_code, _stdout, _stderr = run_cli(
-			[
-				"package",
-				"install",
-				str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi"),
-				str(TEST_DATA_PATH / "testdependency5_2-0.opsi"),
-				"--force",
-			]
-		)
-		assert exit_code == 0
-		assert (
-			"Package 'testdependency4_1.0-5.opsi' already exists in the repository with matching size and checksum. Skipping upload"
-			in _stdout.replace("\n", " ").replace("  ", " ")
-		)
+	# Force install with correct dependency version
+	exit_code, _stdout, _stderr = run_cli(
+		[
+			"package",
+			"install",
+			str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi"),
+			str(TEST_DATA_PATH / "testdependency5_2-0.opsi"),
+			"--force",
+		]
+	)
+	assert exit_code == 0
+	assert (
+		"Package 'testdependency4_1.0-5.opsi' already exists in the repository with matching size and checksum. Skipping upload"
+		in _stdout.replace("\n", " ").replace("  ", " ")
+	)
 
-		if Path("/var/lib/opsi/repository").exists():  # we are probably running on the opsi-server itself (not just on same docker host)
-			# Verify correct files exist after successful install
-			for file in [
-				"testdependency4_1.0-5.opsi",
-				"testdependency4_1.0-5.opsi.md5",
-				"testdependency4_1.0-5.opsi.zsync",
-				"testdependency5_2-0.opsi",
-				"testdependency5_2-0.opsi.md5",
-				"testdependency5_2-0.opsi.zsync",
-			]:
-				assert (Path("/var/lib/opsi/repository") / file).exists()
+	if Path("/var/lib/opsi/repository").exists():  # we are probably running on the opsi-server itself (not just on same docker host)
+		# Verify correct files exist after successful install
+		for file in [
+			"testdependency4_1.0-5.opsi",
+			"testdependency4_1.0-5.opsi.md5",
+			"testdependency4_1.0-5.opsi.zsync",
+			"testdependency5_2-0.opsi",
+			"testdependency5_2-0.opsi.md5",
+			"testdependency5_2-0.opsi.zsync",
+		]:
+			assert (Path("/var/lib/opsi/repository") / file).exists()
 
-			# Verify incorrect files do not exist
-			for file in ["testdependency5_1.2-2.opsi", "testdependency5_1.2-2.opsi.md5", "testdependency5_1.2-2.opsi.zsync"]:
-				assert not (Path("/var/lib/opsi/repository") / file).exists()
+		# Verify incorrect files do not exist
+		for file in ["testdependency5_1.2-2.opsi", "testdependency5_1.2-2.opsi.md5", "testdependency5_1.2-2.opsi.zsync"]:
+			assert not (Path("/var/lib/opsi/repository") / file).exists()
 
-		# Test uninstalling packages
-		exit_code, _stdout, _stderr = run_cli(
-			[
-				"package",
-				"uninstall",
-				"testdependency4",
-				"testdependency5",
-			]
-		)
-		assert exit_code == 0
-		assert "Uninstalling" in _stdout
+	# Test uninstalling packages
+	exit_code, _stdout, _stderr = run_cli(
+		[
+			"package",
+			"uninstall",
+			"testdependency4",
+			"testdependency5",
+		]
+	)
+	assert exit_code == 0
+	assert "Uninstalling" in _stdout
 
-		if Path("/var/lib/opsi/repository").exists():  # we are probably running on the opsi-server itself (not just on same docker host)
-			# Verify files do not exist after uninstall
-			for file in [
-				"testdependency4_1.0-5.opsi",
-				"testdependency4_1.0-5.opsi.md5",
-				"testdependency4_1.0-5.opsi.zsync",
-				"testdependency5_2-0.opsi",
-				"testdependency5_2-0.opsi.md5",
-				"testdependency5_2-0.opsi.zsync",
-			]:
-				assert not (Path("/var/lib/opsi/repository") / file).exists()
+	if Path("/var/lib/opsi/repository").exists():  # we are probably running on the opsi-server itself (not just on same docker host)
+		# Verify files do not exist after uninstall
+		for file in [
+			"testdependency4_1.0-5.opsi",
+			"testdependency4_1.0-5.opsi.md5",
+			"testdependency4_1.0-5.opsi.zsync",
+			"testdependency5_2-0.opsi",
+			"testdependency5_2-0.opsi.md5",
+			"testdependency5_2-0.opsi.zsync",
+		]:
+			assert not (Path("/var/lib/opsi/repository") / file).exists()
 
 
-@pytest.mark.docker_linux  # we need docker to handle name resolution to connect to depot fqdn
-@pytest.mark.requires_testcontainer
+@pytest.mark.opsi_service
 def test_custom_package_installation() -> None:
-	with container_connection():
-		# Test case where the package has "~custom" name and has local md5 and zsync files, which are not updated.
-		exit_code, _, _ = run_cli(["package", "install", str(TEST_DATA_PATH / "test2_1.0-6~custom1.opsi")])
-		assert exit_code == 0
-		if Path("/var/lib/opsi/repository").exists():  # we are probably running on the opsi-server itself (not just on same docker host)
-			for file in ["test2_1.0-6.opsi", "test2_1.0-6.opsi.md5", "test2_1.0-6.opsi.zsync"]:
-				assert (Path("/var/lib/opsi/repository") / file).exists()
+	# Test case where the package has "~custom" name and has local md5 and zsync files, which are not updated.
+	exit_code, _, _ = run_cli(["package", "install", str(TEST_DATA_PATH / "test2_1.0-6~custom1.opsi")])
+	assert exit_code == 0
+	if Path("/var/lib/opsi/repository").exists():  # we are probably running on the opsi-server itself (not just on same docker host)
+		for file in ["test2_1.0-6.opsi", "test2_1.0-6.opsi.md5", "test2_1.0-6.opsi.zsync"]:
+			assert (Path("/var/lib/opsi/repository") / file).exists()
 
-		exit_code, _, _ = run_cli(["package", "uninstall", "test2"])
-		assert exit_code == 0
+	exit_code, _, _ = run_cli(["package", "uninstall", "test2"])
+	assert exit_code == 0
 
 
-@pytest.mark.docker_linux  # we need docker to handle name resolution to connect to depot fqdn
-@pytest.mark.requires_testcontainer
+@pytest.mark.opsi_service
 def test_package_installation_from_urls() -> None:
-	with container_connection():
-		with http_test_server(serve_directory=TEST_DATA_PATH) as server:
-			base_url = f"http://localhost:{server.port}"
+	with http_test_server(serve_directory=TEST_DATA_PATH) as server:
+		base_url = f"http://localhost:{server.port}"
 
-			for file in ["test2_1.0-6~custom1.opsi", "7zip_all_all_19.00-2.tar.gz"]:
-				file_url = f"{base_url}/{file}"
-				exit_code, _, _ = run_cli(["package", "install", file_url])
-				assert exit_code == 0
-
-			exit_code, _, _ = run_cli(["package", "uninstall", "test2", "7zip"])
+		for file in ["test2_1.0-6~custom1.opsi", "7zip_all_all_19.00-2.tar.gz"]:
+			file_url = f"{base_url}/{file}"
+			exit_code, _, _ = run_cli(["package", "install", file_url])
 			assert exit_code == 0
 
+		exit_code, _, _ = run_cli(["package", "uninstall", "test2", "7zip"])
+		assert exit_code == 0
 
-@pytest.mark.docker_linux
-@pytest.mark.requires_testcontainer
+
+@pytest.mark.opsi_service
 def test_package_installation_with_action_request_setup() -> None:
-	with container_connection():
-		exit_code, _, _ = run_cli(["package", "install", str(TEST_DATA_PATH / "testdependency5_2-0.opsi"), "--setup-where-installed"])
-		assert exit_code == 0
+	exit_code, _, _ = run_cli(["package", "install", str(TEST_DATA_PATH / "testdependency5_2-0.opsi"), "--setup-where-installed"])
+	assert exit_code == 0
 
-		exit_code, _, _ = run_cli(["package", "uninstall", "testdependency5"])
-		assert exit_code == 0
+	exit_code, _, _ = run_cli(["package", "uninstall", "testdependency5"])
+	assert exit_code == 0

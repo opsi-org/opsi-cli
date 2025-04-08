@@ -24,7 +24,7 @@ if COMPLETION_MODE:
 	# Loads faster
 	import click
 else:
-	import rich_click as click  # type: ignore[import,no-redef]
+	import rich_click as click  # type: ignore[no-redef]
 
 from click.core import ParameterSource  # noqa: E402
 from click.shell_completion import CompletionItem, ShellComplete, add_completion_class, split_arg_string  # noqa: E402
@@ -37,7 +37,7 @@ from opsicommon.logging import (  # noqa: E402
 	logging_config,
 	secret_filter,
 )
-from ruamel.yaml import YAML  # noqa: E402  # type: ignore[import]
+from ruamel.yaml import YAML  # noqa: E402
 
 from opsicli.types import (  # noqa: E402
 	Attributes,

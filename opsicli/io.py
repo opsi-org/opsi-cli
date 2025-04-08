@@ -16,11 +16,11 @@ from typing import IO, Any, Iterator, Type
 import msgpack  # type: ignore[import]
 import orjson
 from opsicommon.logging import get_logger
-from rich import print_json  # type: ignore[import]
-from rich.color import ANSI_COLOR_NAMES  # type: ignore[import]
-from rich.console import Console  # type: ignore[import]
-from rich.prompt import FloatPrompt, IntPrompt, Prompt  # type: ignore[import]
-from rich.table import Table, box  # type: ignore[import]
+from rich import print_json
+from rich.color import ANSI_COLOR_NAMES
+from rich.console import Console
+from rich.prompt import FloatPrompt, IntPrompt, Prompt
+from rich.table import Table, box
 
 from opsicli.config import config
 

@@ -8,7 +8,7 @@ import importlib
 from functools import wraps
 from typing import Any, Callable
 
-import rich_click as click  # type: ignore[import]
+import rich_click as click
 
 from opsicli.config import config
 from opsicli.io import list_attributes

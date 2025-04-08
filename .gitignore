@@ -1,8 +1,12 @@
 *~
 *.pyo
+*.egg-info
 __pycache__
+.env
+/.coverage
 /.venv
 /run-opsicli.build
 /run-opsicli.dist
 /build
 /dist
+/coverage.xml

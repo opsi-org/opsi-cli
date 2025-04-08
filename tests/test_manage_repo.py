@@ -28,7 +28,7 @@ def test_metafile_create(tmp_path: Path) -> None:
 
 	shutil.copytree(TEST_REPO, repository_dir)
 
-	cmd = ["-l6", "manage-repo", "metafile", "create", str(repository_dir), "--scan"] + [f"--format={f}" for f in formats]
+	cmd = ["manage-repo", "metafile", "create", str(repository_dir), "--scan"] + [f"--format={f}" for f in formats]
 	exit_code, stdout, _stderr = run_cli(cmd)
 	assert exit_code == 0
 
@@ -41,7 +41,7 @@ def test_metafile_create(tmp_path: Path) -> None:
 		assert data["packages"]["test-netboot"]["1.0-2"]["url"] == "subdir/test-netboot_1.0-2.opsi"
 
 	# Recreate without scanning, other name and formats
-	cmd = ["-l6", "manage-repo", "metafile", "create", str(repository_dir), "--format=json", "--repository-name=myrepo"]
+	cmd = ["manage-repo", "metafile", "create", str(repository_dir), "--format=json", "--repository-name=myrepo"]
 	exit_code, stdout, _stderr = run_cli(cmd)
 	assert exit_code == 0
 
@@ -63,7 +63,7 @@ def test_metafile_update(tmp_path: Path) -> None:
 	shutil.copytree(TEST_REPO, repository_dir)
 
 	# Update must create metafiles if they do not exist
-	cmd = ["-l6", "manage-repo", "metafile", "update", str(repository_dir), "--repository-name=myrepo", "--scan"] + [
+	cmd = ["manage-repo", "metafile", "update", str(repository_dir), "--repository-name=myrepo", "--scan"] + [
 		f"--format={f}" for f in formats
 	]
 	exit_code, stdout, _stderr = run_cli(cmd)
@@ -78,7 +78,7 @@ def test_metafile_update(tmp_path: Path) -> None:
 		assert data["packages"]["test-netboot"]["1.0-2"]["url"] == "subdir/test-netboot_1.0-2.opsi"
 
 	# Update without scanning, keep name and change formats
-	cmd = ["-l6", "manage-repo", "metafile", "update", str(repository_dir), "--format=json"]
+	cmd = ["manage-repo", "metafile", "update", str(repository_dir), "--format=json"]
 	exit_code, stdout, _stderr = run_cli(cmd)
 	assert exit_code == 0
 
@@ -101,12 +101,12 @@ def test_metafile_scan_packages(tmp_path: Path) -> None:
 	shutil.copytree(TEST_REPO, repository_dir)
 
 	# Update must create metafiles if they do not exist
-	cmd = ["-l6", "manage-repo", "metafile", "scan-packages", str(repository_dir)]
+	cmd = ["manage-repo", "metafile", "scan-packages", str(repository_dir)]
 	exit_code, _stdout, stderr = run_cli(cmd)
 	assert exit_code == 1
 	assert "No metadata files" in stderr
 
-	cmd = ["-l6", "manage-repo", "metafile", "create", str(repository_dir)] + [f"--format={f}" for f in formats]
+	cmd = ["manage-repo", "metafile", "create", str(repository_dir)] + [f"--format={f}" for f in formats]
 	exit_code, stdout, _stderr = run_cli(cmd)
 	assert exit_code == 0
 
@@ -114,7 +114,7 @@ def test_metafile_scan_packages(tmp_path: Path) -> None:
 		data = read_metafile(repository_dir / f"packages.{suffix}")
 		assert not data["packages"]
 
-	cmd = ["-l6", "manage-repo", "metafile", "scan-packages", str(repository_dir)]
+	cmd = ["manage-repo", "metafile", "scan-packages", str(repository_dir)]
 	exit_code, _stdout, _stderr = run_cli(cmd)
 	assert exit_code == 0
 
@@ -132,12 +132,12 @@ def test_metafile_add_package(tmp_path: Path) -> None:
 	shutil.copy(TEST_REPO / "localboot_new_1.0-1.opsi", repository_dir)
 	shutil.copy(TEST_REPO / "localboot_new_2.0-1.opsi", repository_dir)
 
-	cmd = ["-l6", "manage-repo", "metafile", "create", str(repository_dir), "--scan"] + [f"--format={f}" for f in formats]
+	cmd = ["manage-repo", "metafile", "create", str(repository_dir), "--scan"] + [f"--format={f}" for f in formats]
 	exit_code, _stdout, _stderr = run_cli(cmd)
 	assert exit_code == 0
 
 	# Check if update adds new package and deletes other entries for same package
-	cmd = ["-l6", "manage-repo", "metafile", "add-package", str(repository_dir), str(repository_dir / "localboot_new_2.0-1.opsi")]
+	cmd = ["manage-repo", "metafile", "add-package", str(repository_dir), str(repository_dir / "localboot_new_2.0-1.opsi")]
 	exit_code, _stdout, _stderr = run_cli(cmd)
 	assert exit_code == 0
 
@@ -148,7 +148,6 @@ def test_metafile_add_package(tmp_path: Path) -> None:
 
 	# Check if update adds new package and keeps others with --num-allowed-versions
 	cmd = [
-		"-l6",
 		"manage-repo",
 		"metafile",
 		"add-package",
@@ -176,7 +175,6 @@ def test_metafile_add_package(tmp_path: Path) -> None:
 
 	for compatibility in ("linux-invalid", "invalid-all", "linux", "all", "linux-amd64"):
 		cmd = [
-			"-l6",
 			"manage-repo",
 			"metafile",
 			"add-package",
@@ -197,7 +195,7 @@ def test_metafile_add_package_same_version(tmp_path: Path) -> None:
 	shutil.copy(TEST_REPO / "localboot_new_1.0-1.opsi", repository_dir / "subdir")
 	# same version in different paths -> same RepoMetaPackage instance with .url as list
 
-	cmd = ["-l6", "manage-repo", "metafile", "create", str(repository_dir), "--scan"] + [f"--format={f}" for f in formats]
+	cmd = ["manage-repo", "metafile", "create", str(repository_dir), "--scan"] + [f"--format={f}" for f in formats]
 	exit_code, _stdout, _stderr = run_cli(cmd)
 	assert exit_code == 0
 
@@ -217,11 +215,11 @@ def test_metafile_remove_package(tmp_path: Path) -> None:
 	shutil.copy(TEST_REPO / "localboot_new_1.0-1.opsi", repository_dir)
 	shutil.copy(TEST_REPO / "localboot_new_2.0-1.opsi", repository_dir)
 
-	cmd = ["-l6", "manage-repo", "metafile", "create", str(repository_dir), "--scan"] + [f"--format={f}" for f in formats]
+	cmd = ["manage-repo", "metafile", "create", str(repository_dir), "--scan"] + [f"--format={f}" for f in formats]
 	exit_code, _stdout, _stderr = run_cli(cmd)
 	assert exit_code == 0
 
-	cmd = ["-l6", "manage-repo", "metafile", "remove-package", str(repository_dir), "localboot_new", "2.0-1"]
+	cmd = ["manage-repo", "metafile", "remove-package", str(repository_dir), "localboot_new", "2.0-1"]
 	exit_code, _stdout, _stderr = run_cli(cmd)
 	assert exit_code == 0
 
@@ -230,7 +228,7 @@ def test_metafile_remove_package(tmp_path: Path) -> None:
 		assert len(data["packages"]["localboot_new"]) == 1
 		assert data["packages"]["localboot_new"]["1.0-1"]
 
-	cmd = ["-l6", "manage-repo", "metafile", "remove-package", str(repository_dir), "localboot_new", "1.0-1"]
+	cmd = ["manage-repo", "metafile", "remove-package", str(repository_dir), "localboot_new", "1.0-1"]
 	exit_code, _stdout, _stderr = run_cli(cmd)
 	assert exit_code == 0
 

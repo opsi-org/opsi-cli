@@ -7,8 +7,8 @@ dummy command - proof of concept
 import click
 import git  # type: ignore[import] # noqa: F401
 import netifaces  # type: ignore[import]
-import requests  # type: ignore[import]
-from opsicommon.logging import get_logger  # type: ignore[import]
+import requests
+from opsicommon.logging import get_logger
 
 from opsicli.plugin import OPSICLIPlugin
 

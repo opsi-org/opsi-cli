@@ -10,13 +10,13 @@ import shutil
 import sys
 import warnings
 import zipfile
-from importlib._bootstrap import BuiltinImporter  # type: ignore[import]
+from importlib._bootstrap import BuiltinImporter
 from importlib.machinery import ModuleSpec
 from pathlib import Path
 from types import ModuleType
 from typing import Any
 
-from click import Command  # type: ignore[import]
+from click import Command
 from opsicommon.logging import get_logger
 from packaging.version import parse
 
@@ -235,9 +235,12 @@ def install_dependencies(path: Path, target_dir: Path) -> None:
 	try:
 		import _frozen_importlib_external  # type: ignore[import-not-found]
 
-		import pyimod02_importers  # type: ignore[import-not-found]
+		try:
+			import pyimod02_importers  # type: ignore[import-not-found]
+		except ImportError:
+			from PyInstaller.loader import pyimod02_importers  # type: ignore
 
-		resources._finder_registry[pyimod02_importers.PyiFrozenImporter] = resources._finder_registry[
+		resources._finder_registry[pyimod02_importers.PyiFrozenLoader] = resources._finder_registry[
 			_frozen_importlib_external.SourceFileLoader
 		]
 		logger.debug("Finder registry: %s", resources._finder_registry)

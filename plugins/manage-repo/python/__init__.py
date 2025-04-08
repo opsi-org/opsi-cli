@@ -4,8 +4,8 @@ opsi-cli manage-repo
 
 from pathlib import Path
 
-import requests  # type: ignore[import]
-import rich_click as click  # type: ignore[import]
+import requests
+import rich_click as click
 from opsicommon.logging import get_logger
 from opsicommon.package.repo_meta import (
 	RepoMetaPackage,
