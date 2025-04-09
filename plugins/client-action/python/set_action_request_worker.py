@@ -313,6 +313,7 @@ class SetActionRequestWorker(ClientActionWorker):
 					res = self.service.jsonrpc(
 						"hostControl_processActionRequests",
 						[[client_id], [poc.productId for poc in pocs_by_product.values()], args.process_visibility],
+						read_timeout=60,
 					)
 					logger.debug("Result of hostControl_processActionRequests: %s", res)
 
