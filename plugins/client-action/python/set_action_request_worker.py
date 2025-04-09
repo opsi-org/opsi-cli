@@ -158,6 +158,13 @@ class SetActionRequestWorker(ClientActionWorker):
 	def set_single_action_request(
 		self, product_on_client: ProductOnClient, request_type: str | None = None, force: bool = False
 	) -> list[ProductOnClient]:
+		"""
+		Set the action request for a single ProductOnClient object.
+		:param product_on_client: The ProductOnClient object to set the action request for.
+		:param request_type: The action request to set. If None, the default action request is used.
+		:param force: If True, the action request is set even if an existing action request is present.
+		:return: The updated ProductOnClient objects.
+		"""
 		if not force and product_on_client.actionRequest not in (None, "none"):
 			logger.info(
 				"Skipping %s %s as an actionRequest is set: %s",
@@ -165,7 +172,12 @@ class SetActionRequestWorker(ClientActionWorker):
 				product_on_client.clientId,
 				product_on_client.actionRequest,
 			)
-			return []  # existing actionRequests are left untouched
+			# Existing actionRequests are left untouched
+			if product_on_client.actionRequest == request_type:
+				# If the actionRequest is the same as the one we want to set, return the object for further processing
+				return [product_on_client]
+			return []
+
 		if request_type and request_type.lower() != "none" and request_type not in self.product_action_scripts[product_on_client.productId]:
 			logger.warning(
 				"Skipping %s %s as the package does not have a script for: %s",
@@ -201,6 +213,14 @@ class SetActionRequestWorker(ClientActionWorker):
 	def set_action_requests_for_all(
 		self, clients: Iterable[str], products: list[str], request_type: str | None = None, force: bool = False
 	) -> list[ProductOnClient]:
+		"""
+		Set the action request for all ProductOnClient objects for the given clients and products.
+		:param clients: The clients to set the action request for.
+		:param products: The products to set the action request for.
+		:param request_type: The action request to set. If None, the default action request is used.
+		:param force: If True, the action request is set even if an existing action request is present.
+		:return: The updated ProductOnClient objects.
+		"""
 		new_pocs: list[ProductOnClient] = []
 		existing_pocs: dict[str, dict[str, ProductOnClient]] = {}
 		pocs: list[ProductOnClient] = self.service.jsonrpc(
@@ -280,9 +300,9 @@ class SetActionRequestWorker(ClientActionWorker):
 				logger.notice("Setting setup for all modified clients and products: %s", setup_on_action_products)
 				for add_poc in self.set_action_requests_for_all(modified_clients, setup_on_action_products, "setup"):
 					if add_poc.productId not in new_pocs[poc.clientId]:
-						new_pocs[poc.clientId][poc.productId] = add_poc
+						new_pocs[add_poc.clientId][add_poc.productId] = add_poc
 
-		# if neither where_failed nor where_outdated nor uninstall_where_only_uninstall is set, set action request for every selected client
+		# If neither where_failed nor where_outdated nor uninstall_where_only_uninstall is set, set action request for every selected client
 		else:
 			if not args.products and not args.product_groups:
 				raise ValueError("When unconditionally setting actionRequests, you must supply --products or --product-groups.")
@@ -312,7 +332,7 @@ class SetActionRequestWorker(ClientActionWorker):
 				for client_id, pocs_by_product in new_pocs.items():
 					res = self.service.jsonrpc(
 						"hostControl_processActionRequests",
-						[[client_id], [poc.productId for poc in pocs_by_product.values()], args.process_visibility],
+						[[client_id], list(pocs_by_product), args.process_visibility],
 						read_timeout=60,
 					)
 					logger.debug("Result of hostControl_processActionRequests: %s", res)

@@ -3,14 +3,12 @@ test_client_action
 """
 
 import re
-from typing import Literal
+from typing import Any, Literal
 from unittest.mock import patch
 
 import pytest
 from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.objects import ProductOnClient
-
-from opsicli.config import config
 
 from .utils import (
 	run_cli,
@@ -96,8 +94,20 @@ def test_set_action_request_group(admin_service_client: ServiceClient) -> None:
 
 
 @pytest.mark.opsi_service
-@pytest.mark.parametrize("selection", ("failed", "outdated", "installed"))
-def test_set_action_request_where(admin_service_client: ServiceClient, selection: Literal["failed", "outdated", "installed"]) -> None:
+@pytest.mark.parametrize(
+	"selection, process, dry_run",
+	(
+		("failed", False, False),
+		("outdated", False, False),
+		("installed", False, False),
+		("failed", True, False),
+		("outdated", True, False),
+		("installed", True, True),
+	),
+)
+def test_set_action_request_where(
+	admin_service_client: ServiceClient, selection: Literal["failed", "outdated", "installed"], process: bool, dry_run: bool
+) -> None:
 	with (
 		tmp_client(admin_service_client, CLIENT1),
 		tmp_client(admin_service_client, CLIENT2),
@@ -116,15 +126,6 @@ def test_set_action_request_where(admin_service_client: ServiceClient, selection
 				actionRequest="none",
 				actionResult="failed",
 			),
-			# product1 installed on client2
-			ProductOnClient(
-				clientId=CLIENT2,
-				productId=product1.id,
-				productType=product1.getType(),
-				installationStatus="installed",
-				actionRequest="none",
-				actionResult="",
-			),
 			# product2 outdated on client1
 			ProductOnClient(
 				clientId=CLIENT1,
@@ -132,6 +133,24 @@ def test_set_action_request_where(admin_service_client: ServiceClient, selection
 				productType=product2.getType(),
 				productVersion="0",
 				packageVersion="0",
+				installationStatus="installed",
+				actionRequest="none",
+				actionResult="",
+			),
+			# product3 installed on client1
+			ProductOnClient(
+				clientId=CLIENT1,
+				productId=product3.id,
+				productType=product3.getType(),
+				installationStatus="installed",
+				actionRequest="none",
+				actionResult="",
+			),
+			# product1 installed on client2
+			ProductOnClient(
+				clientId=CLIENT2,
+				productId=product1.id,
+				productType=product1.getType(),
 				installationStatus="installed",
 				actionRequest="none",
 				actionResult="",
@@ -147,15 +166,6 @@ def test_set_action_request_where(admin_service_client: ServiceClient, selection
 				actionRequest="none",
 				actionResult="",
 			),
-			# product3 installed on client1
-			ProductOnClient(
-				clientId=CLIENT1,
-				productId=product3.id,
-				productType=product3.getType(),
-				installationStatus="installed",
-				actionRequest="none",
-				actionResult="",
-			),
 			# product3 not_installed on client2
 			ProductOnClient(
 				clientId=CLIENT2,
@@ -167,79 +177,132 @@ def test_set_action_request_where(admin_service_client: ServiceClient, selection
 			),
 		]
 
-		for dry_run in (True, False):
-			config.dry_run = dry_run
-			admin_service_client.jsonrpc("productOnClient_createObjects", params=[pocs])
+		admin_service_client.jsonrpc("productOnClient_createObjects", params=[pocs])
 
-			cmd = [
-				"client-action",
-				"--clients",
-				f"{CLIENT1},{CLIENT2}",
-				"set-action-request",
-				f"--where-{selection}",
-				"--setup-on-action",
-				PRODUCT3,
-			]
-			if dry_run:
-				cmd.insert(0, "--dry-run")
-			exit_code, stdout, _stderr = run_cli(cmd)
+		cmd = [
+			"client-action",
+			"--clients",
+			f"{CLIENT1},{CLIENT2}",
+			"set-action-request",
+			f"--where-{selection}",
+			"--setup-on-action",
+			PRODUCT3,
+		]
+		if process:
+			cmd.append("--process")
+		if dry_run:
+			cmd.insert(0, "--dry-run")
 
-			assert exit_code == 0
+		jsonrpc_orig = ServiceClient.jsonrpc
+		rpcs: list[list[Any]] = []
 
-			pocs = sorted(
-				admin_service_client.jsonrpc(
-					"productOnClient_getObjects",
-					params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2, PRODUCT3]}],
-				),
-				key=lambda poc: (poc.productId, poc.clientId),
+		def mock_jsonrpc(
+			self: ServiceClient,
+			method: str,
+			params: tuple[Any, ...] | list[Any] | dict[str, Any] | None = None,
+			*,
+			connect_timeout: float | None = None,
+			read_timeout: float | None = None,
+			return_result_only: bool = True,
+			create_objects: bool | None = None,
+		) -> Any:
+			nonlocal rpcs
+			rpcs.append([method, params, connect_timeout, read_timeout, return_result_only, create_objects])
+			if method == "hostControl_processActionRequests":
+				return {}
+			return jsonrpc_orig(
+				self,
+				method,
+				params,
+				connect_timeout=connect_timeout,
+				read_timeout=read_timeout,
+				return_result_only=return_result_only,
+				create_objects=create_objects,
 			)
 
-			assert len(pocs) == 6
-			assert pocs[0].productId == PRODUCT1
-			assert pocs[0].clientId == CLIENT1
-			assert pocs[1].productId == PRODUCT1
-			assert pocs[1].clientId == CLIENT2
-			assert pocs[2].productId == PRODUCT2
-			assert pocs[2].clientId == CLIENT1
-			assert pocs[3].productId == PRODUCT2
-			assert pocs[3].clientId == CLIENT2
-			assert pocs[4].productId == PRODUCT3
-			assert pocs[4].clientId == CLIENT1
-			assert pocs[5].productId == PRODUCT3
-			assert pocs[5].clientId == CLIENT2
-			count_setup = 0
-			if selection == "failed":
-				count_setup = 2
-				assert pocs[0].actionRequest == ("none" if dry_run else "setup")  # product1 on client1: failed => setup
-				assert pocs[1].actionRequest == "none"
-				assert pocs[2].actionRequest == "none"
-				assert pocs[3].actionRequest == "none"
-				assert pocs[4].actionRequest == ("none" if dry_run else "setup")  # product3 on client1: setup-on-action
-				assert pocs[5].actionRequest == "none"
-			elif selection == "outdated":
-				count_setup = 4
-				assert pocs[0].actionRequest == "none"
-				assert pocs[1].actionRequest == ("none" if dry_run else "setup")  # product2 on client1: outdated => setup (no version info)
-				assert pocs[2].actionRequest == ("none" if dry_run else "setup")  # product2 on client1: outdated => setup
-				assert pocs[3].actionRequest == "none"
-				assert pocs[4].actionRequest == ("none" if dry_run else "setup")  # product3 on client1: setup-on-action
-				assert pocs[5].actionRequest == ("none" if dry_run else "setup")  # product3 on client2: setup-on-action
-			elif selection == "installed":
-				count_setup = 5
-				assert pocs[0].actionRequest == "none"
-				assert pocs[1].actionRequest == ("none" if dry_run else "setup")  # product1 on client2: installed => setup
-				assert pocs[2].actionRequest == ("none" if dry_run else "setup")  # product2 on client1: installed => setup
-				assert pocs[3].actionRequest == ("none" if dry_run else "setup")  # product2 on client2: installed => setup
-				assert pocs[4].actionRequest == ("none" if dry_run else "setup")  # product3 on client1: setup-on-action
-				assert pocs[5].actionRequest == ("none" if dry_run else "setup")  # product3 on client2: setup-on-action
+		with patch("opsicommon.client.opsiservice.ServiceClient.jsonrpc", mock_jsonrpc):
+			exit_code, stdout, _stderr = run_cli(cmd)
 
-			lines = stdout.splitlines()
-			if dry_run:
-				assert lines[0].startswith("Action requests would have been set. Here are the updated")
+		assert exit_code == 0
+
+		pocs = sorted(
+			admin_service_client.jsonrpc(
+				"productOnClient_getObjects",
+				params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2, PRODUCT3]}],
+			),
+			key=lambda poc: (poc.clientId, poc.productId),
+		)
+
+		assert len(pocs) == 6
+		assert pocs[0].clientId == CLIENT1
+		assert pocs[0].productId == PRODUCT1
+		assert pocs[1].clientId == CLIENT1
+		assert pocs[1].productId == PRODUCT2
+		assert pocs[2].clientId == CLIENT1
+		assert pocs[2].productId == PRODUCT3
+		assert pocs[3].clientId == CLIENT2
+		assert pocs[3].productId == PRODUCT1
+		assert pocs[4].clientId == CLIENT2
+		assert pocs[4].productId == PRODUCT2
+		assert pocs[5].clientId == CLIENT2
+		assert pocs[5].productId == PRODUCT3
+
+		expected_actions = {client_id: {PRODUCT1: "none", PRODUCT2: "none", PRODUCT3: "none"} for client_id in (CLIENT1, CLIENT2)}
+		if selection == "failed":
+			expected_actions[CLIENT1][PRODUCT1] = "setup"  # failed => setup
+			expected_actions[CLIENT1][PRODUCT3] = "setup"  # setup-on-action
+		elif selection == "outdated":
+			expected_actions[CLIENT1][PRODUCT2] = "setup"  # outdated => setup
+			expected_actions[CLIENT1][PRODUCT3] = "setup"  # outdated => setup (no version info) and setup-on-action
+			expected_actions[CLIENT2][PRODUCT1] = "setup"  # outdated => setup (no version info)
+			expected_actions[CLIENT2][PRODUCT3] = "setup"  # setup-on-action
+		elif selection == "installed":
+			expected_actions[CLIENT1][PRODUCT2] = "setup"  # installed => setup
+			expected_actions[CLIENT1][PRODUCT3] = "setup"  # setup-on-action
+			expected_actions[CLIENT2][PRODUCT1] = "setup"  # installed => setup
+			expected_actions[CLIENT2][PRODUCT2] = "setup"  # installed => setup
+			expected_actions[CLIENT2][PRODUCT3] = "setup"  # setup-on-action
+
+		assert pocs[0].actionRequest == ("none" if dry_run else expected_actions[CLIENT1][PRODUCT1])
+		assert pocs[1].actionRequest == ("none" if dry_run else expected_actions[CLIENT1][PRODUCT2])
+		assert pocs[2].actionRequest == ("none" if dry_run else expected_actions[CLIENT1][PRODUCT3])
+		assert pocs[3].actionRequest == ("none" if dry_run else expected_actions[CLIENT2][PRODUCT1])
+		assert pocs[4].actionRequest == ("none" if dry_run else expected_actions[CLIENT2][PRODUCT2])
+		assert pocs[5].actionRequest == ("none" if dry_run else expected_actions[CLIENT2][PRODUCT3])
+
+		if process:
+			unprocessed_actions = expected_actions.copy()
+			for rpc in rpcs:
+				if rpc[0] == "hostControl_processActionRequests":
+					if dry_run:
+						raise RuntimeError("Unexpected call to hostControl_processActionRequests on dry-run")
+
+					client_id = rpc[1][0][0]
+					product_ids = rpc[1][1]
+					# print(f"process: {client_id}: {product_ids}")
+					assert sorted(product_ids) == sorted(
+						pid for pid, act in unprocessed_actions.pop(client_id, {}).items() if act == "setup"
+					)
+			if not dry_run:
+				assert not unprocessed_actions
+
+		lines = stdout.splitlines()
+		message = lines[0] + " " + lines[1]
+		if dry_run:
+			if process:
+				assert message.startswith(
+					"Action requests would have been set and processing would have been started. Here are the updated"
+				)
 			else:
-				assert lines[0].startswith("Action requests have been set. Here are the updated")
+				assert message.startswith("Action requests would have been set. Here are the updated")
+		else:
+			if process:
+				assert message.startswith("Action requests have been set and processing was started. Here are the updated")
+			else:
+				assert message.startswith("Action requests have been set. Here are the updated")
 
-			assert count_setup == len([line for line in lines[2:] if line.strip() and line.strip().split()[-1].strip() == "setup"])
+		count_setup = len([action for actions in expected_actions.values() for action in actions.values() if action == "setup"])
+		assert count_setup == len([line for line in lines[2:] if line.strip() and line.strip().split()[-1].strip() == "setup"])
 
 
 @pytest.mark.opsi_service
