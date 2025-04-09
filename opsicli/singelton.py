@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+
+# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0-only
+
 from __future__ import annotations
 
 from typing import Any
