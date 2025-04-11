@@ -349,9 +349,9 @@ def install(
 
 def complete_installed_products(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
 	"""
-	Suggests installed products from the selected depots, limited to a maximum of 50 results.
+	Suggests installed products from the selected depots, limited to a maximum of 10 results.
 	"""
-	MAX_RESULTS = 50
+	MAX_RESULTS = 10
 	service_client = get_service_connection()
 	depots = ctx.params.get("depots", "all")
 	depot_list = [depot.id for depot in get_depot_objects(get_service_connection(), depots)]
