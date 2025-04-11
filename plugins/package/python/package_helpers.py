@@ -34,6 +34,7 @@ DEPOT_REPOSITORY_PATH = "/var/lib/opsi/repository"
 logger = get_logger("opsicli")
 
 
+@lru_cache(maxsize=100)
 def get_depot_objects(service_client: ServiceClient, depots: str) -> list[OpsiDepotserver]:
 	"""
 	This function makes a JSON-RPC call to the "host_getObjects" with the depots filter.
@@ -46,6 +47,14 @@ def get_depot_objects(service_client: ServiceClient, depots: str) -> list[OpsiDe
 		else {"type": "OpsiConfigserver"}
 	)
 	return service_client.jsonrpc("host_getObjects", [[], depot_filter])
+
+
+@lru_cache(maxsize=100)
+def get_product_on_depot_objects(service_client: ServiceClient, depot_list: tuple) -> list[dict]:
+	"""
+	This function makes a JSON-RPC call to the "productOnDepot_getObjects" with the depot list.
+	"""
+	return service_client.jsonrpc("productOnDepot_getObjects", [[], {"depotId": list(depot_list)}])
 
 
 def download_with_progress(url: str, destination: Path) -> None:

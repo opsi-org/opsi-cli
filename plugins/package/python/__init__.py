@@ -32,6 +32,7 @@ from .package_helpers import (
 	cleanup_packages_from_repo,
 	fix_custom_package_name,
 	get_depot_objects,
+	get_product_on_depot_objects,
 	get_property_default_values,
 	handle_action_request,
 	install_package,
@@ -346,8 +347,21 @@ def install(
 				depot_connection.disconnect()
 
 
+def complete_installed_products(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
+	"""
+	Suggests installed products from the selected depots, limited to a maximum of 50 results.
+	"""
+	MAX_RESULTS = 50
+	service_client = get_service_connection()
+	depots = ctx.params.get("depots", "all")
+	depot_list = [depot.id for depot in get_depot_objects(get_service_connection(), depots)]
+	installed_packages = get_product_on_depot_objects(service_client, tuple(depot_list))
+	suggestions = [CompletionItem(pod["productId"]) for pod in installed_packages if pod["productId"].startswith(incomplete)]
+	return suggestions[:MAX_RESULTS]
+
+
 @cli.command(short_help="Uninstall opsi products.")
-@click.argument("product_ids", type=str, nargs=-1, required=True)
+@click.argument("product_ids", type=str, nargs=-1, required=True, shell_complete=complete_installed_products)
 @click.option("--depots", help="Depot IDs (comma-separated) or 'all'. Default is configserver.")
 @click.option("--force", is_flag=True, help="Force uninstallation.", default=False)
 @click.option("--keep-files", is_flag=True, help="Keep files on uninstallation.", default=False)
