@@ -1,3 +1,8 @@
+# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0-only
+
 """
 opsi-cli Basic command line interface for opsi
 
@@ -6,24 +11,27 @@ Test utilities
 
 import os
 import tempfile
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
-from typing import Generator, Iterator, Sequence
+from typing import Generator, Sequence
 
-from click.testing import CliRunner  # type: ignore[import]
+from click.testing import CliRunner
+from opsicommon.objects import LocalbootProduct, Product, ProductOnDepot
 
 from opsicli.__main__ import main
 from opsicli.config import config
 from opsicli.opsiservice import ServiceClient
 
-from . import OPSI_HOSTNAME, OPSI_PASSWORD, OPSI_USERNAME
+from .conftest import admin_service_connection_params
 
 runner = CliRunner(mix_stderr=False)
 
 
-def run_cli(args: Sequence[str], stdin: list[str] | None = None) -> tuple[int, str, str]:
-	result = runner.invoke(main, args, obj={}, catch_exceptions=False, input="\n".join(stdin or []))
-	return (result.exit_code, result.stdout, result.stderr)
+def run_cli(args: Sequence[str], service_config: bool = True, stdin: list[str] | None = None) -> tuple[int, str, str]:
+	context = admin_service_config if service_config else nullcontext
+	with context():
+		result = runner.invoke(main, args, obj={}, catch_exceptions=False, input="\n".join(stdin or []))
+		return (result.exit_code, result.stdout, result.stderr)
 
 
 @contextmanager
@@ -36,20 +44,25 @@ def tmp_client(service: ServiceClient, name: str) -> Generator[None, None, None]
 
 
 @contextmanager
-def tmp_product(service: ServiceClient, name: str, product_type: str = "LocalbootProduct") -> Generator[None, None, None]:
+def tmp_product(service: ServiceClient, name: str, product_type: type[Product] = LocalbootProduct) -> Generator[Product, None, None]:
 	try:
-		product_dict = {
-			"id": name,
-			"type": product_type,
-			"productVersion": "1",
-			"packageVersion": "1",
-			"setupScript": "setup.opsiscript",
-		}
 		depot_id = service.jsonrpc("host_getObjects", [[], {"type": "OpsiConfigserver"}])[0].id
-		service.jsonrpc("product_createObjects", params=[product_dict])
-		pod_dict = {"productId": name, "depotId": depot_id, "productType": product_type, "productVersion": "1", "packageVersion": "1"}
-		service.jsonrpc("productOnDepot_createObjects", params=[pod_dict])
-		yield
+		product = product_type(
+			id=name,
+			productVersion="1",
+			packageVersion="1",
+			setupScript="setup.opsiscript",
+		)
+		product_on_depot = ProductOnDepot(
+			productId=product.id,
+			productType=product.getType(),
+			productVersion=product.productVersion,
+			packageVersion=product.packageVersion,
+			depotId=depot_id,
+		)
+		service.jsonrpc("product_createObjects", params=[[product]])
+		service.jsonrpc("productOnDepot_createObjects", params=[[product_on_depot]])
+		yield product
 	finally:
 		service.jsonrpc("productOnDepot_delete", params=[name, depot_id])
 		service.jsonrpc("product_delete", params=[name])
@@ -102,29 +115,28 @@ def temp_context() -> Generator[Path, None, None]:
 
 
 @contextmanager
-def temp_env(**environ: str) -> Iterator[None]:
+def temp_env(**environ: str | None) -> Generator[dict[str, str], None, None]:
 	old_environ = dict(os.environ)
-	os.environ.update(environ)
+	for name, value in environ.items():
+		if value is None:
+			os.environ.pop(name, None)
+		else:
+			os.environ[name] = value
 	try:
-		yield
+		yield dict(os.environ.items())
 	finally:
 		os.environ.clear()
 		os.environ.update(old_environ)
 
 
 @contextmanager
-def container_connection() -> Generator[None, None, None]:
-	old_username = config.get_values().get("username")
-	old_password = config.get_values().get("password")
-	old_service = config.get_values().get("service")
+def admin_service_config() -> Generator[tuple[str, str, str], None, None]:
+	address, username, password = admin_service_connection_params()
+	current_values = config.service, config.username, config.password
+	config.service = address
+	config.username = username
+	config.password = password
 	try:
-		config.set_values({"username": OPSI_USERNAME})
-		config.set_values({"password": OPSI_PASSWORD})
-		config.set_values({"service": f"https://{OPSI_HOSTNAME}:4447"})
-		config.write_config_files(user_only=True)
-		yield
+		yield address, username, password
 	finally:
-		config.set_values({"username": old_username})
-		config.set_values({"password": old_password})
-		config.set_values({"service": old_service})
-		config.write_config_files(user_only=True)
+		config.service, config.username, config.password = current_values

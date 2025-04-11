@@ -1,3 +1,8 @@
+# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0-only
+
 """
 opsi-cli Basic command line interface for opsi
 
@@ -9,10 +14,10 @@ import re
 import sys
 from typing import Any, Sequence
 
-from click.exceptions import Abort, ClickException  # type: ignore[import]
-from click.shell_completion import CompletionItem  # type: ignore[import]
+from click.exceptions import Abort, ClickException
+from click.shell_completion import CompletionItem
 from opsicommon.exceptions import OpsiServiceConnectionError
-from opsicommon.logging import get_logger  # type: ignore[import]
+from opsicommon.logging import get_logger
 
 from opsicli import __version__, prepare_cli_paths
 from opsicli.cache import cache
@@ -24,13 +29,13 @@ from opsicli.types import OpsiCliRuntimeError
 original_print = builtins.print
 
 if not COMPLETION_MODE:
-	import rich_click as click  # type: ignore[import,no-redef]
-	from rich_click.rich_click import _get_rich_formatter, rich_abort_error, rich_format_error, rich_format_help  # type: ignore[import]
+	import rich_click as click  # type: ignore[no-redef]
+	from rich_click.rich_click import _get_rich_formatter, rich_abort_error, rich_format_error, rich_format_help
 
 	from opsicli.io import get_console
 else:
 	# Loads faster
-	import click  # type: ignore[import,no-redef]
+	import click  # type: ignore[no-redef]
 
 if not COMPLETION_MODE:
 	click.rich_click.USE_RICH_MARKUP = True

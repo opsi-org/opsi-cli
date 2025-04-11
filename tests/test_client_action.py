@@ -1,17 +1,21 @@
+# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0-only
+
 """
 test_client_action
 """
 
 import re
+from typing import Any, Literal
 from unittest.mock import patch
 
 import pytest
+from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.objects import ProductOnClient
 
-from opsicli.opsiservice import get_service_connection
-
 from .utils import (
-	container_connection,
 	run_cli,
 	tmp_client,
 	tmp_host_group,
@@ -24,26 +28,59 @@ CLIENT2 = "pytest-client2.test.tld"
 CLIENT3 = "pytest-client3.test.tld"
 PRODUCT1 = "pytest-product1"
 PRODUCT2 = "pytest-product2"
+PRODUCT3 = "pytest-product3"
 H_GROUP1 = "pytest-test-host-group"
 H_GROUP2 = "pytest-nested-host-group"
 P_GROUP = "pytest-test-product-group"
 
 
-@pytest.mark.requires_testcontainer
-def test_set_action_request_single() -> None:
-	with container_connection():
-		connection = get_service_connection()
+@pytest.mark.opsi_service
+def test_set_action_request_single(admin_service_client: ServiceClient) -> None:
+	with (
+		tmp_client(admin_service_client, CLIENT1),
+		tmp_client(admin_service_client, CLIENT2),
+		tmp_product(admin_service_client, PRODUCT1),
+		tmp_product(admin_service_client, PRODUCT2),
+	):
+		cmd = ["client-action", "--clients", f"{CLIENT1},{CLIENT2}", "set-action-request", "--products", f"{PRODUCT1},{PRODUCT2}"]
+
+		exit_code, _stdout, _stderr = run_cli(cmd)
+		assert exit_code == 0
+		pocs = admin_service_client.jsonrpc(
+			"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
+		)
+		assert len(pocs) == 4
+		for poc in pocs:
+			assert poc.actionRequest == "setup"
+
+		cmd += ["--request-type", "none"]
+		exit_code, _stdout, _stderr = run_cli(cmd)
+		assert exit_code == 0
+		pocs = admin_service_client.jsonrpc(
+			"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
+		)
+		assert len(pocs) == 4
+		for poc in pocs:
+			assert poc.actionRequest in ("none", None)
+
+
+@pytest.mark.opsi_service
+def test_set_action_request_group(admin_service_client: ServiceClient) -> None:
+	with (
+		tmp_client(admin_service_client, CLIENT1),
+		tmp_client(admin_service_client, CLIENT2),
+		tmp_product(admin_service_client, PRODUCT1),
+		tmp_product(admin_service_client, PRODUCT2),
+	):
 		with (
-			tmp_client(connection, CLIENT1),
-			tmp_client(connection, CLIENT2),
-			tmp_product(connection, PRODUCT1),
-			tmp_product(connection, PRODUCT2),
+			tmp_host_group(admin_service_client, H_GROUP1, {CLIENT1, CLIENT2}),
+			tmp_product_group(admin_service_client, P_GROUP, [PRODUCT1, PRODUCT2]),
 		):
-			cmd = ["client-action", "--clients", f"{CLIENT1},{CLIENT2}", "set-action-request", "--products", f"{PRODUCT1},{PRODUCT2}"]
+			cmd = ["client-action", "--client-groups", H_GROUP1, "set-action-request", "--product-groups", P_GROUP]
 
 			exit_code, _stdout, _stderr = run_cli(cmd)
 			assert exit_code == 0
-			pocs = connection.jsonrpc(
+			pocs = admin_service_client.jsonrpc(
 				"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
 			)
 			assert len(pocs) == 4
@@ -53,7 +90,7 @@ def test_set_action_request_single() -> None:
 			cmd += ["--request-type", "none"]
 			exit_code, _stdout, _stderr = run_cli(cmd)
 			assert exit_code == 0
-			pocs = connection.jsonrpc(
+			pocs = admin_service_client.jsonrpc(
 				"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
 			)
 			assert len(pocs) == 4
@@ -61,186 +98,326 @@ def test_set_action_request_single() -> None:
 				assert poc.actionRequest in ("none", None)
 
 
-@pytest.mark.requires_testcontainer
-def test_set_action_request_group() -> None:
-	with container_connection():
-		connection = get_service_connection()
-		with (
-			tmp_client(connection, CLIENT1),
-			tmp_client(connection, CLIENT2),
-			tmp_product(connection, PRODUCT1),
-			tmp_product(connection, PRODUCT2),
-		):
-			with tmp_host_group(connection, H_GROUP1, {CLIENT1, CLIENT2}), tmp_product_group(connection, P_GROUP, [PRODUCT1, PRODUCT2]):
-				cmd = ["-l6", "client-action", "--client-groups", H_GROUP1, "set-action-request", "--product-groups", P_GROUP]
+@pytest.mark.opsi_service
+@pytest.mark.parametrize(
+	"selection, process, dry_run",
+	(
+		("failed", False, False),
+		("outdated", False, False),
+		("installed", False, False),
+		("failed", True, False),
+		("outdated", True, False),
+		("installed", True, True),
+	),
+)
+def test_set_action_request_where(
+	admin_service_client: ServiceClient, selection: Literal["failed", "outdated", "installed"], process: bool, dry_run: bool
+) -> None:
+	with (
+		tmp_client(admin_service_client, CLIENT1),
+		tmp_client(admin_service_client, CLIENT2),
+		tmp_product(admin_service_client, PRODUCT1) as product1,
+		tmp_product(admin_service_client, PRODUCT2) as product2,
+		tmp_product(admin_service_client, PRODUCT3) as product3,
+	):
+		# Create product on clients
+		pocs: list[ProductOnClient] = [
+			# product1 failed on client1
+			ProductOnClient(
+				clientId=CLIENT1,
+				productId=product1.id,
+				productType=product1.getType(),
+				installationStatus="unknown",
+				actionRequest="none",
+				actionResult="failed",
+			),
+			# product2 outdated on client1
+			ProductOnClient(
+				clientId=CLIENT1,
+				productId=product2.id,
+				productType=product2.getType(),
+				productVersion="0",
+				packageVersion="0",
+				installationStatus="installed",
+				actionRequest="none",
+				actionResult="",
+			),
+			# product3 installed on client1
+			ProductOnClient(
+				clientId=CLIENT1,
+				productId=product3.id,
+				productType=product3.getType(),
+				installationStatus="installed",
+				actionRequest="none",
+				actionResult="",
+			),
+			# product1 installed on client2
+			ProductOnClient(
+				clientId=CLIENT2,
+				productId=product1.id,
+				productType=product1.getType(),
+				installationStatus="installed",
+				actionRequest="none",
+				actionResult="",
+			),
+			# product2 up-to-date on client2
+			ProductOnClient(
+				clientId=CLIENT2,
+				productId=product2.id,
+				productType=product2.getType(),
+				productVersion=product2.productVersion,
+				packageVersion=product2.packageVersion,
+				installationStatus="installed",
+				actionRequest="none",
+				actionResult="",
+			),
+			# product3 not_installed on client2
+			ProductOnClient(
+				clientId=CLIENT2,
+				productId=product3.id,
+				productType=product3.getType(),
+				installationStatus="not_installed",
+				actionRequest="none",
+				actionResult="",
+			),
+		]
 
-				exit_code, _stdout, _stderr = run_cli(cmd)
-				assert exit_code == 0
-				pocs = connection.jsonrpc(
-					"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
-				)
-				assert len(pocs) == 4
-				for poc in pocs:
-					assert poc.actionRequest == "setup"
+		admin_service_client.jsonrpc("productOnClient_createObjects", params=[pocs])
 
-				cmd += ["--request-type", "none"]
-				exit_code, _stdout, _stderr = run_cli(cmd)
-				assert exit_code == 0
-				pocs = connection.jsonrpc(
-					"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
-				)
-				assert len(pocs) == 4
-				for poc in pocs:
-					assert poc.actionRequest in ("none", None)
+		cmd = [
+			"client-action",
+			"--clients",
+			f"{CLIENT1},{CLIENT2}",
+			"set-action-request",
+			f"--where-{selection}",
+			"--setup-on-action",
+			PRODUCT3,
+		]
+		if process:
+			cmd.append("--process")
+		if dry_run:
+			cmd.insert(0, "--dry-run")
 
+		jsonrpc_orig = ServiceClient.jsonrpc
+		rpcs: list[list[Any]] = []
 
-@pytest.mark.requires_testcontainer
-def test_set_action_request_where_failed() -> None:
-	with container_connection():
-		connection = get_service_connection()
-		with tmp_client(connection, CLIENT1), tmp_product(connection, PRODUCT1), tmp_product(connection, PRODUCT2):
-			# create a failed POC
-			connection.jsonrpc(
-				"productOnClient_updateObjects",
-				params=[
-					ProductOnClient(
-						clientId=CLIENT1,
-						productId=PRODUCT1,
-						productType="LocalbootProduct",
-						actionResult="failed",
-						actionRequest=None,
-					),
-				],
+		def mock_jsonrpc(
+			self: ServiceClient,
+			method: str,
+			params: tuple[Any, ...] | list[Any] | dict[str, Any] | None = None,
+			*,
+			connect_timeout: float | None = None,
+			read_timeout: float | None = None,
+			return_result_only: bool = True,
+			create_objects: bool | None = None,
+		) -> Any:
+			nonlocal rpcs
+			rpcs.append([method, params, connect_timeout, read_timeout, return_result_only, create_objects])
+			if method == "hostControl_processActionRequests":
+				return {}
+			return jsonrpc_orig(
+				self,
+				method,
+				params,
+				connect_timeout=connect_timeout,
+				read_timeout=read_timeout,
+				return_result_only=return_result_only,
+				create_objects=create_objects,
 			)
 
-			exit_code, _stdout, _stderr = run_cli(
-				["client-action", "--clients", CLIENT1, "set-action-request", "--where-failed", "--setup-on-action", PRODUCT2]
-			)
-			assert exit_code == 0
-			pocs = connection.jsonrpc("productOnClient_getObjects", params=[[], {"clientId": CLIENT1, "productId": [PRODUCT1, PRODUCT2]}])
-			assert len(pocs) == 2
-			for poc in pocs:
-				assert poc.actionRequest == "setup"
-
-
-@pytest.mark.requires_testcontainer
-def test_set_action_request_excludes() -> None:
-	with container_connection():
-		connection = get_service_connection()
-		with (
-			tmp_client(connection, CLIENT1),
-			tmp_client(connection, CLIENT2),
-			tmp_product(connection, PRODUCT1),
-			tmp_product(connection, PRODUCT2),
-			tmp_host_group(connection, H_GROUP1, {CLIENT2}),
-			tmp_product_group(connection, P_GROUP, [PRODUCT2]),
-		):
-			cmd = [
-				"client-action",
-				f"--clients={CLIENT1},{CLIENT2}",
-				"--exclude-clients=nonexistent.test.tld",
-				f"--exclude-client-groups={H_GROUP1}",
-				"set-action-request",
-				f"--products={PRODUCT1},{PRODUCT2}",
-				"--exclude-products=nonexistent",
-				f"--exclude-product-groups={P_GROUP}",
-			]
-
+		with patch("opsicommon.client.opsiservice.ServiceClient.jsonrpc", mock_jsonrpc):
 			exit_code, stdout, _stderr = run_cli(cmd)
-			print(stdout)
-			assert exit_code == 0
-			pocs = connection.jsonrpc(
-				"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
-			)
-			for poc in pocs:
-				if poc.clientId == CLIENT1 and poc.productId == PRODUCT1:
-					assert poc.actionRequest == "setup"
-				else:
-					assert poc.actionRequest in (None, "none")
 
-			cmd += ["--request-type", "none"]
-			exit_code, _stdout, _stderr = run_cli(cmd)
-			assert exit_code == 0
-			pocs = connection.jsonrpc(
-				"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
-			)
-			for poc in pocs:
-				assert poc.actionRequest in ("none", None)
+		assert exit_code == 0
 
+		pocs = sorted(
+			admin_service_client.jsonrpc(
+				"productOnClient_getObjects",
+				params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2, PRODUCT3]}],
+			),
+			key=lambda poc: (poc.clientId, poc.productId),
+		)
 
-@pytest.mark.requires_testcontainer
-def test_set_action_request_unknown_type() -> None:
-	with container_connection():
-		connection = get_service_connection()
-		with tmp_client(connection, CLIENT1), tmp_product(connection, PRODUCT1):
-			cmd = ["client-action", "--clients", CLIENT1, "set-action-request", "--products", PRODUCT1, "--request-type", "nonexistent"]
-			exit_code, _stdout, _stderr = run_cli(cmd)
-			assert exit_code == 0
-			pocs = connection.jsonrpc("productOnClient_getObjects", params=[[], {"clientId": CLIENT1, "productId": PRODUCT1}])
-			assert len(pocs) == 0
+		assert len(pocs) == 6
+		assert pocs[0].clientId == CLIENT1
+		assert pocs[0].productId == PRODUCT1
+		assert pocs[1].clientId == CLIENT1
+		assert pocs[1].productId == PRODUCT2
+		assert pocs[2].clientId == CLIENT1
+		assert pocs[2].productId == PRODUCT3
+		assert pocs[3].clientId == CLIENT2
+		assert pocs[3].productId == PRODUCT1
+		assert pocs[4].clientId == CLIENT2
+		assert pocs[4].productId == PRODUCT2
+		assert pocs[5].clientId == CLIENT2
+		assert pocs[5].productId == PRODUCT3
 
+		expected_actions = {client_id: {PRODUCT1: "none", PRODUCT2: "none", PRODUCT3: "none"} for client_id in (CLIENT1, CLIENT2)}
+		if selection == "failed":
+			expected_actions[CLIENT1][PRODUCT1] = "setup"  # failed => setup
+			expected_actions[CLIENT1][PRODUCT3] = "setup"  # setup-on-action
+		elif selection == "outdated":
+			expected_actions[CLIENT1][PRODUCT2] = "setup"  # outdated => setup
+			expected_actions[CLIENT1][PRODUCT3] = "setup"  # outdated => setup (no version info) and setup-on-action
+			expected_actions[CLIENT2][PRODUCT1] = "setup"  # outdated => setup (no version info)
+			expected_actions[CLIENT2][PRODUCT3] = "setup"  # setup-on-action
+		elif selection == "installed":
+			expected_actions[CLIENT1][PRODUCT2] = "setup"  # installed => setup
+			expected_actions[CLIENT1][PRODUCT3] = "setup"  # setup-on-action
+			expected_actions[CLIENT2][PRODUCT1] = "setup"  # installed => setup
+			expected_actions[CLIENT2][PRODUCT2] = "setup"  # installed => setup
+			expected_actions[CLIENT2][PRODUCT3] = "setup"  # setup-on-action
 
-@pytest.mark.requires_testcontainer
-def test_set_action_request_only_online() -> None:
-	with container_connection():
-		connection = get_service_connection()
-		with tmp_client(connection, CLIENT1), tmp_product(connection, PRODUCT1):
-			cmd = ["client-action", "--clients", CLIENT1, "--only-online", "set-action-request", "--products", PRODUCT1]
-			exit_code, _stdout, _stderr = run_cli(cmd)
-			assert exit_code == 1
-			pocs = connection.jsonrpc("productOnClient_getObjects", params=[[], {"clientId": CLIENT1, "productId": PRODUCT1}])
-			assert len(pocs) == 0
+		assert pocs[0].actionRequest == ("none" if dry_run else expected_actions[CLIENT1][PRODUCT1])
+		assert pocs[1].actionRequest == ("none" if dry_run else expected_actions[CLIENT1][PRODUCT2])
+		assert pocs[2].actionRequest == ("none" if dry_run else expected_actions[CLIENT1][PRODUCT3])
+		assert pocs[3].actionRequest == ("none" if dry_run else expected_actions[CLIENT2][PRODUCT1])
+		assert pocs[4].actionRequest == ("none" if dry_run else expected_actions[CLIENT2][PRODUCT2])
+		assert pocs[5].actionRequest == ("none" if dry_run else expected_actions[CLIENT2][PRODUCT3])
 
+		if process:
+			unprocessed_actions = expected_actions.copy()
+			for rpc in rpcs:
+				if rpc[0] == "hostControl_processActionRequests":
+					if dry_run:
+						raise RuntimeError("Unexpected call to hostControl_processActionRequests on dry-run")
 
-@pytest.mark.requires_testcontainer
-def test_set_action_request_clients_from_depot() -> None:
-	with container_connection():
-		connection = get_service_connection()
-		configserver = connection.jsonrpc("host_getObjects", params=[[], {"type": "OpsiConfigserver"}])[0].id
-		with tmp_client(connection, CLIENT1), tmp_product(connection, PRODUCT1):
-			cmd = ["client-action", "--clients-from-depots", configserver, "set-action-request", "--products", PRODUCT1]
-			exit_code, _stdout, _stderr = run_cli(cmd)
-			assert exit_code == 0
-			pocs = connection.jsonrpc("productOnClient_getObjects", params=[[], {"clientId": CLIENT1, "productId": PRODUCT1}])
-			assert len(pocs) == 1
-			assert pocs[0].actionRequest == "setup"
-			assert pocs[0].productId == PRODUCT1
-			assert pocs[0].clientId == CLIENT1
+					client_id = rpc[1][0][0]
+					product_ids = rpc[1][1]
+					# print(f"process: {client_id}: {product_ids}")
+					assert sorted(product_ids) == sorted(
+						pid for pid, act in unprocessed_actions.pop(client_id, {}).items() if act == "setup"
+					)
+			if not dry_run:
+				assert not unprocessed_actions
 
+		lines = stdout.splitlines()
+		message = lines[0] + " " + lines[1]
+		if dry_run:
+			if process:
+				assert message.startswith(
+					"Action requests would have been set and processing would have been started. Here are the updated"
+				)
+			else:
+				assert message.startswith("Action requests would have been set. Here are the updated")
+		else:
+			if process:
+				assert message.startswith("Action requests have been set and processing was started. Here are the updated")
+			else:
+				assert message.startswith("Action requests have been set. Here are the updated")
 
-@pytest.mark.requires_testcontainer
-def test_nested_groups_client_selection() -> None:
-	with container_connection():
-		connection = get_service_connection()
-		with (
-			tmp_client(connection, CLIENT1),
-			tmp_client(connection, CLIENT2),
-			tmp_product(connection, PRODUCT1),
-			tmp_host_group(connection, H_GROUP1, {CLIENT1}),
-			tmp_host_group(connection, H_GROUP2, {CLIENT2}, parent=H_GROUP1),
-		):
-			cmd = ["client-action", "--client-groups", H_GROUP1, "set-action-request", "--products", PRODUCT1]
-			exit_code, _stdout, _stderr = run_cli(cmd)
-			assert exit_code == 0
-			print(connection.jsonrpc("group_getObjects", params=[[], {"id": [H_GROUP2]}]))
-			print(connection.jsonrpc("objectToGroup_getObjects", params=[[], {"objectId": [CLIENT1, CLIENT2]}]))
-			pocs = connection.jsonrpc("productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1]}])
-			print(pocs)
-			assert len(pocs) == 2
-
-
-@pytest.mark.requires_testcontainer
-def test_trigger_event() -> None:
-	with container_connection():
-		connection = get_service_connection()
-		with tmp_client(connection, CLIENT1):
-			cmd = ["client-action", "--clients", CLIENT1, "trigger-event", "--wakeup", "--wakeup-timeout", "0.5"]
-			exit_code, _stdout, _stderr = run_cli(cmd)
-			assert exit_code == 1  # No way to actually trigger an event or wake up a client
+		count_setup = len([action for actions in expected_actions.values() for action in actions.values() if action == "setup"])
+		assert count_setup == len([line for line in lines[2:] if line.strip() and line.strip().split()[-1].strip() == "setup"])
 
 
-@pytest.mark.requires_testcontainer
-def test_execute_opsiscript() -> None:
+@pytest.mark.opsi_service
+def test_set_action_request_excludes(admin_service_client: ServiceClient) -> None:
+	with (
+		tmp_client(admin_service_client, CLIENT1),
+		tmp_client(admin_service_client, CLIENT2),
+		tmp_product(admin_service_client, PRODUCT1),
+		tmp_product(admin_service_client, PRODUCT2),
+		tmp_host_group(admin_service_client, H_GROUP1, {CLIENT2}),
+		tmp_product_group(admin_service_client, P_GROUP, [PRODUCT2]),
+	):
+		cmd = [
+			"client-action",
+			f"--clients={CLIENT1},{CLIENT2}",
+			"--exclude-clients=nonexistent.test.tld",
+			f"--exclude-client-groups={H_GROUP1}",
+			"set-action-request",
+			f"--products={PRODUCT1},{PRODUCT2}",
+			"--exclude-products=nonexistent",
+			f"--exclude-product-groups={P_GROUP}",
+		]
+
+		exit_code, stdout, _stderr = run_cli(cmd)
+		print(stdout)
+		assert exit_code == 0
+		pocs = admin_service_client.jsonrpc(
+			"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
+		)
+		for poc in pocs:
+			if poc.clientId == CLIENT1 and poc.productId == PRODUCT1:
+				assert poc.actionRequest == "setup"
+			else:
+				assert poc.actionRequest in (None, "none")
+
+		cmd += ["--request-type", "none"]
+		exit_code, _stdout, _stderr = run_cli(cmd)
+		assert exit_code == 0
+		pocs = admin_service_client.jsonrpc(
+			"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
+		)
+		for poc in pocs:
+			assert poc.actionRequest in ("none", None)
+
+
+@pytest.mark.opsi_service
+def test_set_action_request_unknown_type(admin_service_client: ServiceClient) -> None:
+	with tmp_client(admin_service_client, CLIENT1), tmp_product(admin_service_client, PRODUCT1):
+		cmd = ["client-action", "--clients", CLIENT1, "set-action-request", "--products", PRODUCT1, "--request-type", "nonexistent"]
+		exit_code, _stdout, _stderr = run_cli(cmd)
+		assert exit_code == 0
+		pocs = admin_service_client.jsonrpc("productOnClient_getObjects", params=[[], {"clientId": CLIENT1, "productId": PRODUCT1}])
+		assert len(pocs) == 0
+
+
+@pytest.mark.opsi_service
+def test_set_action_request_only_online(admin_service_client: ServiceClient) -> None:
+	with tmp_client(admin_service_client, CLIENT1), tmp_product(admin_service_client, PRODUCT1):
+		cmd = ["client-action", "--clients", CLIENT1, "--only-online", "set-action-request", "--products", PRODUCT1]
+		exit_code, _stdout, _stderr = run_cli(cmd)
+		assert exit_code == 1
+		pocs = admin_service_client.jsonrpc("productOnClient_getObjects", params=[[], {"clientId": CLIENT1, "productId": PRODUCT1}])
+		assert len(pocs) == 0
+
+
+@pytest.mark.opsi_service
+def test_set_action_request_clients_from_depot(admin_service_client: ServiceClient) -> None:
+	configserver = admin_service_client.jsonrpc("host_getObjects", params=[[], {"type": "OpsiConfigserver"}])[0].id
+	with tmp_client(admin_service_client, CLIENT1), tmp_product(admin_service_client, PRODUCT1):
+		cmd = ["client-action", "--clients-from-depots", configserver, "set-action-request", "--products", PRODUCT1]
+		exit_code, _stdout, _stderr = run_cli(cmd)
+		assert exit_code == 0
+		pocs = admin_service_client.jsonrpc("productOnClient_getObjects", params=[[], {"clientId": CLIENT1, "productId": PRODUCT1}])
+		assert len(pocs) == 1
+		assert pocs[0].actionRequest == "setup"
+		assert pocs[0].productId == PRODUCT1
+		assert pocs[0].clientId == CLIENT1
+
+
+@pytest.mark.opsi_service
+def test_nested_groups_client_selection(admin_service_client: ServiceClient) -> None:
+	with (
+		tmp_client(admin_service_client, CLIENT1),
+		tmp_client(admin_service_client, CLIENT2),
+		tmp_product(admin_service_client, PRODUCT1),
+		tmp_host_group(admin_service_client, H_GROUP1, {CLIENT1}),
+		tmp_host_group(admin_service_client, H_GROUP2, {CLIENT2}, parent=H_GROUP1),
+	):
+		cmd = ["client-action", "--client-groups", H_GROUP1, "set-action-request", "--products", PRODUCT1]
+		exit_code, _stdout, _stderr = run_cli(cmd)
+		assert exit_code == 0
+		print(admin_service_client.jsonrpc("group_getObjects", params=[[], {"id": [H_GROUP2]}]))
+		print(admin_service_client.jsonrpc("objectToGroup_getObjects", params=[[], {"objectId": [CLIENT1, CLIENT2]}]))
+		pocs = admin_service_client.jsonrpc(
+			"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1]}]
+		)
+		print(pocs)
+		assert len(pocs) == 2
+
+
+@pytest.mark.opsi_service
+def test_trigger_event(admin_service_client: ServiceClient) -> None:
+	with tmp_client(admin_service_client, CLIENT1):
+		cmd = ["client-action", "--clients", CLIENT1, "trigger-event", "--wakeup", "--wakeup-timeout", "0.5"]
+		exit_code, _stdout, _stderr = run_cli(cmd)
+		assert exit_code == 1  # No way to actually trigger an event or wake up a client
+
+
+@pytest.mark.opsi_service
+def test_execute_opsiscript(admin_service_client: ServiceClient) -> None:
 	test_exception = Exception("Test exception")
 	test_error = RuntimeError("Test error")
 	highest_exit_code = 2
@@ -262,53 +439,50 @@ def test_execute_opsiscript() -> None:
 	}
 
 	with patch("opsicli.messagebus.JSONRPCMessagebusConnection.jsonrpc", return_value=mock_results):
-		with container_connection():
-			connection = get_service_connection()
-			with (
-				tmp_client(connection, CLIENT1),
-				tmp_client(connection, CLIENT2),
-				tmp_client(connection, CLIENT3),
-			):
-				cmd = [
-					"client-action",
-					"--clients",
-					f"{CLIENT1},{CLIENT2},{CLIENT3}",
-					"execute",
-					"--opsi-script",
-					opsiscript_content,
-					"--opsi-script-log-level",
-					str(6),
-				]
-				exit_code, _stdout, _stderr = run_cli(cmd)
-				assert exit_code == highest_exit_code
+		with (
+			tmp_client(admin_service_client, CLIENT1),
+			tmp_client(admin_service_client, CLIENT2),
+			tmp_client(admin_service_client, CLIENT3),
+		):
+			cmd = [
+				"client-action",
+				"--clients",
+				f"{CLIENT1},{CLIENT2},{CLIENT3}",
+				"execute",
+				"--opsi-script",
+				opsiscript_content,
+				"--opsi-script-log-level",
+				str(6),
+			]
+			exit_code, _stdout, _stderr = run_cli(cmd)
+			assert exit_code == highest_exit_code
 
-				expected_output_pattern = (
-					rf"\n─────────────────────────── {CLIENT1} ────────────────────────────\n"
-					rf"{CLIENT1} \| {re.escape(str(test_exception))}\n\n"
-					rf"─────────────────────────── {CLIENT2} ────────────────────────────\n"
-					rf"{CLIENT2} \| EXIT CODE: {highest_exit_code}\n\n"
-					rf"{CLIENT2} \| LOG:\n"
-					rf"{CLIENT2} \| \[1\] Essential log message\n"
-					rf"{CLIENT2} \| \[2\] Critical log message\n"
-					rf"{CLIENT2} \| \[3\] Error log message\n"
-					rf"{CLIENT2} \| \[4\] Warning log message\n"
-					rf"{CLIENT2} \| \[5\] Notice log message\n"
-					rf"{CLIENT2} \| \[6\] Info log message\n\n"
-					rf"{CLIENT2} \| STDERR:\n"
-					rf"{CLIENT2} \| {re.escape(str(test_error))}\n\n"
-					rf"─────────────────────────── {CLIENT3} ────────────────────────────\n"
-					rf"{CLIENT3} \| EXIT CODE: 0\n\n"
-					rf"{CLIENT3} \| STDOUT:\n"
-					rf"{CLIENT3} \| Hello, World!\n"
-					rf"{CLIENT3} \| This is a multi-line opsi script.\n\n"
-					rf"{CLIENT3} \| LOG:\n"
-					rf"{CLIENT3} \| \[1\] Essential log message\n"
-					rf"{CLIENT3} \| \[2\] Critical log message\n"
-					rf"{CLIENT3} \| \[3\] Error log message\n"
-					rf"{CLIENT3} \| \[4\] Warning log message\n"
-					rf"{CLIENT3} \| \[5\] Notice log message\n"
-					rf"{CLIENT3} \| \[6\] Info log message\n"
-				)
-
-				assert re.fullmatch(expected_output_pattern, _stdout)
-				assert _stderr == ""
+			expected_output_pattern = (
+				rf"\n─+ {CLIENT1} ─+\n"
+				rf"{CLIENT1} \| {re.escape(str(test_exception))}\n\n"
+				rf"─+ {CLIENT2} ─+\n"
+				rf"{CLIENT2} \| EXIT CODE: {highest_exit_code}\n\n"
+				rf"{CLIENT2} \| LOG:\n"
+				rf"{CLIENT2} \| \[1\] Essential log message\n"
+				rf"{CLIENT2} \| \[2\] Critical log message\n"
+				rf"{CLIENT2} \| \[3\] Error log message\n"
+				rf"{CLIENT2} \| \[4\] Warning log message\n"
+				rf"{CLIENT2} \| \[5\] Notice log message\n"
+				rf"{CLIENT2} \| \[6\] Info log message\n\n"
+				rf"{CLIENT2} \| STDERR:\n"
+				rf"{CLIENT2} \| {re.escape(str(test_error))}\n\n"
+				rf"─+ {CLIENT3} ─+\n"
+				rf"{CLIENT3} \| EXIT CODE: 0\n\n"
+				rf"{CLIENT3} \| STDOUT:\n"
+				rf"{CLIENT3} \| Hello, World!\n"
+				rf"{CLIENT3} \| This is a multi-line opsi script.\n\n"
+				rf"{CLIENT3} \| LOG:\n"
+				rf"{CLIENT3} \| \[1\] Essential log message\n"
+				rf"{CLIENT3} \| \[2\] Critical log message\n"
+				rf"{CLIENT3} \| \[3\] Error log message\n"
+				rf"{CLIENT3} \| \[4\] Warning log message\n"
+				rf"{CLIENT3} \| \[5\] Notice log message\n"
+				rf"{CLIENT3} \| \[6\] Info log message\n"
+			)
+			assert re.fullmatch(expected_output_pattern, _stdout)
+			assert _stderr == ""

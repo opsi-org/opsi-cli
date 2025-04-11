@@ -1,9 +1,14 @@
+# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0-only
+
 """
 opsi-cli terminal plugin
 """
 
-import rich_click as click  # type: ignore[import]
-from opsicommon.logging import get_logger  # type: ignore[import]
+import rich_click as click
+from opsicommon.logging import get_logger
 
 from opsicli.messagebus import TerminalMessagebusConnection
 from opsicli.plugin import OPSICLIPlugin
@@ -25,8 +30,8 @@ def cli(target: str, terminal_id: str | None, shell: str | None) -> None:
 	It connects to the specified target host-id (opsi Client, Depotserver or Configserver).
 	"""
 	logger.trace("terminal command")
-	messagebus = TerminalMessagebusConnection()
-	messagebus.run_terminal(target, terminal_id=terminal_id, shell=shell)
+	messagebus = TerminalMessagebusConnection(terminal_id=terminal_id, shell=shell)
+	messagebus.run_terminal(target)
 
 
 class TerminalPlugin(OPSICLIPlugin):

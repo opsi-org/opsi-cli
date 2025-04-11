@@ -1,11 +1,16 @@
+# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0-only
+
 """
 This command can be used to identify potential problems in an opsi environment
 """
 
 from pathlib import Path
 
-import rich_click as click  # type: ignore[import]
-from opsicommon.logging import get_logger  # type: ignore[import]
+import rich_click as click
+from opsicommon.logging import get_logger
 
 from opsicli.decorators import handle_list_attributes
 from opsicli.io import write_output

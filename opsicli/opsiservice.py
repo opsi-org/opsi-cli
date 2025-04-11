@@ -1,3 +1,8 @@
+# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0-only
+
 """
 opsi-cli Basic command line interface for opsi
 
@@ -124,3 +129,8 @@ def get_service_connection(verify: str | None = None) -> ServiceClient:
 			raise
 
 	return service_client
+
+
+def reset_service_connection() -> None:
+	global service_client
+	service_client = None

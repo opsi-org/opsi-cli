@@ -1,3 +1,8 @@
+# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0-only
+
 """
 opsi-cli Basic command line interface for opsi
 
@@ -17,14 +22,14 @@ from typing import Any, Callable
 
 from opsicli.singelton import Singleton
 
-DEFAULT_SESSION_LIFETIME = 150
+DEFAULT_SESSION_LIFETIME = 900
 COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE" in os.environ
 
 if COMPLETION_MODE:
 	# Loads faster
 	import click
 else:
-	import rich_click as click  # type: ignore[import,no-redef]
+	import rich_click as click  # type: ignore[no-redef]
 
 from click.core import ParameterSource  # noqa: E402
 from click.shell_completion import CompletionItem, ShellComplete, add_completion_class, split_arg_string  # noqa: E402
@@ -37,7 +42,7 @@ from opsicommon.logging import (  # noqa: E402
 	logging_config,
 	secret_filter,
 )
-from ruamel.yaml import YAML  # noqa: E402  # type: ignore[import]
+from ruamel.yaml import YAML  # noqa: E402
 
 from opsicli.types import (  # noqa: E402
 	Attributes,

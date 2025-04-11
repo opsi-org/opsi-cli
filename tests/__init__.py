@@ -1,9 +1,8 @@
+# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0-only
+
 """
 opsi-cli tests (general test setup)
 """
-
-import os
-
-OPSI_HOSTNAME = os.environ.get("OPSI_HOST", "localhost")
-OPSI_USERNAME = os.environ.get("OPSI_USERNAME", "adminuser")
-OPSI_PASSWORD = os.environ.get("OPSI_PASSWORD", "vhahd8usaz")

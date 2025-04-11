@@ -1,3 +1,8 @@
+# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0-only
+
 """
 Support functions for installing packages.
 """
@@ -121,8 +126,27 @@ def map_and_sort_packages(packages: list[str]) -> dict[Path, OpsiPackage]:
 
 	Each package is placed after its dependencies in the dictionary.
 	"""
-	path_to_opsipackage_dict = {Path(pkg): OpsiPackage(Path(pkg)) for pkg in packages}
-	product_id_to_path = {pkg.product.id: path for path, pkg in path_to_opsipackage_dict.items()}
+	path_to_opsipackage: dict[Path, OpsiPackage] = {}
+	product_id_to_path: dict[str, Path] = {}
+	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
+		assert progress
+		if not config.quiet:
+			num_packages = len(packages)
+			task = progress.add_task(f"Analyzing {num_packages} package{'s' if num_packages > 1 else ''}...", total=num_packages)
+		for pkg in packages:
+			logger.info("Analyzing package: '%s'", pkg)
+			try:
+				opsi_package = OpsiPackage(Path(pkg))
+			except Exception as err:
+				logger.error(err, exc_info=True)
+				raise RuntimeError(f"Failed to analyze package '{pkg}': {err}") from err
+
+			path_to_opsipackage[Path(pkg)] = opsi_package
+			product_id_to_path[opsi_package.product.id] = Path(pkg)
+
+			if not config.quiet:
+				progress.update(task, advance=1)
+
 	result = {}
 	visited = set()
 
@@ -130,7 +154,7 @@ def map_and_sort_packages(packages: list[str]) -> dict[Path, OpsiPackage]:
 		if path in visited:
 			return
 		visited.add(path)
-		opsi_package = path_to_opsipackage_dict[path]
+		opsi_package = path_to_opsipackage[path]
 		for dep in opsi_package.package_dependencies or []:
 			dep_path = product_id_to_path.get(dep.package)
 			if dep_path is None:
@@ -138,8 +162,12 @@ def map_and_sort_packages(packages: list[str]) -> dict[Path, OpsiPackage]:
 			visit(dep_path)
 		result[path] = opsi_package
 
-	for path in path_to_opsipackage_dict:
-		visit(path)
+	for path in path_to_opsipackage:
+		try:
+			visit(path)
+		except Exception as err:
+			logger.error(err, exc_info=True)
+			raise RuntimeError(f"Failed to analyze package '{path}': {err}") from err
 	return result
 
 

@@ -1,3 +1,8 @@
+# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0-only
+
 """
 opsi-cli Basic command line interface for opsi
 
@@ -7,8 +12,8 @@ dummy command - proof of concept
 import click
 import git  # type: ignore[import] # noqa: F401
 import netifaces  # type: ignore[import]
-import requests  # type: ignore[import]
-from opsicommon.logging import get_logger  # type: ignore[import]
+import requests
+from opsicommon.logging import get_logger
 
 from opsicli.plugin import OPSICLIPlugin
 

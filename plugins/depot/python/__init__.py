@@ -1,10 +1,15 @@
+# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0-only
+
 """
 opsi-cli depot plugin
 """
 
 import sys
 
-import rich_click as click  # type: ignore[import]
+import rich_click as click
 from opsicommon.logging import get_logger
 
 from opsicli.plugin import OPSICLIPlugin

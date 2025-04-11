@@ -12,9 +12,11 @@ pytest-darwin:
     - catalina-py311-x64
   script:
     - export ZIPLAUNCHER_CLEAN_TMP=true
-    - poetry lock --no-cache
-    - poetry install
-    - poetry run pytest --tb=short -x -o junit_family=xunit2 --junitxml=testreport_darwin.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
+    - export UV_PYTHON="3.13"
+    - export UV_PYTHON_PREFERENCE="only-managed"
+    - uv self update
+    - uv sync --frozen
+    - uv run pytest --tb=short -x -o junit_family=xunit2 --junitxml=testreport_darwin.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - mv .coverage coverage_darwin
   artifacts:
     name: "opsi-cli_test_darwin"
@@ -29,9 +31,12 @@ pytest-windows:
   tags:
     - win10-py311-x86
   script:
-    - poetry lock --no-cache
-    - poetry install
-    - poetry run pytest --tb=short -x -o junit_family=xunit2 --junitxml=testreport_windows.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
+    - $Env:UV_PYTHON_INSTALL_DIR = "c:\\uv\\python"
+    - $Env:UV_CACHE_DIR = "c:\\uv\\cache"
+    - $Env:UV_PYTHON = ((uv python list --managed-python --all-arches | findstr 3.13 | findstr "\-x86\-" | findstr /v freethreaded) -split ' ')[0]
+    - $Env:UV_PYTHON_PREFERENCE = "only-managed"
+    - uv sync --frozen
+    - uv run pytest --tb=short -x -o junit_family=xunit2 --junitxml=testreport_windows.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - Rename-Item -Path .coverage -NewName coverage_windows
   artifacts:
     name: "opsi-cli_test_windows"
@@ -67,13 +72,16 @@ pytest-linux:
     OPSI_HOST_ID: "test.uib.gmbh"
     OPSI_TFTPBOOT: "false"
     OPSICONFD_SSL_SERVER_CERT_SANS: "[opsiconfd]"
+    OPSICONFD_MAX_SESSIONS_PER_IP: "1000"
     # when restoring the test backup, this job takes > 60 seconds to start, so gitlab-ci kills it
     #OPSICONFD_RESTORE_BACKUP_URL: "http://binaryindex.uib.gmbh/development/testbackup/all/all/testbackup_all_all_1.1.tar.gz"
     # issue for individually configurable timeouts https://gitlab.com/gitlab-org/gitlab/-/issues/30353
   script:
-    - poetry lock --no-cache
-    - poetry install
-    - poetry run pytest --tb=short -x -o junit_family=xunit2 --junitxml=testreport_linux.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
+    - export UV_PYTHON="3.13"
+    - export UV_PYTHON_PREFERENCE="only-managed"
+    - uv self update
+    - uv sync --frozen
+    - uv run pytest --tb=short -x -o junit_family=xunit2 --junitxml=testreport_linux.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - mv .coverage coverage_linux
   artifacts:
     name: "opsi-cli_test_linux"
@@ -97,20 +105,22 @@ lint-pytest:
     - apt-get update
     - apt-get --yes --allow-downgrades install libsqlite3-0=3.16.2-5+deb9u1
     - apt-get --yes install sqlite3
-    - poetry lock --no-cache
-    - poetry install
-    - poetry run ruff check opsicli tests
-    - poetry run mypy opsicli tests
+    - export UV_PYTHON="3.13"
+    - export UV_PYTHON_PREFERENCE="only-managed"
+    - uv self update
+    - uv sync --frozen
+    - uv run ruff check opsicli tests
+    - uv run mypy opsicli tests
     - rm -rf .mypy_cache
-    - "for plugindir in $(find plugins/*/python/*.py | cut -d'/' -f1-2  | sort | uniq); do echo $plugindir; poetry run mypy --explicit-package-bases $plugindir; done"
+    - "for plugindir in $(find plugins/*/python/*.py | cut -d'/' -f1-2  | sort | uniq); do echo $plugindir; uv run mypy --explicit-package-bases $plugindir; done"
     # Convert file.path to a relative path in coverage databases
     - for db in coverage_*; do sqlite3 $db 'update file set path=replace(substr(path,instr(path,"opsicli")),"\","/");'; done
     - for db in coverage_*; do sqlite3 $db 'update file set path=replace(substr(path,instr(path,"plugins")),"\","/");'; done
     - echo -e '[run]\nrelative_files = True\n' > .coveragerc
-    - poetry run coverage combine coverage_*
-    - poetry run coverage xml
-    - poetry run coverage report
-    - poetry run opsi-dev-tool -l info --testreport-merge testreport_*.xml testreport.xml
+    - uv run coverage combine coverage_*
+    - uv run coverage xml
+    - uv run coverage report
+    - uv run opsi-dev-tool -l info --testreport-merge testreport_*.xml testreport.xml
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
   artifacts:
     name: "opsi-cli_test"
@@ -127,9 +137,11 @@ linux-x64-pyinstaller:
     - wget "$OPSIDEVTOOLS_URL_LINUX_X64" -O - | tar xzf -
     - mv opsi-dev-tool opsi-dev-cli
     - ./opsi-dev-cli binary pull ziplaunch
-    - poetry lock --no-cache
-    - poetry install
-    - poetry run ./opsi-dev-cli -l info pyinstaller build
+    - export UV_PYTHON="3.13"
+    - export UV_PYTHON_PREFERENCE="only-managed"
+    - uv self update
+    - uv sync --frozen
+    - uv run ./opsi-dev-cli -l info pyinstaller build
     - ./ziplaunch/ziplaunch dist/opsicli ./ziplaunch_data/ziplaunch.ini opsi-cli
     - ./opsi-cli --version
     - ./opsi-cli --non-interactive plugin new cicdtest --version=1.0
@@ -155,9 +167,11 @@ linux-arm64-pyinstaller:
     - wget "$OPSIDEVTOOLS_URL_LINUX_ARM64" -O - | tar xzf -
     - mv opsi-dev-tool opsi-dev-cli
     - ./opsi-dev-cli binary pull ziplaunch
-    - poetry lock --no-cache
-    - poetry install
-    - poetry run ./opsi-dev-cli -l info pyinstaller build
+    - export UV_PYTHON="3.13"
+    - export UV_PYTHON_PREFERENCE="only-managed"
+    - uv self update
+    - uv sync --frozen
+    - uv run ./opsi-dev-cli -l info pyinstaller build
     - ./ziplaunch/ziplaunch dist/opsicli ./ziplaunch_data/ziplaunch.ini opsi-cli
     - ./opsi-cli --version
     - ./opsi-cli --non-interactive plugin new cicdtest --version=1.0
@@ -174,13 +188,15 @@ macos-x64-pyinstaller:
     - catalina-py311-x64
   script:
     - export LC_ALL=en_US.UTF-8
-    - poetry lock --no-cache
-    - poetry install
+    - export UV_PYTHON="3.13"
+    - export UV_PYTHON_PREFERENCE="only-managed"
+    - uv self update
+    - uv sync --frozen
     - curl -o opsi-dev-tools.tar.gz "$OPSIDEVTOOLS_URL_DARWIN_X64"
     - tar -xvf opsi-dev-tools.tar.gz
     - mv opsi-dev-tool opsi-dev-cli
     - ./opsi-dev-cli binary pull ziplaunch
-    - poetry run ./opsi-dev-cli -l info pyinstaller build
+    - uv run ./opsi-dev-cli -l info pyinstaller build
     #- ./opsi-dev-cli -l info apple sign dist/opsicli
 
     - version=$(./dist/opsicli/opsi-cli --version | cut -d ' ' -f3)
@@ -217,8 +233,11 @@ windows-x86-pyinstaller:
     - win10-py311-x86
   script:
     # Build python environment
-    - poetry lock --no-cache
-    - poetry install
+    - $Env:UV_PYTHON_INSTALL_DIR = "c:\\uv\\python"
+    - $Env:UV_CACHE_DIR = "c:\\uv\\cache"
+    - $Env:UV_PYTHON = ((uv python list --managed-python --all-arches | findstr 3.13 | findstr "\-x86\-" | findstr /v freethreaded) -split ' ')[0]
+    - $Env:UV_PYTHON_PREFERENCE = "only-managed"
+    - uv sync --frozen
     # Get opsi-dev-tool
     - Invoke-WebRequest -UseBasicParsing -Uri "$OPSIDEVTOOLS_URL_WINDOWS_X86" -OutFile opsi-dev-tools.zip
     - Expand-Archive opsi-dev-tools.zip -DestinationPath .
@@ -226,7 +245,7 @@ windows-x86-pyinstaller:
     # Fetch ziplaunch
     - .\opsi-dev-cli.exe binary pull ziplaunch
     # Build opsi-cli binary
-    - poetry run .\opsi-dev-cli.exe -l info pyinstaller build
+    - uv run .\opsi-dev-cli.exe -l info pyinstaller build
     # Sign opsi-cli binary
     - .\opsi-dev-cli.exe -l info signserver sign dist\opsicli\opsi-cli.exe
     # Build ziplauncher

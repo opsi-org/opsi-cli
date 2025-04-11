@@ -1,3 +1,8 @@
+# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0-only
+
 """
 opsi-cli basic command line interface for opsi
 
@@ -6,7 +11,7 @@ client-action plugin
 
 import sys
 
-import rich_click as click  # type: ignore[import]
+import rich_click as click
 from opsicommon.logging import get_logger
 
 from opsicli.plugin import OPSICLIPlugin
@@ -60,6 +65,12 @@ def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 @click.option(
 	"--where-outdated",
 	help="Set this to add actionRequests where the selected products are outdated.",
+	is_flag=True,
+	default=False,
+)
+@click.option(
+	"--where-installed",
+	help="Set this to add actionRequests where the selected products are installed.",
 	is_flag=True,
 	default=False,
 )

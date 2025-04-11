@@ -1,3 +1,8 @@
+# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0-only
+
 """
 opsi-cli Basic command line interface for opsi
 
@@ -9,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 import orjson
-from opsicommon.logging import get_logger  # type: ignore[import]
+from opsicommon.logging import get_logger
 
 from opsicli.config import config
 from opsicli.singelton import Singleton
@@ -50,6 +55,12 @@ class Cache(metaclass=Singleton):
 		with open(self._cache_file, "wb") as file:
 			self._cache_file.chmod(0o600)
 			file.write(orjson.dumps(self._data))
+		self._modified = False
+
+	def clear(self) -> None:
+		self._cache_file.unlink(missing_ok=True)
+		self._data = {}
+		self._loaded = False
 		self._modified = False
 
 	def get(self, name: str, default: Any = None) -> Any:
