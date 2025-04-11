@@ -224,7 +224,7 @@ def service_add(
 	console_print(msg)
 
 
-def complete_service_name(ctx: click.Context, incomplete: str) -> list[CompletionItem]:
+def complete_service_name(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
 	conf_source = ConfigValueSource.CONFIG_FILE_SYSTEM if ctx.params.get("system") else ConfigValueSource.CONFIG_FILE_USER
 	services = config.get_config_item("services").get_values(value_only=False, sources=[conf_source])
 	return [CompletionItem(service.value.name) for service in services if service.value.name.startswith(incomplete)]

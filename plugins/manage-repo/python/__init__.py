@@ -182,7 +182,7 @@ def add_package(directory: Path, package: Path, num_allowed_versions: int, compa
 		packages_metadata.write_metafile(meta_file)
 
 
-def complete_package_name(directory: Path, incomplete: str) -> list[CompletionItem]:
+def complete_package_name(ctx: click.Context, param: click.Parameter, directory: Path, incomplete: str) -> list[CompletionItem]:
 	current_meta_files = list(directory.glob("packages.*"))
 	if not current_meta_files:
 		return []
