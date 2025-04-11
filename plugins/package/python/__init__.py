@@ -11,6 +11,7 @@ from contextlib import nullcontext
 from pathlib import Path
 
 import rich_click as click
+from click.shell_completion import CompletionItem
 from opsicommon.logging import get_logger
 from opsicommon.objects import ProductOnDepot
 from opsicommon.package import OpsiPackage
@@ -269,8 +270,20 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 	get_console().print(f"Package archive has been successfully extracted at {destination_dir}\n")
 
 
+def complete_package_path(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
+	"""
+	Completes the package archive file paths from the current directory or a user-specified directory.
+	"""
+	base_dir = Path(incomplete).parent if "/" in incomplete else Path(".")
+	base_dir = base_dir.resolve()
+	archive_extensions = [".opsi", ".tar.gz", ".zip", ".tgz", ".tar.bz2", ".tbz", ".tar.xz", ".txz"]
+	if base_dir.is_dir():
+		return [CompletionItem(str(file)) for ext in archive_extensions for file in base_dir.glob(f"*{Path(incomplete).name}*{ext}")]
+	return []
+
+
 @cli.command(short_help="Install opsi packages.")
-@click.argument("packages", nargs=-1, required=True, type=str)
+@click.argument("packages", nargs=-1, required=True, type=str, shell_complete=complete_package_path)
 @click.option("--depots", help="Depot IDs (comma-separated) or 'all'. Default is configserver.")
 @click.option(
 	"--update-properties",
