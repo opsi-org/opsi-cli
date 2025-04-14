@@ -198,7 +198,7 @@ def main(*args: str, **kwargs: str) -> None:
 	opsi command line interface\n
 	Plugins are dynamically loaded from a subfolder
 	"""
-	logger.debug("Main called")
+	logger.notice("opsi-cli version %s starting", __version__)
 	prepare_cli_paths()
 	if config.quiet:
 		logger.debug("Quiet mode enabled, disabling print")
