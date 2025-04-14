@@ -243,13 +243,13 @@ def install_binary(source: Path | str, destination: Path | str) -> None:
 	if source == destination:
 		return
 
-	if not destination.parent.exists():
-		destination.parent.mkdir(parents=True)
+	destination.parent.mkdir(parents=True, exist_ok=True)
 
 	backup_path = None
 	if destination.exists() and destination.is_file():
 		try:
 			backup_path = destination.with_suffix(destination.suffix + ".old")
+			logger.info("Creating backup of existing binary '%s' to '%s'", destination, backup_path)
 			if backup_path.exists():
 				backup_path.unlink()
 			destination.rename(backup_path)
@@ -258,6 +258,7 @@ def install_binary(source: Path | str, destination: Path | str) -> None:
 			backup_path = None
 
 	try:
+		logger.info("Copy binary from '%s' to '%s'", source, destination)
 		shutil.copy(source, destination)
 	except Exception as err:
 		logger.error("Failed to install binary from '%s' to '%s': %s", source, destination, err)
@@ -265,15 +266,16 @@ def install_binary(source: Path | str, destination: Path | str) -> None:
 			logger.warning("Restoring backup.")
 			backup_path.rename(destination)
 		raise
-	else:
-		if backup_path:
-			try:
-				backup_path.unlink()
-			except Exception as err:
-				# Windows does not allow to delete a file that is in use
-				logger.debug("Failed to delete backup '%s': %s", backup_path, err)
-		if sys.platform in ("linux", "darwin"):
-			os.chmod(destination, 0o755)
+
+	if sys.platform in ("linux", "darwin"):
+		os.chmod(destination, 0o755)
+
+	if backup_path:
+		try:
+			backup_path.unlink()
+		except Exception as err:
+			# Windows does not allow to delete a file that is in use
+			logger.debug("Failed to delete backup '%s': %s", backup_path, err)
 
 
 def retry(

@@ -319,7 +319,6 @@ def install(location: str, no_add_to_path: bool, system: bool | None, binary_pat
 
 	exit_code = 0
 	for binary in binary_paths:
-		logger.notice("Copying '%s' to '%s'", src_binary, binary)
 		try:
 			if config.dry_run:
 				logger.notice("Would copy '%s' to '%s', but --dry-run is set", src_binary, binary)
