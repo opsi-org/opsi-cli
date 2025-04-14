@@ -11,6 +11,7 @@ from contextlib import nullcontext
 from pathlib import Path
 
 import rich_click as click
+from click.shell_completion import CompletionItem
 from opsicommon.logging import get_logger
 from opsicommon.objects import ProductOnDepot
 from opsicommon.package import OpsiPackage
@@ -31,6 +32,7 @@ from .package_helpers import (
 	cleanup_packages_from_repo,
 	fix_custom_package_name,
 	get_depot_objects,
+	get_product_on_depot_objects,
 	get_property_default_values,
 	handle_action_request,
 	install_package,
@@ -269,8 +271,20 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 	get_console().print(f"Package archive has been successfully extracted at {destination_dir}\n")
 
 
+def complete_package_path(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
+	"""
+	Completes the package archive file paths from the current directory or a user-specified directory.
+	"""
+	base_dir = Path(incomplete).parent if "/" in incomplete else Path(".")
+	base_dir = base_dir.resolve()
+	archive_extensions = [".opsi", ".tar.gz", ".zip", ".tgz", ".tar.bz2", ".tbz", ".tar.xz", ".txz"]
+	if base_dir.is_dir():
+		return [CompletionItem(str(file)) for ext in archive_extensions for file in base_dir.glob(f"*{Path(incomplete).name}*{ext}")]
+	return []
+
+
 @cli.command(short_help="Install opsi packages.")
-@click.argument("packages", nargs=-1, required=True, type=str)
+@click.argument("packages", nargs=-1, required=True, type=str, shell_complete=complete_package_path)
 @click.option("--depots", help="Depot IDs (comma-separated) or 'all'. Default is configserver.")
 @click.option(
 	"--update-properties",
@@ -333,8 +347,21 @@ def install(
 				depot_connection.disconnect()
 
 
+def complete_installed_products(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
+	"""
+	Suggests installed products from the selected depots, limited to a maximum of 10 results.
+	"""
+	MAX_RESULTS = 10
+	service_client = get_service_connection()
+	depots = ctx.params.get("depots", "all")
+	depot_list = [depot.id for depot in get_depot_objects(get_service_connection(), depots)]
+	installed_packages = get_product_on_depot_objects(service_client, tuple(depot_list))
+	suggestions = [CompletionItem(pod["productId"]) for pod in installed_packages if pod["productId"].startswith(incomplete)]
+	return suggestions[:MAX_RESULTS]
+
+
 @cli.command(short_help="Uninstall opsi products.")
-@click.argument("product_ids", type=str, nargs=-1, required=True)
+@click.argument("product_ids", type=str, nargs=-1, required=True, shell_complete=complete_installed_products)
 @click.option("--depots", help="Depot IDs (comma-separated) or 'all'. Default is configserver.")
 @click.option("--force", is_flag=True, help="Force uninstallation.", default=False)
 @click.option("--keep-files", is_flag=True, help="Keep files on uninstallation.", default=False)

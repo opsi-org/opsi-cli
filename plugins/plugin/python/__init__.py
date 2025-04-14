@@ -16,6 +16,7 @@ import zipfile
 from pathlib import Path
 
 import rich_click as click
+from click.shell_completion import CompletionItem
 from opsicommon.logging import get_logger
 
 from opsicli.config import config
@@ -71,8 +72,13 @@ def add(paths: list[Path], system: bool) -> None:
 		get_console().print(f"Plugin {plugin_id!r} installed into '{path}'.")
 
 
+def complete_plugin_id(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
+	plugin_ids = plugin_manager.get_plugins(dirs=[config.plugin_user_dir, config.plugin_system_dir])
+	return [CompletionItem(plugin_id) for plugin_id in plugin_ids if plugin_id.startswith(incomplete)]
+
+
 @cli.command(short_help=f"Export plugin as .{PLUGIN_EXTENSION}")
-@click.argument("plugin_id", type=str)
+@click.argument("plugin_id", type=str, shell_complete=complete_plugin_id)
 @click.argument("destination_dir", type=click.Path(file_okay=False, dir_okay=True, path_type=Path), default=Path("."))
 @click.option("--src", help="Extract as directory instead of .opsicliplug", is_flag=True, show_default=True, default=False)
 def export(plugin_id: str, destination_dir: Path, src: bool) -> None:
@@ -171,7 +177,7 @@ def list_() -> None:
 
 
 @cli.command(short_help="Remove a plugin")
-@click.argument("plugin_id", type=str)
+@click.argument("plugin_id", type=str, shell_complete=complete_plugin_id)
 def remove(plugin_id: str) -> None:
 	"""
 	opsi-cli plugin remove subcommand.
