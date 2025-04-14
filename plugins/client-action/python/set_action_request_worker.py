@@ -287,9 +287,9 @@ class SetActionRequestWorker(ClientActionWorker):
 				if args.uninstall_where_only_uninstall and poc.productId in self.products_with_only_uninstall:
 					add_pocs = self.set_single_action_request(poc, "uninstall")
 				elif args.where_failed and poc.actionResult == "failed":
-					add_pocs = self.set_single_action_request(poc)
+					add_pocs = self.set_single_action_request(poc, force=True)
 				elif args.where_installed and poc.installationStatus == "installed":
-					add_pocs = self.set_single_action_request(poc)
+					add_pocs = self.set_single_action_request(poc, force=True)
 				elif (
 					args.where_outdated
 					and poc.installationStatus == "installed"
@@ -303,8 +303,8 @@ class SetActionRequestWorker(ClientActionWorker):
 			if args.setup_on_action and modified_clients:
 				setup_on_action_products = [entry.strip() for entry in args.setup_on_action.split(",")]
 				logger.notice("Setting setup for all modified clients and products: %s", setup_on_action_products)
-				for add_poc in self.set_action_requests_for_all(modified_clients, setup_on_action_products, "setup"):
-					if add_poc.productId not in new_pocs[poc.clientId]:
+				for add_poc in self.set_action_requests_for_all(modified_clients, setup_on_action_products, "setup", force=True):
+					if add_poc.productId not in new_pocs[add_poc.clientId]:
 						new_pocs[add_poc.clientId][add_poc.productId] = add_poc
 
 		# If neither where_failed nor where_outdated nor uninstall_where_only_uninstall is set, set action request for every selected client

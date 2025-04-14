@@ -29,6 +29,7 @@ CLIENT3 = "pytest-client3.test.tld"
 PRODUCT1 = "pytest-product1"
 PRODUCT2 = "pytest-product2"
 PRODUCT3 = "pytest-product3"
+PRODUCT4 = "pytest-product4"
 H_GROUP1 = "pytest-test-host-group"
 H_GROUP2 = "pytest-nested-host-group"
 P_GROUP = "pytest-test-product-group"
@@ -119,6 +120,7 @@ def test_set_action_request_where(
 		tmp_product(admin_service_client, PRODUCT1) as product1,
 		tmp_product(admin_service_client, PRODUCT2) as product2,
 		tmp_product(admin_service_client, PRODUCT3) as product3,
+		tmp_product(admin_service_client, PRODUCT4) as product4,
 	):
 		# Create product on clients
 		pocs: list[ProductOnClient] = [
@@ -149,6 +151,17 @@ def test_set_action_request_where(
 				productType=product3.getType(),
 				installationStatus="installed",
 				actionRequest="none",
+				actionResult="",
+			),
+			# product4 installed and up-to-date, setup set on client1
+			ProductOnClient(
+				clientId=CLIENT1,
+				productId=product4.id,
+				productType=product4.getType(),
+				productVersion=product4.productVersion,
+				packageVersion=product4.packageVersion,
+				installationStatus="installed",
+				actionRequest="setup",
 				actionResult="",
 			),
 			# product1 installed on client2
@@ -233,26 +246,30 @@ def test_set_action_request_where(
 		pocs = sorted(
 			admin_service_client.jsonrpc(
 				"productOnClient_getObjects",
-				params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2, PRODUCT3]}],
+				params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2, PRODUCT3, PRODUCT4]}],
 			),
 			key=lambda poc: (poc.clientId, poc.productId),
 		)
 
-		assert len(pocs) == 6
+		assert len(pocs) == 7
 		assert pocs[0].clientId == CLIENT1
 		assert pocs[0].productId == PRODUCT1
 		assert pocs[1].clientId == CLIENT1
 		assert pocs[1].productId == PRODUCT2
 		assert pocs[2].clientId == CLIENT1
 		assert pocs[2].productId == PRODUCT3
-		assert pocs[3].clientId == CLIENT2
-		assert pocs[3].productId == PRODUCT1
+		assert pocs[3].clientId == CLIENT1
+		assert pocs[3].productId == PRODUCT4
 		assert pocs[4].clientId == CLIENT2
-		assert pocs[4].productId == PRODUCT2
+		assert pocs[4].productId == PRODUCT1
 		assert pocs[5].clientId == CLIENT2
-		assert pocs[5].productId == PRODUCT3
+		assert pocs[5].productId == PRODUCT2
+		assert pocs[6].clientId == CLIENT2
+		assert pocs[6].productId == PRODUCT3
 
 		expected_actions = {client_id: {PRODUCT1: "none", PRODUCT2: "none", PRODUCT3: "none"} for client_id in (CLIENT1, CLIENT2)}
+		expected_actions[CLIENT1][PRODUCT4] = "none"
+
 		if selection == "failed":
 			expected_actions[CLIENT1][PRODUCT1] = "setup"  # failed => setup
 			expected_actions[CLIENT1][PRODUCT3] = "setup"  # setup-on-action
@@ -264,6 +281,7 @@ def test_set_action_request_where(
 		elif selection == "installed":
 			expected_actions[CLIENT1][PRODUCT2] = "setup"  # installed => setup
 			expected_actions[CLIENT1][PRODUCT3] = "setup"  # setup-on-action
+			expected_actions[CLIENT1][PRODUCT4] = "setup"  # installed => setup
 			expected_actions[CLIENT2][PRODUCT1] = "setup"  # installed => setup
 			expected_actions[CLIENT2][PRODUCT2] = "setup"  # installed => setup
 			expected_actions[CLIENT2][PRODUCT3] = "setup"  # setup-on-action
@@ -271,9 +289,10 @@ def test_set_action_request_where(
 		assert pocs[0].actionRequest == ("none" if dry_run else expected_actions[CLIENT1][PRODUCT1])
 		assert pocs[1].actionRequest == ("none" if dry_run else expected_actions[CLIENT1][PRODUCT2])
 		assert pocs[2].actionRequest == ("none" if dry_run else expected_actions[CLIENT1][PRODUCT3])
-		assert pocs[3].actionRequest == ("none" if dry_run else expected_actions[CLIENT2][PRODUCT1])
-		assert pocs[4].actionRequest == ("none" if dry_run else expected_actions[CLIENT2][PRODUCT2])
-		assert pocs[5].actionRequest == ("none" if dry_run else expected_actions[CLIENT2][PRODUCT3])
+		assert pocs[3].actionRequest == "setup"  # actionRequest was "setup" before
+		assert pocs[4].actionRequest == ("none" if dry_run else expected_actions[CLIENT2][PRODUCT1])
+		assert pocs[5].actionRequest == ("none" if dry_run else expected_actions[CLIENT2][PRODUCT2])
+		assert pocs[6].actionRequest == ("none" if dry_run else expected_actions[CLIENT2][PRODUCT3])
 
 		if process:
 			unprocessed_actions = expected_actions.copy()
@@ -289,7 +308,8 @@ def test_set_action_request_where(
 						pid for pid, act in unprocessed_actions.pop(client_id, {}).items() if act == "setup"
 					)
 			if not dry_run:
-				assert not unprocessed_actions
+				for client_id, actions in unprocessed_actions.items():
+					assert all(act == "none" for act in actions.values())
 
 		lines = stdout.splitlines()
 		message = lines[0] + " " + lines[1]
