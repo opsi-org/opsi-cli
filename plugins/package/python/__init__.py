@@ -290,7 +290,7 @@ def complete_package_path(ctx: click.Context, param: click.Parameter, incomplete
 @click.option(
 	"--update-properties",
 	is_flag=True,
-	help="This flag triggers an interactive prompt to update Product property default values. Effective only when --interactive is enabled.",
+	help="Deprecated, please use `--properties ask`.",
 	default=False,
 )
 @click.option(
