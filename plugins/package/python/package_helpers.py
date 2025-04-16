@@ -250,7 +250,7 @@ def prompt_for_values(product_property: ProductProperty, prompt_text: str) -> li
 	return selected_values
 
 
-def update_product_properties(path_to_opsipackage_dict: dict[Path, OpsiPackage]) -> None:
+def update_product_property_defaults_interactively(path_to_opsipackage_dict: dict[Path, OpsiPackage]) -> None:
 	"""
 	Updates the default values and possible values of the product properties based on the user input.
 	"""
@@ -472,35 +472,6 @@ def upload_to_repository(
 
 	cleanup_packages_from_repo(depot_connection, OpsiPackage(source_package).product.id, dest_package_name)
 	validate_upload_and_check_disk_space(depot_connection, depot_id, local_checksum, dest_package_name)
-
-
-def get_property_default_values(
-	service_client: ServiceClient,
-	depot_id: str,
-	opsi_package: OpsiPackage,
-	update_properties: bool,
-) -> dict[str, list[Any]]:
-	"""
-	Get the default values for the product properties.
-
-	If `update_properties` is True and in interactive mode, get user-updated values.
-	Otherwise, fetch property states for the depot from `productPropertyState_getObjects`.
-	"""
-	product_id = opsi_package.product.id
-	property_default_values = {}
-
-	if update_properties and config.interactive:
-		property_default_values = {
-			product_property.propertyId: product_property.defaultValues or [] for product_property in opsi_package.product_properties
-		}
-	else:
-		product_property_states = service_client.jsonrpc(
-			"productPropertyState_getObjects",
-			[[], {"productId": product_id, "objectId": depot_id}],
-		)
-		property_default_values = {prod_prop_state.propertyId: prod_prop_state.values or [] for prod_prop_state in product_property_states}
-
-	return property_default_values
 
 
 def install_package(

@@ -9,15 +9,17 @@ test_package.py is a test file for the package plugin.
 
 import re
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional
 
 import pytest
 from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.objects import LocalbootProduct, NetbootProduct, ProductOnDepot
+from opsicommon.package import OpsiPackage
 from opsicommon.testing.helpers import http_test_server
 
 from plugins.package.python import combine_products
 
+from .conftest import get_admin_service_client
 from .utils import run_cli, tmp_product
 
 TEST_DATA_PATH = Path("tests/test_data/plugins/package")
@@ -57,7 +59,7 @@ CONTROL_TOML_CUSTOM = BASE_CONTROL_TOML.format("Test Product Custom Config", NEW
 
 
 @pytest.fixture
-def setup_test_product(tmp_path: Path, request: pytest.FixtureRequest) -> Path:
+def test_product_source(tmp_path: Path, request: pytest.FixtureRequest) -> Path:
 	params = {
 		"control_file_content": CONTROL_FILE,
 		"control_toml_content": CONTROL_TOML,
@@ -92,7 +94,7 @@ def create_dir_and_write_files(
 
 
 @pytest.mark.parametrize(
-	"setup_test_product, control_files, no_md5_zsync",
+	"test_product_source, control_files, no_md5_zsync",
 	[
 		(
 			{
@@ -120,10 +122,10 @@ def create_dir_and_write_files(
 			True,
 		),
 	],
-	indirect=["setup_test_product"],
+	indirect=["test_product_source"],
 )
-def test_make(tmp_path: Path, setup_test_product: Path, control_files: Union[bool, str], no_md5_zsync: bool) -> None:
-	source_dir = setup_test_product
+def test_make(tmp_path: Path, test_product_source: Path, control_files: bool | str, no_md5_zsync: bool) -> None:
+	source_dir = test_product_source
 
 	cli_args = ["package", "make", str(source_dir), str(tmp_path)]
 	if no_md5_zsync:
@@ -152,7 +154,7 @@ def test_make(tmp_path: Path, setup_test_product: Path, control_files: Union[boo
 
 
 @pytest.mark.parametrize(
-	"setup_test_product, custom_name, custom_only",
+	"test_product_source, custom_name, custom_only",
 	[
 		(
 			{
@@ -174,10 +176,10 @@ def test_make(tmp_path: Path, setup_test_product: Path, control_files: Union[boo
 			False,
 		),
 	],
-	indirect=["setup_test_product"],
+	indirect=["test_product_source"],
 )
-def test_make_with_custom(tmp_path: Path, setup_test_product: Path, custom_name: str, custom_only: bool) -> None:
-	source_dir = setup_test_product
+def test_make_with_custom(tmp_path: Path, test_product_source: Path, custom_name: str, custom_only: bool) -> None:
+	source_dir = test_product_source
 
 	cli_args = ["package", "make", str(source_dir), str(tmp_path)]
 	if custom_name:
@@ -208,20 +210,20 @@ def test_make_with_custom(tmp_path: Path, setup_test_product: Path, custom_name:
 
 
 @pytest.mark.parametrize(
-	"setup_test_product",
+	"test_product_source",
 	[
 		{
 			"custom_dir_name": "custom",
 			"custom_toml_content": CONTROL_TOML,
 		}
 	],
-	indirect=["setup_test_product"],
+	indirect=["test_product_source"],
 )
-def test_make_with_and_without_custom(tmp_path: Path, setup_test_product: Path) -> None:
+def test_make_with_and_without_custom(tmp_path: Path, test_product_source: Path) -> None:
 	"""
 	Testcase to verify that the custom package does not overwrite the non-custom package, but is created with a custom name format.
 	"""
-	source_dir = setup_test_product
+	source_dir = test_product_source
 	cli_args = ["package", "make", str(source_dir), str(tmp_path)]
 	exit_code, _, _ = run_cli(cli_args)
 	package_archive = tmp_path / f"{TESTPRODUCT}_{PRODUCT_VERSION}-{PACKAGE_VERSION}.opsi"
@@ -233,8 +235,8 @@ def test_make_with_and_without_custom(tmp_path: Path, setup_test_product: Path) 
 	assert exit_code == 0 and package_archive.exists()
 
 
-def test_extract(tmp_path: Path, setup_test_product: Path) -> None:
-	source_dir = setup_test_product
+def test_extract(tmp_path: Path, test_product_source: Path) -> None:
+	source_dir = test_product_source
 	exit_code, _stdout, _stderr = run_cli(["package", "make", str(source_dir), str(tmp_path)])
 	package_archive = tmp_path / f"{TESTPRODUCT}_{PRODUCT_VERSION}-{PACKAGE_VERSION}.opsi"
 	assert exit_code == 0 and package_archive.exists()
@@ -272,9 +274,9 @@ def test_combine_products() -> None:
 	assert combine_products(product_dict, product_on_depot_dict) == expected
 
 
-@pytest.mark.parametrize("setup_test_product", [{"control_file_content": CONTROL_FILE, "control_toml_content": None}], indirect=True)
-def test_control_to_toml(setup_test_product: Path) -> None:
-	source_dir = setup_test_product
+@pytest.mark.parametrize("test_product_source", [{"control_file_content": CONTROL_FILE, "control_toml_content": None}], indirect=True)
+def test_control_to_toml(test_product_source: Path) -> None:
+	source_dir = test_product_source
 	exit_code, _stdout, _stderr = run_cli(["package", "control-to-toml", str(source_dir)])
 	control_toml = source_dir / "OPSI" / CONTROL_TOML_FILE_NAME
 	assert exit_code == 0 and control_toml.exists()
@@ -447,3 +449,81 @@ def test_package_installation_with_action_request_setup() -> None:
 
 	exit_code, _, _ = run_cli(["package", "uninstall", "testdependency5"])
 	assert exit_code == 0
+
+
+@pytest.mark.opsi_service
+def test_package_installation_with_properties() -> None:
+	package = OpsiPackage()
+	package.from_package_archive(TEST_DATA_PATH / "opsi-client-agent_4.3.9.2-2.opsi")
+	package_defaults = {p.propertyId: p.defaultValues for p in package.product_properties}
+
+	with get_admin_service_client() as service_client:
+		depot_id = service_client.jsonrpc("host_getObjects", [[], {"type": "OpsiConfigserver"}])[0].id
+
+		# Test default properties
+		exit_code, _, _ = run_cli(
+			["package", "install", str(TEST_DATA_PATH / "opsi-client-agent_4.3.9.2-2.opsi"), "--properties", "package"]
+		)
+		assert exit_code == 0
+
+		depot_defaults = {
+			p.propertyId: p.values
+			for p in service_client.jsonrpc(
+				"productPropertyState_getObjects", [[], {"productId": "opsi-client-agent", "objectId": depot_id}]
+			)
+		}
+		assert depot_defaults == package_defaults
+
+		# Test interactive properties
+		interactive_defaults: dict[str, list[str | bool]] = {
+			"allow_reboot": [False],
+			"loginblockerstart": ["off"],
+			"setup_after_install": ["p1", "p2"],
+			"systray_check_interval": ["300"],
+			"systray_install": [False],
+			"systray_request_notify_format": ["productname : request"],
+		}
+		stdin = []
+		for property_id, values in interactive_defaults.items():
+			stdin.extend([str(v) for v in values])
+			if len(values) > 1:
+				stdin.append("done")
+		exit_code, _stdout, _stderr = run_cli(
+			["package", "install", str(TEST_DATA_PATH / "opsi-client-agent_4.3.9.2-2.opsi"), "--properties", "ask"],
+			stdin=stdin,
+		)
+		assert exit_code == 0
+
+		depot_defaults = {
+			p.propertyId: p.values
+			for p in service_client.jsonrpc(
+				"productPropertyState_getObjects", [[], {"productId": "opsi-client-agent", "objectId": depot_id}]
+			)
+		}
+		assert depot_defaults == interactive_defaults
+
+		# Test keep properties
+		exit_code, _stdout, _stderr = run_cli(
+			["package", "install", str(TEST_DATA_PATH / "opsi-client-agent_4.3.9.2-2.opsi"), "--properties", "keep"]
+		)
+		assert exit_code == 0
+		depot_defaults = {
+			p.propertyId: p.values
+			for p in service_client.jsonrpc(
+				"productPropertyState_getObjects", [[], {"productId": "opsi-client-agent", "objectId": depot_id}]
+			)
+		}
+		assert depot_defaults == interactive_defaults
+
+		# Test package properties
+		exit_code, _stdout, _stderr = run_cli(
+			["package", "install", str(TEST_DATA_PATH / "opsi-client-agent_4.3.9.2-2.opsi"), "--properties", "package"]
+		)
+		assert exit_code == 0
+		depot_defaults = {
+			p.propertyId: p.values
+			for p in service_client.jsonrpc(
+				"productPropertyState_getObjects", [[], {"productId": "opsi-client-agent", "objectId": depot_id}]
+			)
+		}
+		assert depot_defaults == package_defaults

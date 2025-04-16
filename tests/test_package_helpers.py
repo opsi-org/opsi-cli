@@ -13,7 +13,11 @@ from unittest.mock import MagicMock, patch
 from opsicommon.objects import Product, ProductOnClient
 from opsicommon.package import OpsiPackage
 
-from plugins.package.python.package_helpers import handle_action_request, map_and_sort_packages, update_product_properties
+from plugins.package.python.package_helpers import (
+	handle_action_request,
+	map_and_sort_packages,
+	update_product_property_defaults_interactively,
+)
 
 TEST_DATA_PATH = Path("tests/test_data/plugins/package")
 
@@ -75,7 +79,7 @@ def test_update_product_properties() -> None:
 	]
 
 	with patch("builtins.input", side_effect=user_inputs):
-		update_product_properties(path_to_opsipackage_dict)
+		update_product_property_defaults_interactively(path_to_opsipackage_dict)
 
 	opsi_package = path_to_opsipackage_dict[TEST_DATA_PATH / "testdependency5_1.2-2.opsi"]
 	for product_property in opsi_package.product_properties:

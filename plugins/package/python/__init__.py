@@ -7,8 +7,10 @@
 opsi-cli package plugin
 """
 
+import sys
 from contextlib import nullcontext
 from pathlib import Path
+from typing import Literal
 
 import rich_click as click
 from click.shell_completion import CompletionItem
@@ -33,13 +35,12 @@ from .package_helpers import (
 	fix_custom_package_name,
 	get_depot_objects,
 	get_product_on_depot_objects,
-	get_property_default_values,
 	handle_action_request,
 	install_package,
 	map_and_sort_packages,
 	process_local_packages,
 	uninstall_package,
-	update_product_properties,
+	update_product_property_defaults_interactively,
 	upload_to_repository,
 )
 from .package_progress import PackageProgressListener
@@ -292,6 +293,15 @@ def complete_package_path(ctx: click.Context, param: click.Parameter, incomplete
 	help="This flag triggers an interactive prompt to update Product property default values. Effective only when --interactive is enabled.",
 	default=False,
 )
+@click.option(
+	"--properties",
+	type=click.Choice(["keep", "ask", "package"], case_sensitive=False),
+	help=(
+		"How to handle product property default values."
+		"'keep' the current defaults, 'ask' for values interactively or use the defaults from the 'package'. The default is 'keep'."
+	),
+	default="keep",
+)
 @click.option("--force", is_flag=True, help="Force installation.", default=False)
 @click.option("--setup-where-installed", is_flag=True, help="Setup where installed.", default=False)
 @click.option("--setup-where-installed-with-dependencies", is_flag=True, help="Setup where installed with dependencies.", default=False)
@@ -301,6 +311,7 @@ def install(
 	depots: str,
 	force: bool,
 	update_properties: bool,
+	properties: Literal["keep", "ask", "package"],
 	setup_where_installed: bool,
 	setup_where_installed_with_dependencies: bool,
 	update_where_installed: bool,
@@ -310,19 +321,28 @@ def install(
 	This subcommand is used to install opsi packages.
 	"""
 	logger.trace("install package")
+	if update_properties:
+		console = get_console(file=sys.stderr)
+		console.print(
+			"[bright_yellow]The `--update-properties` option is deprecated, please use `--properties ask` instead.[/bright_yellow]\n"
+		)
+		properties = "ask"
+
 	service_client = get_service_connection()
 	with make_temp_dir() as temp_dir:
 		local_packages = process_local_packages(packages, temp_dir)
-
+		# path_to_opsipackage maps package paths to OpsiPackage objects (metadata)
 		path_to_opsipackage = map_and_sort_packages(local_packages)
-
 		depot_objects = get_depot_objects(service_client, depots)
 
 		if not force:
 			check_locked_products(service_client, depot_objects, path_to_opsipackage)
 
-		if update_properties and config.interactive:
-			update_product_properties(path_to_opsipackage)
+		if properties == "ask":
+			if not config.interactive:
+				raise click.UsageError("Using --properties=ask is not possible in non-interactive mode.")
+
+			update_product_property_defaults_interactively(path_to_opsipackage)
 
 		for depot in depot_objects:
 			depot_connection = get_depot_connection(depot)
@@ -331,12 +351,18 @@ def install(
 					dest_package_name = fix_custom_package_name(package_path)
 					upload_to_repository(depot_connection, depot.id, package_path, dest_package_name, temp_dir)
 
-					property_default_values = get_property_default_values(
-						service_client,
-						depot.id,
-						opsi_package,
-						update_properties,
-					)
+					property_default_values = {
+						product_property.propertyId: product_property.defaultValues or []
+						for product_property in opsi_package.product_properties
+					}
+					if properties == "keep":
+						# Keep current property default values set on depot
+						for product_property_state in service_client.jsonrpc(
+							"productPropertyState_getObjects",
+							[[], {"productId": opsi_package.product.id, "objectId": depot.id}],
+						):
+							property_default_values[product_property_state.propertyId] = product_property_state.values or []
+
 					install_package(depot_connection, depot.id, dest_package_name, force, property_default_values)
 
 					if setup_where_installed or setup_where_installed_with_dependencies or update_where_installed:
