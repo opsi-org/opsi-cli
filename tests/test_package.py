@@ -489,7 +489,7 @@ def test_package_installation_with_properties() -> None:
 			if len(values) > 1:
 				stdin.append("done")
 		exit_code, _stdout, _stderr = run_cli(
-			["package", "install", str(TEST_DATA_PATH / "opsi-client-agent_4.3.9.2-2.opsi"), "--properties", "ask"],
+			["package", "install", str(TEST_DATA_PATH / "opsi-client-agent_4.3.9.2-2.opsi"), "--interactive", "--properties", "ask"],
 			stdin=stdin,
 		)
 		assert exit_code == 0
