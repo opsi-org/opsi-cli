@@ -82,7 +82,7 @@ pytest-linux:
     - uv self update
     - uv sync --frozen
     - # Wait for opsiconfd to be up and running or timeout after 30 seconds
-    - wait=0; while ! nc -v -z -w3 $OPSI_HOST 4447 >/dev/null 2>&1; do wait=$(($wait+1)); [ $wait -ge 30 ] && break; sleep 1; done
+    - "wait=0; while ! nc -v -z -w3 $OPSI_HOST 4447 >/dev/null 2>&1; do wait=$(($wait+1)); [ $wait -ge 30 ] && break; sleep 1; done"
     - uv run pytest --tb=short -x -o junit_family=xunit2 --junitxml=testreport_linux.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - mv .coverage coverage_linux
   artifacts:
