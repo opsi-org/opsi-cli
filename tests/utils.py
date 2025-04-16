@@ -30,7 +30,14 @@ runner = CliRunner(mix_stderr=False)
 def run_cli(args: Sequence[str], service_config: bool = True, stdin: list[str] | None = None) -> tuple[int, str, str]:
 	context = admin_service_config if service_config else nullcontext
 	with context():
-		result = runner.invoke(main, args, obj={}, catch_exceptions=False, input="\n".join(stdin or []))
+		input_str = "\n".join(stdin or [])
+		result = runner.invoke(main, args, obj={}, catch_exceptions=False, input=input_str)
+		if result.exit_code != 0:
+			print("CLI command failed:")
+			print(" ".join(args))
+			print("input:", input_str)
+			print("stdout:", result.stdout)
+			print("stderr:", result.stderr)
 		return (result.exit_code, result.stdout, result.stderr)
 
 
