@@ -11,7 +11,6 @@ dummy command - proof of concept
 
 import click
 import git  # type: ignore[import] # noqa: F401
-import netifaces  # type: ignore[import]
 import requests
 from opsicommon.logging import get_logger
 
@@ -38,7 +37,6 @@ def libtest() -> None:
 	opsi dummy subdummy subcommand.
 	This is the long help.
 	"""
-	print(netifaces.gateways())
 	print(requests.get("https://gitlab.uib.gmbh", timeout=10))
 
 

@@ -27,10 +27,10 @@ def test_initial() -> None:
 
 
 def test_install() -> None:
-	package = {"name": "netifaces", "version": "0.11.0"}
+	package = {"name": "requests", "version": "2.32.3"}
 	with temp_context() as tempdir:
 		install_python_package(tempdir, package)
-		assert os.listdir(tempdir) and "netifaces" in os.listdir(tempdir)[0]
+		assert os.listdir(tempdir) and "requests" in os.listdir(tempdir)[0]
 
 
 def test_plugin_add() -> None:
@@ -40,7 +40,6 @@ def test_plugin_add() -> None:
 		exit_code, stdout, _stderr = run_cli(["dummy", "libtest"])
 		assert exit_code == 0
 		assert "Response" in stdout  # requests.get("https://opsi.org")
-		assert "default" in stdout  # netifaces.gateways()
 
 
 def test_plugin_fail() -> None:
