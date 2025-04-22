@@ -30,7 +30,7 @@ def test_install() -> None:
 	package = {"name": "requests", "version": "2.32.3"}
 	with temp_context() as tempdir:
 		install_python_package(tempdir, package)
-		assert os.listdir(tempdir) and "requests" in os.listdir(tempdir)[0]
+		assert os.listdir(tempdir) and "requests" in os.listdir(tempdir)
 
 
 def test_plugin_add() -> None:
