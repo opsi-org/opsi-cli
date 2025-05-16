@@ -11,12 +11,20 @@ import shutil
 from contextlib import nullcontext
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlparse
 
 from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.logging import get_logger
-from opsicommon.objects import BoolProductProperty, OpsiDepotserver, Product, ProductOnClient, ProductProperty
+from opsicommon.objects import (
+	BoolProductProperty,
+	OpsiDepotserver,
+	Product,
+	ProductDependency,
+	ProductOnClient,
+	ProductOnDepot,
+	ProductProperty,
+)
 from opsicommon.package import OpsiPackage
 from opsicommon.package.archive import extract_archive
 from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
@@ -24,6 +32,7 @@ from rich.progress import Progress
 
 from opsicli.config import config
 from opsicli.io import get_console, prompt
+from opsicli.opsiservice import get_depot_connection
 from opsicli.utils import ProgressCallbackAdapter, download
 
 from .package_progress import PackageProgressListener
@@ -584,3 +593,115 @@ def set_action_request(
 		for poc in product_on_clients:
 			poc.actionRequest = action_request
 		service_client.jsonrpc("productOnClient_updateObjects", [product_on_clients])
+
+
+def initialize_opsi_package(
+	service_client: ServiceClient, product_on_depot: ProductOnDepot, depot_id: str, properties: Literal["keep", "ask", "package"]
+) -> OpsiPackage:
+	"""
+	Initializes an OpsiPackage object by populating it with product, properties, and dependencies fetched from ServiceClient.
+	It also updates property default values based on the specified option.
+	"""
+
+	logger.notice("Initializing OpsiPackage for %s", product_on_depot.productId)
+
+	product: Product = service_client.jsonrpc(
+		"product_getObjects",
+		[
+			[],
+			{
+				"id": [product_on_depot.productId],
+				"productVersion": product_on_depot.productVersion,
+				"packageVersion": product_on_depot.packageVersion,
+			},
+		],
+	)[0]
+	product_properties: list[ProductProperty] = service_client.jsonrpc(
+		"productProperty_getObjects",
+		[
+			[],
+			{
+				"productId": product_on_depot.productId,
+				"productVersion": product_on_depot.productVersion,
+				"packageVersion": product_on_depot.packageVersion,
+			},
+		],
+	)
+	product_dependencies: list[ProductDependency] = service_client.jsonrpc(
+		"productDependency_getObjects",
+		[
+			[],
+			{
+				"productId": product_on_depot.productId,
+				"productVersion": product_on_depot.productVersion,
+				"packageVersion": product_on_depot.packageVersion,
+			},
+		],
+	)
+
+	opsi_package = OpsiPackage()
+	opsi_package.product = product
+	opsi_package.product_properties = product_properties
+	opsi_package.product_dependencies = product_dependencies
+
+	property_default_values = {
+		product_property.propertyId: product_property.defaultValues or [] for product_property in opsi_package.product_properties
+	}
+	if properties == "keep":
+		for product_property_state in service_client.jsonrpc(
+			"productPropertyState_getObjects",
+			[[], {"productId": opsi_package.product.id, "objectId": depot_id}],
+		):
+			property_default_values[product_property_state.propertyId] = product_property_state.values or []
+
+	elif properties == "ask":
+		update_product_property_defaults_interactively({Path(product_on_depot.productId): opsi_package})  # using a  dummy path as key
+
+	return opsi_package
+
+
+def generate_control_files(opsi_package: OpsiPackage, temp_dir: Path) -> None:
+	"""
+	Create an 'OPSI' directory in the specified temporary directory and generate 'control.toml' file inside it.
+	"""
+
+	logger.notice("Generating control files for %s", opsi_package.product.id)
+	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
+		assert progress
+		if not config.quiet:
+			task = progress.add_task(f"Generating control files for '{opsi_package.product.id}'...", total=None)
+
+		opsi_dir = temp_dir / "OPSI"
+		opsi_dir.mkdir(parents=True, exist_ok=True)
+
+		control_toml = opsi_dir / "control.toml"
+		opsi_package.generate_control_file(control_toml)
+
+		if not config.quiet:
+			progress.update(task, total=1, completed=1)
+	logger.notice("Finished generating control files for %s", opsi_package.product.id)
+
+
+def download_depot_files(depot_object: OpsiDepotserver, product_id: str, temp_dir: Path) -> None:
+	"""
+	Download files for a specified product from the depot repository and store them in a temporary directory.
+	"""
+	logger.notice("Downloading depot files for %s", product_id)
+	with nullcontext() if config.quiet else Progress() as progress:
+		assert progress
+		if not config.quiet:
+			task = progress.add_task(f"Downloading depot files for '{product_id}'...", total=None)
+
+		depot_connection = get_depot_connection(depot_object)
+		depot_data = depot_connection.webdav_content(f"/depot/{product_id}")
+
+		client_data_dir = temp_dir / "CLIENT_DATA"
+		client_data_dir.mkdir(parents=True, exist_ok=True)
+
+		for content in depot_data:
+			if not content.name.endswith(".files"):
+				depot_connection.download(content.path, client_data_dir)
+
+		if not config.quiet:
+			progress.update(task, total=1, completed=1)
+	logger.notice("Finished downloading depot files for %s", product_id)
