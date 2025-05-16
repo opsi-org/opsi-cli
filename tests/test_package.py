@@ -527,3 +527,44 @@ def test_package_installation_with_properties() -> None:
 			)
 		}
 		assert depot_defaults == package_defaults
+
+
+@pytest.mark.opsi_service
+def test_package_fetch(tmp_path: Path) -> None:
+	exit_code, _, _ = run_cli(["package", "install", str(TEST_DATA_PATH / "opsi-client-agent_4.3.9.2-2.opsi")])
+	assert exit_code == 0
+
+	# Test interactive properties
+	interactive_defaults: dict[str, list[str | bool]] = {
+		"allow_reboot": [False],
+		"loginblockerstart": ["off"],
+		"setup_after_install": ["p1", "p2"],
+		"systray_check_interval": ["300"],
+		"systray_install": [False],
+		"systray_request_notify_format": ["productname : request"],
+	}
+	stdin = []
+	for property_id, values in interactive_defaults.items():
+		stdin.extend([str(v) for v in values])
+		if len(values) > 1:
+			stdin.append("done")
+
+	exit_code, _, _ = run_cli(
+		[
+			"--interactive",
+			"package",
+			"fetch",
+			"opsi-client-agent",
+			"--overwrite",
+			"--destination-dir",
+			str(tmp_path),
+			"--properties",
+			"ask",
+		],
+		stdin=stdin,
+	)
+	assert exit_code == 0
+	assert Path(tmp_path / "opsi-client-agent_4.3.9.2-2.opsi").exists()
+
+	exit_code, _, _ = run_cli(["package", "uninstall", "opsi-client-agent"])
+	assert exit_code == 0

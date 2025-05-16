@@ -32,10 +32,13 @@ from plugins.package.data.metadata import command_metadata
 from .package_helpers import (
 	check_locked_products,
 	cleanup_packages_from_repo,
+	download_depot_files,
 	fix_custom_package_name,
+	generate_control_files,
 	get_depot_objects,
 	get_product_on_depot_objects,
 	handle_action_request,
+	initialize_opsi_package,
 	install_package,
 	map_and_sort_packages,
 	process_local_packages,
@@ -45,7 +48,7 @@ from .package_helpers import (
 )
 from .package_progress import PackageProgressListener
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __description__ = "Manage opsi packages"
 
 logger = get_logger("opsicli")
@@ -416,6 +419,72 @@ def uninstall(product_ids: list[str], depots: str, force: bool, keep_files: bool
 				uninstall_package(depot_connection, depot.id, product_on_depot.productId, force, not keep_files)
 		finally:
 			depot_connection.disconnect()
+
+
+@cli.command(short_help="Fetch installed product(s) from depot and create an .opsi package archive. Use 'all' for all products.")
+@click.argument("product_ids", type=str, nargs=-1, required=True)
+@click.option("--depot", help="Depot ID to fetch from. Default is configserver.")
+@click.option("--destination-dir", type=click.Path(file_okay=False, dir_okay=True, path_type=Path), default=Path("."))
+@click.option(
+	"--properties",
+	type=click.Choice(["keep", "ask", "package"], case_sensitive=False),
+	default="keep",
+	show_default=True,
+	help=(
+		"How to handle product property default values: "
+		"'keep' uses the current defaults from the depot, "
+		"'ask' prompts you interactively for values, "
+		"'package' uses the defaults from the package."
+	),
+)
+@click.option("-o", "--overwrite", is_flag=True, default=False, help="Overwrite existing package if it exists.")
+def fetch(
+	product_ids: list[str],
+	depot: str,
+	destination_dir: Path,
+	properties: Literal["keep", "ask", "package"],
+	overwrite: bool,
+) -> None:
+	"""
+	Fetch installed product(s) from a depot server and create .opsi package archive.
+	"""
+	logger.trace("Fetch package from depot")
+	if properties == "ask" and not config.interactive:
+		raise click.UsageError("Using --properties=ask is not possible in non-interactive mode.")
+
+	service_client = get_service_connection()
+	depot_objects = get_depot_objects(service_client, depot)
+	if depot_objects:
+		depot_object = depot_objects[0]
+	else:
+		raise click.UsageError(f"Depot '{depot}' not found.")
+
+	filter_params = {"depotId": [depot_object.id]}
+	if "all" not in product_ids:
+		filter_params["productId"] = product_ids
+	product_on_depot_list: list[ProductOnDepot] = service_client.jsonrpc("productOnDepot_getObjects", [[], filter_params])
+	if not product_on_depot_list:
+		raise click.UsageError(f"No products found on depot '{depot_object.id}'.")
+
+	with make_temp_dir() as temp_dir:
+		for product_on_depot in product_on_depot_list:
+			opsi_package: OpsiPackage = initialize_opsi_package(service_client, product_on_depot, depot_object.id, properties)
+			generate_control_files(opsi_package, temp_dir)
+			download_depot_files(depot_object, product_on_depot.productId, temp_dir)
+
+			logger.notice("Creating package archive for '%s'", product_on_depot.productId)
+			with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
+				assert progress
+				progress_listener = None
+				if not config.quiet:
+					progress_listener = PackageProgressListener(progress, f"Creating opsi package for '{opsi_package.product.id}' ...")
+
+				destination_dir.mkdir(parents=True, exist_ok=True)
+				package_archive = opsi_package.create_package_archive(
+					temp_dir, destination=destination_dir, overwrite=overwrite, progress_listener=progress_listener
+				)
+
+			get_console().print(f"Package archive created at {package_archive}\n")
 
 
 class PackagePlugin(OPSICLIPlugin):
