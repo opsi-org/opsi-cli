@@ -272,7 +272,7 @@ def write_output_csv(data: Any, metadata: Metadata) -> None:
 				writer.writerow([to_string(row)])
 
 
-def write_output_json(data: Any, metadata: Metadata | None = None, pretty: bool = False) -> None:
+def write_output_json(data: Any, metadata: Metadata | None = None, pretty: bool = False, force_newline: bool = False) -> None:
 	def to_string(value: Any) -> str:
 		if inspect.isclass(value):
 			return value.__name__
@@ -291,6 +291,8 @@ def write_output_json(data: Any, metadata: Metadata | None = None, pretty: bool 
 	else:
 		with output_file_bin() as file:
 			file.write(json)
+			if force_newline:
+				file.write(b"\n")
 
 
 def write_output_msgpack(data: Any, metadata: Metadata | None = None) -> None:
@@ -305,7 +307,9 @@ def write_output_msgpack(data: Any, metadata: Metadata | None = None) -> None:
 		)
 
 
-def write_output(data: Any, metadata: Metadata | None = None, default_output_format: str | None = None) -> None:
+def write_output(
+	data: Any, metadata: Metadata | None = None, default_output_format: str | None = None, force_newline: bool = False
+) -> None:
 	output_format = config.output_format
 	if output_format == "auto":
 		output_format = default_output_format if default_output_format else "table"
@@ -339,7 +343,7 @@ def write_output(data: Any, metadata: Metadata | None = None, default_output_for
 		assert metadata
 		write_output_csv(data, metadata)
 	elif output_format in ("json", "pretty-json"):
-		write_output_json(data, metadata, output_format == "pretty-json")
+		write_output_json(data, metadata, output_format == "pretty-json", force_newline=force_newline)
 	elif output_format == "msgpack":
 		write_output_msgpack(data, metadata)
 	else:

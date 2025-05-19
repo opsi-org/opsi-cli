@@ -167,7 +167,7 @@ def test_config_service_add() -> None:
 	config = Config()
 
 	with temp_context() as tmp_path:
-		# config service add writes conffile. Explicitely set here to avoid wiping config file of the user.
+		# Config service add writes config file. Explicitly set here to avoid wiping config file of the user.
 		conffile = tmp_path / "conffile.conf"
 		config.config_file_user = conffile
 

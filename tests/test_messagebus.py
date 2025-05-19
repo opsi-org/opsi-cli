@@ -7,6 +7,7 @@
 test_messagebus
 """
 
+import json
 import time
 from threading import Thread
 
@@ -66,6 +67,46 @@ def test_messagebus_jsonrpc_multiple() -> None:
 				"service:config:jsonrpc"
 			]
 			assert result[0]["type"] == "OpsiConfigserver"
+
+
+@pytest.mark.opsi_service
+@pytest.mark.parametrize(
+	"types, output_type",
+	(
+		([], None),
+		(["host_created"], "message"),
+	),
+)
+def test_get_events(types: list[str], output_type: str | None) -> None:
+	client_id = "dummy1.test.tld"
+
+	class CreateHostThread(Thread):
+		def run(self) -> None:
+			with log_context({"instance": "CreateHostThread"}):
+				with get_admin_service_client() as client:
+					time.sleep(7)
+					client.jsonrpc("host_createOpsiClient", params=[client_id])
+					time.sleep(1)
+					client.jsonrpc("host_delete", params=[client_id])
+
+	for cid in (client_id, "some.other.host"):
+		cht = CreateHostThread(daemon=True)
+		cht.start()
+		cmd = ["-l5", "--output-format", "json", "messagebus", "get-events", "--timeout", "10"]
+		for event_type in types:
+			cmd += ["--type", event_type]
+		if output_type:
+			cmd += ["--output-type", output_type]
+
+		exit_code, _stdout, _stderr = run_cli(cmd)
+		cht.join()
+		data = [json.loads(line.strip()) for line in _stdout.splitlines() if line]
+		assert len(data) == len(types) if types else 2
+		if output_type == "message":
+			assert data[0]["sender"]
+		else:
+			assert "sender" not in data[0]
+		assert exit_code == 0
 
 
 @pytest.mark.opsi_service

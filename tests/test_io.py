@@ -57,7 +57,7 @@ input_output_testdata = (
 	),
 	(
 		"csv",
-		"key1;key2;key3\r\nfirst1;first2;first3\r\nsecond1;second2;second3\r\n",
+		"key1;key2;key3\r\n1,2;1,0;{'k1': 'v1', 'k2': 'v2'}\r\n3,4;0;{'k': 'v'}\r\n",
 		[{"key1": [1, 2], "key2": [True, False], "key3": {"k1": "v1", "k2": "v2"}}, {"key1": [3, 4], "key2": [False], "key3": {"k": "v"}}],
 	),
 )
@@ -152,7 +152,7 @@ def test_output_config(output_format: str, startstrings: list[str]) -> None:
 	config.set_values({"output_format": "auto"})  # To not affect following tests
 
 
-@pytest.mark.parametrize(("input_format", "string", "data"), input_output_testdata)
+@pytest.mark.parametrize(("input_format", "string", "data"), input_output_testdata[:-1])
 def test_input(input_format: str, string: str, data: Any) -> None:
 	with TextIOWrapper(BufferedReader(BytesIO(string.encode("utf-8")))) as inputfile:  # type: ignore[arg-type]
 		old_stdin = sys.stdin

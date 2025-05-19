@@ -51,7 +51,7 @@ class EventMessagebusConnection(MessagebusConnection):
 	def __init__(self) -> None:
 		MessagebusConnection.__init__(self)
 		self.event_types: set[str] = set()
-		self.event_data: dict[str, Any] = {}
+		self.event_data: list[dict[str, Any]] = []  # List of data dicts to match against the event data (OR logic)
 		self._waiting_for_event: bool = False
 		self._output_type: Literal["message", "event"] | None = None
 		self.event_found_event = Event()
@@ -63,9 +63,9 @@ class EventMessagebusConnection(MessagebusConnection):
 			return
 
 		data_matches = True
-		for attribute, value in self.event_data:
-			if message.data.get(attribute) != value:
-				data_matches = False
+		for event_data in self.event_data:
+			data_matches = all(message.data.get(attr) == val for attr, val in event_data.items())
+			if data_matches:
 				break
 
 		if data_matches:
@@ -73,7 +73,7 @@ class EventMessagebusConnection(MessagebusConnection):
 			logger.notice("Received event with matching data: %s (data=%s)", message, message.data)
 			if self._output_type:
 				data = {"event": message.event} | dict(message.data) if self._output_type == "event" else message.to_dict()
-				write_output(data, default_output_format="pretty-json")
+				write_output(data, default_output_format="pretty-json", force_newline=True)
 			if self._waiting_for_event:
 				self.result = message
 				self.event_found_event.set()
@@ -81,16 +81,22 @@ class EventMessagebusConnection(MessagebusConnection):
 		else:
 			logger.debug("Received event with non matching data: %s (data=%s)", message, message.data)
 
-	def output_events(self, types: list[str] | None, output_type: Literal["message", "event"] = "event") -> None:
-		self.event_types = types or []
+	def output_events(
+		self, types: set[str] | None, output_type: Literal["message", "event"] = "event", timeout: float | None = None
+	) -> None:
+		self.event_types = types or set()
 		self._output_type = output_type
 		with self.connection():
 			self.subscribe_to_channel([f"event:{evt}" for evt in self.event_types])
+			start = time.time()
 			while True:
+				if timeout and time.time() - start > timeout:
+					logger.debug("Timeout reached")
+					break
 				time.sleep(1)
 
-	def wait_for_event(self, type: str, data: dict[str, Any], timeout: float | None = None) -> EventMessage:
-		self.event_types = [type]
+	def wait_for_event(self, type: str, data: list[dict[str, Any]], timeout: float | None = None) -> EventMessage:
+		self.event_types = {type}
 		self.event_data = data
 		self._waiting_for_event = True
 		logger.notice("Waiting for event of type %r with data %s to occur", self.event_types, self.event_data)
@@ -118,20 +124,21 @@ def cli() -> None:
 
 @cli.command(name="get-events", short_help="Get messagebus events")
 @click.option("--type", help="Process events of this type only", type=str, multiple=True)
+@click.option("--timeout", help="Timeout in seconds", type=float, default=None)
 @click.option(
 	"--output-type",
 	type=click.Choice(["message", "event"], case_sensitive=False),
 	help="Output full message or just the event data",
 	default="event",
 )
-def get_events(type: list[str] | None = None, output_type: Literal["message", "event"] = "event") -> None:
+def get_events(type: list[str] | None = None, output_type: Literal["message", "event"] = "event", timeout: float | None = None) -> None:
 	"""
 	Get messagebus events
 	"""
 	type = type or DEFAULT_EVENTS
 	mbus_connection = EventMessagebusConnection()
 	try:
-		mbus_connection.output_events(type, output_type)
+		mbus_connection.output_events(types=set(type), output_type=output_type, timeout=timeout)
 	except KeyboardInterrupt:
 		pass
 
@@ -145,9 +152,9 @@ def wait_for_event(type: str, data: list[str], timeout: float | None) -> None:
 	Wait for a specific event on the messagebus
 	"""
 	mbus_connection = EventMessagebusConnection()
-	data_dict: dict[str, Any] = {kv[0].strip(): kv[1].strip() for kv in [dat.split("=", 1) for dat in data or []]}
-	result = mbus_connection.wait_for_event(type=type, data=data_dict, timeout=timeout)
-	print(result.data)
+	data_list: list[dict[str, Any]] = [{kv[0].strip(): kv[1].strip() for kv in [dat.split("=", 1) for dat in data or []]}]
+	result = mbus_connection.wait_for_event(type=type, data=data_list, timeout=timeout)
+	write_output(result.data, default_output_format="pretty-json")
 
 
 @cli.command(name="wait-for-installation", short_help="Wait for a a product installation on a client")
@@ -160,12 +167,12 @@ def wait_for_installation(client: str, product: str, installation_status: str, t
 	Wait for a a product installation on a client"
 	"""
 	mbus_connection = EventMessagebusConnection()
-	wait_for_data = [
+	data = [
 		{"clientId": client, "productId": product, "actionRequest": "none", "installationStatus": installation_status},
 		{"clientId": client, "productId": product, "actionRequest": "none", "installationStatus": "unknown"},
 	]
-	result = mbus_connection.wait_for_event(type="productOnClient_updated", data=wait_for_data, timeout=timeout)
-	print(result.data)
+	result = mbus_connection.wait_for_event(type="productOnClient_updated", data=data, timeout=timeout)
+	write_output(result.data, default_output_format="pretty-json")
 	if result.data.get("installationStatus") == "unknown":
 		logger.error("Installation failed")
 		sys.exit(1)
