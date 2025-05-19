@@ -238,8 +238,11 @@ def install_binary(source: Path | str, destination: Path | str) -> None:
 		source = Path(source)
 	if not isinstance(destination, Path):
 		destination = Path(destination)
-	source = source.resolve()
-	destination = destination.resolve()
+	try:
+		source = source.resolve()
+		destination = destination.resolve()
+	except Exception as error:
+		logger.debug("Failed to normalize binary paths '%s'", error)
 	if source == destination:
 		return
 
