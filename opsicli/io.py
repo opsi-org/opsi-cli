@@ -318,8 +318,11 @@ def write_output(data: Any, metadata: Metadata | None = None, default_output_for
 			metadata = Metadata(attributes=[Attribute(id=f"value{idx}") for idx in range(len(data[0]))])
 		elif stt == list[dict]:
 			metadata = Metadata(attributes=[Attribute(id=key) for key in get_attributes(data)])
+		elif stt == dict:  # noqa: E721
+			data = [data]
+			metadata = Metadata(attributes=[Attribute(id=key) for key in get_attributes(data)])
 		else:
-			raise RuntimeError(f"Output-format {output_format!r} does not support stucture {stt!r}")
+			raise RuntimeError(f"Output-format {output_format!r} does not support structure {stt!r}")
 
 	if metadata is not None and config.attributes and config.attributes != ["all"]:
 		ordered_list = [attr for config_attribute in config.attributes for attr in metadata.attributes if attr.id == config_attribute]

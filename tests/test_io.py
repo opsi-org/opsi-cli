@@ -55,6 +55,11 @@ input_output_testdata = (
 		"key1;key2;key3\r\nfirst1;first2;first3\r\nsecond1;second2;second3\r\n",
 		[{"key1": "first1", "key2": "first2", "key3": "first3"}, {"key1": "second1", "key2": "second2", "key3": "second3"}],
 	),
+	(
+		"csv",
+		"key1;key2;key3\r\nfirst1;first2;first3\r\nsecond1;second2;second3\r\n",
+		[{"key1": [1, 2], "key2": [True, False], "key3": {"k1": "v1", "k2": "v2"}}, {"key1": [3, 4], "key2": [False], "key3": {"k": "v"}}],
+	),
 )
 
 

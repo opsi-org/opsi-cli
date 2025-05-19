@@ -10,59 +10,93 @@ messagebus plugin
 """
 
 import sys
+import time
 from threading import Event
-from typing import Any
+from typing import Any, Literal
 
 import rich_click as click
 from opsicommon.logging import get_logger
 from opsicommon.messagebus.message import EventMessage
 
+from opsicli.io import write_output
 from opsicli.messagebus import MessagebusConnection
 from opsicli.plugin import OPSICLIPlugin
 
+DEFAULT_EVENTS = [
+	"app_state_changed",
+	"config_created",
+	"config_deleted",
+	"config_updated",
+	"configState_created",
+	"configState_deleted",
+	"configState_updated",
+	"host_connected",
+	"host_created",
+	"host_deleted",
+	"host_disconnected",
+	"host_updated",
+	"productOnClient_created",
+	"productOnClient_deleted",
+	"productOnClient_updated",
+	"user_connected",
+	"user_disconnected",
+]
 __version__ = "0.3.0"
 __description__ = "This command can be used to interact with the opsi message bus."
 
 logger = get_logger("opsicli")
 
 
-class WaitForEventMessagebusConnection(MessagebusConnection):
+class EventMessagebusConnection(MessagebusConnection):
 	def __init__(self) -> None:
 		MessagebusConnection.__init__(self)
-		self.wait_for_type: str | None = None
-		self.wait_for_data: list[dict[str, Any]] | None = None
-		self.event_found_event = Event()  # why does everything have be named event?
+		self.event_types: set[str] = set()
+		self.event_data: dict[str, Any] = {}
+		self._waiting_for_event: bool = False
+		self._output_type: Literal["message", "event"] | None = None
+		self.event_found_event = Event()
 		self.result: EventMessage | None = None
 
 	def _on_event(self, message: EventMessage) -> None:
-		if self.wait_for_type and message.event != self.wait_for_type:
-			logger.debug("Found event of different type %s", message.event)
+		if self.event_types and message.event not in self.event_types:
+			logger.debug("Received event of unhandled type: %s", message.event)
 			return
-		if self.wait_for_data:
-			for data in self.wait_for_data:
-				for key, value in data.items():
-					if message.data.get(key) != value:
-						break
-				else:  # all key-value pairs matched
-					logger.notice("Received requested event %s (data=%s)", message, message.data)
-					self.result = message
-					self.event_found_event.set()
-					return
-			logger.debug("Found event with different data %s", message.data)
-		else:
-			logger.notice("Received requested event %s (data=%s)", message, message.data)
-			self.result = message
-			self.event_found_event.set()
 
-	def wait_for_event(
-		self, type: str | None = None, data: list[dict[str, Any]] | None = None, timeout: float | None = None
-	) -> EventMessage:
-		self.wait_for_type = type
-		self.wait_for_data = data
-		logger.notice("Waiting for event of type %r with data %s to occur", self.wait_for_type, self.wait_for_data)
+		data_matches = True
+		for attribute, value in self.event_data:
+			if message.data.get(attribute) != value:
+				data_matches = False
+				break
+
+		if data_matches:
+			# All key-value pairs matched
+			logger.notice("Received event with matching data: %s (data=%s)", message, message.data)
+			if self._output_type:
+				data = {"event": message.event} | dict(message.data) if self._output_type == "event" else message.to_dict()
+				write_output(data, default_output_format="pretty-json")
+			if self._waiting_for_event:
+				self.result = message
+				self.event_found_event.set()
+				return
+		else:
+			logger.debug("Received event with non matching data: %s (data=%s)", message, message.data)
+
+	def output_events(self, types: list[str] | None, output_type: Literal["message", "event"] = "event") -> None:
+		self.event_types = types or []
+		self._output_type = output_type
+		with self.connection():
+			self.subscribe_to_channel([f"event:{evt}" for evt in self.event_types])
+			while True:
+				time.sleep(1)
+
+	def wait_for_event(self, type: str, data: dict[str, Any], timeout: float | None = None) -> EventMessage:
+		self.event_types = [type]
+		self.event_data = data
+		self._waiting_for_event = True
+		logger.notice("Waiting for event of type %r with data %s to occur", self.event_types, self.event_data)
 		try:
 			with self.connection():
-				self.subscribe_to_channel(f"event:{self.wait_for_type}")
+				self.subscribe_to_channel([f"event:{evt}" for evt in self.event_types])
 				self.event_found_event.wait(timeout)
 				if not self.result:
 					logger.error("Something went wrong - no matching event received")
@@ -82,19 +116,37 @@ def cli() -> None:
 	logger.trace("messagebus command group")
 
 
+@cli.command(name="get-events", short_help="Get messagebus events")
+@click.option("--type", help="Process events of this type only", type=str, multiple=True)
+@click.option(
+	"--output-type",
+	type=click.Choice(["message", "event"], case_sensitive=False),
+	help="Output full message or just the event data",
+	default="event",
+)
+def get_events(type: list[str] | None = None, output_type: Literal["message", "event"] = "event") -> None:
+	"""
+	Get messagebus events
+	"""
+	type = type or DEFAULT_EVENTS
+	mbus_connection = EventMessagebusConnection()
+	try:
+		mbus_connection.output_events(type, output_type)
+	except KeyboardInterrupt:
+		pass
+
+
 @cli.command(name="wait-for-event", short_help="Wait for a specific event on the messagebus")
 @click.argument("type", type=str)
 @click.option("--data", help="Data of the event to wait for", type=str, multiple=True)
 @click.option("--timeout", help="Timeout in seconds", type=float, default=None)
 def wait_for_event(type: str, data: list[str], timeout: float | None) -> None:
 	"""
-	opsi-cli messagebus wait-for-event command
+	Wait for a specific event on the messagebus
 	"""
-	mbus_connection = WaitForEventMessagebusConnection()
-	data_list: list[dict[str, Any]] | None = None
-	if data:
-		data_list = [{entry[0].strip(): entry[1].strip() for entry in [assignment.split("=", 1) for assignment in data]}]
-	result = mbus_connection.wait_for_event(type=type, data=data_list, timeout=timeout)
+	mbus_connection = EventMessagebusConnection()
+	data_dict: dict[str, Any] = {kv[0].strip(): kv[1].strip() for kv in [dat.split("=", 1) for dat in data or []]}
+	result = mbus_connection.wait_for_event(type=type, data=data_dict, timeout=timeout)
 	print(result.data)
 
 
@@ -105,9 +157,9 @@ def wait_for_event(type: str, data: list[str], timeout: float | None) -> None:
 @click.option("--timeout", help="Timeout in seconds", type=float, default=None)
 def wait_for_installation(client: str, product: str, installation_status: str, timeout: float | None) -> None:
 	"""
-	opsi-cli messagebus wait-for-installation command
+	Wait for a a product installation on a client"
 	"""
-	mbus_connection = WaitForEventMessagebusConnection()
+	mbus_connection = EventMessagebusConnection()
 	wait_for_data = [
 		{"clientId": client, "productId": product, "actionRequest": "none", "installationStatus": installation_status},
 		{"clientId": client, "productId": product, "actionRequest": "none", "installationStatus": "unknown"},

@@ -116,20 +116,31 @@ class MessagebusConnection(MessagebusListener):
 			if channel in self.channel_subscription_events:
 				self.channel_subscription_events[channel].set()
 
-	def subscribe_to_channel(self, channel: str) -> None:
-		if channel in self.subscribed_channels:
+	def subscribe_to_channel(self, channel: str | list[str]) -> None:
+		channels = channel if isinstance(channel, list) else [channel]
+		if not channels:
+			raise ValueError("No channels to subscribe to")
+
+		channels = [c for c in channels if c not in self.subscribed_channels]
+		if not channels:
+			logger.debug("Already subscribed to all channels (%s)", self.subscribed_channels)
 			return
+
 		try:
-			self.channel_subscription_events[channel] = Event()
+			for c in channels:
+				self.channel_subscription_events[c] = Event()
+
+			logger.notice("Subscribing to channels: %s", channels)
 			message = ChannelSubscriptionRequestMessage(
-				sender=CONNECTION_USER_CHANNEL, operation="add", channels=[channel], channel="service:messagebus"
+				sender=CONNECTION_USER_CHANNEL, operation="add", channel="service:messagebus", channels=channels
 			)
-			logger.notice("Requesting access to channel %r", channel)
 			self.send_message(message)
-			if not self.channel_subscription_events[channel].wait(CHANNEL_SUB_TIMEOUT):
-				raise ConnectionError(f"Could not subscribe to channel {channel}")
+			for c in channels:
+				if not self.channel_subscription_events[c].wait(CHANNEL_SUB_TIMEOUT):
+					raise ConnectionError(f"Could not subscribe to channel {c}")
 		finally:
-			del self.channel_subscription_events[channel]
+			for c in channels:
+				self.channel_subscription_events.pop(c, None)
 
 	@contextmanager
 	def connection(self) -> Generator[MessagebusConnection, None, None]:

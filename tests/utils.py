@@ -24,7 +24,7 @@ from opsicli.opsiservice import ServiceClient
 
 from .conftest import admin_service_connection_params
 
-runner = CliRunner(mix_stderr=False)
+runner = CliRunner()
 
 
 def run_cli(args: Sequence[str], service_config: bool = True, stdin: list[str] | None = None) -> tuple[int, str, str]:
