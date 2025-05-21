@@ -11,12 +11,12 @@ EndFunc
 
 DefFunc uninstall_linux() : void
 	Message "uninstalling opsi-cli on linux"
-	ShellCall('"%ScriptPath%\opsi-cli-linux" -l 7 self uninstall --location=system')
+	ShellCall('"%ScriptPath%/opsi-cli-linux.run" -l 7 self uninstall --location=system')
 EndFunc
 
 DefFunc uninstall_macos() : void
 	Message "uninstalling opsi-cli on macos"
-	ShellCall('"%ScriptPath%\opsi-cli-macos" -l 7 self uninstall --location=system')
+	ShellCall('"%ScriptPath%/opsi-cli-macos" -l 7 self uninstall --location=system')
 EndFunc
 
 
