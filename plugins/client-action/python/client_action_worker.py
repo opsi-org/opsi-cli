@@ -110,8 +110,7 @@ class ClientActionWorker:
 
 		if not args.clients and not args.client_groups and not args.ip_addresses and not args.clients_from_depots and self.default_all:
 			console_print(
-				"[bright_yellow]No clients selected, defaulting to all clients.\n"
-				"This is deprecated, please use `--clients all` to select all clients.[/bright_yellow]\n",
+				"No clients selected, defaulting to all clients.\nThis is deprecated, please use `--clients all` to select all clients.\n",
 				output_type=OutputType.WARNING_MESSAGE,
 			)
 			args.clients = "all"
