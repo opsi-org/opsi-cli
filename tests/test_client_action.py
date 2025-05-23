@@ -314,6 +314,7 @@ def test_set_action_request_where(
 				for client_id, actions in unprocessed_actions.items():
 					assert all(act == "none" for act in actions.values())
 
+		stderr = stderr.replace("\n", "")
 		if dry_run:
 			if process:
 				assert stderr.startswith("Action requests would have been set and processing would have been started. Here are the updated")
