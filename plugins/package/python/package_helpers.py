@@ -8,7 +8,6 @@ Support functions for installing packages.
 """
 
 import shutil
-from contextlib import nullcontext
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
@@ -28,10 +27,8 @@ from opsicommon.objects import (
 from opsicommon.package import OpsiPackage
 from opsicommon.package.archive import extract_archive
 from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
-from rich.progress import Progress
 
-from opsicli.config import config
-from opsicli.io import get_console, prompt
+from opsicli.io import Attribute, Metadata, OutputType, console_print, get_progress, prompt, write_output
 from opsicli.opsiservice import get_depot_connection
 from opsicli.utils import ProgressCallbackAdapter, download
 
@@ -70,10 +67,10 @@ def download_with_progress(url: str, destination: Path) -> None:
 	"""
 	Downloads a file from the given URL to the specified destination with a progress bar.
 	"""
-	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
-		assert progress
-		progress_callback = ProgressCallbackAdapter(progress, f"Downloading '{url}'...").progress_callback if not config.quiet else None
-		downloaded_file = download(url, destination, progress_callback=progress_callback)
+	with get_progress() as progress:
+		downloaded_file = download(
+			url, destination, progress_callback=ProgressCallbackAdapter(progress, f"Downloading '{url}'...").progress_callback
+		)
 	logger.info("Downloaded file to %s", downloaded_file)
 
 
@@ -96,16 +93,11 @@ def download_package(url: str, temp_dir: Path) -> str:
 		for ext in {".tar", ".gz", ".gzip", ".bz2", ".bzip2", ".zstd", ".cpio", ".tar.gz", ".tgz", ".tar.bz2", ".tbz", ".tar.xz", ".txz"}
 	):
 		extract_dir = temp_dir / f"extract_{filename}"
-		with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
-			assert progress
-			progress_listener = None
-			if not config.quiet:
-				progress_listener = PackageProgressListener(progress, f"Extracting '{filename}'...")
-
+		with get_progress() as progress:
 			extract_archive(
 				archive=local_opsi_file,
 				destination=extract_dir,
-				progress_listener=progress_listener,
+				progress_listener=PackageProgressListener(progress, f"Extracting '{filename}'..."),
 			)
 		logger.info("Extracted file %s to %s", filename, extract_dir)
 
@@ -146,11 +138,9 @@ def map_and_sort_packages(packages: list[str]) -> dict[Path, OpsiPackage]:
 	"""
 	path_to_opsipackage: dict[Path, OpsiPackage] = {}
 	product_id_to_path: dict[str, Path] = {}
-	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
-		assert progress
-		if not config.quiet:
-			num_packages = len(packages)
-			task = progress.add_task(f"Analyzing {num_packages} package{'s' if num_packages > 1 else ''}...", total=num_packages)
+	with get_progress() as progress:
+		num_packages = len(packages)
+		task = progress.add_task(f"Analyzing {num_packages} package{'s' if num_packages > 1 else ''}...", total=num_packages)
 		for pkg in packages:
 			logger.info("Analyzing package: '%s'", pkg)
 			try:
@@ -162,8 +152,7 @@ def map_and_sort_packages(packages: list[str]) -> dict[Path, OpsiPackage]:
 			path_to_opsipackage[Path(pkg)] = opsi_package
 			product_id_to_path[opsi_package.product.id] = Path(pkg)
 
-			if not config.quiet:
-				progress.update(task, advance=1)
+			progress.update(task, advance=1)
 
 	result = {}
 	visited = set()
@@ -203,12 +192,16 @@ def check_locked_products(
 		"productOnDepot_getObjects", [["productId", "depotId"], {"productId": product_list, "depotId": depot_id_list, "locked": True}]
 	)
 	if locked_products:
+		metadata = Metadata(
+			attributes=[
+				Attribute(id="productId", description="Locked product ID", identifier=True, data_type="str"),
+				Attribute(id="depotId", description="Depot ID where the product is locked", identifier=True, data_type="str"),
+			]
+		)
 		logger.error("Locked products found: %s", locked_products)
-		error_message = f"Locked products found:\n\n{'ProductId':<30} {'DepotId':<30}\n" + "-" * 60 + "\n"
-		for product in locked_products:
-			error_message += f"{product.productId:<30} {product.depotId:<30}\n"
-		error_message += "\nUse --force to install anyway."
-		raise ValueError(error_message)
+		console_print("Locked products:", output_type=OutputType.ERROR_MESSAGE)
+		write_output(data=[{"productId": p.productId, "depotId": p.depotId} for p in locked_products], metadata=metadata)
+		raise ValueError("Locked products found, use --force to install anyway")
 
 
 def get_hint(product_property: ProductProperty) -> str:
@@ -382,7 +375,10 @@ def check_pkg_existence_and_integrity(
 		return False
 
 	logger.notice("Package '%s' already exists in the repository with matching size and checksum. Skipping upload.", dest_package_name)
-	get_console().print(f"Package '{dest_package_name}' already exists in the repository with matching size and checksum. Skipping upload.")
+	console_print(
+		f"Package '{dest_package_name}' already exists in the repository with matching size and checksum. Skipping upload.",
+		output_type=OutputType.MESSAGE,
+	)
 	return True
 
 
@@ -470,12 +466,12 @@ def upload_to_repository(
 
 		logger.notice("Starting upload of file %r to depot %r", filename, depot_id)
 
-		with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
-			assert progress
-			progress_callback = (
-				ProgressCallbackAdapter(progress, f"Uploading '{filename}'...").progress_callback if not config.quiet else None
+		with get_progress() as progress:
+			depot_connection.upload(
+				file,
+				f"/repository/{filename}",
+				progress_callback=ProgressCallbackAdapter(progress, f"Uploading '{filename}'...").progress_callback,
 			)
-			depot_connection.upload(file, f"/repository/{filename}", progress_callback=progress_callback)
 
 		logger.notice("Finished upload of file %r to depot %r", filename, depot_id)
 
@@ -496,13 +492,10 @@ def install_package(
 	remote_package_file = DEPOT_REPOSITORY_PATH + "/" + dest_package_name
 	installation_params = [remote_package_file, str(force), property_default_values]
 	logger.notice("Starting installation of package %s to depot %s", dest_package_name, depot_id)
-	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
-		assert progress
-		if not config.quiet:
-			task = progress.add_task(f"Installing '{dest_package_name}' on depot '{depot_id}'...", total=None)
+	with get_progress() as progress:
+		task = progress.add_task(f"Installing '{dest_package_name}' on depot '{depot_id}'...", total=None)
 		depot_connection.jsonrpc("depot_installPackage", installation_params)
-		if not config.quiet:
-			progress.update(task, total=1, completed=1)
+		progress.update(task, total=1, completed=1)
 	logger.notice("Finished installation of package %s to depot %s", dest_package_name, depot_id)
 
 
@@ -518,13 +511,10 @@ def uninstall_package(
 	"""
 	uninstallation_params = [product_id, str(force), str(delete_files)]
 	logger.notice("Starting uninstallation of product %s from depot %s", product_id, depot_id)
-	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
-		assert progress
-		if not config.quiet:
-			task = progress.add_task(f"Uninstalling '{product_id}' from depot '{depot_id}'...", total=100)
+	with get_progress() as progress:
+		task = progress.add_task(f"Uninstalling '{product_id}' from depot '{depot_id}'...", total=100)
 		depot_connection.jsonrpc("depot_uninstallPackage", uninstallation_params)
-		if not config.quiet:
-			progress.update(task, completed=100)
+		progress.update(task, completed=100)
 	logger.notice("Finished uninstallation of product %s from depot %s", product_id, depot_id)
 
 
@@ -535,28 +525,25 @@ def handle_action_request(service_client: ServiceClient, depot_id: str, product:
 	clients_from_depot = get_clients_from_depot(service_client, depot_id)
 	if not clients_from_depot:
 		logger.warning("No clients found for depot %s. Skipping setting action request.", depot_id)
-		get_console().print(f"No clients found for depot '{depot_id}'. Skipping setting action request.")
+		console_print(f"No clients found for depot '{depot_id}'. Skipping setting action request.", output_type=OutputType.WARNING_MESSAGE)
 		return
 
 	product_on_clients = get_product_on_clients(service_client, tuple(clients_from_depot), product.id)
 	if not product_on_clients:
 		logger.warning("No productOnClient found for product %s. Skipping setting action request.", product.id)
-		get_console().print(f"No productOnClient found for product '{product.id}'. Skipping setting action request.")
+		console_print(
+			f"No productOnClient found for product '{product.id}'. Skipping setting action request.", output_type=OutputType.WARNING_MESSAGE
+		)
 		return
 
 	logger.notice("Setting action request to '%s' for product %s on depot %s", action_request, product.id, depot_id)
-	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
-		assert progress
-		if not config.quiet:
-			task = progress.add_task(
-				f"Setting action request to '{action_request}' for product '{product.id}' on depot '{depot_id}'...",
-				total=100,
-			)
-
+	with get_progress() as progress:
+		task = progress.add_task(
+			f"Setting action request to '{action_request}' for product '{product.id}' on depot '{depot_id}'...",
+			total=100,
+		)
 		set_action_request(service_client, product.id, action_request, product_on_clients, dependency)
-
-		if not config.quiet:
-			progress.update(task, completed=100)
+		progress.update(task, completed=100)
 	logger.notice("Finished setting action request to '%s' for product %s on depot %s", action_request, product.id, depot_id)
 
 
@@ -564,7 +551,7 @@ def handle_action_request(service_client: ServiceClient, depot_id: str, product:
 def validate_action_request(product: Product, action_request: str) -> bool:
 	if action_request == "update" and not product.getUpdateScript() or action_request == "setup" and not product.getSetupScript():
 		logger.warning("%s script not found for product '%s'.", action_request.capitalize(), product.id)
-		get_console().print(f"{action_request.capitalize()} script not found for product '{product.id}'.")
+		console_print(f"{action_request.capitalize()} script not found for product '{product.id}'.", output_type=OutputType.WARNING_MESSAGE)
 		return False
 	return True
 
@@ -666,10 +653,8 @@ def generate_control_files(opsi_package: OpsiPackage, temp_dir: Path) -> None:
 	"""
 
 	logger.notice("Generating control files for %s", opsi_package.product.id)
-	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
-		assert progress
-		if not config.quiet:
-			task = progress.add_task(f"Generating control files for '{opsi_package.product.id}'...", total=None)
+	with get_progress() as progress:
+		task = progress.add_task(f"Generating control files for '{opsi_package.product.id}'...", total=None)
 
 		opsi_dir = temp_dir / "OPSI"
 		opsi_dir.mkdir(parents=True, exist_ok=True)
@@ -677,8 +662,7 @@ def generate_control_files(opsi_package: OpsiPackage, temp_dir: Path) -> None:
 		control_toml = opsi_dir / "control.toml"
 		opsi_package.generate_control_file(control_toml)
 
-		if not config.quiet:
-			progress.update(task, total=1, completed=1)
+		progress.update(task, total=1, completed=1)
 	logger.notice("Finished generating control files for %s", opsi_package.product.id)
 
 
@@ -687,10 +671,8 @@ def download_depot_files(depot_object: OpsiDepotserver, product_id: str, temp_di
 	Download files for a specified product from the depot repository and store them in a temporary directory.
 	"""
 	logger.notice("Downloading depot files for %s", product_id)
-	with nullcontext() if config.quiet else Progress() as progress:
-		assert progress
-		if not config.quiet:
-			task = progress.add_task(f"Downloading depot files for '{product_id}'...", total=None)
+	with get_progress() as progress:
+		task = progress.add_task(f"Downloading depot files for '{product_id}'...", total=None)
 
 		depot_connection = get_depot_connection(depot_object)
 		depot_data = depot_connection.webdav_content(f"/depot/{product_id}")
@@ -702,6 +684,5 @@ def download_depot_files(depot_object: OpsiDepotserver, product_id: str, temp_di
 			if not content.name.endswith(".files"):
 				depot_connection.download(content.path, client_data_dir)
 
-		if not config.quiet:
-			progress.update(task, total=1, completed=1)
+		progress.update(task, total=1, completed=1)
 	logger.notice("Finished downloading depot files for %s", product_id)

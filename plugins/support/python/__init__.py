@@ -13,7 +13,7 @@ import rich_click as click
 from opsicommon.logging import get_logger
 
 from opsicli.decorators import handle_list_attributes
-from opsicli.io import write_output
+from opsicli.io import OutputType, console_print, write_output
 from opsicli.messagebus import JSONRPCMessagebusConnection
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
@@ -71,7 +71,7 @@ def client_logs(client: str, path: Path) -> None:
 		raise ValueError(f"Did not get file id for download. Result: {result}")
 	service_client = get_service_connection()
 	response = service_client.get(f"/file-transfer/{result.get('file_id')}", raw_response=True)
-	print(f"Writing log archive at {path}")  # To stdout!
+	console_print(f"Writing log archive at {path}")
 	with open(path, "wb") as file_handle:
 		for chunk in response.iter_content(chunk_size=8192):
 			file_handle.write(chunk)

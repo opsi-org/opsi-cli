@@ -20,7 +20,7 @@ from opsicli.plugin import OPSICLIPlugin
 __version__ = "0.1.0"
 
 
-@click.command(short_help="Python interpreter")
+@click.command(short_help="Python interpreter", context_settings={"ignore_unknown_options": True, "allow_interspersed_args": False})
 @click.option("-V", "--version", is_flag=True, default=False, help="Print the Python version number and exit")
 @click.option("-c", "command", metavar="cmd", required=False, help="Program passed in as string")
 @click.argument("file", type=click.Path(file_okay=True, dir_okay=False, path_type=Path), required=False)

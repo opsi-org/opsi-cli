@@ -68,7 +68,7 @@ def test_self_upgrade(location: str) -> None:
 		exit_code, stdout, stderr = run_cli(cmd)
 		print(stdout)
 		print(stderr)
-		assert "Would upgrade" in stdout
+		assert "Would upgrade" in stderr
 		assert exit_code == 0
 
 
@@ -96,7 +96,7 @@ def test_setup_shell_completion(tmp_path: Path) -> None:
 	print(exit_code, stdout, stderr)
 
 	assert exit_code == 0
-	assert "Setting up auto completion for shell" in stdout
+	assert "Setting up auto completion for shell" in stderr
 	assert completion_config.exists()
 	cont = completion_config.read_text()
 	assert cont.startswith(mod_self.START_MARKER + "\n")
@@ -105,7 +105,7 @@ def test_setup_shell_completion(tmp_path: Path) -> None:
 
 	exit_code, stdout, stderr = run_cli(["self", "setup-shell-completion", "--shell", "zsh", "--completion-file", str(completion_config)])
 	assert exit_code == 0
-	assert "Setting up auto completion for shell 'zsh'" in stdout
+	assert "Setting up auto completion for shell 'zsh'" in stderr
 	cont = completion_config.read_text()
 	assert cont.startswith(mod_self.START_MARKER + "\n")
 	assert "#compdef opsi-cli" in cont

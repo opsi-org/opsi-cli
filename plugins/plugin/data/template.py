@@ -10,6 +10,7 @@ template for opsi-cli plugins
 import rich_click as click
 from opsicommon.logging import get_logger
 
+from opsicli.io import OutputType, console_print
 from opsicli.plugin import OPSICLIPlugin
 
 __version__ = "{{VERSION}}"  # Use this field to track the current version number
@@ -36,9 +37,9 @@ def subcommand(exampleargument: str, exampleoption: bool) -> None:  # The name o
 	This is a subcommand example to the {{ID}} command
 	"""
 	logger.trace("{{ID}} 'subcommand' subcommand")
-	print(f"{{ID}} subcommand is called with values exampleargument={exampleargument}")
+	console_print(f"{{ID}} subcommand is called with values exampleargument={exampleargument}", output_type=OutputType.DATA)
 	if exampleoption:
-		print("exampleoption was used.")
+		console_print("exampleoption was used.", output_type=OutputType.WARNING_MESSAGE)
 
 
 # This class keeps track of the plugins meta-information

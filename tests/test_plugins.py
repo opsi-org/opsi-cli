@@ -80,23 +80,23 @@ def test_pluginarchive_export_import(tmp_path: Path) -> None:
 	with temp_context():
 		destination = tmp_path / f"dummy.{PLUGIN_EXTENSION}"
 
-		exit_code, stdout, _stderr = run_cli(["plugin", "add", str(TESTPLUGIN)])
+		exit_code, _stdout, stderr = run_cli(["plugin", "add", str(TESTPLUGIN)])
 		assert exit_code == 0
-		assert "'dummy' installed" in stdout
+		assert "'dummy' installed" in stderr
 
-		exit_code, stdout, _stderr = run_cli(["plugin", "export", "dummy", str(tmp_path)])
+		exit_code, _stdout, stderr = run_cli(["plugin", "export", "dummy", str(tmp_path)])
 		assert exit_code == 0
-		assert "'dummy' exported to" in stdout
+		assert "'dummy' exported to" in stderr
 
 		assert destination.exists()
 
-		exit_code, stdout, _stderr = run_cli(["plugin", "remove", "dummy"])
+		exit_code, _stdout, stderr = run_cli(["plugin", "remove", "dummy"])
 		assert exit_code == 0
-		assert "'dummy' removed" in stdout
+		assert "'dummy' removed" in stderr
 
-		exit_code, stdout, _stderr = run_cli(["plugin", "add", str(destination)])
+		exit_code, _stdout, stderr = run_cli(["plugin", "add", str(destination)])
 		assert exit_code == 0
-		assert "'dummy' installed" in stdout
+		assert "'dummy' installed" in stderr
 
 		exit_code, stdout, _stderr = run_cli(["plugin", "list"])
 		assert exit_code == 0
@@ -108,17 +108,17 @@ def test_plugin_new(tmp_path: Path) -> None:
 		destination = tmp_path / "newplugin"
 
 		print(f'Calling opsicli with ["plugin", "new", "--description", "", "--version", "0.1.0", "--path", {str(tmp_path)}, "newplugin"]')
-		exit_code, stdout, _stderr = run_cli(
+		exit_code, _stdout, stderr = run_cli(
 			["plugin", "new", "--description", "", "--version", "0.1.0", "--path", str(tmp_path), "newplugin"]
 		)
-		print(stdout)
+		print(stderr)
 		assert exit_code == 0
-		assert "Plugin 'newplugin' created" in stdout
+		assert "Plugin 'newplugin' created" in stderr
 		assert (destination / "python" / "__init__.py").exists()
 
-		exit_code, stdout, _stderr = run_cli(["plugin", "add", str(destination)])
+		exit_code, _stdout, stderr = run_cli(["plugin", "add", str(destination)])
 		assert exit_code == 0
-		assert "Plugin 'newplugin' installed" in stdout
+		assert "Plugin 'newplugin' installed" in stderr
 
 		exit_code, stdout, _stderr = run_cli(["plugin", "list"])
 		assert exit_code == 0
@@ -127,14 +127,14 @@ def test_plugin_new(tmp_path: Path) -> None:
 
 def test_pluginarchive_extract_compress(tmp_path: Path) -> None:
 	with temp_context():
-		exit_code, stdout, _stderr = run_cli(["plugin", "compress", str(TESTPLUGIN), str(tmp_path)])
+		exit_code, _stdout, stderr = run_cli(["plugin", "compress", str(TESTPLUGIN), str(tmp_path)])
 		assert exit_code == 0
-		assert "compressed" in stdout
+		assert "compressed" in stderr
 		assert (tmp_path / "dummy.opsicliplug").exists()
 
-		exit_code, stdout, _stderr = run_cli(["plugin", "extract", str(tmp_path / "dummy.opsicliplug"), str(tmp_path)])
+		exit_code, _stdout, stderr = run_cli(["plugin", "extract", str(tmp_path / "dummy.opsicliplug"), str(tmp_path)])
 		assert exit_code == 0
-		assert "extracted" in stdout
+		assert "extracted" in stderr
 		assert (tmp_path / "dummy").is_dir()
 		assert (tmp_path / "dummy" / "python" / "__init__.py").read_text("utf-8") == (TESTPLUGIN / "python" / "__init__.py").read_text(
 			"utf-8"
@@ -145,10 +145,10 @@ def test_flag_protected(tmp_path: Path) -> None:
 	with temp_context():
 		run_cli(["plugin", "new", "--description", "", "--version", "0.1.0", "--path", str(tmp_path), "config"])
 
-		exit_code, stdout, _stderr = run_cli(["plugin", "add", str(tmp_path / "config")])
-		print(stdout)
+		exit_code, _stdout, stderr = run_cli(["plugin", "add", str(tmp_path / "config")])
+		print(stderr)
 		assert exit_code == 0  # plugin is not added, exitcode is still 0 (could be used for many plugins at once)
-		assert "Plugin 'config' installed into" not in stdout
+		assert "Plugin 'config' installed into" not in stderr
 
-		exit_code, stdout, _stderr = run_cli(["plugin", "remove", "config"])
+		exit_code, _stdout, stderr = run_cli(["plugin", "remove", "config"])
 		assert exit_code == 1  # not allowed to remove "config" as it is a protected plugin
