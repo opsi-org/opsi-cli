@@ -374,19 +374,20 @@ def write_output(
 	if output_format == "auto":
 		output_format = default_output_format if default_output_format else "table"
 
-	if output_format in ("table", "csv") and not metadata:
+	if output_format in ("table", "csv"):
 		stt = get_structure_type(data)
-		if stt == list:  # noqa: E721
-			metadata = Metadata(attributes=[Attribute(id="value0")])
-		elif stt == list[list]:
-			metadata = Metadata(attributes=[Attribute(id=f"value{idx}") for idx in range(len(data[0]))])
-		elif stt == list[dict]:
-			metadata = Metadata(attributes=[Attribute(id=key) for key in get_attributes(data)])
-		elif stt == dict:  # noqa: E721
+		if stt == dict:  # noqa: E721
 			data = [data]
-			metadata = Metadata(attributes=[Attribute(id=key) for key in get_attributes(data)])
-		else:
-			raise RuntimeError(f"Output-format {output_format!r} does not support structure {stt!r}")
+			stt = list[dict]
+		if not metadata:
+			if stt == list:  # noqa: E721
+				metadata = Metadata(attributes=[Attribute(id="value0")])
+			elif stt == list[list]:
+				metadata = Metadata(attributes=[Attribute(id=f"value{idx}") for idx in range(len(data[0]))])
+			elif stt == list[dict]:
+				metadata = Metadata(attributes=[Attribute(id=key) for key in get_attributes(data)])
+			else:
+				raise RuntimeError(f"Output-format {output_format!r} does not support structure {stt!r}")
 
 	if metadata is not None and config.attributes and config.attributes != ["all"]:
 		ordered_list = [attr for config_attribute in config.attributes for attr in metadata.attributes if attr.id == config_attribute]

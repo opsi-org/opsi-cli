@@ -12,7 +12,7 @@ from opsicommon.logging import get_logger
 from opsicommon.objects import Config, ConfigState
 from purecrypt import Crypt, Method  # type: ignore[import]
 
-from opsicli.io import OutputType, console_print
+from opsicli.io import Attribute, Metadata, OutputType, console_print, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 
@@ -131,6 +131,11 @@ def set_boot_parameter(ctx: click.Context, parameter: str, value: str | None = N
 	else:
 		set_append_values(flags=[parameter], client=ctx.obj["client"])
 
+	if ctx.obj["client"]:
+		console_print(f"Parameter {parameter} set for client {ctx.obj['client']}.", output_type=OutputType.MESSAGE)
+	else:
+		console_print(f"Parameter {parameter} set globally.", output_type=OutputType.MESSAGE)
+
 
 @cli.command(short_help="Set password hash bootimage parameter")
 @click.argument("password", nargs=1, type=str)
@@ -140,15 +145,27 @@ def set_boot_password(ctx: click.Context, password: str) -> None:
 	This subcommand hashes a given password and sets it as pwh for the opsi-linux-bootimage
 	"""
 	logger.trace("bootimage set-boot-password subcommand")
-	hashed_password = ""
-	while not hashed_password or "." in hashed_password:
+	password_hash = ""
+	while not password_hash or "." in password_hash:
 		salt = Crypt.generate_salt(Method.SHA512)
 		salt = salt[:19]  # 16 bytes salt + 3 bytes $6$
-		hashed_password = Crypt.encrypt(password, salt)
+		password_hash = Crypt.encrypt(password, salt)
 	logger.notice("Setting pwh append parameter")
-	console_print(f"Hashed password is: {hashed_password}", output_type=OutputType.DATA)
+
 	remove_old_password_hashes()
-	set_append_values(values={"pwh": hashed_password}, client=ctx.obj["client"])
+	set_append_values(values={"pwh": password_hash}, client=ctx.obj["client"])
+
+	console_print("Password hash generated and applied successfully.", output_type=OutputType.MESSAGE)
+	metadata = Metadata(
+		attributes=[
+			Attribute(id="password_hash", description="The password hash.", data_type="str"),
+		]
+	)
+	write_output(
+		data={"password_hash": password_hash},
+		metadata=metadata,
+		default_output_format="pretty-json",
+	)
 
 
 class BootimagePlugin(OPSICLIPlugin):

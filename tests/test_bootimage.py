@@ -7,6 +7,8 @@
 test crypto plugin
 """
 
+import json
+
 import pytest
 from opsicommon.client.opsiservice import ServiceClient
 from purecrypt import Crypt  # type: ignore[import]
@@ -51,34 +53,35 @@ def test_bootimage_set_boot_parameter_client(admin_service_client: ServiceClient
 def test_bootimage_set_boot_password(admin_service_client: ServiceClient) -> None:
 	password = random_string(10)
 	exit_code, stdout, _stderr = run_cli(["bootimage", "set-boot-password", password])
+	print(stdout)
 	assert exit_code == 0
-	split_length = len("Hashed password is: ")
-	result = stdout.split("\n")[0][split_length:]
-	print(result)
-	assert Crypt.is_valid(password, result)
+	password_hash = json.loads(stdout)["password_hash"]
+
+	assert Crypt.is_valid(password, password_hash)
 	configs = admin_service_client.jsonrpc("config_getObjects", params=[[], {"id": "opsi-linux-bootimage.append"}])
-	assert f"pwh={result}" in configs[0].defaultValues
+	assert f"pwh={password_hash}" in configs[0].defaultValues
 
 
 @pytest.mark.opsi_service
 def test_bootimage_remove_boot_password(admin_service_client: ServiceClient) -> None:
 	password = random_string(10)
 	exit_code, stdout, _stderr = run_cli(["bootimage", "set-boot-password", password])
+	print(stdout)
 	assert exit_code == 0
-	split_length = len("Hashed password is: ")
-	result_first_hash = stdout.split("\n")[0][split_length:]
-	print(result_first_hash)
-	assert Crypt.is_valid(password, result_first_hash)
+	first_password_hash = json.loads(stdout)["password_hash"]
+
+	assert Crypt.is_valid(password, first_password_hash)
 
 	configs = admin_service_client.jsonrpc("config_getObjects", params=[[], {"id": "opsi-linux-bootimage.append"}])
-	assert f"pwh={result_first_hash}" in configs[0].defaultValues
+	assert f"pwh={first_password_hash}" in configs[0].defaultValues
+
 	password = random_string(10)
 	exit_code, stdout, _stderr = run_cli(["bootimage", "set-boot-password", password])
+	print(stdout)
 	assert exit_code == 0
-	split_length = len("Hashed password is: ")
-	result_second_hash = stdout.split("\n")[0][split_length:]
-	print(result_second_hash)
-	assert Crypt.is_valid(password, result_second_hash)
+	second_password_hash = json.loads(stdout)["password_hash"]
+
+	assert Crypt.is_valid(password, second_password_hash)
 	configs = admin_service_client.jsonrpc("config_getObjects", params=[[], {"id": "opsi-linux-bootimage.append"}])
-	assert f"pwh={result_second_hash}" in configs[0].defaultValues
-	assert f"pwh={result_first_hash}" not in configs[0].defaultValues
+	assert f"pwh={second_password_hash}" in configs[0].defaultValues
+	assert f"pwh={first_password_hash}" not in configs[0].defaultValues
