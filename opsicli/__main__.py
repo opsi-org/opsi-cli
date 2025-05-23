@@ -22,6 +22,7 @@ from opsicommon.logging import get_logger
 from opsicli import __version__, prepare_cli_paths
 from opsicli.cache import cache
 from opsicli.config import COMPLETION_MODE, config
+from opsicli.io import OutputType
 from opsicli.plugin import plugin_manager
 from opsicli.types import LogLevel as TypeLogLevel
 from opsicli.types import OpsiCliRuntimeError
@@ -96,7 +97,7 @@ class OpsiCLI(click.MultiCommand):  # type: ignore
 				err = ClickException(str(err))
 			err.message += additional_info
 
-			err_console = get_console(file=sys.stderr)
+			err_console = get_console(output_type=OutputType.ERROR_MESSAGE)
 			if config.color:
 				err.message = re.sub(r"\[/?metavar\]", "", err.message)
 				formatter = _get_rich_formatter()

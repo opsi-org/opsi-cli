@@ -58,7 +58,7 @@ from opsicommon.types import forceHostId
 from rich.color import Color
 from rich.text import Text
 
-from opsicli.io import COLORS, LOG_COLORS, console_print, get_console, read_input_raw_bin
+from opsicli.io import COLORS, LOG_COLORS, OutputType, console_print, read_input_raw_bin
 from opsicli.opsiservice import get_service_connection
 from opsicli.utils import raw_terminal
 
@@ -325,7 +325,6 @@ class MessagebusProcess:
 
 class ProcessMessagebusConnection(MessagebusConnection):
 	def __init__(self) -> None:
-		self.console = get_console()
 		self.out_lock = Lock()
 		self.show_host_names = False
 		self.max_host_name_length = 0
@@ -802,10 +801,10 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 			self._current_log_level = int(log_level)
 			if self._current_log_level <= self.log_level:
 				self.current_color = LOG_COLORS.get(log_level, "white")
-				console_print(Text(line, style=self.current_color))
+				console_print(Text(line, style=self.current_color), output_type=OutputType.DATA)
 		else:
 			if self._current_log_level <= self.log_level:
-				console_print(Text(line, style=self.current_color))
+				console_print(Text(line, style=self.current_color), output_type=OutputType.DATA)
 
 	def _on_file_chunk(self, message: FileChunkMessage) -> None:
 		with self._lock:

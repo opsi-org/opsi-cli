@@ -15,7 +15,7 @@ from opsicommon.logging import get_logger
 from rich.text import Text
 
 from opsicli.config import config
-from opsicli.io import COLORS, LOG_COLORS, console_print
+from opsicli.io import COLORS, LOG_COLORS, OutputType, console_print
 from opsicli.messagebus import JSONRPCMessagebusConnection, ProcessMessagebusConnection
 
 from .client_action_worker import ClientActionArgs, ClientActionWorker
@@ -44,7 +44,7 @@ class ExecuteWorker(ClientActionWorker):
 		if config.dry_run:
 			msg = "Operating in dry-run mode - not performing any actions"
 			logger.notice(msg)
-			console_print(msg + "\n", style="yellow")
+			console_print(f"{msg}\n", output_type=OutputType.WARNING_MESSAGE)
 			return 0
 
 		channels = [f"host:{client}" for client in self.clients]
@@ -80,19 +80,19 @@ class ExecuteWorker(ClientActionWorker):
 				line_prefix_color = COLORS[self.color_position]
 				self.color_position = (self.color_position + 1) % len(COLORS)
 				line_prefix = Text(f"{host_name} | ", style=line_prefix_color)
-				console_print()
-				console_print(rule=f"{host_name}", style="white")
+				console_print(output_type=OutputType.DATA)
+				console_print(rule=f"{host_name}", style="white", output_type=OutputType.DATA)
 
 				if isinstance(result, Exception):
 					logger.error("Exception occured while executing opsiscript on %s: %s", channel, result)
-					console_print(line_prefix + Text(str(result), style="red"))
+					console_print(line_prefix + Text(str(result), style="red"), output_type=OutputType.DATA)
 					highest_exit_code = max(highest_exit_code, 1)
 					continue
 
 				if "error" in result:
 					error_message = result["error"].get("message", "Unknown error")
 					logger.error("Error occurred while executing opsiscript on %s: %s", channel, error_message)
-					console_print(line_prefix + Text(error_message, style="red"))
+					console_print(line_prefix + Text(error_message, style="red"), output_type=OutputType.DATA)
 					highest_exit_code = max(highest_exit_code, result["error"].get("code", 1))
 					continue
 
@@ -108,16 +108,17 @@ class ExecuteWorker(ClientActionWorker):
 					+ Text(
 						f"{exit_code}",
 						style="green" if exit_code == 0 else "red" if exit_code != 0 else "white",
-					)
+					),
+					output_type=OutputType.DATA,
 				)
 
 				if stdout:
-					console_print(Text("\n") + line_prefix + Text("STDOUT:", style="white"))
+					console_print(Text("\n") + line_prefix + Text("STDOUT:", style="white"), output_type=OutputType.DATA)
 					for line in stdout.splitlines():
-						console_print(line_prefix + Text(line, style="white"))
+						console_print(line_prefix + Text(line, style="white"), output_type=OutputType.DATA)
 
 				if log_content:
-					console_print(Text("\n") + line_prefix + Text("LOG:", style="white"))
+					console_print(Text("\n") + line_prefix + Text("LOG:", style="white"), output_type=OutputType.DATA)
 					previous_color = "white"
 					for line in log_content.splitlines():
 						parts = line.split(" ", 1)
@@ -128,11 +129,11 @@ class ExecuteWorker(ClientActionWorker):
 						if log_level_value <= opsiscript_log_level:
 							color = LOG_COLORS.get(parts[0].strip("[]"), previous_color)
 							previous_color = color
-							console_print(line_prefix + Text(line, style=color))
+							console_print(line_prefix + Text(line, style=color), output_type=OutputType.DATA)
 
 				if stderr:
-					console_print(Text("\n") + line_prefix + Text("STDERR:", style="white"))
+					console_print(Text("\n") + line_prefix + Text("STDERR:", style="white"), output_type=OutputType.DATA)
 					for line in str(stderr).splitlines():
-						console_print(line_prefix + Text(line, style="red"))
+						console_print(line_prefix + Text(line, style="red"), output_type=OutputType.DATA)
 
 		return highest_exit_code

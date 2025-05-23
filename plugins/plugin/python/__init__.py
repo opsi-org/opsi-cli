@@ -11,6 +11,7 @@ plugin subcommand
 
 import os
 import shutil
+import sys
 import tempfile
 import zipfile
 from pathlib import Path
@@ -21,7 +22,7 @@ from opsicommon.logging import get_logger
 
 from opsicli.config import config
 from opsicli.decorators import handle_list_attributes
-from opsicli.io import get_console, prompt, write_output
+from opsicli.io import OutputType, console_print, prompt, write_output
 from opsicli.plugin import PLUGIN_EXTENSION, OPSICLIPlugin, install_plugin, plugin_manager, prepare_plugin, replace_data
 from plugins.plugin.data.metadata import command_metadata
 
@@ -69,7 +70,7 @@ def add(paths: list[Path], system: bool) -> None:
 			except PermissionError as p_error:
 				logger.error(p_error, exc_info=True)
 				continue
-		get_console().print(f"Plugin {plugin_id!r} installed into '{path}'.")
+		console_print(f"Plugin {plugin_id!r} installed into '{path}'.", output_type=OutputType.MESSAGE)
 
 
 def complete_plugin_id(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
@@ -111,7 +112,7 @@ def export(plugin_id: str, destination_dir: Path, src: bool) -> None:
 			for single_file in files:
 				logger.debug("Adding file '%s'", root_path / single_file)
 				zfile.write(str(root_path / single_file), arcname=str(Path(plugin_id) / base / single_file))
-	get_console().print(f"Plugin {plugin_id!r} exported to '{destination!s}'")
+	console_print(f"Plugin {plugin_id!r} exported to '{destination!s}'", output_type=OutputType.MESSAGE)
 
 
 @cli.command(short_help=f"Extract source from .{PLUGIN_EXTENSION}")
@@ -130,7 +131,7 @@ def extract(archive: Path, destination_dir: Path) -> None:
 	logger.notice("Extracting plugin archive %s to path %s", archive, destination_dir)
 	with zipfile.ZipFile(archive, "r", zipfile.ZIP_DEFLATED) as zfile:
 		zfile.extractall(path=str(destination_dir))
-	get_console().print(f"Plugin archive {archive!s} extracted to '{destination_dir!s}'")
+	console_print(f"Plugin archive {archive!s} extracted to '{destination_dir!s}'", output_type=OutputType.MESSAGE)
 
 
 @cli.command(short_help=f"Compress plugin source directory to .{PLUGIN_EXTENSION} archive")
@@ -157,7 +158,7 @@ def compress(source_dir: Path, destination_dir: Path) -> None:
 			for single_file in files:
 				logger.debug("Adding file '%s'", root_path / single_file)
 				zfile.write(str(root_path / single_file), arcname=str(Path(plugin_id) / base / single_file))
-	get_console().print(f"Plugin source {source_dir!s} compressed to '{archive!s}'")
+	console_print(f"Plugin source {source_dir!s} compressed to '{archive!s}'", output_type=OutputType.MESSAGE)
 
 
 @cli.command(name="list", short_help="List imported plugins")
@@ -201,7 +202,7 @@ def remove(plugin_id: str) -> None:
 	if (config.python_lib_dir / plugin_id).exists():
 		logger.debug("Deleting plugin dependencies %s", config.python_lib_dir / plugin_id)
 		shutil.rmtree(config.python_lib_dir / plugin_id)
-	get_console().print(f"Plugin {plugin_id!r} removed")
+	console_print(f"Plugin {plugin_id!r} removed", output_type=OutputType.MESSAGE)
 
 
 @cli.command(short_help="Create a new plugin")
@@ -254,10 +255,11 @@ def new(name: str, version: str, description: str, path: Path) -> None:
 		with open(template_file_path, "r", encoding="utf-8") as templatefile:
 			for line in templatefile.readlines():
 				initfile.write(replace_data(line, replacements))
-	get_console().print(
+	console_print(
 		f"Plugin {plugin_id!r} created at path {path}.\n"
 		f"Add code to {path / 'python'} and optional data to {path / 'data'}\n"
-		f"Use 'opsi-cli plugin add {result_path}' to register the command at the current opsi-cli instance and to apply changes."
+		f"Use 'opsi-cli plugin add {result_path}' to register the command at the current opsi-cli instance and to apply changes.",
+		file=sys.stderr,
 	)
 
 

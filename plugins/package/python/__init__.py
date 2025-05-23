@@ -7,8 +7,6 @@
 opsi-cli package plugin
 """
 
-import sys
-from contextlib import nullcontext
 from pathlib import Path
 from typing import Literal
 
@@ -19,11 +17,10 @@ from opsicommon.objects import ProductOnDepot
 from opsicommon.package import OpsiPackage
 from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
 from opsicommon.utils import make_temp_dir
-from rich.progress import Progress
 
 from opsicli.config import config
 from opsicli.decorators import handle_list_attributes
-from opsicli.io import get_console, write_output
+from opsicli.io import OutputType, console_print, get_progress, write_output
 from opsicli.opsiservice import get_depot_connection, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.utils import ProgressCallbackAdapter, create_nested_dict
@@ -90,11 +87,8 @@ def make(
 	This subcommand is used to create an opsi package.
 	"""
 	logger.trace("make package")
-	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
-		assert progress
-		progress_listener = None
-		if not config.quiet:
-			progress_listener = PackageProgressListener(progress, "[cyan]Creating opsi package...")
+	with get_progress() as progress:
+		progress_listener = PackageProgressListener(progress, "[cyan]Creating opsi package...")
 
 		destination_dir.mkdir(parents=True, exist_ok=True)
 
@@ -119,26 +113,23 @@ def make(
 		try:
 			if md5:
 				logger.info("Creating md5sum file for '%s'", package_archive)
-				progress_callback = (
-					ProgressCallbackAdapter(progress, "[cyan]Creating md5sum file...").progress_callback if not config.quiet else None
+				md5_file = create_package_md5_file(
+					package_archive, progress_callback=ProgressCallbackAdapter(progress, "[cyan]Creating md5sum file...").progress_callback
 				)
-				md5_file = create_package_md5_file(package_archive, progress_callback=progress_callback)
 			if zsync:
 				logger.info("Creating zsync file for '%s'", package_archive)
-				progress_callback = (
-					ProgressCallbackAdapter(progress, "[cyan]Creating zsync file...").progress_callback if not config.quiet else None
+				zsync_file = create_package_zsync_file(
+					package_archive, progress_callback=ProgressCallbackAdapter(progress, "[cyan]Creating zsync file...").progress_callback
 				)
-				zsync_file = create_package_zsync_file(package_archive, progress_callback=progress_callback)
 		except Exception as err:
 			logger.error(err, exc_info=True)
 			raise err
 
-	console = get_console()
-	console.print(f"The opsi package was created at '{package_archive}'")
+	console_print(f"The opsi package was created at '{package_archive}'", output_type=OutputType.MESSAGE)
 	if md5_file:
-		console.print(f"The md5sum file was created at '{md5_file}'")
+		console_print(f"The md5sum file was created at '{md5_file}'", output_type=OutputType.MESSAGE)
 	if zsync_file:
-		console.print(f"The zsync file was created at '{zsync_file}'")
+		console_print(f"The zsync file was created at '{zsync_file}'", output_type=OutputType.MESSAGE)
 
 
 def combine_products(product_dict: dict, product_on_depot_dict: dict) -> list:
@@ -227,7 +218,7 @@ def control_to_toml(source_dir: Path) -> None:
 		logger.error(err, exc_info=True)
 		raise err
 
-	get_console().print("Control TOML has been successfully generated.\n")
+	console_print("Control TOML has been successfully generated.\n", output_type=OutputType.MESSAGE)
 
 
 @cli.command(short_help="Extract an opsi package.")
@@ -253,11 +244,7 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 		raise FileExistsError(f"Destination directory '{destination_dir}' already exists.")
 	destination_dir.mkdir(parents=True, exist_ok=True)
 
-	with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
-		assert progress
-		progress_listener = None
-		if not config.quiet:
-			progress_listener = PackageProgressListener(progress, "[cyan]Extracting opsi package...")
+	with get_progress() as progress:
 		logger.info("Extracting package archive for '%s'", destination_dir)
 		opsi_package = OpsiPackage()
 		try:
@@ -265,14 +252,14 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 				Path(package_archive),
 				destination=destination_dir,
 				new_product_id=new_product_id,
-				progress_listener=progress_listener,
+				progress_listener=PackageProgressListener(progress, "[cyan]Extracting opsi package..."),
 				custom_separated=True,
 			)
 		except Exception as err:
 			logger.error(err, exc_info=True)
 			raise err
 
-	get_console().print(f"Package archive has been successfully extracted at {destination_dir}\n")
+	console_print(f"Package archive has been successfully extracted at {destination_dir}\n", output_type=OutputType.MESSAGE)
 
 
 def complete_package_path(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
@@ -325,9 +312,9 @@ def install(
 	"""
 	logger.trace("install package")
 	if update_properties:
-		console = get_console(file=sys.stderr)
-		console.print(
-			"[bright_yellow]The `--update-properties` option is deprecated, please use `--properties ask` instead.[/bright_yellow]\n"
+		console_print(
+			"The `--update-properties` option is deprecated, please use `--properties ask` instead.\n",
+			output_type=OutputType.WARNING_MESSAGE,
 		)
 		properties = "ask"
 
@@ -473,18 +460,16 @@ def fetch(
 			download_depot_files(depot_object, product_on_depot.productId, temp_dir)
 
 			logger.notice("Creating package archive for '%s'", product_on_depot.productId)
-			with nullcontext() if config.quiet else Progress() as progress:  # type: ignore[attr-defined]
-				assert progress
-				progress_listener = None
-				if not config.quiet:
-					progress_listener = PackageProgressListener(progress, f"Creating opsi package for '{opsi_package.product.id}' ...")
-
+			with get_progress() as progress:
 				destination_dir.mkdir(parents=True, exist_ok=True)
 				package_archive = opsi_package.create_package_archive(
-					temp_dir, destination=destination_dir, overwrite=overwrite, progress_listener=progress_listener
+					temp_dir,
+					destination=destination_dir,
+					overwrite=overwrite,
+					progress_listener=PackageProgressListener(progress, f"Creating opsi package for '{opsi_package.product.id}' ..."),
 				)
 
-			get_console().print(f"Package archive created at {package_archive}\n")
+			console_print(f"Package archive created at {package_archive}\n", output_type=OutputType.MESSAGE)
 
 
 class PackagePlugin(OPSICLIPlugin):

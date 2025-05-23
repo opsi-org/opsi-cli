@@ -323,7 +323,7 @@ def test_package_install_and_uninstall() -> None:
 	)
 
 	# Test with unfulfilled package dependency, this will lock the product 'testdependency4'
-	exit_code, _, _stderr = run_cli(
+	exit_code, _stdout, _stderr = run_cli(
 		[
 			"package",
 			"install",
@@ -356,7 +356,7 @@ def test_package_install_and_uninstall() -> None:
 		]
 	)
 	assert exit_code != 0
-	assert "Locked products found:" in _stderr
+	assert "Locked products found" in _stderr
 
 	# Force install with correct dependency version
 	exit_code, _stdout, _stderr = run_cli(
@@ -371,7 +371,7 @@ def test_package_install_and_uninstall() -> None:
 	assert exit_code == 0
 	assert (
 		"Package 'testdependency4_1.0-5.opsi' already exists in the repository with matching size and checksum. Skipping upload"
-		in _stdout.replace("\n", " ").replace("  ", " ")
+		in _stderr.replace("\n", " ").replace("  ", " ")
 	)
 
 	if Path("/var/lib/opsi/repository").exists():  # we are probably running on the opsi-server itself (not just on same docker host)
@@ -400,7 +400,7 @@ def test_package_install_and_uninstall() -> None:
 		]
 	)
 	assert exit_code == 0
-	assert "Uninstalling" in _stdout
+	assert "Uninstalling" in _stderr
 
 	if Path("/var/lib/opsi/repository").exists():  # we are probably running on the opsi-server itself (not just on same docker host)
 		# Verify files do not exist after uninstall
