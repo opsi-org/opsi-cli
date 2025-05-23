@@ -11,7 +11,6 @@ client_action_worker
 
 from __future__ import annotations
 
-import sys
 from dataclasses import dataclass, field
 from ipaddress import ip_network
 
@@ -21,7 +20,7 @@ from opsicommon.objects import ObjectToGroup, OpsiClient
 from opsicommon.types import forceHostId
 from opsicommon.utils import ip_address_in_network
 
-from opsicli.io import get_console
+from opsicli.io import OutputType, console_print
 from opsicli.opsiservice import get_service_connection
 from opsicli.types import OpsiCliRuntimeError
 
@@ -110,10 +109,10 @@ class ClientActionWorker:
 		all_clients = {client.id for client in self.service.jsonrpc("host_getObjects", [[], {"type": "OpsiClient"}])}
 
 		if not args.clients and not args.client_groups and not args.ip_addresses and not args.clients_from_depots and self.default_all:
-			console = get_console(file=sys.stderr)
-			console.print(
+			console_print(
 				"[bright_yellow]No clients selected, defaulting to all clients.\n"
-				"This is deprecated, please use `--clients all` to select all clients.[/bright_yellow]\n"
+				"This is deprecated, please use `--clients all` to select all clients.[/bright_yellow]\n",
+				output_type=OutputType.WARNING_MESSAGE,
 			)
 			args.clients = "all"
 		if "all" in args.clients:

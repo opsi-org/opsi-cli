@@ -14,6 +14,7 @@ import git  # type: ignore[import] # noqa: F401
 import requests
 from opsicommon.logging import get_logger
 
+from opsicli.io import OutputType, console_print
 from opsicli.plugin import OPSICLIPlugin
 
 __version__ = "0.1.0"
@@ -37,7 +38,7 @@ def libtest() -> None:
 	opsi dummy subdummy subcommand.
 	This is the long help.
 	"""
-	print(requests.get("https://gitlab.uib.gmbh", timeout=10))
+	console_print(str(requests.get("https://gitlab.uib.gmbh", timeout=10)), output_type=OutputType.DATA)
 
 
 class DummyPlugin(OPSICLIPlugin):

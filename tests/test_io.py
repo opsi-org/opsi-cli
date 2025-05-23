@@ -22,6 +22,9 @@ from opsicli.config import config
 from opsicli.io import (
 	Attribute,
 	Metadata,
+	OutputType,
+	console_print,
+	get_console,
 	input_file_bin,
 	input_file_str,
 	list_attributes,
@@ -38,6 +41,72 @@ from opsicli.io import (
 from tests.utils import run_cli, temp_context
 
 from .conftest import PLATFORM
+
+
+@pytest.mark.parametrize(
+	"output_type, expected_auto_file",
+	(
+		(OutputType.ERROR_MESSAGE, "stderr"),
+		(OutputType.MESSAGE, "stderr"),
+		(OutputType.WARNING_MESSAGE, "stderr"),
+		(OutputType.PROGRESS, "stderr"),
+		(OutputType.DATA, "stdout"),
+		(OutputType.PROMPT, "stdout"),
+	),
+)
+def test_get_console(capsys: CaptureFixture[str], output_type: OutputType, expected_auto_file: str) -> None:
+	for file in None, sys.stdout, sys.stderr:
+		for quiet in True, False:
+			for hide_errors in True, False:
+				config.set_values({"quiet": quiet, "hide_errors": hide_errors})
+
+				console = get_console(output_type=output_type, file=file)
+				console.print("test")
+				captured = capsys.readouterr()
+
+				expect_out = "test\n"
+				if quiet and output_type not in (OutputType.ERROR_MESSAGE, OutputType.WARNING_MESSAGE, OutputType.PROMPT, OutputType.DATA):
+					expect_out = ""
+				if hide_errors and output_type in (OutputType.ERROR_MESSAGE, OutputType.WARNING_MESSAGE):
+					expect_out = ""
+
+				if file == sys.stdout or (not file and expected_auto_file == "stdout"):
+					assert captured.out == expect_out
+					assert captured.err == ""
+
+				elif file == sys.stderr or (not file and expected_auto_file == "stderr"):
+					assert captured.out == ""
+					assert captured.err == expect_out
+
+				else:
+					raise RuntimeError("Invalid file type")
+
+
+@pytest.mark.parametrize(
+	"output_type",
+	(
+		OutputType.ERROR_MESSAGE,
+		OutputType.MESSAGE,
+		OutputType.WARNING_MESSAGE,
+		OutputType.PROGRESS,
+		OutputType.DATA,
+		OutputType.PROMPT,
+	),
+)
+def test_console_print(capsys: CaptureFixture[str], output_type: OutputType) -> None:
+	with patch("sys.stdout.isatty", return_value=True), patch("sys.stderr.isatty", return_value=True):
+		for style in None, "red":
+			console_print("test", output_type=output_type, style=style)
+			captured = capsys.readouterr()
+			out = captured.out + captured.err
+
+			if style == "red" or output_type == OutputType.ERROR_MESSAGE:
+				assert out == "\x1b[31mtest\x1b[0m\n"
+			elif output_type == OutputType.WARNING_MESSAGE:
+				assert out == "\x1b[33mtest\x1b[0m\n"
+			else:
+				assert out == "test\n"
+
 
 input_output_testdata = (
 	(

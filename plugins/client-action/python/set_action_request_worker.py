@@ -17,7 +17,7 @@ from opsicommon.logging import get_logger
 from opsicommon.objects import Product, ProductDependency, ProductGroup, ProductOnClient, ProductOnDepot
 
 from opsicli.config import config
-from opsicli.io import console_print
+from opsicli.io import Attribute, Metadata, OutputType, console_print, write_output
 
 from .client_action_worker import ClientActionArgs, ClientActionWorker
 
@@ -317,7 +317,7 @@ class SetActionRequestWorker(ClientActionWorker):
 		if not new_pocs:
 			msg = "No action requests to set."
 			logger.notice(msg)
-			console_print(f"{msg}\n")
+			console_print(f"{msg}\n", output_type=OutputType.MESSAGE)
 			return
 
 		update_pocs = []
@@ -342,6 +342,16 @@ class SetActionRequestWorker(ClientActionWorker):
 					)
 					logger.debug("Result of hostControl_processActionRequests: %s", res)
 
-		console_print(f"{msg}. Here are the updated ProductOnClient objects:\n", style="green")
-		console_print(f"{'Client ID':<30} {'Product ID':<30} {'Action Request':<30}\n" + "-" * 90)
-		console_print("\n".join([f"{poc.clientId:<30} {poc.productId:<30} {poc.actionRequest:<30}" for poc in update_pocs]))
+		console_print(f"{msg}. Here are the updated ProductOnClient objects:\n", style="green", output_type=OutputType.MESSAGE)
+
+		metadata = Metadata(
+			attributes=[
+				Attribute(id="clientId", description="ID of the client", identifier=True, data_type="str"),
+				Attribute(id="productId", description="ID of the product", identifier=True, data_type="str"),
+				Attribute(id="actionRequest", description="Product action request set", data_type="str"),
+			]
+		)
+		write_output(
+			data=[{"clientId": poc.clientId, "productId": poc.productId, "actionRequest": poc.actionRequest} for poc in update_pocs],
+			metadata=metadata,
+		)

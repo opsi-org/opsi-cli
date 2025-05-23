@@ -15,8 +15,9 @@ import io
 import sys
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
+from enum import StrEnum
 from io import BytesIO, StringIO
-from typing import IO, Any, Iterator, Type
+from typing import IO, Any, Generator, Iterator, Type
 
 import msgpack  # type: ignore[import]
 import orjson
@@ -24,8 +25,10 @@ from opsicommon.logging import get_logger
 from rich import print_json
 from rich.color import ANSI_COLOR_NAMES
 from rich.console import Console
+from rich.progress import Progress
 from rich.prompt import FloatPrompt, IntPrompt, Prompt
 from rich.table import Table, box
+from rich.text import Text
 
 from opsicli.config import config
 
@@ -48,6 +51,15 @@ COLORS = [
 	for c in ANSI_COLOR_NAMES
 	if "white" not in c and "black" not in c and "red" not in c and "grey" not in c and "gray" not in c and "bright" not in c
 ]
+
+
+class OutputType(StrEnum):
+	MESSAGE = "message"
+	WARNING_MESSAGE = "warning_message"
+	ERROR_MESSAGE = "error_message"
+	PROGRESS = "progress"
+	PROMPT = "prompt"
+	DATA = "data"
 
 
 @dataclass
@@ -156,22 +168,59 @@ class QuietConsole(Console):
 		pass
 
 
-def get_console(file: IO[str] | None = None, ignore_quiet: bool = False) -> Console:
-	if (file is not sys.stderr or config.hide_errors) and config.quiet and not ignore_quiet:
-		return QuietConsole(file=file, color_system="auto" if config.color else None)
-	return Console(file=file, color_system="auto" if config.color else None)
+@contextmanager
+def get_progress() -> Generator[Progress, None, None]:
+	with Progress(console=get_console(output_type=OutputType.PROGRESS)) as progress:
+		yield progress
+
+
+def get_console(*, output_type: OutputType, file: IO[str] | None = None) -> Console:
+	"""
+	Get a console instance.
+	:param output_type: The type of output (message, warning_message, error_message, progress, prompt, data)
+	:param file: The file to write to. default:
+		sys.stdout for prompt and data
+		sys.stderr for message, warning_message, error_message and progress
+	"""
+	if not file:
+		file = sys.stdout if output_type in (OutputType.DATA, OutputType.PROMPT) else sys.stderr
+
+	cls = Console
+	if (output_type in (OutputType.WARNING_MESSAGE, OutputType.ERROR_MESSAGE) and config.hide_errors) or (
+		output_type not in (OutputType.WARNING_MESSAGE, OutputType.ERROR_MESSAGE, OutputType.DATA, OutputType.PROMPT) and config.quiet
+	):
+		cls = QuietConsole
+	return cls(file=file, color_system="auto" if config.color else None)
 
 
 def console_print(
 	*args: Any,
 	rule: str | None = None,
 	style: str | None = None,
+	file: IO[str] | None = None,
+	output_type: OutputType = OutputType.MESSAGE,
 	**kwargs: Any,
 ) -> None:
 	"""
-	Print to console
+	Print to console.
+	:param args: The arguments to print
+	:param rule: The rule to print
+	:param style: The style to use. default:
+		"yellow" for warning_message
+		"red" for error_message
+	:param file: The file to write to. default:
+		sys.stdout for prompt and data
+		sys.stderr for message, warning_message, error_message and progress
+	:param output_type: The type of output (message, warning_message, error_message, progress, prompt, data)
+	:param kwargs: The keyword arguments to pass to the print or rule function
 	"""
-	console = get_console()
+	if not style and (not args or not isinstance(args[0], Text)):
+		if output_type == OutputType.WARNING_MESSAGE:
+			style = "yellow"
+		elif output_type == OutputType.ERROR_MESSAGE:
+			style = "red"
+
+	console = get_console(output_type=output_type, file=file)
 	if rule:
 		console.rule(rule, **kwargs)
 	else:
@@ -187,6 +236,17 @@ def prompt(
 	show_default: bool = True,
 	show_choices: bool = True,
 ) -> str | int | float:
+	"""
+	Prompt the user for input.
+	:param text: The text to display
+	:param return_type: The type of input to return. default: str
+	:param password: If True, hide the input
+	:param default: The default value to return if the user does not enter anything
+	:param choices: The list of choices to display
+	:param show_default: If True, show the default value in the prompt
+	:param show_choices: If True, show the choices in the prompt
+	:return: The input from the user
+	"""
 	cls: Type[Prompt] | Type[IntPrompt] | Type[FloatPrompt] = Prompt
 	if return_type == int:  # noqa: E721
 		cls = IntPrompt
@@ -194,7 +254,7 @@ def prompt(
 		cls = FloatPrompt
 	return cls.ask(
 		prompt=text,
-		console=get_console(ignore_quiet=True),
+		console=get_console(output_type=OutputType.PROMPT),
 		default=default,
 		password=password,
 		choices=choices,
@@ -236,7 +296,7 @@ def write_output_table(data: Any, metadata: Metadata) -> None:
 				table.add_row(*[to_string(row)])
 
 	with output_file_str() as file:
-		console = get_console(file, ignore_quiet=True)
+		console = get_console(output_type=OutputType.DATA, file=file)
 		console.print(table)
 
 

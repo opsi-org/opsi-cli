@@ -18,7 +18,7 @@ from opsicommon.logging import get_logger
 
 from opsicli.config import DEFAULT_SESSION_LIFETIME, ConfigValueSource, config
 from opsicli.decorators import handle_list_attributes
-from opsicli.io import console_print, prompt, write_output
+from opsicli.io import OutputType, console_print, prompt, write_output
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.types import OPSIService, Password
 from plugins.config.data.metadata import command_metadata
@@ -221,7 +221,7 @@ def service_add(
 	msg = f"Successfully added new service {name!r} with URL {url!r}.\n"
 	msg += f"The default service is now {repr(default_service) if default_service else 'unset'}."
 	logger.notice(msg)
-	console_print(msg)
+	console_print(msg, output_type=OutputType.MESSAGE)
 
 
 def complete_service_name(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
@@ -270,7 +270,7 @@ def service_remove(
 	msg = f"Successfully removed service {name!r}.\n"
 	msg += f"The default service is now {repr(default_service) if default_service else 'unset'}."
 	logger.notice(msg)
-	console_print(msg)
+	console_print(msg, output_type=OutputType.MESSAGE)
 
 
 @service.command(name="set-default", short_help="set opsi-service default")
@@ -299,7 +299,7 @@ def service_set_default(
 
 	msg = f"The default service is now {repr(name) if name else 'unset'}."
 	logger.notice(msg)
-	console_print(msg)
+	console_print(msg, output_type=OutputType.MESSAGE)
 
 
 class ConfigPlugin(OPSICLIPlugin):

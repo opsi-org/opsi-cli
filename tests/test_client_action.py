@@ -7,6 +7,7 @@
 test_client_action
 """
 
+import json
 import re
 from typing import Any, Literal
 from unittest.mock import patch
@@ -198,6 +199,8 @@ def test_set_action_request_where(
 		admin_service_client.jsonrpc("productOnClient_createObjects", params=[pocs])
 
 		cmd = [
+			"--output-format",
+			"json",
 			"client-action",
 			"--clients",
 			f"{CLIENT1},{CLIENT2}",
@@ -239,7 +242,7 @@ def test_set_action_request_where(
 			)
 
 		with patch("opsicommon.client.opsiservice.ServiceClient.jsonrpc", mock_jsonrpc):
-			exit_code, stdout, _stderr = run_cli(cmd)
+			exit_code, stdout, stderr = run_cli(cmd)
 
 		assert exit_code == 0
 
@@ -311,23 +314,30 @@ def test_set_action_request_where(
 				for client_id, actions in unprocessed_actions.items():
 					assert all(act == "none" for act in actions.values())
 
-		lines = stdout.splitlines()
-		message = lines[0] + " " + lines[1]
 		if dry_run:
 			if process:
-				assert message.startswith(
-					"Action requests would have been set and processing would have been started. Here are the updated"
-				)
+				assert stderr.startswith("Action requests would have been set and processing would have been started. Here are the updated")
 			else:
-				assert message.startswith("Action requests would have been set. Here are the updated")
+				assert stderr.startswith("Action requests would have been set. Here are the updated")
 		else:
 			if process:
-				assert message.startswith("Action requests have been set and processing was started. Here are the updated")
+				assert stderr.startswith("Action requests have been set and processing was started. Here are the updated")
 			else:
-				assert message.startswith("Action requests have been set. Here are the updated")
+				assert stderr.startswith("Action requests have been set. Here are the updated")
 
-		count_setup = len([action for actions in expected_actions.values() for action in actions.values() if action == "setup"])
-		assert count_setup == len([line for line in lines[2:] if line.strip() and line.strip().split()[-1].strip() == "setup"])
+		expected_data = []
+		for client_id, actions in expected_actions.items():
+			for product_id, action in actions.items():
+				if action == "setup":
+					expected_data.append(
+						{
+							"clientId": client_id,
+							"productId": product_id,
+							"actionRequest": action,
+						}
+					)
+		data = json.loads(stdout)
+		assert len(expected_data) == len(data)
 
 
 @pytest.mark.opsi_service
@@ -465,6 +475,7 @@ def test_execute_opsiscript(admin_service_client: ServiceClient) -> None:
 			tmp_client(admin_service_client, CLIENT3),
 		):
 			cmd = [
+				"--no-color",
 				"client-action",
 				"--clients",
 				f"{CLIENT1},{CLIENT2},{CLIENT3}",

@@ -12,6 +12,7 @@ from opsicommon.logging import get_logger
 from opsicommon.objects import Config, ConfigState
 from purecrypt import Crypt, Method  # type: ignore[import]
 
+from opsicli.io import OutputType, console_print
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 
@@ -145,7 +146,7 @@ def set_boot_password(ctx: click.Context, password: str) -> None:
 		salt = salt[:19]  # 16 bytes salt + 3 bytes $6$
 		hashed_password = Crypt.encrypt(password, salt)
 	logger.notice("Setting pwh append parameter")
-	print("Hashed password is:", hashed_password)
+	console_print(f"Hashed password is: {hashed_password}", output_type=OutputType.DATA)
 	remove_old_password_hashes()
 	set_append_values(values={"pwh": hashed_password}, client=ctx.obj["client"])
 
