@@ -9,6 +9,8 @@ opsi-cli basic command line interface for opsi
 execute_worker
 """
 
+from pathlib import Path
+
 from opsicommon.logging import get_logger
 from rich.text import Text
 
@@ -48,7 +50,10 @@ class ExecuteWorker(ClientActionWorker):
 		channels = [f"host:{client}" for client in self.clients]
 
 		if opsiscript:
-			return self._execute_opsiscript(channels, opsiscript, opsiscript_log_level)
+			if "\n" not in opsiscript and Path(opsiscript).is_file():
+				return self._execute_opsiscript(channels, Path(opsiscript).read_text(encoding="utf-8"), opsiscript_log_level)
+			else:
+				return self._execute_opsiscript(channels, opsiscript, opsiscript_log_level)
 
 		logger.debug("Executing %s with shell=%s on %d hosts", command, shell, len(channels))
 
@@ -117,7 +122,10 @@ class ExecuteWorker(ClientActionWorker):
 					previous_color = "white"
 					for line in log_content.splitlines():
 						parts = line.split(" ", 1)
-						log_level_value = int(parts[0].strip("[]"))
+						try:
+							log_level_value = int(parts[0].strip("[]"))
+						except ValueError:  # invalid stuff in brackets
+							log_level_value = 0  # assume multiline entry
 						if log_level_value <= opsiscript_log_level:
 							color = LOG_COLORS.get(parts[0].strip("[]"), previous_color)
 							previous_color = color

@@ -7,8 +7,10 @@
 test_client_action
 """
 
+import contextlib
 import json
 import re
+from pathlib import Path
 from typing import Any, Literal
 from unittest.mock import patch
 
@@ -447,12 +449,17 @@ def test_trigger_event(admin_service_client: ServiceClient) -> None:
 		assert exit_code == 1  # No way to actually trigger an event or wake up a client
 
 
+@pytest.mark.parametrize(
+	"opsiscript_content", ('[Actions]\\nMessage \\"Hello, World!\\"\\nMessage \\"This is a multi-line opsi script.\\"', "setup.opsiscript")
+)
 @pytest.mark.opsi_service
-def test_execute_opsiscript(admin_service_client: ServiceClient) -> None:
+def test_execute_opsiscript(admin_service_client: ServiceClient, tmp_path: Path, opsiscript_content: str) -> None:
 	test_exception = Exception("Test exception")
 	test_error = RuntimeError("Test error")
 	highest_exit_code = 2
-	opsiscript_content = '[Actions]\\nMessage \\"Hello, World!\\"\\nMessage \\"This is a multi-line opsi script.\\"'
+	(tmp_path / "setup.opsiscript").write_text(
+		'[Actions]\\nMessage \\"Hello, World!\\"\\nMessage \\"This is a multi-line opsi script.\\"', encoding="utf-8"
+	)
 	mock_results = {
 		f"host:{CLIENT1}": test_exception,
 		f"host:{CLIENT2}": {
@@ -474,6 +481,7 @@ def test_execute_opsiscript(admin_service_client: ServiceClient) -> None:
 			tmp_client(admin_service_client, CLIENT1),
 			tmp_client(admin_service_client, CLIENT2),
 			tmp_client(admin_service_client, CLIENT3),
+			contextlib.chdir(tmp_path),
 		):
 			cmd = [
 				"--no-color",
