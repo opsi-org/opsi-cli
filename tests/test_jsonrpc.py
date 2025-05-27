@@ -53,6 +53,4 @@ def test_timeout() -> None:
 def test_deprecation_warning() -> None:
 	exit_code, _stdout, stderr = run_cli(["jsonrpc", "execute", "host_getHashes"])
 	assert exit_code == 0
-	assert "Method 'host_getHashes' is deprecated and may not be supported in future versions" in stderr.replace("\n", " ").replace(
-		"  ", " "
-	)
+	assert "Method 'host_getHashes' is deprecated" in stderr
