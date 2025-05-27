@@ -47,3 +47,10 @@ def test_timeout() -> None:
 	exit_code, stdout, _stderr = run_cli(["jsonrpc", "execute", "host_getObjects", "--timeout=0.000001"])
 	print(stdout)
 	assert exit_code != 0
+
+
+@pytest.mark.opsi_service
+def test_deprecation_warning() -> None:
+	exit_code, _stdout, stderr = run_cli(["jsonrpc", "execute", "host_getHashes"])
+	assert exit_code == 0
+	assert "Method 'host_getHashes' is deprecated and may not be supported in future versions" in stderr

@@ -14,7 +14,7 @@ import sys
 import rich_click as click
 from opsicommon.logging import get_logger
 
-from opsicli.io import OutputType, console_print
+from opsicli.io import deprecation_warning
 from opsicli.plugin import OPSICLIPlugin
 
 from .client_action_worker import ClientActionArgs
@@ -152,10 +152,7 @@ def set_action_request(ctx: click.Context, **kwargs: str | bool) -> None:
 
 	request_type = kwargs.pop("request_type", None)
 	if request_type:
-		console_print(
-			"The `--request-type` option is deprecated, please use `--set-action-request` instead.\n",
-			output_type=OutputType.WARNING_MESSAGE,
-		)
+		deprecation_warning("The `--request-type` option is deprecated, please use `--set-action-request` instead.\n")
 		kwargs["set_action_request"] = request_type
 
 	worker.set_action_request(SetActionRequestArgs(**kwargs))  # type: ignore[arg-type]

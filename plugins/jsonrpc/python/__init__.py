@@ -19,7 +19,7 @@ from opsicommon.logging import get_logger
 from opsicli.cache import cache
 from opsicli.config import config
 from opsicli.decorators import handle_list_attributes
-from opsicli.io import output_file_is_stdout, read_input, write_output
+from opsicli.io import deprecation_warning, output_file_is_stdout, read_input, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 from plugins.jsonrpc.data.metadata import command_metadata
@@ -114,15 +114,16 @@ def execute(method: str, params: list[str] | None = None, timeout: float | None 
 
 	inp_param = read_input()
 	if inp_param is not None:
-		# TODO: decide by method signature
-		# if isinstance(inp_param, list):
-		# 	params.extend(inp_param)
-		# else:
+		# TODO: Handle params depending on method parameters
 		params.append(inp_param)
 
 	default_output_format = "pretty-json" if output_file_is_stdout() else "json"
 
 	client = get_service_connection()
+	method_interface = client.get_jsonrpc_method(method)
+	if method_interface.get("deprecated"):
+		deprecation_warning(f"Method {method!r} is deprecated and may not be supported in future versions.")
+
 	logger.info("Calling method %s with params %s", method, params)
 	data = client.jsonrpc(method, params, create_objects=False, read_timeout=float(timeout) if timeout else None)
 	write_output(data, default_output_format=default_output_format)

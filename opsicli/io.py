@@ -227,6 +227,15 @@ def console_print(
 		console.print(*args, style=style, **kwargs)
 
 
+def deprecation_warning(message: str) -> None:
+	"""
+	Log a deprecation warning and print it to the console.
+	:param message: The message to print
+	"""
+	logger.warning(message)
+	console_print(message, output_type=OutputType.WARNING_MESSAGE)
+
+
 def prompt(
 	text: str,
 	return_type: type = str,

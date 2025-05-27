@@ -24,6 +24,7 @@ from opsicli.io import (
 	Metadata,
 	OutputType,
 	console_print,
+	deprecation_warning,
 	get_console,
 	input_file_bin,
 	input_file_str,
@@ -106,6 +107,13 @@ def test_console_print(capsys: CaptureFixture[str], output_type: OutputType) -> 
 				assert out == "\x1b[33mtest\x1b[0m\n"
 			else:
 				assert out == "test\n"
+
+
+def test_deprecation_warning(capsys: CaptureFixture[str]) -> None:
+	with patch("sys.stdout.isatty", return_value=True), patch("sys.stderr.isatty", return_value=True):
+		deprecation_warning("This is a deprecation warning")
+		captured = capsys.readouterr()
+		assert captured.err == "\x1b[33mThis is a deprecation warning\x1b[0m\n"
 
 
 input_output_testdata = (
