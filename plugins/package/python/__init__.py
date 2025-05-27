@@ -282,6 +282,7 @@ def complete_package_path(ctx: click.Context, param: click.Parameter, incomplete
 	is_flag=True,
 	help="Deprecated, please use `--properties ask`.",
 	default=False,
+	hidden=True,
 )
 @click.option(
 	"--properties",

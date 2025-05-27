@@ -18,13 +18,7 @@ import pytest
 from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.objects import ProductOnClient
 
-from .utils import (
-	run_cli,
-	tmp_client,
-	tmp_host_group,
-	tmp_product,
-	tmp_product_group,
-)
+from .utils import run_cli, tmp_client, tmp_host_group, tmp_product, tmp_product_group
 
 CLIENT1 = "pytest-client1.test.tld"
 CLIENT2 = "pytest-client2.test.tld"
@@ -46,7 +40,14 @@ def test_set_action_request_single(admin_service_client: ServiceClient) -> None:
 		tmp_product(admin_service_client, PRODUCT1),
 		tmp_product(admin_service_client, PRODUCT2),
 	):
-		cmd = ["client-action", "--clients", f"{CLIENT1},{CLIENT2}", "set-action-request", "--products", f"{PRODUCT1},{PRODUCT2}"]
+		cmd = [
+			"client-action",
+			"--clients",
+			f"{CLIENT1},{CLIENT2}",
+			"set-action-request",
+			"--products",
+			f"{PRODUCT1},{PRODUCT2}",
+		]
 
 		exit_code, _stdout, _stderr = run_cli(cmd)
 		assert exit_code == 0
@@ -57,7 +58,7 @@ def test_set_action_request_single(admin_service_client: ServiceClient) -> None:
 		for poc in pocs:
 			assert poc.actionRequest == "setup"
 
-		cmd += ["--request-type", "none"]
+		cmd += ["--set-action-request", "none"]
 		exit_code, _stdout, _stderr = run_cli(cmd)
 		assert exit_code == 0
 		pocs = admin_service_client.jsonrpc(
@@ -114,8 +115,23 @@ def test_set_action_request_group(admin_service_client: ServiceClient) -> None:
 		("installed", True, True),
 	),
 )
+@pytest.mark.parametrize(
+	"set_action_request, set_action_progress, set_action_result, set_installation_status",
+	(
+		(None, None, None, None),
+		("setup", "installing", "successful", "not_installed"),
+		("setup", "", "", "installed"),
+	),
+)
 def test_set_action_request_where(
-	admin_service_client: ServiceClient, selection: Literal["failed", "outdated", "installed"], process: bool, dry_run: bool
+	admin_service_client: ServiceClient,
+	selection: Literal["failed", "outdated", "installed"],
+	process: bool,
+	dry_run: bool,
+	set_action_request: str | None,
+	set_action_progress: str | None,
+	set_action_result: str | None,
+	set_installation_status: str | None,
 ) -> None:
 	with (
 		tmp_client(admin_service_client, CLIENT1),
@@ -200,22 +216,6 @@ def test_set_action_request_where(
 
 		admin_service_client.jsonrpc("productOnClient_createObjects", params=[pocs])
 
-		cmd = [
-			"--output-format",
-			"json",
-			"client-action",
-			"--clients",
-			f"{CLIENT1},{CLIENT2}",
-			"set-action-request",
-			f"--where-{selection}",
-			"--setup-on-action",
-			PRODUCT3,
-		]
-		if process:
-			cmd.append("--process")
-		if dry_run:
-			cmd.insert(0, "--dry-run")
-
 		jsonrpc_orig = ServiceClient.jsonrpc
 		rpcs: list[list[Any]] = []
 
@@ -228,6 +228,7 @@ def test_set_action_request_where(
 			read_timeout: float | None = None,
 			return_result_only: bool = True,
 			create_objects: bool | None = None,
+			assert_connected: bool = True,
 		) -> Any:
 			nonlocal rpcs
 			rpcs.append([method, params, connect_timeout, read_timeout, return_result_only, create_objects])
@@ -241,8 +242,34 @@ def test_set_action_request_where(
 				read_timeout=read_timeout,
 				return_result_only=return_result_only,
 				create_objects=create_objects,
+				assert_connected=assert_connected,
 			)
 
+		cmd = [
+			"--output-format",
+			"json",
+			"client-action",
+			"--clients",
+			f"{CLIENT1},{CLIENT2}",
+			"set-action-request",
+			f"--where-{selection}",
+			"--setup-on-action",
+			PRODUCT3,
+		]
+		if set_action_request is not None:
+			cmd += ["--set-action-request", set_action_request]
+		if set_action_progress is not None:
+			cmd += ["--set-action-progress", set_action_progress]
+		if set_action_result is not None:
+			cmd += ["--set-action-result", set_action_result]
+		if set_installation_status is not None:
+			cmd += ["--set-installation-status", set_installation_status]
+		if process:
+			cmd.append("--process")
+		if dry_run:
+			cmd.insert(0, "--dry-run")
+
+		rpcs.clear()
 		with patch("opsicommon.client.opsiservice.ServiceClient.jsonrpc", mock_jsonrpc):
 			exit_code, stdout, stderr = run_cli(cmd)
 
@@ -298,6 +325,16 @@ def test_set_action_request_where(
 		assert pocs[4].actionRequest == ("none" if dry_run else expected_actions[CLIENT2][PRODUCT1])
 		assert pocs[5].actionRequest == ("none" if dry_run else expected_actions[CLIENT2][PRODUCT2])
 		assert pocs[6].actionRequest == ("none" if dry_run else expected_actions[CLIENT2][PRODUCT3])
+
+		if not dry_run:
+			for poc in pocs:
+				if expected_actions[poc.clientId][poc.productId] not in ("none", None):
+					if set_action_progress is not None:
+						assert poc.actionProgress == set_action_progress
+					if set_action_result is not None:
+						assert poc.actionResult or "none" == set_action_result or "none"
+					if set_installation_status is not None:
+						assert poc.installationStatus == set_installation_status
 
 		if process:
 			unprocessed_actions = expected_actions.copy()
@@ -389,11 +426,10 @@ def test_set_action_request_excludes(admin_service_client: ServiceClient) -> Non
 @pytest.mark.opsi_service
 def test_set_action_request_unknown_type(admin_service_client: ServiceClient) -> None:
 	with tmp_client(admin_service_client, CLIENT1), tmp_product(admin_service_client, PRODUCT1):
-		cmd = ["client-action", "--clients", CLIENT1, "set-action-request", "--products", PRODUCT1, "--request-type", "nonexistent"]
+		cmd = ["client-action", "--clients", CLIENT1, "set-action-request", "--products", PRODUCT1, "--set-action-request", "nonexistent"]
 		exit_code, _stdout, _stderr = run_cli(cmd)
-		assert exit_code == 0
-		pocs = admin_service_client.jsonrpc("productOnClient_getObjects", params=[[], {"clientId": CLIENT1, "productId": PRODUCT1}])
-		assert len(pocs) == 0
+		assert exit_code == 1
+		assert "Bad action request: 'nonexistent'" in _stderr
 
 
 @pytest.mark.opsi_service
