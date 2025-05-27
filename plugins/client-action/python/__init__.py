@@ -14,6 +14,7 @@ import sys
 import rich_click as click
 from opsicommon.logging import get_logger
 
+from opsicli.io import OutputType, console_print
 from opsicli.plugin import OPSICLIPlugin
 
 from .client_action_worker import ClientActionArgs
@@ -80,8 +81,14 @@ def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 	is_flag=True,
 	default=False,
 )
-@click.option("--exclude-products", help="Do not set actionRequests for these products (comma-separated list).")
-@click.option("--products", help="Set actionRequests for these products (comma-separated list).")
+@click.option(
+	"--exclude-products",
+	help="Do not set actionRequests for these products (comma-separated list).",
+)
+@click.option(
+	"--products",
+	help="Set actionRequests for these products (comma-separated list).",
+)
 @click.option(
 	"--product-groups",
 	help="Set actionRequests for the products of these product groups (comma-separated list).",
@@ -92,9 +99,34 @@ def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 )
 @click.option(
 	"--request-type",
-	help="The type of action request to set.",
+	help="Deprecated, please use `--set-action-request`.",
+	show_default=False,
+	default=None,
+	hidden=True,
+)
+@click.option(
+	"--set-action-request",
+	help="The action request to set.",
 	show_default=True,
 	default="setup",
+)
+@click.option(
+	"--set-action-progress",
+	help="The action progress to set.",
+	show_default=True,
+	default=None,
+)
+@click.option(
+	"--set-action-result",
+	help="The action result to set.",
+	show_default=True,
+	default=None,
+)
+@click.option(
+	"--set-installation-status",
+	help="The action progress to set.",
+	show_default=True,
+	default=None,
 )
 @click.option(
 	"--setup-on-action",
@@ -117,6 +149,15 @@ def set_action_request(ctx: click.Context, **kwargs: str | bool) -> None:
 	opsi-cli client-action set-action-request command
 	"""
 	worker = SetActionRequestWorker(ctx.obj)
+
+	request_type = kwargs.pop("request_type", None)
+	if request_type:
+		console_print(
+			"The `--request-type` option is deprecated, please use `--set-action-request` instead.\n",
+			output_type=OutputType.WARNING_MESSAGE,
+		)
+		kwargs["set_action_request"] = request_type
+
 	worker.set_action_request(SetActionRequestArgs(**kwargs))  # type: ignore[arg-type]
 
 

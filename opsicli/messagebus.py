@@ -81,7 +81,6 @@ def log_message(message: Message) -> None:
 	for key, value in message.to_dict().items():
 		debug_string += f"\t{key}: {value}\n"
 	logger.debug(debug_string)
-	# logger.devel(debug_string)  # for test_messagebus.py
 
 
 class MessagebusConnection(MessagebusListener):
