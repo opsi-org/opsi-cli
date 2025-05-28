@@ -191,8 +191,7 @@ def test_wait_for_host() -> None:
 			with log_context({"instance": "FakeHostConnectionThread"}):
 				time.sleep(2)
 				with get_host_service_client("client1.test.tld", "00000000000000000000000000000000") as client:
-					time.sleep(1)
-					# client.connect_messagebus()
+					client.connect_messagebus()
 
 	with admin_service_config():
 		with get_service_connection() as connection:
