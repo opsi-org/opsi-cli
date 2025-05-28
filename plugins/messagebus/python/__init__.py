@@ -157,6 +157,19 @@ def wait_for_event(type: str, data: list[str], timeout: float | None) -> None:
 	write_output(result.data, default_output_format="pretty-json")
 
 
+@cli.command(name="wait-for-host", short_help="Wait for a host to connect to messagebus")
+@click.argument("hostname", type=str)
+@click.option("--timeout", help="Timeout in seconds", type=float, default=None)
+def wait_for_host(hostname: str, timeout: float | None) -> None:
+	"""
+	Wait for a host to connect to messagebus
+	"""
+	mbus_connection = EventMessagebusConnection()
+	data = {"host": {"type": "OpsiClient", "id": hostname}}
+	result = mbus_connection.wait_for_event(type="host_connected", data=[data], timeout=timeout)
+	write_output(result.data, default_output_format="pretty-json")
+
+
 @cli.command(name="wait-for-installation", short_help="Wait for a a product installation on a client")
 @click.argument("client", type=str)
 @click.argument("product", type=str)
@@ -168,8 +181,14 @@ def wait_for_installation(client: str, product: str, installation_status: str, t
 	"""
 	mbus_connection = EventMessagebusConnection()
 	data = [
-		{"clientId": client, "productId": product, "actionRequest": "none", "installationStatus": installation_status},
-		{"clientId": client, "productId": product, "actionRequest": "none", "installationStatus": "unknown"},
+		{
+			"clientId": client,
+			"productId": product,
+			"actionRequest": "none",
+			"installationStatus": installation_status,
+			"actionResult": "successful",
+		},
+		{"clientId": client, "productId": product, "actionRequest": "none", "installationStatus": "unknown", "actionResult": "failed"},
 	]
 	result = mbus_connection.wait_for_event(type="productOnClient_updated", data=data, timeout=timeout)
 	write_output(result.data, default_output_format="pretty-json")

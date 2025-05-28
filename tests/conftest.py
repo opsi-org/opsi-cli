@@ -136,6 +136,21 @@ def get_admin_service_client(user_agent: str | None = None) -> Generator[Service
 	service_client.stop()
 
 
+@contextmanager
+def get_host_service_client(hostname: str, key: str) -> Generator[ServiceClient, None, None]:
+	address, _, _ = admin_service_connection_params()
+	service_client = ServiceClient(
+		address=address,
+		username=hostname,
+		password=key,
+		verify="accept_all",
+		jsonrpc_create_methods=True,
+		jsonrpc_create_objects=True,
+	)
+	yield service_client
+	service_client.stop()
+
+
 @fixture()
 def admin_service_client() -> Generator[ServiceClient, None, None]:
 	with get_admin_service_client() as service_client:
