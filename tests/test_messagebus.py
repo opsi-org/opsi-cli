@@ -17,7 +17,7 @@ from opsicommon.logging import get_logger, log_context
 from opsicli.messagebus import JSONRPCMessagebusConnection
 from opsicli.opsiservice import get_service_connection
 
-from .conftest import get_admin_service_client
+from .conftest import get_admin_service_client, get_host_service_client
 from .utils import admin_service_config, run_cli, tmp_client, tmp_product
 
 logger = get_logger()
@@ -155,6 +155,7 @@ def test_wait_for_installation(installation_status: str, success: bool) -> None:
 								"clientId": "client1.test.tld",
 								"productId": "testproduct",
 								"actionRequest": "none",
+								"actionResult": "successful" if success else "failed",
 								"installationStatus": installation_status if success else "unknown",
 								"productType": "LocalbootProduct",
 							}
@@ -181,3 +182,30 @@ def test_wait_for_installation(installation_status: str, success: bool) -> None:
 				exit_code, _stdout, _stderr = run_cli(cmd)
 				cht.join()
 				assert exit_code == 0 if success else 1
+
+
+@pytest.mark.opsi_service
+def test_wait_for_host() -> None:
+	class FakeHostConnectionThread(Thread):
+		def run(self) -> None:
+			with log_context({"instance": "FakeHostConnectionThread"}):
+				time.sleep(2)
+				with get_host_service_client("client1.test.tld", "00000000000000000000000000000000") as client:
+					time.sleep(1)
+					# client.connect_messagebus()
+
+	with admin_service_config():
+		with get_service_connection() as connection:
+			with tmp_client(connection, "client1.test.tld", "00000000000000000000000000000000"):
+				thread = FakeHostConnectionThread(daemon=True)
+				thread.start()
+				cmd = [
+					"messagebus",
+					"wait-for-host",
+					"client1.test.tld",
+					"--timeout",
+					"10",
+				]
+				exit_code, _stdout, _stderr = run_cli(cmd)
+				thread.join()
+				assert exit_code == 0

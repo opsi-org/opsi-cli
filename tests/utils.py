@@ -42,9 +42,12 @@ def run_cli(args: Sequence[str], service_config: bool = True, stdin: list[str] |
 
 
 @contextmanager
-def tmp_client(service: ServiceClient, name: str) -> Generator[None, None, None]:
+def tmp_client(service: ServiceClient, name: str, key: str = "") -> Generator[None, None, None]:
+	params = [name]
+	if key:
+		params.append(key)
 	try:
-		service.jsonrpc("host_createOpsiClient", params=[name])
+		service.jsonrpc("host_createOpsiClient", params=params)
 		yield
 	finally:
 		service.jsonrpc("host_delete", params=[name])
