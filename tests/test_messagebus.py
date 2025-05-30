@@ -154,7 +154,6 @@ def test_wait_for_installation(installation_status: str, success: bool) -> None:
 							{
 								"clientId": "client1.test.tld",
 								"productId": "testproduct",
-								"actionRequest": "none",
 								"actionResult": "successful" if success else "failed",
 								"installationStatus": installation_status if success else "unknown",
 								"productType": "LocalbootProduct",
