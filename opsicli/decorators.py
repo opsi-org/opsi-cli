@@ -40,6 +40,12 @@ def handle_list_attributes(func: Callable) -> Callable:
 
 
 def dry_run_capable(func: Callable) -> Callable:
+	"""
+	This decorator:
+	- Marks the function as capable of dry-run execution.
+	- Appends a note to the command's help message indicating dry-run support.
+	- Displays a warning to the user if --dry-run is enabled.
+	"""
 	setattr(func, "dry_run_capable", True)
 	dry_run_note = "\n\nThis command supports --dry-run: actions will be simulated and not performed."
 	func.__doc__ = (func.__doc__ or "") + dry_run_note
