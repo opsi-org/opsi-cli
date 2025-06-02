@@ -14,7 +14,7 @@ import sys
 import rich_click as click
 from opsicommon.logging import get_logger
 
-from opsicli.decorators import dry_run_capable
+from opsicli.decorators import dry_run_capable, dry_run_guard
 from opsicli.io import deprecation_warning
 from opsicli.plugin import OPSICLIPlugin
 
@@ -48,6 +48,7 @@ logger = get_logger("opsicli")
 	"--exclude-ip-addresses",
 	help="Exclude clients by IP addresses or networks (comma-separated list).",
 )
+@dry_run_guard
 def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 	"""
 	This command can be used to manage opsi client actions.
