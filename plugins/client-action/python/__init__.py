@@ -14,6 +14,7 @@ import sys
 import rich_click as click
 from opsicommon.logging import get_logger
 
+from opsicli.decorators import dry_run_capable
 from opsicli.io import deprecation_warning
 from opsicli.plugin import OPSICLIPlugin
 
@@ -223,6 +224,7 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool, wakeup_timeout: 
 	help="Specify the log level to filter (1 to 8). Only available with --opsi-script",
 	show_default=True,
 )
+@dry_run_capable
 def execute(
 	ctx: click.Context,
 	command: tuple[str],
@@ -235,7 +237,7 @@ def execute(
 	opsi_script_log_level: int,
 ) -> None:
 	"""
-	opsi-cli client-action execute command
+	Executes a command or opsi-script on selected clients.
 	"""
 	if not command and not opsi_script:
 		raise click.UsageError("Missing argument 'COMMAND...' or '--opsi-script' option.")
