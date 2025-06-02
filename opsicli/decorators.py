@@ -14,9 +14,12 @@ from functools import wraps
 from typing import Any, Callable
 
 import rich_click as click
+from opsicommon.logging import get_logger
 
 from opsicli.config import config
 from opsicli.io import OutputType, console_print, list_attributes
+
+logger = get_logger("opsicli")
 
 
 def handle_list_attributes(func: Callable) -> Callable:
@@ -47,13 +50,17 @@ def dry_run_capable(func: Callable) -> Callable:
 	- Displays a warning to the user if --dry-run is enabled.
 	"""
 	setattr(func, "dry_run_capable", True)
+
+	# Append a note to the function's docstring about dry-run support
 	dry_run_note = "\n\nThis command supports --dry-run: actions will be simulated and not performed."
 	func.__doc__ = (func.__doc__ or "") + dry_run_note
 
 	@wraps(func)
 	def wrapper(*args: Any, **kwargs: Any) -> Any:
 		if config.dry_run:
-			console_print("WARNING: Operating in dry-run mode - no actions will be performed.\n", output_type=OutputType.WARNING_MESSAGE)
+			warning_message = "WARNING: Operating in dry-run mode - no actions will be performed."
+			console_print(f"{warning_message}\n", output_type=OutputType.WARNING_MESSAGE)
+			logger.warning(warning_message)
 		return func(*args, **kwargs)
 
 	return wrapper
@@ -75,6 +82,10 @@ def dry_run_guard(func: Callable) -> Callable:
 				console_print(
 					f"ERROR: The command '{ctx.invoked_subcommand}' does not support --dry-run. Aborting.\n",
 					output_type=OutputType.ERROR_MESSAGE,
+				)
+				logger.error(
+					"The command '%s' does not support --dry-run. Aborting.",
+					ctx.invoked_subcommand,
 				)
 				ctx.exit(1)
 		return func(ctx, *args, **kwargs)
