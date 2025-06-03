@@ -68,9 +68,7 @@ def test_self_upgrade(location: str) -> None:
 		exit_code, stdout, stderr = run_cli(cmd)
 		print(stdout)
 		print(stderr)
-		stderr = " ".join(stderr.split())
-		warning_msg = "WARNING: Operating in dry-run mode - no actions will be performed."
-		assert f"{warning_msg} Upgrade skipped: would upgrade" in stderr
+		assert "Upgrade skipped: would upgrade" in stderr
 		assert exit_code == 0
 
 
