@@ -435,11 +435,7 @@ def test_set_action_request_where(
 		assert len(expected_data) == len(data)
 
 
-# product1 once on client1
-# product2 setup on client1
-# product3 always on client1
-# product1 setup on client2
-# product4 uninstall on client2
+@pytest.mark.opsi_service
 @pytest.mark.parametrize(
 	"where_action_request,  expected_client_ids",
 	(
