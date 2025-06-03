@@ -49,8 +49,7 @@ def test_handle_list_attributes() -> None:
 def test_dry_run_capable() -> None:
 	exit_code, stdout, stderr = run_cli(["self", "upgrade", "--help"])
 	assert exit_code == 0
-	help_text = stdout + stderr
-	assert "This command supports --dry-run: actions will be simulated and not performed." in help_text
+	assert "This command supports --dry-run: actions will be simulated and not performed." in stdout
 
 	exit_code, _, stderr = run_cli(["--dry-run", "self", "upgrade"])
 	assert exit_code == 0
