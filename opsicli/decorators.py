@@ -42,55 +42,50 @@ def handle_list_attributes(func: Callable) -> Callable:
 	return wrapper_func
 
 
-def dry_run_capable(func: Callable) -> Callable:
+def dry_run_handling(dry_run_capable: bool = False) -> Callable:
 	"""
-	This decorator:
-	- Marks the function as capable of dry-run execution.
-	- Appends a note to the command's help message indicating dry-run support.
-	- Displays a warning to the user if --dry-run is enabled.
-	"""
-	setattr(func, "dry_run_capable", True)
+	Decorator for Click commands and groups to handle --dry-run.
 
-	# Append a note to the function's docstring about dry-run support
-	dry_run_note = "\n\nThis command supports --dry-run: actions will be simulated and not performed."
-	func.__doc__ = (func.__doc__ or "") + dry_run_note
-
-	@wraps(func)
-	def wrapper(*args: Any, **kwargs: Any) -> Any:
-		if config.dry_run:
-			warning_message = "WARNING: Operating in dry-run mode - no actions will be performed."
-			console_print(f"{warning_message}\n", output_type=OutputType.WARNING_MESSAGE)
-			logger.warning(warning_message)
-		return func(*args, **kwargs)
-
-	return wrapper
-
-
-def dry_run_guard(func: Callable) -> Callable:
-	"""
-	Decorator for Click command groups or single commands.
-	If --dry-run is set and the command is not dry-run-capable, abort with an error.
+	If dry_run_capable is False (default), using --dry-run will abort with an error.
+	If dry_run_capable is True, the command allows --dry-run, adds a help note indicating dry-run support, and shows a warning if --dry-run is used.
 	"""
 
-	@wraps(func)
-	def wrapper(ctx: click.Context, *args: Any, **kwargs: Any) -> Any:
-		# Check for subcommand (group case)
-		subcmd = getattr(ctx, "invoked_subcommand", None)
-		if subcmd:
-			get_command = getattr(ctx.command, "get_command", None)
-			command = get_command(ctx, subcmd) if get_command else None
-			callback = getattr(command, "callback", None)
-			if config.dry_run and not getattr(callback, "dry_run_capable", False):
-				console_print(f"ERROR: The command '{subcmd}' does not support --dry-run. Aborting.", output_type=OutputType.ERROR_MESSAGE)
-				logger.error("The command '%s' does not support --dry-run. Aborting.", subcmd)
-				ctx.exit(1)
-		# Single command case
-		elif config.dry_run and not getattr(func, "dry_run_capable", False):
-			console_print(
-				f"ERROR: The command '{ctx.command.name}' does not support --dry-run. Aborting.", output_type=OutputType.ERROR_MESSAGE
-			)
-			logger.error("The command '%s' does not support --dry-run. Aborting.", ctx.command.name)
-			ctx.exit(1)
-		return func(ctx, *args, **kwargs)
+	def abort_if_not_dry_run_capable(ctx: click.Context, command_name: str) -> None:
+		console_print(
+			f"ERROR: The command '{command_name}' does not support --dry-run. Aborting.",
+			output_type=OutputType.ERROR_MESSAGE,
+		)
+		logger.error("The command '%s' does not support --dry-run. Aborting.", command_name)
+		ctx.exit(1)
 
-	return wrapper
+	def decorator(func: Callable) -> Callable:
+		setattr(func, "dry_run_capable", dry_run_capable)
+
+		# Append a note to the function's docstring about dry-run support
+		if dry_run_capable:
+			dry_run_note = "\n\nThis command supports --dry-run: actions will be simulated and not performed."
+			func.__doc__ = (func.__doc__ or "") + dry_run_note
+
+		@wraps(func)
+		def wrapper(ctx: click.Context, *args: Any, **kwargs: Any) -> Any:
+			if config.dry_run:
+				is_group = hasattr(ctx.command, "get_command")
+				subcmd = getattr(ctx, "invoked_subcommand", None)
+				if is_group and subcmd:
+					get_command = getattr(ctx.command, "get_command", None)
+					subcommand_obj = get_command(ctx, subcmd) if get_command else None
+					callback = getattr(subcommand_obj, "callback", None)
+					if not getattr(callback, "dry_run_capable", False):
+						abort_if_not_dry_run_capable(ctx, subcmd)
+					return func(ctx, *args, **kwargs)
+				if dry_run_capable:
+					warning_message = "WARNING: Operating in dry-run mode - no actions will be performed."
+					console_print(f"{warning_message}\n", output_type=OutputType.WARNING_MESSAGE)
+					logger.warning(warning_message)
+				else:
+					abort_if_not_dry_run_capable(ctx, ctx.command.name)
+			return func(ctx, *args, **kwargs)
+
+		return wrapper
+
+	return decorator

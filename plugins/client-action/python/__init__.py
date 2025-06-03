@@ -14,7 +14,7 @@ import sys
 import rich_click as click
 from opsicommon.logging import get_logger
 
-from opsicli.decorators import dry_run_capable, dry_run_guard
+from opsicli.decorators import dry_run_handling
 from opsicli.io import deprecation_warning
 from opsicli.plugin import OPSICLIPlugin
 
@@ -48,7 +48,7 @@ logger = get_logger("opsicli")
 	"--exclude-ip-addresses",
 	help="Exclude clients by IP addresses or networks (comma-separated list).",
 )
-@dry_run_guard
+@dry_run_handling()
 def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 	"""
 	This command can be used to manage opsi client actions.
@@ -146,7 +146,7 @@ def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 	help="The visibility of action processing on the client. Client default, if not specified.",
 	default=None,
 )
-@dry_run_capable
+@dry_run_handling(dry_run_capable=True)
 def set_action_request(ctx: click.Context, **kwargs: str | bool) -> None:
 	"""
 	opsi-cli client-action set-action-request command
@@ -181,7 +181,7 @@ def set_action_request(ctx: click.Context, **kwargs: str | bool) -> None:
 	type=float,
 	default=60.0,
 )
-@dry_run_capable
+@dry_run_handling(dry_run_capable=True)
 def trigger_event(ctx: click.Context, event: str, wakeup: bool, wakeup_timeout: float) -> None:
 	"""
 	opsi-cli client-action trigger-event command
@@ -227,7 +227,7 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool, wakeup_timeout: 
 	help="Specify the log level to filter (1 to 8). Only available with --opsi-script",
 	show_default=True,
 )
-@dry_run_capable
+@dry_run_handling(dry_run_capable=True)
 def execute(
 	ctx: click.Context,
 	command: tuple[str],
@@ -270,8 +270,8 @@ def execute(
 	short_help="Shutdown selected clients",
 	context_settings={"ignore_unknown_options": True, "allow_interspersed_args": False},
 )
-@dry_run_capable
 @click.pass_context
+@dry_run_handling(dry_run_capable=True)
 def shutdown(ctx: click.Context) -> None:
 	"""
 	opsi-cli client-action shutdown clients
@@ -291,7 +291,7 @@ def shutdown(ctx: click.Context) -> None:
 	type=float,
 	default=0.0,
 )
-@dry_run_capable
+@dry_run_handling(dry_run_capable=True)
 def wakeup(ctx: click.Context, wakeup_timeout: float) -> None:
 	"""
 	opsi-cli client-action wake up clients

@@ -12,7 +12,7 @@ from pathlib import Path
 import rich_click as click
 from opsicommon.logging import get_logger
 
-from opsicli.decorators import dry_run_guard, handle_list_attributes
+from opsicli.decorators import dry_run_handling, handle_list_attributes
 from opsicli.io import OutputType, console_print, write_output
 from opsicli.messagebus import JSONRPCMessagebusConnection
 from opsicli.opsiservice import get_service_connection
@@ -32,7 +32,7 @@ logger = get_logger("opsicli")
 @click.version_option(__version__, message="opsi-cli plugin support, version %(version)s")
 @click.pass_context
 @handle_list_attributes
-@dry_run_guard
+@dry_run_handling()
 def cli(ctx: click.Context) -> None:
 	""" """
 	logger.trace("support command")

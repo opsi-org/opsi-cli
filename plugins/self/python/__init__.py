@@ -28,7 +28,7 @@ from rich.tree import Tree
 
 from opsicli import __version__ as opsi_cli_version
 from opsicli.config import ConfigValueSource, config
-from opsicli.decorators import dry_run_capable, dry_run_guard
+from opsicli.decorators import dry_run_handling
 from opsicli.io import Attribute, Metadata, OutputType, console_print, get_progress, write_output
 from opsicli.plugin import OPSICLIPlugin, plugin_manager
 from opsicli.types import File
@@ -163,7 +163,7 @@ def print_installed_versions() -> None:
 @click.group(name="self", short_help="Manage opsi-cli")
 @click.version_option(__version__, message="self plugin, version %(version)s")
 @click.pass_context
-@dry_run_guard
+@dry_run_handling()
 def cli(ctx: click.Context) -> None:
 	"""
 	opsi-cli self command.
@@ -223,7 +223,7 @@ def get_running_shell() -> str:
 	hidden=True,
 )
 @click.pass_context
-@dry_run_capable
+@dry_run_handling(dry_run_capable=True)
 def setup_shell_completion(ctx: click.Context, shell: str, completion_file: Path) -> None:
 	"""
 	opsi-cli self setup_shell_completion subcommand.
@@ -299,8 +299,9 @@ def setup_shell_completion(ctx: click.Context, shell: str, completion_file: Path
 	type=File,
 	help="File path to store binary at (deprecated, please use --location).",
 )
-@dry_run_capable
-def install(location: str, no_add_to_path: bool, system: bool | None, binary_path: Path | None = None) -> None:
+@click.pass_context
+@dry_run_handling(dry_run_capable=True)
+def install(ctx: click.Context, location: str, no_add_to_path: bool, system: bool | None, binary_path: Path | None = None) -> None:
 	"""
 	opsi-cli self install subcommand.
 
@@ -378,8 +379,9 @@ def install(location: str, no_add_to_path: bool, system: bool | None, binary_pat
 	help="Allow to 'upgrade' to a version that is older than the current instance.",
 	default=False,
 )
-@dry_run_capable
-def upgrade(branch: str, source_url: str, location: str, allow_downgrade: bool) -> None:
+@click.pass_context
+@dry_run_handling(dry_run_capable=True)
+def upgrade(ctx: click.Context, branch: str, source_url: str, location: str, allow_downgrade: bool) -> None:
 	"""
 	opsi-cli self upgrade subcommand.
 
@@ -466,8 +468,9 @@ def upgrade(branch: str, source_url: str, location: str, allow_downgrade: bool) 
 	type=File,
 	help="File path to find binary at (deprecated, please use --location)",
 )
-@dry_run_capable
-def uninstall(location: str, system: bool | None = None, binary_path: Path | None = None) -> None:
+@click.pass_context
+@dry_run_handling(dry_run_capable=True)
+def uninstall(ctx: click.Context, location: str, system: bool | None = None, binary_path: Path | None = None) -> None:
 	"""
 	opsi-cli self uninstall subcommand.
 
