@@ -42,9 +42,11 @@ class ExecuteWorker(ClientActionWorker):
 		opsiscript_log_level: int = 0,
 	) -> int:
 		if config.dry_run:
-			msg = "Operating in dry-run mode - not performing any actions"
-			logger.notice(msg)
-			console_print(f"{msg}\n", output_type=OutputType.WARNING_MESSAGE)
+			logger.notice("Execution skipped, returning exit code 0.")
+			console_print(
+				f"Execution skipped: would execute command on {len(self.clients)} clients. Returning exit code 0.",
+				output_type=OutputType.WARNING_MESSAGE,
+			)
 			return 0
 
 		channels = [f"host:{client}" for client in self.clients]

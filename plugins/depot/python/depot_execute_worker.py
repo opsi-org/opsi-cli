@@ -13,6 +13,7 @@ from opsicommon.logging import get_logger
 from opsicommon.types import forceHostId
 
 from opsicli.config import config
+from opsicli.io import OutputType, console_print
 from opsicli.messagebus import ProcessMessagebusConnection
 from opsicli.opsiservice import get_service_connection
 from opsicli.types import OpsiCliRuntimeError
@@ -54,7 +55,11 @@ class DepotExecuteWorker:
 		encoding: str = "auto",
 	) -> int:
 		if config.dry_run:
-			logger.notice("Operating in dry-run mode - not performing any actions")
+			logger.notice("Execution skipped, returning exit code 0.")
+			console_print(
+				f"Execution skipped: would execute command on {len(self.depots)} depots. Returning exit code 0.",
+				output_type=OutputType.WARNING_MESSAGE,
+			)
 			return 0
 
 		channels = [f"service:depot:{depot}:process" for depot in self.depots]  # Should we use a different channel here?

@@ -146,6 +146,7 @@ def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 	help="The visibility of action processing on the client. Client default, if not specified.",
 	default=None,
 )
+@dry_run_capable
 def set_action_request(ctx: click.Context, **kwargs: str | bool) -> None:
 	"""
 	opsi-cli client-action set-action-request command
@@ -180,6 +181,7 @@ def set_action_request(ctx: click.Context, **kwargs: str | bool) -> None:
 	type=float,
 	default=60.0,
 )
+@dry_run_capable
 def trigger_event(ctx: click.Context, event: str, wakeup: bool, wakeup_timeout: float) -> None:
 	"""
 	opsi-cli client-action trigger-event command
@@ -268,6 +270,7 @@ def execute(
 	short_help="Shutdown selected clients",
 	context_settings={"ignore_unknown_options": True, "allow_interspersed_args": False},
 )
+@dry_run_capable
 @click.pass_context
 def shutdown(ctx: click.Context) -> None:
 	"""
@@ -288,6 +291,7 @@ def shutdown(ctx: click.Context) -> None:
 	type=float,
 	default=0.0,
 )
+@dry_run_capable
 def wakeup(ctx: click.Context, wakeup_timeout: float) -> None:
 	"""
 	opsi-cli client-action wake up clients

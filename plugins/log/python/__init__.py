@@ -12,6 +12,7 @@ import asyncio
 import rich_click as click
 from opsicommon.logging import get_logger
 
+from opsicli.decorators import dry_run_guard
 from opsicli.messagebus import FileTransferMessagebusConnection
 from opsicli.plugin import OPSICLIPlugin
 
@@ -24,7 +25,9 @@ logger = get_logger("opsicli")
 
 @click.group(name="log", short_help="View logs")
 @click.version_option(__version__, message="opsi-cli plugin log, version %(version)s")
-def cli() -> None:
+@click.pass_context
+@dry_run_guard
+def cli(ctx: click.Context) -> None:
 	"""
 	opsi-cli log command.
 	This command provides funtionality to view logs using messagebus.

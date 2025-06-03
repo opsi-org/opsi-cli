@@ -110,11 +110,6 @@ class HostControlWorker(ClientActionWorker):
 		return mbus_connection.wait_for_hosts(clients, timeout=wakeup_timeout)
 
 	def trigger_event(self, event: str = "on_demand", wakeup: bool = False, wakeup_timeout: float = 60.0) -> None:
-		if config.dry_run:
-			msg = "Operating in dry-run mode - not performing any actions"
-			logger.notice(msg)
-			console_print(msg + "\n", output_type=OutputType.WARNING_MESSAGE)
-
 		reachable_clients, unreachable_clients = self.divide_clients_by_reachable()
 		errors = []
 
@@ -159,9 +154,8 @@ class HostControlWorker(ClientActionWorker):
 		client_count = len(self.clients)
 
 		if config.dry_run:
-			msg = f"Operating in dry-run mode - would shutdown {client_count} clients"
-			logger.notice(msg)
-			console_print(msg + "\n", output_type=OutputType.WARNING_MESSAGE)
+			logger.notice("Shutdown skipped")
+			console_print(f"Shutdown skipped: would shutdown {client_count} clients.", output_type=OutputType.WARNING_MESSAGE)
 			return
 
 		logger.notice("Shutting down clients %s", self.clients)
@@ -184,9 +178,8 @@ class HostControlWorker(ClientActionWorker):
 		client_count = len(self.clients)
 
 		if config.dry_run:
-			msg = f"Operating in dry-run mode - would wake {client_count} clients"
-			logger.notice(msg)
-			console_print(msg + "\n", output_type=OutputType.WARNING_MESSAGE)
+			logger.notice("Wakeup skipped")
+			console_print(f"Wakeup skipped: would wake {client_count} clients.", output_type=OutputType.WARNING_MESSAGE)
 			return
 
 		failed = self._wakeup_clients(self.clients, wakeup_timeout=wakeup_timeout)[1]
