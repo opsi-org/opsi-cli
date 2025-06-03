@@ -353,7 +353,7 @@ def test_set_action_request_where(
 				for client_id, actions in unprocessed_actions.items():
 					assert all(act == "none" for act in actions.values())
 
-		stderr = stderr.replace("\n", " ")
+		stderr = " ".join(stderr.split())
 		if dry_run:
 			warning_msg = "WARNING: Operating in dry-run mode - no actions will be performed."
 			if process:
