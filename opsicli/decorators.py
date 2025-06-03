@@ -11,7 +11,7 @@ decorators
 
 import importlib
 from functools import wraps
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 import rich_click as click
 from opsicommon.logging import get_logger
@@ -50,7 +50,7 @@ def dry_run_handling(dry_run_capable: bool = False) -> Callable:
 	If dry_run_capable is True, the command allows --dry-run, adds a help note indicating dry-run support, and shows a warning if --dry-run is used.
 	"""
 
-	def abort_if_not_dry_run_capable(ctx: click.Context, command_name: str) -> None:
+	def abort_if_not_dry_run_capable(ctx: click.Context, command_name: Optional[str]) -> None:
 		console_print(
 			f"ERROR: The command '{command_name}' does not support --dry-run. Aborting.",
 			output_type=OutputType.ERROR_MESSAGE,
