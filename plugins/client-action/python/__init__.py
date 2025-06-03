@@ -28,28 +28,32 @@ __description__ = "This command can be used to manage opsi client actions."
 logger = get_logger("opsicli")
 
 
-@click.group(name="client-action", short_help="Command group to manage client actions")
+@click.group(name="client-action", short_help="Manage client actions")
 @click.version_option(__version__, message="opsi-cli plugin client-action, version %(version)s")
 @click.pass_context
-@click.option("--clients", help="Select clients IDs (comma-separated list) or use 'all' for all clients.")
-@click.option("--client-groups", help="Select clients from these client groups (comma-separated list).")
-@click.option("--clients-from-depots", help="Select clients from these depots.")
-@click.option("--exclude-clients", help="Exclude these clients IDs (comma-separated list).")
-@click.option("--exclude-client-groups", help="Do not perform actions for these client groups (comma-separated list).")
+@click.option("--clients", help="Comma-separated list of client IDs or 'all' for all clients.")
+@click.option("--client-groups", help="Comma-separated list of client groups.")
+@click.option("--clients-from-depots", help="Select clients from specified depots (comma-separated list).")
+@click.option("--exclude-clients", help="Comma-separated list of client IDs to exclude.")
+@click.option("--exclude-client-groups", help="Comma-separated list of client groups to exclude.")
+@click.option(
+	"--where-action-request",
+	help="Limit to clients with specified actionRequests set for any product (comma-separated list).",
+)
 @click.option(
 	"--only-online",
-	help="Limit actions to clients that are connected to the messagebus.",
+	help="Limit to clients connected to the messagebus.",
 	is_flag=True,
 	default=False,
 )
-@click.option("--ip-addresses", help="Select clients by IP addresses or networks (comma-separated list).")
+@click.option("--ip-addresses", help="Comma-separated list of IP addresses or networks.")
 @click.option(
 	"--exclude-ip-addresses",
-	help="Exclude clients by IP addresses or networks (comma-separated list).",
+	help="Comma-separated list of IP addresses or networks to exclude.",
 )
 def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 	"""
-	This command can be used to manage opsi client actions.
+	Manage opsi client actions.
 	"""
 	logger.trace("client-action command group")
 	ctx.obj = ClientActionArgs(**kwargs)  # type: ignore[arg-type]
