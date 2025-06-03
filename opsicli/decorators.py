@@ -68,26 +68,29 @@ def dry_run_capable(func: Callable) -> Callable:
 
 def dry_run_guard(func: Callable) -> Callable:
 	"""
-	Decorator for Click command groups.
-	If --dry-run is set and the invoked subcommand is not dry-run-capable, abort with an error.
+	Decorator for Click command groups or single commands.
+	If --dry-run is set and the command is not dry-run-capable, abort with an error.
 	"""
 
 	@wraps(func)
 	def wrapper(ctx: click.Context, *args: Any, **kwargs: Any) -> Any:
-		if hasattr(ctx, "invoked_subcommand") and ctx.invoked_subcommand:
+		# Check for subcommand (group case)
+		subcmd = getattr(ctx, "invoked_subcommand", None)
+		if subcmd:
 			get_command = getattr(ctx.command, "get_command", None)
-			command = get_command(ctx, ctx.invoked_subcommand) if get_command else None
+			command = get_command(ctx, subcmd) if get_command else None
 			callback = getattr(command, "callback", None)
 			if config.dry_run and not getattr(callback, "dry_run_capable", False):
-				console_print(
-					f"ERROR: The command '{ctx.invoked_subcommand}' does not support --dry-run. Aborting.\n",
-					output_type=OutputType.ERROR_MESSAGE,
-				)
-				logger.error(
-					"The command '%s' does not support --dry-run. Aborting.",
-					ctx.invoked_subcommand,
-				)
+				console_print(f"ERROR: The command '{subcmd}' does not support --dry-run. Aborting.", output_type=OutputType.ERROR_MESSAGE)
+				logger.error("The command '%s' does not support --dry-run. Aborting.", subcmd)
 				ctx.exit(1)
+		# Single command case
+		elif config.dry_run and not getattr(func, "dry_run_capable", False):
+			console_print(
+				f"ERROR: The command '{ctx.command.name}' does not support --dry-run. Aborting.", output_type=OutputType.ERROR_MESSAGE
+			)
+			logger.error("The command '%s' does not support --dry-run. Aborting.", ctx.command.name)
+			ctx.exit(1)
 		return func(ctx, *args, **kwargs)
 
 	return wrapper
