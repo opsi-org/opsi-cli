@@ -14,6 +14,8 @@ import rich_click as click
 from opsicli.decorators import handle_list_attributes
 from opsicli.io import Attribute, Metadata
 
+from .utils import run_cli
+
 
 def test_handle_list_attributes() -> None:
 	mock_config = Mock()
@@ -42,3 +44,22 @@ def test_handle_list_attributes() -> None:
 		result = test_func(ctx)
 		ctx.exit.assert_called_once()
 		assert result == "Test function executed"
+
+
+def test_dry_run_capable() -> None:
+	exit_code, stdout, stderr = run_cli(["self", "upgrade", "--help"])
+	assert exit_code == 0
+	help_text = stdout + stderr
+	assert "This command supports --dry-run: actions will be simulated and not performed." in help_text
+
+	exit_code, _, stderr = run_cli(["--dry-run", "self", "upgrade"])
+	assert exit_code == 0
+	stderr = " ".join(stderr.split())
+	assert "WARNING: Operating in dry-run mode - no actions will be performed." in stderr
+
+
+def test_real_dry_run_guard_command() -> None:
+	exit_code, _, stderr = run_cli(["--dry-run", "self", "command-structure"])
+	assert exit_code == 0
+	stderr = " ".join(stderr.split())
+	assert "does not support --dry-run. Aborting." in stderr
