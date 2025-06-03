@@ -56,7 +56,7 @@ def test_dry_run_capable() -> None:
 	assert "WARNING: Operating in dry-run mode - no actions will be performed." in stderr
 
 
-def test_real_dry_run_guard_command() -> None:
+def test_dry_run_guard() -> None:
 	exit_code, _, stderr = run_cli(["--dry-run", "self", "command-structure"])
 	assert exit_code == 0
 	stderr = " ".join(stderr.split())
