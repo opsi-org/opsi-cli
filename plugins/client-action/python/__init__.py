@@ -23,7 +23,7 @@ from .execute_worker import ExecuteWorker
 from .host_control_worker import HostControlWorker
 from .set_action_request_worker import SetActionRequestArgs, SetActionRequestWorker
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 __description__ = "This command can be used to manage opsi client actions."
 
 logger = get_logger("opsicli")
