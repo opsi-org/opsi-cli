@@ -16,9 +16,10 @@ from typing import Iterable, Literal
 from opsicommon.logging import get_logger
 from opsicommon.objects import Product, ProductGroup, ProductOnClient, ProductOnDepot
 from opsicommon.types import forceActionProgress, forceActionRequest, forceActionResult, forceInstallationStatus
+from rich.text import Text
 
 from opsicli.config import config
-from opsicli.io import Attribute, Metadata, OutputType, console_print, write_output
+from opsicli.io import COLORS, Attribute, Metadata, OutputType, console_print, write_output
 
 from .client_action_worker import ClientActionArgs, ClientActionWorker
 
@@ -387,3 +388,53 @@ class SetActionRequestWorker(ClientActionWorker):
 			data=[{"clientId": poc.clientId, "productId": poc.productId, "actionRequest": poc.actionRequest} for poc in update_pocs],
 			metadata=metadata,
 		)
+
+	def process_actions(self, args: SetActionRequestArgs) -> None:
+		self.determine_products(
+			products_string=args.products,
+			exclude_products_string=args.exclude_products,
+			product_groups_string=args.product_groups,
+			exclude_product_groups_string=args.exclude_product_groups,
+			use_default_excludes=True,
+		)
+		if not self.products:
+			raise ValueError("No products to process. The specified products might not exist or might have been excluded.")
+
+		if config.dry_run:
+			console_print(
+				f"Process actions skipped: would process action requests for {len(self.clients)} clients"
+				+ (f" and products: {len(self.products)}" if self.products else "")
+				+ (f" with visibility: {args.process_visibility}" if args.process_visibility else ""),
+				output_type=OutputType.WARNING_MESSAGE,
+			)
+			return
+
+		result = self.service.jsonrpc(
+			"hostControl_processActionRequests",
+			[list(self.clients), self.products, args.process_visibility],
+			read_timeout=60,
+		)
+		logger.debug(f"Result of hostControl_processActionRequests: {result}")
+
+		color_position = 0
+		for client, data in result.items():
+			client_color = COLORS[color_position]
+			color_position = (color_position + 1) % len(COLORS)
+			line_prefix = Text(f"{client} | ", style=client_color)
+
+			if isinstance(data, dict):
+				if data.get("error"):
+					console_print(
+						line_prefix + Text(str(data["error"]), style="red"),
+						output_type=OutputType.DATA,
+					)
+				elif data.get("result") is not None:
+					console_print(
+						line_prefix + Text(str(data["result"], style="white")),
+						output_type=OutputType.DATA,
+					)
+			else:
+				console_print(
+					line_prefix + Text(f"Unexpected response: {data}", style="yellow"),
+					output_type=OutputType.WARNING_MESSAGE,
+				)

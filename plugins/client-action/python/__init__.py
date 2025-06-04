@@ -303,6 +303,27 @@ def wakeup(ctx: click.Context, wakeup_timeout: float) -> None:
 	HostControlWorker(ctx.obj).wakeup_clients(wakeup_timeout)
 
 
+@cli.command(name="process-actions", short_help="Process action requests for selected clients")
+@click.pass_context
+@click.option("--products", help="Product IDs to process (comma-separated).")
+@click.option("--exclude-products", help="Exclude these products (comma-separated).")
+@click.option("--product-groups", help="Product groups to process (comma-separated).")
+@click.option("--exclude-product-groups", help="Exclude these product groups (comma-separated).")
+@click.option(
+	"--process-visibility",
+	type=click.Choice(["visible", "hidden"], case_sensitive=False),
+	help="The visibility of action processing on the client. Client default, if not specified.",
+	default=None,
+)
+@dry_run_handling(dry_run_capable=True)
+def process_actions(ctx: click.Context, **kwargs: str | bool | None) -> None:
+	"""
+	Process action requests for selected clients.
+	"""
+	worker = SetActionRequestWorker(ctx.obj)
+	worker.process_actions(SetActionRequestArgs(**kwargs))  # type: ignore[arg-type]
+
+
 # This class keeps track of the plugins meta-information
 class ClientActionPlugin(OPSICLIPlugin):
 	name: str = "Client Action"
