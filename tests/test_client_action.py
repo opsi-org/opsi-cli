@@ -704,3 +704,54 @@ def test_execute_opsiscript(admin_service_client: ServiceClient, tmp_path: Path,
 			)
 			assert re.fullmatch(expected_output_pattern, _stdout)
 			assert _stderr == ""
+
+
+@pytest.mark.opsi_service
+def test_process_actions(admin_service_client: ServiceClient) -> None:
+	client1 = CLIENT1
+	client2 = CLIENT2
+	product1 = PRODUCT1
+	product2 = PRODUCT2
+
+	with (
+		tmp_client(admin_service_client, client1),
+		tmp_client(admin_service_client, client2),
+		tmp_product(admin_service_client, product1),
+		tmp_product(admin_service_client, product2),
+	):
+		mock_result = {
+			client1: {"result": "Processed successfully", "error": None},
+			client2: {
+				"result": None,
+				"error": f"No product action requests set for client '{client2}' and products ['{product1}', '{product2}']",
+			},
+		}
+
+		original_jsonrpc = ServiceClient.jsonrpc
+
+		def mock_jsonrpc(
+			self: ServiceClient, method: str, params: tuple[Any, ...] | list[Any] | dict[str, Any] | None = None, **kwargs: Any
+		) -> Any:
+			if method == "hostControl_processActionRequests":
+				return mock_result
+			return original_jsonrpc(self, method, params, **kwargs)
+
+		cmd = [
+			"client-action",
+			"--clients",
+			f"{client1},{client2}",
+			"process-actions",
+			"--products",
+			f"{product1},{product2}",
+			"--process-visibility",
+			"hidden",
+		]
+
+		with patch("opsicommon.client.opsiservice.ServiceClient.jsonrpc", mock_jsonrpc):
+			exit_code, stdout, _ = run_cli(cmd)
+
+		assert exit_code == 0
+		assert f"{client1}" in stdout
+		assert "Processed successfully" in stdout
+		assert f"{client2}" in stdout
+		assert "No product action requests set for client" in stdout

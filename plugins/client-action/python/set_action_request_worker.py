@@ -423,14 +423,16 @@ class SetActionRequestWorker(ClientActionWorker):
 			line_prefix = Text(f"{client} | ", style=client_color)
 
 			if isinstance(data, dict):
-				if data.get("error"):
+				error = data.get("error")
+				result_value = data.get("result")
+				if error:
 					console_print(
-						line_prefix + Text(str(data["error"]), style="red"),
+						line_prefix + Text(str(error), style="red"),
 						output_type=OutputType.DATA,
 					)
-				elif data.get("result") is not None:
+				elif result_value is not None:
 					console_print(
-						line_prefix + Text(str(data["result"], style="white")),
+						line_prefix + Text(str(result_value), style="white"),
 						output_type=OutputType.DATA,
 					)
 			else:
