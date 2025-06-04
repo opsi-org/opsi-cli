@@ -1,31 +1,44 @@
 [Actions]
-
-requiredWinstVersion >= "4.12.4.35"
-encoding = "UTF-8"
-
+requiredOpsiScriptVersion >= "4.12.4.35"
 
 DefFunc install_windows() : void
 	Message "installing opsi-cli on windows"
 	ShellCall('"%ScriptPath%\opsi-cli-windows.exe" -l 7 self install --location=system')
+	if not(GetLastExitcode = "0")
+		LogError "opsi-cli self install failed"
+		IsFatalError "opsi-cli self install failed"
+	endif
 EndFunc
 
 DefFunc install_linux() : void
 	Message "installing opsi-cli on linux"
-	ShellCall('"%ScriptPath%/opsi-cli-linux.run" -l 7 self install --no-add-to-path --location=system')
+	files_copy_to_temp_linux
+	ShellCall('chmod 755 /tmp/opsi-cli-linux.run')
+	ShellCall("/tmp/opsi-cli-linux.run -l 7 self install --no-add-to-path --location=system")
+	if not(GetLastExitcode = "0")
+		LogError "opsi-cli self install failed"
+		IsFatalError "opsi-cli self install failed"
+	endif
 	ShellCall('chmod 755 /usr/local/bin/opsi-cli')
+
+	[files_copy_to_temp_linux]
+	copy "%ScriptPath%/opsi-cli-linux.run" "/tmp/"
 EndFunc
 
 DefFunc install_macos() : void
 	Message "installing opsi-cli on macos"
-	files_copy_to_temp
+	files_copy_to_temp_macos
 	ShellCall('chmod 755 /tmp/opsi-cli-macos')
 	ShellCall("/tmp/opsi-cli-macos -l 7 self install --no-add-to-path --location=system")
+	if not(GetLastExitcode = "0")
+		LogError "opsi-cli self install failed"
+		IsFatalError "opsi-cli self install failed"
+	endif
 	ShellCall('chmod 755 /usr/local/bin/opsi-cli')
 
-	[files_copy_to_temp]
-	copy "%ScriptPath%\opsi-cli-macos" "/tmp/"
+	[files_copy_to_temp_macos]
+	copy "%ScriptPath%/opsi-cli-macos" "/tmp/"
 EndFunc
-
 
 Switch GetOS
 	Case "Windows_NT"
@@ -38,7 +51,4 @@ Switch GetOS
 		install_macos()
 	EndCase
 EndSwitch
-if not(GetLastExitcode = "0")
-	LogError "opsi-cli self install failed"
-	IsFatalError "opsi-cli self install failed"
-endif
+
