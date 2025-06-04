@@ -381,9 +381,22 @@ class SetActionRequestWorker(ClientActionWorker):
 				Attribute(id="clientId", description="ID of the client", identifier=True, data_type="str"),
 				Attribute(id="productId", description="ID of the product", identifier=True, data_type="str"),
 				Attribute(id="actionRequest", description="Product action request set", data_type="str"),
+				Attribute(id="actionProgress", description="Product action progress", data_type="str"),
+				Attribute(id="actionResult", description="Product action result", data_type="str"),
+				Attribute(id="installationStatus", description="Product installation status", data_type="str"),
 			]
 		)
 		write_output(
-			data=[{"clientId": poc.clientId, "productId": poc.productId, "actionRequest": poc.actionRequest} for poc in update_pocs],
+			data=[
+				{
+					"clientId": poc.clientId,
+					"productId": poc.productId,
+					"actionRequest": poc.actionRequest,
+					"actionProgress": poc.actionProgress,
+					"actionResult": poc.actionResult,
+					"installationStatus": poc.installationStatus,
+				}
+				for poc in update_pocs
+			],
 			metadata=metadata,
 		)
