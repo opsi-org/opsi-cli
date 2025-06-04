@@ -17,7 +17,7 @@ from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.logging import get_logger
 
 from opsicli.config import DEFAULT_SESSION_LIFETIME, ConfigValueSource, config
-from opsicli.decorators import handle_list_attributes
+from opsicli.decorators import dry_run_handling, handle_list_attributes
 from opsicli.io import OutputType, console_print, prompt, write_output
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.types import OPSIService, Password
@@ -32,6 +32,7 @@ logger = get_logger("opsicli")
 @click.version_option(__version__, message="config plugin, version %(version)s")
 @click.pass_context
 @handle_list_attributes
+@dry_run_handling()
 def cli(ctx: click.Context) -> None:
 	"""
 	opsi-cli config command.

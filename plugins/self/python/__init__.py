@@ -28,6 +28,7 @@ from rich.tree import Tree
 
 from opsicli import __version__ as opsi_cli_version
 from opsicli.config import ConfigValueSource, config
+from opsicli.decorators import dry_run_handling
 from opsicli.io import Attribute, Metadata, OutputType, console_print, get_progress, write_output
 from opsicli.plugin import OPSICLIPlugin, plugin_manager
 from opsicli.types import File
@@ -161,7 +162,9 @@ def print_installed_versions() -> None:
 
 @click.group(name="self", short_help="Manage opsi-cli")
 @click.version_option(__version__, message="self plugin, version %(version)s")
-def cli() -> None:
+@click.pass_context
+@dry_run_handling()
+def cli(ctx: click.Context) -> None:
 	"""
 	opsi-cli self command.
 	This command is used to manage opsi-cli.
@@ -220,6 +223,7 @@ def get_running_shell() -> str:
 	hidden=True,
 )
 @click.pass_context
+@dry_run_handling(dry_run_capable=True)
 def setup_shell_completion(ctx: click.Context, shell: str, completion_file: Path) -> None:
 	"""
 	opsi-cli self setup_shell_completion subcommand.
@@ -295,7 +299,9 @@ def setup_shell_completion(ctx: click.Context, shell: str, completion_file: Path
 	type=File,
 	help="File path to store binary at (deprecated, please use --location).",
 )
-def install(location: str, no_add_to_path: bool, system: bool | None, binary_path: Path | None = None) -> None:
+@click.pass_context
+@dry_run_handling(dry_run_capable=True)
+def install(ctx: click.Context, location: str, no_add_to_path: bool, system: bool | None, binary_path: Path | None = None) -> None:
 	"""
 	opsi-cli self install subcommand.
 
@@ -318,7 +324,10 @@ def install(location: str, no_add_to_path: bool, system: bool | None, binary_pat
 		try:
 			if config.dry_run:
 				logger.notice("Would copy '%s' to '%s', but --dry-run is set", src_binary, binary)
-				console_print(f"Would install opsi-cli to '{binary}', but --dry-run is set.", output_type=OutputType.WARNING_MESSAGE)
+				console_print(
+					f"Installation skipped: would install opsi-cli to '{binary}'.",
+					output_type=OutputType.WARNING_MESSAGE,
+				)
 			else:
 				logger.notice("Copying '%s' to '%s'", src_binary, binary)
 				console_print(f"Installing opsi-cli to '{binary}'.", output_type=OutputType.MESSAGE)
@@ -370,7 +379,9 @@ def install(location: str, no_add_to_path: bool, system: bool | None, binary_pat
 	help="Allow to 'upgrade' to a version that is older than the current instance.",
 	default=False,
 )
-def upgrade(branch: str, source_url: str, location: str, allow_downgrade: bool) -> None:
+@click.pass_context
+@dry_run_handling(dry_run_capable=True)
+def upgrade(ctx: click.Context, branch: str, source_url: str, location: str, allow_downgrade: bool) -> None:
 	"""
 	opsi-cli self upgrade subcommand.
 
@@ -418,9 +429,7 @@ def upgrade(branch: str, source_url: str, location: str, allow_downgrade: bool) 
 			try:
 				if config.dry_run:
 					logger.notice("Would replace '%s' with '%s', but --dry-run is set", binary, new_binary)
-					console_print(
-						f"Would upgrade '{binary}' to '{new_version}', but --dry-run is set.", output_type=OutputType.WARNING_MESSAGE
-					)
+					console_print(f"Upgrade skipped: would upgrade '{binary}' to '{new_version}'.", output_type=OutputType.WARNING_MESSAGE)
 				else:
 					logger.notice("Replacing '%s' with '%s'", binary, new_binary)
 					version_parts = new_version.split(".")
@@ -459,7 +468,9 @@ def upgrade(branch: str, source_url: str, location: str, allow_downgrade: bool) 
 	type=File,
 	help="File path to find binary at (deprecated, please use --location)",
 )
-def uninstall(location: str, system: bool | None = None, binary_path: Path | None = None) -> None:
+@click.pass_context
+@dry_run_handling(dry_run_capable=True)
+def uninstall(ctx: click.Context, location: str, system: bool | None = None, binary_path: Path | None = None) -> None:
 	"""
 	opsi-cli self uninstall subcommand.
 
@@ -473,7 +484,7 @@ def uninstall(location: str, system: bool | None = None, binary_path: Path | Non
 			if binary.exists():
 				if config.dry_run:
 					logger.notice("Would remove binary '%s', but --dry-run is set", binary)
-					console_print(f"Would remove binary '{binary}', but --dry-run is set.", output_type=OutputType.WARNING_MESSAGE)
+					console_print(f"Uninstallation skipped: would remove binary '{binary}'.", output_type=OutputType.WARNING_MESSAGE)
 				else:
 					logger.notice("Removing binary '%s'", binary)
 					console_print(f"Removing binary '{binary}'.", output_type=OutputType.MESSAGE)
@@ -494,7 +505,7 @@ def uninstall(location: str, system: bool | None = None, binary_path: Path | Non
 				if config.dry_run:
 					logger.notice("Would remove config file '%s', but --dry-run is set", config_file)
 					console_print(
-						f"Would remove config file '{config_file}', but --dry-run is set.", output_type=OutputType.WARNING_MESSAGE
+						f"Uninstallation skipped: would remove config file '{config_file}'.", output_type=OutputType.WARNING_MESSAGE
 					)
 				else:
 					logger.notice("Removing config file '%s'", config_file)

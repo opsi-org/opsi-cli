@@ -10,6 +10,7 @@ opsi-cli terminal plugin
 import rich_click as click
 from opsicommon.logging import get_logger
 
+from opsicli.decorators import dry_run_handling
 from opsicli.messagebus import TerminalMessagebusConnection
 from opsicli.plugin import OPSICLIPlugin
 
@@ -24,7 +25,9 @@ logger = get_logger("opsicli")
 @click.argument("target", type=str, required=True)
 @click.option("--terminal-id", help="Connect to existing terminal session with this id.")
 @click.option("--shell", help="Use this shell for the terminal session.")
-def cli(target: str, terminal_id: str | None, shell: str | None) -> None:
+@click.pass_context
+@dry_run_handling()
+def cli(ctx: click.Context, target: str, terminal_id: str | None, shell: str | None) -> None:
 	"""
 	This command starts an interactive console session.
 	It connects to the specified target host-id (opsi Client, Depotserver or Configserver).

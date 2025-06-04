@@ -68,7 +68,7 @@ def test_self_upgrade(location: str) -> None:
 		exit_code, stdout, stderr = run_cli(cmd)
 		print(stdout)
 		print(stderr)
-		assert "Would upgrade" in stderr
+		assert "Upgrade skipped: would upgrade" in stderr
 		assert exit_code == 0
 
 

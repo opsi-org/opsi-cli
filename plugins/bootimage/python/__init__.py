@@ -12,6 +12,7 @@ from opsicommon.logging import get_logger
 from opsicommon.objects import Config, ConfigState
 from purecrypt import Crypt, Method  # type: ignore[import]
 
+from opsicli.decorators import dry_run_handling
 from opsicli.io import Attribute, Metadata, OutputType, console_print, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
@@ -105,6 +106,7 @@ def set_append_values(values: dict[str, str] | None = None, flags: list[str] | N
 @click.version_option(__version__, message="opsi-cli plugin bootimage, version %(version)s")
 @click.option("--client", help="set value specific for this client", type=str)
 @click.pass_context
+@dry_run_handling()
 def cli(ctx: click.Context, client: str | None) -> None:
 	"""
 	Custom plugin to edit bootimage append configs

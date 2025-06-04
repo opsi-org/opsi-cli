@@ -408,12 +408,15 @@ def test_set_action_request_where(
 				for client_id, actions in unprocessed_actions.items():
 					assert all(act == "none" for act in actions.values())
 
-		stderr = stderr.replace("\n", " ")
+		stderr = " ".join(stderr.split())
 		if dry_run:
+			warning_msg = "WARNING: Operating in dry-run mode - no actions will be performed."
 			if process:
-				assert stderr.startswith("Action requests would have been set and processing would have been started. Here are the updated")
+				assert stderr.startswith(
+					warning_msg + " Action requests would have been set and processing would have been started. Here are the updated"
+				)
 			else:
-				assert stderr.startswith("Action requests would have been set. Here are the updated")
+				assert stderr.startswith(warning_msg + " Action requests would have been set. Here are the updated")
 		else:
 			if process:
 				assert stderr.startswith("Action requests have been set and processing was started. Here are the updated")
