@@ -17,7 +17,7 @@ from ipaddress import ip_network
 from opsicommon.logging import get_logger
 from opsicommon.objects import Group as GroupObject
 from opsicommon.objects import ObjectToGroup, OpsiClient
-from opsicommon.types import forceHostId
+from opsicommon.types import forceActionRequest, forceGroupId, forceHostId, forceIPAddress
 from opsicommon.utils import ip_address_in_network
 
 from opsicli.io import deprecation_warning
@@ -33,16 +33,38 @@ class Group:
 	subgroups: list[Group] = field(default_factory=list)
 
 
-@dataclass
 class ClientActionArgs:
-	clients: str | None = None
-	client_groups: str | None = None
-	clients_from_depots: str | None = None
-	ip_addresses: str | None = None
-	exclude_clients: str | None = None
-	exclude_client_groups: str | None = None
-	exclude_ip_addresses: str | None = None
-	only_online: bool = False
+	def __init__(
+		self,
+		clients: str | None = None,
+		client_groups: str | None = None,
+		clients_from_depots: str | None = None,
+		ip_addresses: str | None = None,
+		exclude_clients: str | None = None,
+		exclude_client_groups: str | None = None,
+		exclude_ip_addresses: str | None = None,
+		where_action_request: str | None = None,
+		only_online: bool = False,
+	) -> None:
+		self.clients: set[str] = {
+			"all" if client.strip().lower() == "all" else forceHostId(client.strip())
+			for client in (clients or "").split(",")
+			if client.strip()
+		}
+		self.client_groups: set[str] = {forceGroupId(group.strip()) for group in (client_groups or "").split(",") if group.strip()}
+		self.clients_from_depots: set[str] = {
+			forceHostId(depot.strip()) for depot in (clients_from_depots or "").split(",") if depot.strip()
+		}
+		self.ip_addresses: set[str] = {forceIPAddress(ip.strip()) for ip in (ip_addresses or "").split(",") if ip.strip()}
+		self.exclude_clients: set[str] = {forceHostId(client.strip()) for client in (exclude_clients or "").split(",") if client.strip()}
+		self.exclude_client_groups: set[str] = {
+			forceGroupId(group.strip()) for group in (exclude_client_groups or "").split(",") if group.strip()
+		}
+		self.exclude_ip_addresses: set[str] = {forceIPAddress(ip.strip()) for ip in (exclude_ip_addresses or "").split(",") if ip.strip()}
+		self.where_action_request: set[str] = {
+			forceActionRequest(request.strip()) for request in (where_action_request or "").split(",") if request.strip()
+		}
+		self.only_online: bool = only_online
 
 
 class NoClientsSelected(OpsiCliRuntimeError):
@@ -105,42 +127,49 @@ class ClientActionWorker:
 
 	def determine_clients(self, args: ClientActionArgs) -> None:
 		self.clients = set()
-		args.clients = (args.clients or "").lower()
-		all_clients = {client.id for client in self.service.jsonrpc("host_getObjects", [[], {"type": "OpsiClient"}])}
+		all_clients: set[str] = {client.id for client in self.service.jsonrpc("host_getObjects", [[], {"type": "OpsiClient"}])}
 
 		if not args.clients and not args.client_groups and not args.ip_addresses and not args.clients_from_depots and self.default_all:
 			deprecation_warning(
 				"No clients selected, defaulting to all clients.\nThis is deprecated, please use `--clients all` to select all clients.\n"
 			)
-			args.clients = "all"
+			args.clients = {"all"}
 		if "all" in args.clients:
 			self.clients = all_clients
 		else:
 			if args.clients:
-				specified_clients = {forceHostId(entry.strip()) for entry in args.clients.split(",")}
-				clients_not_found = specified_clients - all_clients
+				clients_not_found = args.clients - all_clients
 				if clients_not_found:
 					raise ValueError(f"Clients not found: {clients_not_found}")
-				self.clients.update(specified_clients)
+				self.clients.update(args.clients)
 			if args.client_groups:
-				for group in [entry.strip() for entry in args.client_groups.split(",")]:
+				for group in args.client_groups:
 					self.clients.update(self.client_ids_from_group(group))
 			if args.ip_addresses:
-				for ip_address in args.ip_addresses.split(","):
+				for ip_address in args.ip_addresses:
 					self.clients.update(self.client_ids_with_ip(ip_address))
 			if args.clients_from_depots:
-				for depot in args.clients_from_depots.split(","):
+				for depot in args.clients_from_depots:
 					self.clients.update(self.client_ids_from_depot(depot))
+
+		if args.where_action_request:
+			self.clients = {
+				poc[2]
+				for poc in self.service.jsonrpc(
+					"productOnClient_getIdents",
+					["tuple", {"clientId": list(self.clients), "actionRequest": list(args.where_action_request)}],
+				)
+			}
 
 		exclude_clients = set()
 		if args.exclude_clients:
-			exclude_clients = {forceHostId(exclude.strip()) for exclude in args.exclude_clients.split(",")}
+			exclude_clients = args.exclude_clients
 		if args.exclude_client_groups:
-			for group in [entry.strip() for entry in args.exclude_client_groups.split(",")]:
+			for group in args.exclude_client_groups:
 				exclude_clients.update(self.client_ids_from_group(group))
 		if args.exclude_ip_addresses:
-			for ip_address in args.exclude_ip_addresses.split(","):
-				exclude_clients.update(self.client_ids_with_ip(ip_address.strip()))
+			for ip_address in args.exclude_ip_addresses:
+				exclude_clients.update(self.client_ids_with_ip(ip_address))
 		self.clients -= exclude_clients
 
 		if not self.clients:

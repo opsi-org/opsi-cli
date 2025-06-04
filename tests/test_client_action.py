@@ -10,6 +10,7 @@ test_client_action
 import contextlib
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Any, Literal
 from unittest.mock import patch
@@ -19,6 +20,9 @@ from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.objects import ProductOnClient
 
 from .utils import run_cli, tmp_client, tmp_host_group, tmp_product, tmp_product_group
+
+sys.path.append(str(Path("./plugins/client-action").resolve()))
+from python.client_action_worker import ClientActionArgs  # type: ignore[import-not-found]
 
 CLIENT1 = "pytest-client1.test.tld"
 CLIENT2 = "pytest-client2.test.tld"
@@ -30,6 +34,57 @@ PRODUCT4 = "pytest-product4"
 H_GROUP1 = "pytest-test-host-group"
 H_GROUP2 = "pytest-nested-host-group"
 P_GROUP = "pytest-test-product-group"
+
+
+def test_ClientActionArgs() -> None:
+	args = ClientActionArgs()
+	assert args.clients == set()
+	assert args.client_groups == set()
+	assert args.clients_from_depots == set()
+	assert args.ip_addresses == set()
+	assert args.exclude_clients == set()
+	assert args.exclude_client_groups == set()
+	assert args.exclude_ip_addresses == set()
+	assert args.where_action_request == set()
+	assert args.only_online is False
+
+	args = ClientActionArgs(
+		clients=" all, client2.opsi.test, client2.opsi.test",
+		client_groups=" group1 , group2 ",
+		clients_from_depots="depot1.opsi.test ,depot2.opsi.test ,depot2.opsi.test",
+		ip_addresses="10.10.10.1,::1",
+		exclude_clients="client1.opsi.test",
+		exclude_client_groups="group4,group3, group4",
+		exclude_ip_addresses="192.168.1.1, ::1",
+		where_action_request="setup, uninstall",
+		only_online=True,
+	)
+	assert args.clients == {"all", "client2.opsi.test"}
+	assert args.client_groups == {"group1", "group2"}
+	assert args.clients_from_depots == {"depot1.opsi.test", "depot2.opsi.test"}
+	assert args.ip_addresses == {"10.10.10.1", "::1"}
+	assert args.exclude_clients == {"client1.opsi.test"}
+	assert args.exclude_client_groups == {"group3", "group4"}
+	assert args.exclude_ip_addresses == {"192.168.1.1", "::1"}
+	assert args.where_action_request == {"setup", "uninstall"}
+	assert args.only_online is True
+
+	with pytest.raises(ValueError):
+		ClientActionArgs(clients="invalid_client")
+	with pytest.raises(ValueError):
+		ClientActionArgs(client_groups="invalid ; group")
+	with pytest.raises(ValueError):
+		ClientActionArgs(clients_from_depots="invalid ; depot")
+	with pytest.raises(ValueError):
+		ClientActionArgs(ip_addresses="invalid_ip")
+	with pytest.raises(ValueError):
+		ClientActionArgs(exclude_clients="invalid_client")
+	with pytest.raises(ValueError):
+		ClientActionArgs(exclude_client_groups="invalid ; group")
+	with pytest.raises(ValueError):
+		ClientActionArgs(exclude_ip_addresses="invalid_ip")
+	with pytest.raises(ValueError):
+		ClientActionArgs(where_action_request="invalid_request")
 
 
 @pytest.mark.opsi_service
@@ -378,6 +433,90 @@ def test_set_action_request_where(
 					)
 		data = json.loads(stdout)
 		assert len(expected_data) == len(data)
+
+
+@pytest.mark.opsi_service
+@pytest.mark.parametrize(
+	"where_action_request,  expected_client_ids",
+	(
+		("setup", {CLIENT1, CLIENT2}),
+		("uninstall", {CLIENT2}),
+		("always", {CLIENT1}),
+		("setup, uninstall", {CLIENT1, CLIENT2}),
+		("always, once, always", {CLIENT1}),
+	),
+)
+def test_where_action_request(admin_service_client: ServiceClient, where_action_request: str, expected_client_ids: set[str]) -> None:
+	with (
+		tmp_client(admin_service_client, CLIENT1),
+		tmp_client(admin_service_client, CLIENT2),
+		tmp_product(admin_service_client, PRODUCT1) as product1,
+		tmp_product(admin_service_client, PRODUCT2) as product2,
+		tmp_product(admin_service_client, PRODUCT3) as product3,
+		tmp_product(admin_service_client, PRODUCT4) as product4,
+	):
+		# Create product on clients
+		pocs: list[ProductOnClient] = [
+			# product1 once on client1
+			ProductOnClient(
+				clientId=CLIENT1,
+				productId=product1.id,
+				productType=product1.getType(),
+				actionRequest="once",
+			),
+			# product2 setup on client1
+			ProductOnClient(
+				clientId=CLIENT1,
+				productId=product2.id,
+				productType=product2.getType(),
+				actionRequest="setup",
+			),
+			# product3 always on client1
+			ProductOnClient(
+				clientId=CLIENT1,
+				productId=product3.id,
+				productType=product3.getType(),
+				actionRequest="always",
+			),
+			# product1 setup on client2
+			ProductOnClient(
+				clientId=CLIENT2,
+				productId=product1.id,
+				productType=product1.getType(),
+				actionRequest="setup",
+			),
+			# product4 uninstall on client2
+			ProductOnClient(
+				clientId=CLIENT2,
+				productId=product4.id,
+				productType=product4.getType(),
+				actionRequest="uninstall",
+			),
+		]
+
+		admin_service_client.jsonrpc("productOnClient_createObjects", params=[pocs])
+
+		cmd = [
+			"--output-format",
+			"json",
+			"client-action",
+			"--clients",
+			"all",
+			"--where-action-request",
+			where_action_request,
+			"set-action-request",
+			"--products",
+			PRODUCT1,
+			"--set-action-request",
+			"setup",
+		]
+		exit_code, stdout, stderr = run_cli(cmd)
+		assert exit_code == 0
+
+		data = json.loads(stdout)
+		print(data)
+		client_ids = {item["clientId"] for item in data}
+		assert client_ids == expected_client_ids
 
 
 @pytest.mark.opsi_service
