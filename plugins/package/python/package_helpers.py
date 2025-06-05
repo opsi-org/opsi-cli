@@ -470,7 +470,7 @@ def upload_to_repository(
 			depot_connection.upload(
 				file,
 				f"/repository/{filename}",
-				progress_callback=ProgressCallbackAdapter(progress, f"Uploading '{filename}'...").progress_callback,
+				progress_callback=ProgressCallbackAdapter(progress, f"Uploading '{filename}' to depot '{depot_id}'...").progress_callback,
 			)
 
 		logger.notice("Finished upload of file %r to depot %r", filename, depot_id)
