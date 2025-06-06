@@ -7,7 +7,8 @@ license = "AGPL-3.0-only"
 requires-python = ">=3.11,<3.14"
 dependencies = [
 	"annotated-types>=0.7",
-	"click>=8.1",
+	# Pin click for now, tests need to be reworked for 8.2
+	"click>=8.1,<8.2",
 	"msgpack>=1.0",
 	"orjson>=3.6",
 	"pip>=25.0.1",
