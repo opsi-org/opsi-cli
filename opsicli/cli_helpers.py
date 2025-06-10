@@ -1,14 +1,17 @@
 from typing import Optional
 
 import rich_click as click
-from rich.console import Console
+from rich.padding import Padding
 from rich.panel import Panel
 from rich.text import Text
 from rich.tree import Tree
 from rich_click.rich_click import rich_format_help
 
+from opsicli.config import config
+from opsicli.io import OutputType, console_print
 
-def _get_command_hierarchy(ctx: click.Context) -> Panel:
+
+def _get_command_hierarchy(ctx: click.Context) -> Tree:
 	chain = []
 	current: Optional[click.Context] = ctx
 	while current:
@@ -37,25 +40,63 @@ def _get_command_hierarchy(ctx: click.Context) -> Panel:
 			(f"  {help_text}" if help_text else ""),
 		)
 		parent = parent.add(label)
-	return Panel(tree, title="Command Hierarchy", title_align="left", padding=(0, 1), border_style="grey37")
+	return tree
 
 
-class OpsiCLICommand(click.Command):
+class OPSICLICommand(click.Command):
 	def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
-		rich_format_help(self, ctx, formatter)
-		console = Console()
-		console.print(_get_command_hierarchy(ctx))
+		config.read_config_files()
+		use_rich = config.color and "rich_format_help" in globals()
+		if use_rich:
+			rich_format_help(self, ctx, formatter)
+			console_print(
+				Panel(
+					_get_command_hierarchy(ctx),
+					title="Command Hierarchy",
+					title_align="left",
+					padding=(0, 1),
+					border_style="grey37",
+				),
+				output_type=OutputType.DATA,
+			)
+		else:
+			formatter = click.HelpFormatter()
+			super().format_help(ctx, formatter)
+			help_text = formatter.getvalue()
+			console_print(help_text, output_type=OutputType.DATA)
+
+			console_print("Command Hierarchy:", output_type=OutputType.DATA)
+			console_print(Padding(_get_command_hierarchy(ctx), (0, 2)), output_type=OutputType.DATA)
 
 
-class OpsiCLIGroup(click.Group):
+class OPSICLIGroup(click.Group):
 	def add_command(self, cmd: click.Command, name: Optional[str] = None) -> None:
-		if isinstance(cmd, click.Group) and not isinstance(cmd, OpsiCLIGroup):
-			cmd.__class__ = OpsiCLIGroup
-		elif isinstance(cmd, click.Command) and not isinstance(cmd, OpsiCLICommand):
-			cmd.__class__ = OpsiCLICommand
+		if isinstance(cmd, click.Group) and not isinstance(cmd, OPSICLIGroup):
+			cmd.__class__ = OPSICLIGroup
+		elif isinstance(cmd, click.Command) and not isinstance(cmd, OPSICLICommand):
+			cmd.__class__ = OPSICLICommand
 		super().add_command(cmd, name)
 
 	def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
-		rich_format_help(self, ctx, formatter)
-		console = Console()
-		console.print(_get_command_hierarchy(ctx))
+		config.read_config_files()
+		use_rich = config.color and "rich_format_help" in globals()
+		if use_rich:
+			rich_format_help(self, ctx, formatter)
+			console_print(
+				Panel(
+					_get_command_hierarchy(ctx),
+					title="Command Hierarchy",
+					title_align="left",
+					padding=(0, 1),
+					border_style="grey37",
+				),
+				output_type=OutputType.DATA,
+			)
+		else:
+			formatter = click.HelpFormatter()
+			super().format_help(ctx, formatter)
+			help_text = formatter.getvalue()
+			console_print(help_text, output_type=OutputType.DATA)
+
+			console_print("Command Hierarchy:", output_type=OutputType.DATA)
+			console_print(Padding(_get_command_hierarchy(ctx), (0, 2)), output_type=OutputType.DATA)
