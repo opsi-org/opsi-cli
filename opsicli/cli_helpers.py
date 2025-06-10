@@ -37,7 +37,7 @@ def _get_command_hierarchy(ctx: click.Context) -> Panel:
 			(f"  {help_text}" if help_text else ""),
 		)
 		parent = parent.add(label)
-	return Panel(tree, title="Command Path", padding=(0, 1))
+	return Panel(tree, title="Command Hierarchy", title_align="left", padding=(0, 1), border_style="grey37")
 
 
 class OpsiCLICommand(click.Command):
