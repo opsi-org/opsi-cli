@@ -14,6 +14,7 @@ import sys
 import rich_click as click
 from opsicommon.logging import get_logger
 
+from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_handling
 from opsicli.io import deprecation_warning
 from opsicli.plugin import OPSICLIPlugin
@@ -29,7 +30,7 @@ __description__ = "This command can be used to manage opsi client actions."
 logger = get_logger("opsicli")
 
 
-@click.group(name="client-action", short_help="Manage client actions")
+@click.group(cls=OPSICLIGroup, name="client-action", short_help="Manage client actions")
 @click.version_option(__version__, message="opsi-cli plugin client-action, version %(version)s")
 @click.pass_context
 @click.option("--clients", help="Comma-separated list of client IDs or 'all' for all clients.")

@@ -20,6 +20,7 @@ import rich_click as click
 from click.shell_completion import CompletionItem
 from opsicommon.logging import get_logger
 
+from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.config import config
 from opsicli.decorators import dry_run_handling, handle_list_attributes
 from opsicli.io import OutputType, console_print, prompt, write_output
@@ -31,7 +32,7 @@ __version__ = "0.1.2"
 logger = get_logger("opsicli")
 
 
-@click.group(name="plugin", short_help="Manage opsi-cli plugins")
+@click.group(cls=OPSICLIGroup, name="plugin", short_help="Manage opsi-cli plugins")
 @click.version_option(__version__, message="opsi plugin, version %(version)s")
 @click.pass_context
 @handle_list_attributes

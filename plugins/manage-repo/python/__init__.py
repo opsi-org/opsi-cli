@@ -19,6 +19,7 @@ from opsicommon.package.repo_meta import (
 	RepoMetaPackageCompatibility,
 )
 
+from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_handling
 from opsicli.plugin import OPSICLIPlugin
 
@@ -47,7 +48,7 @@ def add_changelog_and_releasenote_url(package: RepoMetaPackage) -> None:
 		package.release_notes_url = release_notes_url
 
 
-@click.group(name="manage-repo", short_help="opsi-package-repository management.")
+@click.group(cls=OPSICLIGroup, name="manage-repo", short_help="opsi-package-repository management.")
 @click.version_option(__version__, message="opsi-cli opsi-package-repository management, version %(version)s")
 @click.pass_context
 @dry_run_handling()

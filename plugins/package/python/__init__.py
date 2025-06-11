@@ -18,6 +18,7 @@ from opsicommon.package import OpsiPackage
 from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
 from opsicommon.utils import make_temp_dir
 
+from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.config import config
 from opsicli.decorators import dry_run_handling, handle_list_attributes
 from opsicli.io import OutputType, console_print, get_progress, write_output
@@ -51,7 +52,7 @@ __description__ = "Manage opsi packages"
 logger = get_logger("opsicli")
 
 
-@click.group(name="package", short_help="Manage opsi packages")
+@click.group(cls=OPSICLIGroup, name="package", short_help="Manage opsi packages")
 @click.version_option(__version__, message="opsi-cli plugin package, version %(version)s")
 @click.pass_context
 @handle_list_attributes

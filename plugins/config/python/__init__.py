@@ -16,6 +16,7 @@ from click.shell_completion import CompletionItem
 from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.logging import get_logger
 
+from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.config import DEFAULT_SESSION_LIFETIME, ConfigValueSource, config
 from opsicli.decorators import dry_run_handling, handle_list_attributes
 from opsicli.io import OutputType, console_print, prompt, write_output
@@ -28,7 +29,7 @@ __version__ = "0.1.0"
 logger = get_logger("opsicli")
 
 
-@click.group(name="config", short_help="Manage opsi-cli configuration")
+@click.group(cls=OPSICLIGroup, name="config", short_help="Manage opsi-cli configuration")
 @click.version_option(__version__, message="config plugin, version %(version)s")
 @click.pass_context
 @handle_list_attributes

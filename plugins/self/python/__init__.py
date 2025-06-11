@@ -27,6 +27,7 @@ from opsicommon.system.info import is_posix, is_windows
 from rich.tree import Tree
 
 from opsicli import __version__ as opsi_cli_version
+from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.config import ConfigValueSource, config
 from opsicli.decorators import dry_run_handling
 from opsicli.io import Attribute, Metadata, OutputType, console_print, get_progress, write_output
@@ -160,7 +161,7 @@ def print_installed_versions() -> None:
 	write_output(data, installed_version_metadata)
 
 
-@click.group(name="self", short_help="Manage opsi-cli")
+@click.group(cls=OPSICLIGroup, name="self", short_help="Manage opsi-cli")
 @click.version_option(__version__, message="self plugin, version %(version)s")
 @click.pass_context
 @dry_run_handling()
