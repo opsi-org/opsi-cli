@@ -35,17 +35,20 @@ def _get_all_parent_options(ctx: click.Context) -> list[tuple[str, list[click.Op
 
 def _format_option_lines(opts: list[click.Option], col_width: int, use_rich: bool, console: Any) -> list[str]:
 	lines = []
+	console_width = getattr(console, "width", 100)
+	wrap_width = max(20, console_width - col_width)
 	for p in opts:
 		opts_str = f"[cyan]{', '.join(p.opts)}[/cyan]".ljust(col_width) if use_rich else ", ".join(p.opts).ljust(col_width)
 		help_str = p.help or ""
 		if not use_rich:
 			help_str = _METAVAR_RE.sub(r"\1", help_str)
 		help_text = Text.from_markup(help_str)
-		wrapped_lines = Text.wrap(help_text, console, width=100 - col_width)
+		wrapped_lines = Text.wrap(help_text, console, width=wrap_width)
 		for i, line in enumerate(wrapped_lines):
-			indent = col_width - (13 if use_rich else 0)
-			prefix = opts_str if i == 0 else " " * indent
-			lines.append(f"{prefix}[grey50]{line}[/grey50]") if use_rich else lines.append(f"{prefix}{line}")
+			if use_rich:
+				lines.append(f"{opts_str if i == 0 else ' ' * (col_width - 13)}[grey50]{line}[/grey50]")
+			else:
+				lines.append(f"{opts_str if i == 0 else ' ' * col_width}{line}")
 	return lines
 
 
