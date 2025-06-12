@@ -48,6 +48,8 @@ pytest-windows:
 
 pytest-linux:
   stage: test_python
+  tags:
+    - docker-x64
   services:
     - name: mysql:8.0
       command:
@@ -58,7 +60,7 @@ pytest-linux:
     - name: docker.uib.gmbh/opsi/opsi-server:4.3-development
       alias: opsiconfd
   variables:
-    FF_NETWORK_PER_BUILD: "1"  # Create a new network for each build
+    FF_NETWORK_PER_BUILD: "1" # Create a new network for each build
     #CI_DEBUG_SERVICES: "true"  # Show debug information for services in ci
     MYSQL_ROOT_PASSWORD: "opsi"
     MYSQL_DATABASE: "opsitest"
@@ -93,6 +95,8 @@ pytest-linux:
 
 lint-pytest:
   stage: test_python
+  tags:
+    - docker-x64
   needs:
     # We want to combine test coverage from all test jobs
     - job: pytest-windows
@@ -132,6 +136,8 @@ lint-pytest:
 
 linux-x64-pyinstaller:
   stage: build
+  tags:
+    - docker-x64
   script:
     - export LC_ALL=C.UTF-8
     - - curl -sS "${OPSIDEVTOOLS_INSTALLER_URL_LINUX_X64}" | sh
@@ -160,7 +166,7 @@ linux-x64-pyinstaller:
 linux-arm64-pyinstaller:
   stage: build
   tags:
-    - linux-arm64
+    - docker-arm64
   script:
     - export LC_ALL=C.UTF-8
     - curl -sS "${OPSIDEVTOOLS_INSTALLER_URL_LINUX_ARM64}" | sh
@@ -270,6 +276,8 @@ windows-x86-pyinstaller:
 
 makeopsipackage:
   stage: package
+  tags:
+    - docker-x64
   script:
     # Disregard any information from OPSI and write controlfile according to pyproject.toml version and CI_JOB_ID
     - version=$(cat pyproject.toml | grep -e "^version = " | head -n 1 | cut -d \" -f 2)
@@ -295,6 +303,8 @@ makeopsipackage:
 
 test_all_systems:
   stage: test_package
+  tags:
+    - docker-x64
   script:
     - *runtest
   only:
@@ -302,6 +312,8 @@ test_all_systems:
 
 test_all_systems_manual:
   stage: test_package
+  tags:
+    - docker-x64
   script:
     - *runtest
   when: manual
