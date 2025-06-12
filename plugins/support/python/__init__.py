@@ -12,6 +12,7 @@ from pathlib import Path
 import rich_click as click
 from opsicommon.logging import get_logger
 
+from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_handling, handle_list_attributes
 from opsicli.io import OutputType, console_print, write_output
 from opsicli.messagebus import JSONRPCMessagebusConnection
@@ -28,7 +29,7 @@ __description__ = "This command can be used to identify potential problems in an
 logger = get_logger("opsicli")
 
 
-@click.group(name="support", short_help="Custom plugin support")
+@click.group(cls=OPSICLIGroup, name="support", short_help="Custom plugin support")
 @click.version_option(__version__, message="opsi-cli plugin support, version %(version)s")
 @click.pass_context
 @handle_list_attributes

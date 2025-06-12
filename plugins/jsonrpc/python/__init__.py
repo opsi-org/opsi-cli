@@ -17,6 +17,7 @@ from click.shell_completion import CompletionItem
 from opsicommon.logging import get_logger
 
 from opsicli.cache import cache
+from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.config import config
 from opsicli.decorators import dry_run_handling, handle_list_attributes
 from opsicli.io import deprecation_warning, output_file_is_stdout, read_input, write_output
@@ -36,7 +37,7 @@ def cache_interface(interface: list[dict[str, Any]]) -> None:
 		cache.set("jsonrpc-interface-raw", interface)
 
 
-@click.group(name="jsonrpc", short_help="opsi JSONRPC client")
+@click.group(cls=OPSICLIGroup, name="jsonrpc", short_help="opsi JSONRPC client")
 @click.version_option(__version__, message="jsonrpc plugin, version %(version)s")
 @click.pass_context
 @handle_list_attributes

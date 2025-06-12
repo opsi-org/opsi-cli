@@ -12,6 +12,7 @@ from opsicommon.logging import get_logger
 from opsicommon.objects import Config, ConfigState
 from purecrypt import Crypt, Method  # type: ignore[import]
 
+from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_handling
 from opsicli.io import Attribute, Metadata, OutputType, console_print, write_output
 from opsicli.opsiservice import get_service_connection
@@ -102,7 +103,7 @@ def set_append_values(values: dict[str, str] | None = None, flags: list[str] | N
 	service.jsonrpc("config_updateObjects", [configs])
 
 
-@click.group(name="bootimage", short_help="Plugin for bootimage configuration")
+@click.group(cls=OPSICLIGroup, name="bootimage", short_help="Plugin for bootimage configuration")
 @click.version_option(__version__, message="opsi-cli plugin bootimage, version %(version)s")
 @click.option("--client", help="set value specific for this client", type=str)
 @click.pass_context

@@ -10,6 +10,7 @@ opsi-cli terminal plugin
 import rich_click as click
 from opsicommon.logging import get_logger
 
+from opsicli.cli_helpers import OPSICLICommand
 from opsicli.decorators import dry_run_handling
 from opsicli.messagebus import TerminalMessagebusConnection
 from opsicli.plugin import OPSICLIPlugin
@@ -20,7 +21,7 @@ __description__ = "This plugin allows to open a remote terminal on a host."
 logger = get_logger("opsicli")
 
 
-@click.command(name="terminal", short_help="Start remote terminal session")
+@click.command(cls=OPSICLICommand, name="terminal", short_help="Start remote terminal session")
 @click.version_option(__version__, message="opsi-cli plugin terminal, version %(version)s")
 @click.argument("target", type=str, required=True)
 @click.option("--terminal-id", help="Connect to existing terminal session with this id.")

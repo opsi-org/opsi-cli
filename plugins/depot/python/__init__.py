@@ -12,6 +12,7 @@ import sys
 import rich_click as click
 from opsicommon.logging import get_logger
 
+from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_handling
 from opsicli.plugin import OPSICLIPlugin
 
@@ -24,7 +25,7 @@ __description__ = "plugin for controlling opsi depots"
 logger = get_logger("opsicli")
 
 
-@click.group(name="depot", short_help="plugin for controlling opsi depots")
+@click.group(cls=OPSICLIGroup, name="depot", short_help="plugin for controlling opsi depots")
 @click.version_option(__version__, message="opsi-cli plugin depot, version %(version)s")
 @click.option("--depots", help="comma separated list of depots, or 'all'")
 @click.pass_context

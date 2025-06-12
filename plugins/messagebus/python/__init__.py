@@ -18,6 +18,7 @@ import rich_click as click
 from opsicommon.logging import get_logger
 from opsicommon.messagebus.message import EventMessage
 
+from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_handling
 from opsicli.io import write_output
 from opsicli.messagebus import MessagebusConnection
@@ -114,7 +115,7 @@ class EventMessagebusConnection(MessagebusConnection):
 			self.event_found_event.clear()
 
 
-@click.group(name="messagebus", short_help="Command group to interact with opsi messagebus")
+@click.group(cls=OPSICLIGroup, name="messagebus", short_help="Command group to interact with opsi messagebus")
 @click.version_option(__version__, message="opsi-cli plugin messagebus, version %(version)s")
 @click.pass_context
 @dry_run_handling()
