@@ -27,6 +27,7 @@ from opsicommon.objects import (
 from opsicommon.package import OpsiPackage
 from opsicommon.package.archive import extract_archive
 from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
+from opsicommon.types import forceHostIdList
 
 from opsicli.io import Attribute, Metadata, OutputType, console_print, get_progress, prompt, write_output
 from opsicli.opsiservice import get_depot_connection
@@ -48,7 +49,7 @@ def get_depot_objects(service_client: ServiceClient, depots: str) -> list[OpsiDe
 	depot_filter: dict[str, str | list[str]] = (
 		{"type": "OpsiDepotserver"}
 		if depots == "all"
-		else {"id": [depot.strip() for depot in depots.split(",")]}
+		else {"id": forceHostIdList([depot.strip().lower() for depot in depots.split(",")])}
 		if depots
 		else {"type": "OpsiConfigserver"}
 	)
