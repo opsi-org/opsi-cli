@@ -1,74 +1,90 @@
+import os
+import re
 from typing import Any, Optional
 
-import rich_click as click
-from rich.padding import Padding
 from rich.panel import Panel
 from rich.text import Text
-from rich.tree import Tree
 from rich_click.rich_click import rich_format_help
 
 from opsicli.config import config
-from opsicli.io import OutputType, console_print
+from opsicli.io import OutputType, console_print, get_console
+
+COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE" in os.environ
+
+if COMPLETION_MODE:
+	import click
+else:
+	import rich_click as click  # type: ignore[no-redef]
 
 
-def _get_help(cmd: click.Command) -> str:
-	help_text = getattr(cmd, "short_help", "") or getattr(cmd, "help", "")
-	return help_text.strip().splitlines()[0] if help_text else ""
+_METAVAR_RE = re.compile(r"\[metavar\](.*?)\[/metavar\]")
+_config_loaded = False
 
 
-def _get_command_hierarchy(ctx: click.Context) -> Tree:
-	"""
-	Builds a tree showing the path from the root command to the current subcommand.
-	Each level displays the command name and its short help text.
-	"""
-	chain = []
-	current = ctx
+def _get_all_parent_options(ctx: click.Context) -> list[tuple[str, list[click.Option]]]:
+	result = []
+	current = ctx.parent
 	while current:
-		chain.append(current)
-		if current.parent is None:
-			break
-		current = current.parent
-	chain.reverse()
+		cmd = current.command
+		opts = [p for p in getattr(cmd, "params", []) if isinstance(p, click.Option)]
+		result.append((cmd.name or cmd.__class__.__name__, opts))
+		current = current.parent if isinstance(current.parent, click.Context) else None
+	result.reverse()
+	return result
 
-	root_cmd = chain[0].command
-	root_label = Text.assemble(
-		("opsi-cli", "bold cyan"),
-		(f"  {_get_help(root_cmd)}" if _get_help(root_cmd) else ""),
-	)
-	tree = Tree(root_label)
-	parent = tree
-	for c in chain[1:]:
-		cmd = c.command
-		label = Text.assemble(
-			(str(cmd.name), "bold cyan"),
-			(f"  {_get_help(cmd)}" if _get_help(cmd) else ""),
-		)
-		parent = parent.add(label)
-	return tree
+
+def _format_option_lines(opts: list[click.Option], col_width: int, use_rich: bool, console: Any) -> list[str]:
+	lines = []
+	for p in opts:
+		opts_str = f"[cyan]{', '.join(p.opts)}[/cyan]".ljust(col_width) if use_rich else ", ".join(p.opts).ljust(col_width)
+		help_str = p.help or ""
+		if not use_rich:
+			help_str = _METAVAR_RE.sub(r"\1", help_str)
+		help_text = Text.from_markup(help_str)
+		wrapped_lines = Text.wrap(help_text, console, width=100 - col_width)
+		for i, line in enumerate(wrapped_lines):
+			indent = col_width - (13 if use_rich else 0)
+			prefix = opts_str if i == 0 else " " * indent
+			lines.append(f"{prefix}[grey50]{line}[/grey50]") if use_rich else lines.append(f"{prefix}{line}")
+	return lines
 
 
 def _format_help(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -> None:
-	config.read_config_files()
+	global _config_loaded
+	if not _config_loaded:
+		config.read_config_files()
+		_config_loaded = True
+	parent_opts_by_cmd = _get_all_parent_options(ctx)
 	use_rich = config.color and "rich_format_help" in globals()
+	console = get_console(output_type=OutputType.DATA)
+
+	for cmd_name, opts in parent_opts_by_cmd:
+		if not opts:
+			continue
+		display_cmd_name = "Global" if cmd_name.lower() == "main" else cmd_name.capitalize()
+		col_width = 44 if use_rich else max(20, *(len(opt) + 5 for p in opts for opt in p.opts))
+		lines = _format_option_lines(opts, col_width, use_rich, console)
+		if use_rich:
+			console_print(
+				Panel(
+					"\n".join(lines),
+					title=f"{display_cmd_name} options",
+					title_align="left",
+					border_style="grey50",
+					padding=(0, 1),
+				),
+				output_type=OutputType.DATA,
+			)
+		else:
+			formatter.write(f"\n{display_cmd_name} options:\n")
+			for line in lines:
+				formatter.write(f"  {line}\n")
+
 	if use_rich:
 		rich_format_help(obj, ctx, formatter)
-		console_print(
-			Panel(
-				_get_command_hierarchy(ctx),
-				title="Command Hierarchy",
-				title_align="left",
-				padding=(0, 1),
-				border_style="grey37",
-			),
-			output_type=OutputType.DATA,
-		)
 	else:
-		plain_formatter = click.HelpFormatter()
-		super(type(obj), obj).format_help(ctx, plain_formatter)
-		help_text = plain_formatter.getvalue()
-		console_print(help_text, output_type=OutputType.DATA)
-		console_print("Command Hierarchy:", output_type=OutputType.DATA)
-		console_print(Padding(_get_command_hierarchy(ctx), (0, 2)), output_type=OutputType.DATA)
+		formatter.write("\n" + "-" * 100 + "\n\n")
+		super(type(obj), obj).format_help(ctx, formatter)
 
 
 class OPSICLICommand(click.Command):

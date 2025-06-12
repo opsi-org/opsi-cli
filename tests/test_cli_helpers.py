@@ -10,28 +10,21 @@ test_cli_helpers
 from .utils import run_cli
 
 
-def test_help_command_hierarchy_for_group() -> None:
-	exit_code, stdout, _ = run_cli(["config", "service", "list", "--help"])
+def test_help_shows_parent_options() -> None:
+	exit_code, stdout, _ = run_cli(["client-action", "set-action-request", "--help"])
 	assert exit_code == 0
 
-	hierarchy = stdout.split("Command Hierarchy")[-1]
-	expected = [
-		"opsi-cli  opsi command line interface",
-		"└── config  Manage opsi-cli configuration",
-		"    └── service  Configuration of opsi services",
-		"        └── list  List configured opsi services",
+	expected_order = [
+		"Global options",
+		"--log-level-stderr",
+		"--color",
+		"Client-action options",
+		"--clients",
+		"--client-groups",
+		"Usage:",
+		"Options",
 	]
-	for line in expected:
-		assert line in hierarchy
 
-
-def test_help_command_hierarchy_for_command() -> None:
-	exit_code, stdout, _ = run_cli(["terminal", "--help"])
-	assert exit_code == 0
-	hierarchy = stdout.split("Command Hierarchy")[-1]
-	expected = [
-		"opsi-cli  opsi command line interface",
-		"└── terminal  Start remote terminal session",
-	]
-	for line in expected:
-		assert line in hierarchy
+	positions = [stdout.find(text) for text in expected_order]
+	assert all(pos != -1 for pos in positions)
+	assert positions == sorted(positions)
