@@ -87,11 +87,29 @@ def _format_help(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -
 
 	if use_rich:
 		console_print(f"\n{custom_usage}\n\n", output_type=OutputType.DATA)
-		rich_format_help(obj, ctx, formatter)
+		# rich_format_help(obj, ctx, formatter)
+		try:
+			import rich_click.rich_click as rc_mod
+
+			orig_print_usage = getattr(rc_mod, "_print_usage", None)
+			if orig_print_usage:
+				rc_mod._print_usage = lambda *a, **kw: None
+			rich_format_help(obj, ctx, formatter)
+		finally:
+			if orig_print_usage:
+				rc_mod._print_usage = orig_print_usage
+
 	else:
 		formatter.write("\n" + "-" * 100 + "\n\n")
 		formatter.write(f"\n{custom_usage}\n\n")
-		super(type(obj), obj).format_help(ctx, formatter)
+		orig_format_usage = getattr(type(obj), "format_usage", None)
+		if orig_format_usage:
+			type(obj).format_usage = lambda self, ctx, formatter: None
+		try:
+			super(type(obj), obj).format_help(ctx, formatter)
+		finally:
+			if orig_format_usage:
+				type(obj).format_usage = orig_format_usage
 
 
 # Usage: opsi-cli [GLOBAL OPTIONS] config [CONFIG OPTIONS] service [SERVICE OPTIONS] list [OPTIONS]
