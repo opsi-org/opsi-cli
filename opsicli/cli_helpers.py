@@ -84,6 +84,7 @@ def _format_help(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -
 				formatter.write(f"  {line}\n")
 
 	custom_usage = obj.get_usage(ctx)
+
 	if use_rich:
 		console_print(f"\n{custom_usage}\n\n", output_type=OutputType.DATA)
 		rich_format_help(obj, ctx, formatter)
@@ -100,6 +101,7 @@ def _format_help(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -
 
 def _get_usage(ctx: click.Context) -> str:
 	orig_usage = super(type(ctx.command), ctx.command).get_usage(ctx)
+
 	match = re.match(r"(Usage:\s*)(.*)", orig_usage)
 	if not match:
 		return orig_usage
@@ -125,6 +127,44 @@ def _get_usage(ctx: click.Context) -> str:
 	return f"{prefix}{' '.join(parts)}"
 
 
+# def _custom_usage(ctx: click.Context) -> str:
+# 	command_path = []
+# 	option_placeholders = []
+# 	current = ctx
+# 	while current:
+# 		cmd = current.command
+# 		if cmd.name:
+# 			command_path.insert(0, cmd.name)
+# 			# Only add [GROUP OPTIONS] if this is not the current command (i.e., not the leaf)
+# 			if isinstance(cmd, click.Group) and current != ctx:
+# 				option_placeholders.insert(0, f"[{cmd.name.upper()} OPTIONS]")
+# 			else:
+# 				option_placeholders.insert(0, None)
+# 		current = current.parent
+
+# 	# Insert [GLOBAL OPTIONS] after the root command
+# 	if command_path:
+# 		command_path[0] = "opsi-cli"
+# 		option_placeholders[0] = "[GLOBAL OPTIONS]"
+
+# 	# Build the usage string
+# 	usage_parts = []
+# 	for name, opt in zip(command_path, option_placeholders):
+# 		usage_parts.append(name)
+# 		if opt:
+# 			usage_parts.append(opt)
+
+# 	usage = "Usage: " + " ".join(usage_parts)
+
+# 	# Add [OPTIONS] or [OPTIONS] COMMAND [ARGS]... at the end
+# 	if isinstance(ctx.command, click.Group) and getattr(ctx.command, "commands", None):
+# 		usage += " [OPTIONS] COMMAND [ARGS]..."
+# 	else:
+# 		usage += " [OPTIONS]"
+
+# 	return usage
+
+
 class OPSICLICommand(click.Command):
 	def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
 		_format_help(self, ctx, formatter)
@@ -133,11 +173,8 @@ class OPSICLICommand(click.Command):
 		return _get_usage(ctx)
 
 	# def format_usage(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
-	# 	pass
-
-	# def get_usage(self, ctx: click.Context) -> str:
-	# 	usage = super().get_usage(ctx)
-	# 	return f"{usage} hellooo"
+	# 	usage = _get_usage(ctx)
+	# 	formatter.write(usage + "\n")
 
 
 class OPSICLIGroup(click.Group):
@@ -153,3 +190,7 @@ class OPSICLIGroup(click.Group):
 
 	def get_usage(self, ctx: click.Context) -> str:
 		return _get_usage(ctx)
+
+	# def format_usage(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+	# 	usage = _custom_usage(ctx)
+	# 	formatter.write(usage + "\n")
