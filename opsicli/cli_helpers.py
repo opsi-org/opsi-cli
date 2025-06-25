@@ -14,7 +14,7 @@ if COMPLETION_MODE:
 	import click
 else:
 	import rich_click as click  # type: ignore[no-redef]
-	import rich_click.rich_click as rich_click  # type: ignore[no-redef]
+	import rich_click.rich_click as rich_click
 	from rich_click.rich_click import rich_format_help
 
 
@@ -95,7 +95,7 @@ def _format_help(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -
 
 			class UsageHighlighter(rich_click.RegexHighlighter):
 				highlights = [
-					r"(?P<argument>\w+)",
+					r"(?P<argument>\[.*?\])",
 				]
 
 			usage_highlighter = UsageHighlighter()
@@ -104,18 +104,12 @@ def _format_help(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -
 			if usage_str.lower().startswith("usage:"):
 				usage_str = usage_str[len("usage:") :].strip()
 
-			parts = usage_str.split()
-			if parts:
-				command_path = parts[0]
-				rest = " ".join(parts[1:])
-
 			console.print(
 				rich_click.Padding(
 					rich_click.Columns(
 						(
 							rich_click.Text("Usage:", style=config.style_usage),
-							rich_click.Text(command_path, style=config.style_usage_command),
-							usage_highlighter(rest),
+							usage_highlighter(usage_str),
 						)
 					),
 					1,
@@ -128,14 +122,8 @@ def _format_help(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -
 	else:
 		formatter.write("\n" + "-" * 100 + "\n\n")
 		formatter.write(f"\n{custom_usage}\n")
-		orig_format_usage = getattr(type(obj), "format_usage", None)
-		if orig_format_usage:
-			type(obj).format_usage = lambda self, ctx, formatter: None
-		try:
-			super(type(obj), obj).format_help(ctx, formatter)
-		finally:
-			if orig_format_usage:
-				type(obj).format_usage = orig_format_usage
+		type(obj).format_usage = lambda self, ctx, formatter: None
+		super(type(obj), obj).format_help(ctx, formatter)
 
 
 def _get_usage(ctx: click.Context) -> str:
