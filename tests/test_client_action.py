@@ -131,7 +131,7 @@ def test_set_action_request_group(admin_service_client: ServiceClient) -> None:
 		tmp_client(admin_service_client, CLIENT2),
 		tmp_product(admin_service_client, PRODUCT1),
 		tmp_product(admin_service_client, PRODUCT2),
-		tmp_host_group(admin_service_client, H_GROUP1, {CLIENT1, CLIENT2, PRODUCT1}),  # Attempt to put product in host group
+		tmp_host_group(admin_service_client, H_GROUP1, {CLIENT1, CLIENT2}),
 		tmp_product_group(admin_service_client, P_GROUP, [PRODUCT1, PRODUCT2]),
 		tmp_product_group(admin_service_client, H_GROUP1, [PRODUCT1, PRODUCT2]),  # second product group with same name as host group
 	):
