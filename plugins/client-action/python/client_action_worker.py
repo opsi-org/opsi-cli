@@ -95,7 +95,7 @@ class ClientActionWorker:
 				except KeyError:
 					logger.error("Error in Backend: Group %s has parent %s which does not exist", group.id, group.parentGroupId)
 
-	def get_entries_from_group(self, group: str) -> set[str]:
+	def get_entries_from_host_group(self, group: str) -> set[str]:
 		if group not in self.group_forest:
 			raise ValueError(f"Group {group!r} not found")
 		obj_to_groups: list[ObjectToGroup] = self.service.jsonrpc("objectToGroup_getObjects", [[], {"groupId": group, "groupType": "HostGroup"}])
