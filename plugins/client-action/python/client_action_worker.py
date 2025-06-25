@@ -98,7 +98,7 @@ class ClientActionWorker:
 	def get_entries_from_group(self, group: str) -> set[str]:
 		if group not in self.group_forest:
 			raise ValueError(f"Group {group!r} not found")
-		obj_to_groups: list[ObjectToGroup] = self.service.jsonrpc("objectToGroup_getObjects", [[], {"groupId": group}])
+		obj_to_groups: list[ObjectToGroup] = self.service.jsonrpc("objectToGroup_getObjects", [[], {"groupId": group, "groupType": "HostGroup"}])
 		result = {obj_to_group.objectId for obj_to_group in obj_to_groups}
 		logger.debug("Group %s has clients: %s", group, result)
 		if self.group_forest[group].subgroups:
