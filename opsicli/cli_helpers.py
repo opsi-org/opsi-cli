@@ -4,7 +4,6 @@ from typing import Any, Optional
 
 from rich.panel import Panel
 from rich.text import Text
-from rich_click.rich_click import rich_format_help
 
 from opsicli.config import config
 from opsicli.io import OutputType, console_print, get_console
@@ -15,6 +14,8 @@ if COMPLETION_MODE:
 	import click
 else:
 	import rich_click as click  # type: ignore[no-redef]
+	import rich_click.rich_click as rich_click  # type: ignore[no-redef]
+	from rich_click.rich_click import rich_format_help
 
 
 _METAVAR_RE = re.compile(r"\[metavar\](.*?)\[/metavar\]")
@@ -86,22 +87,47 @@ def _format_help(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -
 	custom_usage = obj.get_usage(ctx)
 
 	if use_rich:
-		console_print(f"\n{custom_usage}\n\n", output_type=OutputType.DATA)
-		# rich_format_help(obj, ctx, formatter)
-		try:
-			import rich_click.rich_click as rc_mod
 
-			orig_print_usage = getattr(rc_mod, "_print_usage", None)
-			if orig_print_usage:
-				rc_mod._print_usage = lambda *a, **kw: None
-			rich_format_help(obj, ctx, formatter)
-		finally:
-			if orig_print_usage:
-				rc_mod._print_usage = orig_print_usage
+		def _custom_get_rich_usage(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+			formatter = rich_click._get_rich_formatter(formatter)
+			config = formatter.config
+			console = formatter.console
+
+			class UsageHighlighter(rich_click.RegexHighlighter):
+				highlights = [
+					r"(?P<argument>\w+)",
+				]
+
+			usage_highlighter = UsageHighlighter()
+
+			usage_str = custom_usage
+			if usage_str.lower().startswith("usage:"):
+				usage_str = usage_str[len("usage:") :].strip()
+
+			parts = usage_str.split()
+			if parts:
+				command_path = parts[0]
+				rest = " ".join(parts[1:])
+
+			console.print(
+				rich_click.Padding(
+					rich_click.Columns(
+						(
+							rich_click.Text("Usage:", style=config.style_usage),
+							rich_click.Text(command_path, style=config.style_usage_command),
+							usage_highlighter(rest),
+						)
+					),
+					1,
+				),
+			)
+
+		rich_click.get_rich_usage = _custom_get_rich_usage
+		rich_format_help(obj, ctx, formatter)
 
 	else:
 		formatter.write("\n" + "-" * 100 + "\n\n")
-		formatter.write(f"\n{custom_usage}\n\n")
+		formatter.write(f"\n{custom_usage}\n")
 		orig_format_usage = getattr(type(obj), "format_usage", None)
 		if orig_format_usage:
 			type(obj).format_usage = lambda self, ctx, formatter: None
@@ -110,11 +136,6 @@ def _format_help(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -
 		finally:
 			if orig_format_usage:
 				type(obj).format_usage = orig_format_usage
-
-
-# Usage: opsi-cli [GLOBAL OPTIONS] config [CONFIG OPTIONS] service [SERVICE OPTIONS] list [OPTIONS]
-# Usage: opsi-cli [GLOBAL OPTIONS] config [CONFIG OPTIONS] service [OPTIONS] COMMAND [ARGS]...
-# Usage: opsi-cli [GLOBAL OPTIONS] config [OPTIONS] COMMAND [ARGS]...
 
 
 def _get_usage(ctx: click.Context) -> str:
@@ -145,54 +166,12 @@ def _get_usage(ctx: click.Context) -> str:
 	return f"{prefix}{' '.join(parts)}"
 
 
-# def _custom_usage(ctx: click.Context) -> str:
-# 	command_path = []
-# 	option_placeholders = []
-# 	current = ctx
-# 	while current:
-# 		cmd = current.command
-# 		if cmd.name:
-# 			command_path.insert(0, cmd.name)
-# 			# Only add [GROUP OPTIONS] if this is not the current command (i.e., not the leaf)
-# 			if isinstance(cmd, click.Group) and current != ctx:
-# 				option_placeholders.insert(0, f"[{cmd.name.upper()} OPTIONS]")
-# 			else:
-# 				option_placeholders.insert(0, None)
-# 		current = current.parent
-
-# 	# Insert [GLOBAL OPTIONS] after the root command
-# 	if command_path:
-# 		command_path[0] = "opsi-cli"
-# 		option_placeholders[0] = "[GLOBAL OPTIONS]"
-
-# 	# Build the usage string
-# 	usage_parts = []
-# 	for name, opt in zip(command_path, option_placeholders):
-# 		usage_parts.append(name)
-# 		if opt:
-# 			usage_parts.append(opt)
-
-# 	usage = "Usage: " + " ".join(usage_parts)
-
-# 	# Add [OPTIONS] or [OPTIONS] COMMAND [ARGS]... at the end
-# 	if isinstance(ctx.command, click.Group) and getattr(ctx.command, "commands", None):
-# 		usage += " [OPTIONS] COMMAND [ARGS]..."
-# 	else:
-# 		usage += " [OPTIONS]"
-
-# 	return usage
-
-
 class OPSICLICommand(click.Command):
 	def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
 		_format_help(self, ctx, formatter)
 
 	def get_usage(self, ctx: click.Context) -> str:
 		return _get_usage(ctx)
-
-	# def format_usage(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
-	# 	usage = _get_usage(ctx)
-	# 	formatter.write(usage + "\n")
 
 
 class OPSICLIGroup(click.Group):
@@ -208,7 +187,3 @@ class OPSICLIGroup(click.Group):
 
 	def get_usage(self, ctx: click.Context) -> str:
 		return _get_usage(ctx)
-
-	# def format_usage(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
-	# 	usage = _custom_usage(ctx)
-	# 	formatter.write(usage + "\n")
