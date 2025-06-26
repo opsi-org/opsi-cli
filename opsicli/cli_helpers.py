@@ -4,7 +4,6 @@ from typing import Any, Optional
 
 from rich.panel import Panel
 from rich.text import Text
-from rich_click.rich_click import rich_format_help
 
 from opsicli.config import config
 from opsicli.io import OutputType, console_print, get_console
@@ -15,6 +14,11 @@ if COMPLETION_MODE:
 	import click
 else:
 	import rich_click as click  # type: ignore[no-redef]
+	import rich_click.rich_click as rich_click
+	from rich_click.rich_click import rich_format_help
+
+	rich_click.STYLE_OPTIONS_PANEL_BORDER = "bold"
+	rich_click.OPTIONS_PANEL_TITLE = "[bold cyan]OPTIONS[/bold cyan]"
 
 
 _METAVAR_RE = re.compile(r"\[metavar\](.*?)\[/metavar\]")
@@ -71,7 +75,7 @@ def _format_help(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -
 			console_print(
 				Panel(
 					"\n".join(lines),
-					title=f"{display_cmd_name} options",
+					title=f"[bold cyan]{display_cmd_name.upper()} OPTIONS[/bold cyan]",
 					title_align="left",
 					border_style="grey50",
 					padding=(0, 1),
@@ -79,20 +83,86 @@ def _format_help(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -
 				output_type=OutputType.DATA,
 			)
 		else:
-			formatter.write(f"\n{display_cmd_name} options:\n")
+			formatter.write(f"\n{display_cmd_name.upper()} OPTIONS:\n")
 			for line in lines:
 				formatter.write(f"  {line}\n")
 
+	custom_usage = obj.get_usage(ctx)
+
 	if use_rich:
+
+		def _custom_get_rich_usage(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+			formatter = rich_click._get_rich_formatter(formatter)
+			config = formatter.config
+			console = formatter.console
+
+			class UsageHighlighter(rich_click.RegexHighlighter):
+				highlights = [
+					r"(?P<argument>\[.*?\])",
+				]
+
+			usage_highlighter = UsageHighlighter()
+
+			usage_str = custom_usage
+			if usage_str.lower().startswith("usage:"):
+				usage_str = usage_str[len("usage:") :].strip()
+
+			console.print(
+				rich_click.Padding(
+					rich_click.Columns(
+						(
+							rich_click.Text("Usage:", style=config.style_usage),
+							usage_highlighter(usage_str),
+						)
+					),
+					1,
+				),
+			)
+
+		rich_click.get_rich_usage = _custom_get_rich_usage
 		rich_format_help(obj, ctx, formatter)
+
 	else:
 		formatter.write("\n" + "-" * 100 + "\n\n")
+		formatter.write(f"\n{custom_usage}\n")
+		type(obj).format_usage = lambda self, ctx, formatter: None
 		super(type(obj), obj).format_help(ctx, formatter)
+
+
+def _get_usage(ctx: click.Context) -> str:
+	orig_usage = super(type(ctx.command), ctx.command).get_usage(ctx)
+
+	match = re.match(r"(Usage:\s*)(.*)", orig_usage)
+	if not match:
+		return orig_usage
+
+	prefix, usage_body = match.groups()
+	parts = usage_body.split()
+
+	command_path: list[tuple[str, bool]] = []
+	current: Optional[click.Context] = ctx
+	while current:
+		cmd = current.command
+		if cmd.name:
+			command_path.insert(0, (cmd.name, isinstance(cmd, click.Group)))
+		current = current.parent
+
+	if parts and parts[0] in ("opsi-cli", "main"):
+		parts.insert(1, "[GLOBAL OPTIONS]")
+
+	for name, is_group in command_path[:-1]:
+		if is_group and name in parts:
+			parts.insert(parts.index(name) + 1, f"[{name.upper()} OPTIONS]")
+
+	return f"{prefix}{' '.join(parts)}"
 
 
 class OPSICLICommand(click.Command):
 	def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
 		_format_help(self, ctx, formatter)
+
+	def get_usage(self, ctx: click.Context) -> str:
+		return _get_usage(ctx)
 
 
 class OPSICLIGroup(click.Group):
@@ -105,3 +175,6 @@ class OPSICLIGroup(click.Group):
 
 	def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
 		_format_help(self, ctx, formatter)
+
+	def get_usage(self, ctx: click.Context) -> str:
+		return _get_usage(ctx)
