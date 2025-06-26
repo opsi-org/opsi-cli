@@ -17,6 +17,9 @@ else:
 	import rich_click.rich_click as rich_click
 	from rich_click.rich_click import rich_format_help
 
+	rich_click.STYLE_OPTIONS_PANEL_BORDER = "bold"
+	rich_click.OPTIONS_PANEL_TITLE = "[bold cyan]OPTIONS[/bold cyan]"
+
 
 _METAVAR_RE = re.compile(r"\[metavar\](.*?)\[/metavar\]")
 _config_loaded = False
@@ -72,7 +75,7 @@ def _format_help(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -
 			console_print(
 				Panel(
 					"\n".join(lines),
-					title=f"{display_cmd_name} options",
+					title=f"[bold cyan]{display_cmd_name.upper()} OPTIONS[/bold cyan]",
 					title_align="left",
 					border_style="grey50",
 					padding=(0, 1),
@@ -80,7 +83,7 @@ def _format_help(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -
 				output_type=OutputType.DATA,
 			)
 		else:
-			formatter.write(f"\n{display_cmd_name} options:\n")
+			formatter.write(f"\n{display_cmd_name.upper()} OPTIONS:\n")
 			for line in lines:
 				formatter.write(f"  {line}\n")
 
