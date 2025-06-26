@@ -22,7 +22,7 @@ def test_help_shows_parent_options() -> None:
 		"--clients",
 		"--client-groups",
 		"Usage:",
-		"OPTIONS",
+		"╭─ OPTIONS ─────",
 	]
 
 	positions = [stdout.find(text) for text in expected_order]
