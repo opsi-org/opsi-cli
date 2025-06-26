@@ -15,14 +15,14 @@ def test_help_shows_parent_options() -> None:
 	assert exit_code == 0
 
 	expected_order = [
-		"Global options",
+		"GLOBAL OPTIONS",
 		"--log-level-stderr",
 		"--color",
-		"Client-action options",
+		"CLIENT-ACTION OPTIONS",
 		"--clients",
 		"--client-groups",
 		"Usage:",
-		"Options",
+		"OPTIONS",
 	]
 
 	positions = [stdout.find(text) for text in expected_order]
