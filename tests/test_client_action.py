@@ -131,31 +131,30 @@ def test_set_action_request_group(admin_service_client: ServiceClient) -> None:
 		tmp_client(admin_service_client, CLIENT2),
 		tmp_product(admin_service_client, PRODUCT1),
 		tmp_product(admin_service_client, PRODUCT2),
+		tmp_host_group(admin_service_client, H_GROUP1, {CLIENT1, CLIENT2}),
+		tmp_product_group(admin_service_client, P_GROUP, [PRODUCT1, PRODUCT2]),
+		tmp_product_group(admin_service_client, H_GROUP1, [PRODUCT1, PRODUCT2]),  # second product group with same name as host group
 	):
-		with (
-			tmp_host_group(admin_service_client, H_GROUP1, {CLIENT1, CLIENT2}),
-			tmp_product_group(admin_service_client, P_GROUP, [PRODUCT1, PRODUCT2]),
-		):
-			cmd = ["client-action", "--client-groups", H_GROUP1, "set-action-request", "--product-groups", P_GROUP]
+		cmd = ["client-action", "--client-groups", H_GROUP1, "set-action-request", "--product-groups", P_GROUP]
 
-			exit_code, _stdout, _stderr = run_cli(cmd)
-			assert exit_code == 0
-			pocs = admin_service_client.jsonrpc(
-				"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
-			)
-			assert len(pocs) == 4
-			for poc in pocs:
-				assert poc.actionRequest == "setup"
+		exit_code, _stdout, _stderr = run_cli(cmd)
+		assert exit_code == 0
+		pocs = admin_service_client.jsonrpc(
+			"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
+		)
+		assert len(pocs) == 4
+		for poc in pocs:
+			assert poc.actionRequest == "setup"
 
-			cmd += ["--request-type", "none"]
-			exit_code, _stdout, _stderr = run_cli(cmd)
-			assert exit_code == 0
-			pocs = admin_service_client.jsonrpc(
-				"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
-			)
-			assert len(pocs) == 4
-			for poc in pocs:
-				assert poc.actionRequest in ("none", None)
+		cmd += ["--request-type", "none"]
+		exit_code, _stdout, _stderr = run_cli(cmd)
+		assert exit_code == 0
+		pocs = admin_service_client.jsonrpc(
+			"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1, CLIENT2], "productId": [PRODUCT1, PRODUCT2]}]
+		)
+		assert len(pocs) == 4
+		for poc in pocs:
+			assert poc.actionRequest in ("none", None)
 
 
 @pytest.mark.opsi_service
@@ -704,3 +703,54 @@ def test_execute_opsiscript(admin_service_client: ServiceClient, tmp_path: Path,
 			)
 			assert re.fullmatch(expected_output_pattern, _stdout)
 			assert _stderr == ""
+
+
+@pytest.mark.opsi_service
+def test_process_actions(admin_service_client: ServiceClient) -> None:
+	client1 = CLIENT1
+	client2 = CLIENT2
+	product1 = PRODUCT1
+	product2 = PRODUCT2
+
+	with (
+		tmp_client(admin_service_client, client1),
+		tmp_client(admin_service_client, client2),
+		tmp_product(admin_service_client, product1),
+		tmp_product(admin_service_client, product2),
+	):
+		mock_result = {
+			client1: {"result": "Processed successfully", "error": None},
+			client2: {
+				"result": None,
+				"error": f"No product action requests set for client '{client2}' and products ['{product1}', '{product2}']",
+			},
+		}
+
+		original_jsonrpc = ServiceClient.jsonrpc
+
+		def mock_jsonrpc(
+			self: ServiceClient, method: str, params: tuple[Any, ...] | list[Any] | dict[str, Any] | None = None, **kwargs: Any
+		) -> Any:
+			if method == "hostControl_processActionRequests":
+				return mock_result
+			return original_jsonrpc(self, method, params, **kwargs)
+
+		cmd = [
+			"client-action",
+			"--clients",
+			f"{client1},{client2}",
+			"process-actions",
+			"--products",
+			f"{product1},{product2}",
+			"--process-visibility",
+			"hidden",
+		]
+
+		with patch("opsicommon.client.opsiservice.ServiceClient.jsonrpc", mock_jsonrpc):
+			exit_code, stdout, _ = run_cli(cmd)
+
+		assert exit_code == 0
+		assert f"{client1}" in stdout
+		assert "Processed successfully" in stdout
+		assert f"{client2}" in stdout
+		assert "No product action requests set for client" in stdout

@@ -393,20 +393,29 @@ def uninstall(product_ids: list[str], depots: str, force: bool, keep_files: bool
 
 	service_client = get_service_connection()
 	depot_objects = get_depot_objects(service_client, depots)
+	if not depot_objects:
+		raise click.UsageError(f"No depots found for '{depots}'. Please specify valid depot IDs or 'all'.")
 
-	depot_list = [depot.id for depot in depot_objects]
-	product_on_depot_list: list[ProductOnDepot] = service_client.jsonrpc(
-		"productOnDepot_getObjects", [[], {"depotId": depot_list, "productId": product_ids}]
-	)
-	if not product_on_depot_list:
+	product_ids_by_depot: dict[str, list[str]] = {}
+	for pod in service_client.jsonrpc(
+		"productOnDepot_getObjects", [[], {"depotId": [depot.id for depot in depot_objects], "productId": product_ids}]
+	):
+		if pod.depotId not in product_ids_by_depot:
+			product_ids_by_depot[pod.depotId] = []
+		product_ids_by_depot[pod.depotId].append(pod.productId)
+
+	if not product_ids_by_depot:
 		raise click.UsageError("No products found to uninstall.")
 
 	for depot in depot_objects:
+		product_ids = product_ids_by_depot.get(depot.id, [])
+		if not product_ids:
+			continue
 		depot_connection = get_depot_connection(depot)
 		try:
-			for product_on_depot in product_on_depot_list:
-				cleanup_packages_from_repo(depot_connection, product_on_depot.productId)
-				uninstall_package(depot_connection, depot.id, product_on_depot.productId, force, not keep_files)
+			for product_id in product_ids:
+				cleanup_packages_from_repo(depot_connection, product_id)
+				uninstall_package(depot_connection, depot.id, product_id, force, not keep_files)
 		finally:
 			depot_connection.disconnect()
 

@@ -95,22 +95,22 @@ class ClientActionWorker:
 				except KeyError:
 					logger.error("Error in Backend: Group %s has parent %s which does not exist", group.id, group.parentGroupId)
 
-	def get_entries_from_group(self, group: str) -> set[str]:
+	def get_entries_from_host_group(self, group: str) -> set[str]:
 		if group not in self.group_forest:
 			raise ValueError(f"Group {group!r} not found")
-		obj_to_groups: list[ObjectToGroup] = self.service.jsonrpc("objectToGroup_getObjects", [[], {"groupId": group}])
+		obj_to_groups: list[ObjectToGroup] = self.service.jsonrpc("objectToGroup_getObjects", [[], {"groupId": group, "groupType": "HostGroup"}])
 		result = {obj_to_group.objectId for obj_to_group in obj_to_groups}
 		logger.debug("Group %s has clients: %s", group, result)
 		if self.group_forest[group].subgroups:
 			for subgroup in self.group_forest[group].subgroups:
-				sub_result = self.get_entries_from_group(subgroup.name)
+				sub_result = self.get_entries_from_host_group(subgroup.name)
 				result = result.union(sub_result)
 		return result
 
 	def client_ids_from_group(self, group: str) -> list[str]:
 		if not self.group_forest:
 			self.create_group_forest()
-		return list(self.get_entries_from_group(group))
+		return list(self.get_entries_from_host_group(group))
 
 	def client_ids_from_depot(self, depot: str) -> list[str]:
 		return [entry["clientId"] for entry in self.service.jsonrpc("configState_getClientToDepotserver", [depot])]
