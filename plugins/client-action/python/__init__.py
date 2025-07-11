@@ -219,7 +219,8 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool, wakeup_timeout: 
 @click.option(
 	"--opsi-script",
 	help=(
-		"Provide the content of an opsi-script directly. "
+		"Execute opsi-script on selected clients. "
+		"Provide the opsi-script content directly or specify a file path. "
 		"No command is needed when using this option. "
 		"Use --opsi-script-log-level to filter logs in the execution summary."
 	),
