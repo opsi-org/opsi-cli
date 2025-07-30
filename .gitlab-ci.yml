@@ -184,7 +184,10 @@ linux-arm64-pyinstaller:
     - mv ./opsi-cli CLIENT_DATA/opsi-cli-linux-arm64.run
     - '[ "$CI_COMMIT_TAG" = "" ] && opsi-dev-cli -l info binary push CLIENT_DATA/opsi-cli-linux-arm64.run --prerelease="$CI_JOB_ID"'
     - '[ "$CI_COMMIT_TAG" = "" ] || opsi-dev-cli -l info binary push CLIENT_DATA/opsi-cli-linux-arm64.run'
-
+  artifacts:
+    name: opsi-cli-linux-arm64.run
+    paths:
+      - CLIENT_DATA/opsi-cli-linux-arm64.run
 
 macos-x64-pyinstaller:
   stage: build
