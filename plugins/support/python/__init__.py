@@ -14,7 +14,7 @@ from opsicommon.logging import get_logger
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_handling, handle_list_attributes
-from opsicli.io import OutputType, console_print, write_output
+from opsicli.io import console_print, write_output
 from opsicli.messagebus import JSONRPCMessagebusConnection
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin

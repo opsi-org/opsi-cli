@@ -21,17 +21,13 @@ def prepare_cli_paths() -> None:
 		try:
 			config.plugin_user_dir.mkdir(parents=True)
 		except PermissionError:
-			logger.warning(
-				"Could not create plugin user directory '%s'. Please check the permissions.", config.plugin_user_dir
-			)
+			logger.warning("Could not create plugin user directory '%s'. Please check the permissions.", config.plugin_user_dir)
 
 	if config.python_lib_dir and not config.python_lib_dir.exists():
 		try:
 			config.python_lib_dir.mkdir(parents=True)
 		except PermissionError:
-			logger.warning(
-				"Could not create python lib directory '%s'. Please check the permissions.", config.python_lib_dir
-			)
+			logger.warning("Could not create python lib directory '%s'. Please check the permissions.", config.python_lib_dir)
 	# Adding plugin dir
 	if config.plugin_user_dir and config.plugin_user_dir.exists() and str(config.plugin_user_dir) not in sys.path:
 		sys.path.append(str(config.plugin_user_dir))
