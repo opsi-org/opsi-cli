@@ -171,6 +171,30 @@ class HostControlWorker(ClientActionWorker):
 		err = "\n".join(f"{client}: {error}" for client, error in failed.items())
 		raise RuntimeError(f"Failed to shutdown {len(failed)} of {client_count} clients:\n{err}")
 
+	def reboot_clients(self) -> None:
+		if not self.clients:
+			return
+
+		client_count = len(self.clients)
+
+		if config.dry_run:
+			logger.notice("Reboot skipped")
+			console_print(f"Reboot skipped: would reboot {client_count} clients.", output_type=OutputType.WARNING_MESSAGE)
+			return
+
+		logger.notice("Rebooting clients %s", self.clients)
+		result = self.service.jsonrpc("hostControl_reboot", [self.clients])
+		failed = evaluate_rpc_dict_result(result)[1]
+
+		if not failed:
+			msg = f"Successfully rebooted {client_count} clients"
+			logger.notice(msg)
+			console_print(msg + "\n", style="green", output_type=OutputType.MESSAGE)
+			return
+
+		err = "\n".join(f"{client}: {error}" for client, error in failed.items())
+		raise RuntimeError(f"Failed to reboot {len(failed)} of {client_count} clients:\n{err}")
+
 	def wakeup_clients(self, wakeup_timeout: float = 0) -> None:
 		if not self.clients:
 			return

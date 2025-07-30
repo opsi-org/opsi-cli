@@ -286,6 +286,20 @@ def shutdown(ctx: click.Context) -> None:
 
 
 @cli.command(
+	name="reboot",
+	short_help="Reboot selected clients",
+	context_settings={"ignore_unknown_options": True, "allow_interspersed_args": False},
+)
+@click.pass_context
+@dry_run_handling(dry_run_capable=True)
+def reboot(ctx: click.Context) -> None:
+	"""
+	opsi-cli client-action reboot clients
+	"""
+	HostControlWorker(ctx.obj).reboot_clients()
+
+
+@cli.command(
 	name="wakeup",
 	short_help="Wake up selected clients",
 	context_settings={"ignore_unknown_options": True, "allow_interspersed_args": False},
