@@ -156,11 +156,10 @@ linux-x64-pyinstaller:
     - mv ./opsi-cli opsi-cli-linux-x64.run
     - '[ "$CI_COMMIT_TAG" = "" ] && opsi-dev-cli -l info binary push opsi-cli-linux-x64.run --prerelease="$CI_JOB_ID"'
     - '[ "$CI_COMMIT_TAG" = "" ] || opsi-dev-cli -l info binary push opsi-cli-linux-x64.run'
-    - mv ./opsi-cli-linux-x64.run CLIENT_DATA/opsi-cli-linux.run
   artifacts:
-    name: opsi-cli-linux.run
+    name: opsi-cli-linux-x64.run
     paths:
-      - CLIENT_DATA/opsi-cli-linux.run
+      - CLIENT_DATA/opsi-cli-linux-x64.run
 
 # arm binary pushed to binaryindex, but not included in opsi-package (no arm clients)
 linux-arm64-pyinstaller:
@@ -223,11 +222,10 @@ macos-x64-pyinstaller:
     - mv ./opsi-cli opsi-cli-macos-x64
     - '[ "$CI_COMMIT_TAG" = "" ] && opsi-dev-cli -l info binary push ./opsi-cli-macos-x64 --prerelease="$CI_JOB_ID"'
     - '[ "$CI_COMMIT_TAG" = "" ] || opsi-dev-cli -l info binary push ./opsi-cli-macos-x64'
-    - mv ./opsi-cli-macos-x64 CLIENT_DATA/opsi-cli-macos
   artifacts:
-    name: opsi-cli-macos
+    name: opsi-cli-macos-x64
     paths:
-      - CLIENT_DATA/opsi-cli-macos
+      - CLIENT_DATA/opsi-cli-macos-x64
 
 windows-x86-pyinstaller:
   stage: build
@@ -268,11 +266,10 @@ windows-x86-pyinstaller:
     # Upload and archive opsi-cli binary
     - if (! $CI_COMMIT_TAG) {opsi-dev-cli -l info binary push opsi-cli-windows-x86.exe --prerelease="$CI_JOB_ID"}
     - if ($CI_COMMIT_TAG) {opsi-dev-cli -l info binary push opsi-cli-windows-x86.exe}
-    - move opsi-cli-windows-x86.exe CLIENT_DATA\opsi-cli-windows.exe
   artifacts:
-    name: opsi-cli-windows.exe
+    name: opsi-cli-windows-x86.exe
     paths:
-      - CLIENT_DATA\opsi-cli-windows.exe
+      - CLIENT_DATA\opsi-cli-windows-x86.exe
 
 makeopsipackage:
   stage: package

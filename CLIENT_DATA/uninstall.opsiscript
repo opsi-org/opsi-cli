@@ -3,7 +3,7 @@ requiredOpsiScriptVersion >= "4.12.4.35"
 
 DefFunc uninstall_windows() : void
 	Message "uninstalling opsi-cli on windows"
-	ShellCall('"%ScriptPath%\opsi-cli-windows.exe" -l 6 self uninstall --location=system')
+	ShellCall('"%ScriptPath%\opsi-cli-windows-x86.exe" -l 6 self uninstall --location=system')
 	if not(GetLastExitcode = "0") or fileexists("c:\opsi.org\opsi-cli\opsi-cli.exe")
 		LogError "opsi-cli self uninstall failed"
 		IsFatalError "opsi-cli self uninstall failed"
@@ -12,7 +12,7 @@ EndFunc
 
 DefFunc uninstall_linux() : void
 	Message "uninstalling opsi-cli on linux"
-	ShellCall('"%ScriptPath%/opsi-cli-linux.run" -l 6 self uninstall --location=system')
+	ShellCall('"%ScriptPath%/opsi-cli-linux-x64.run" -l 6 self uninstall --location=system')
 	if not(GetLastExitcode = "0") or fileexists("/usr/local/bin/opsi-cli")
 		LogError "opsi-cli self uninstall failed"
 		IsFatalError "opsi-cli self uninstall failed"
@@ -21,7 +21,7 @@ EndFunc
 
 DefFunc uninstall_macos() : void
 	Message "uninstalling opsi-cli on macos"
-	ShellCall('"%ScriptPath%/opsi-cli-macos" -l 6 self uninstall --location=system')
+	ShellCall('"%ScriptPath%/opsi-cli-macos-x64" -l 6 self uninstall --location=system')
 	if not(GetLastExitcode = "0") or fileexists("/usr/local/bin/opsi-cli")
 		LogError "opsi-cli self uninstall failed"
 		IsFatalError "opsi-cli self uninstall failed"
