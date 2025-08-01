@@ -61,6 +61,7 @@ class SetActionRequestArgs:
 	uninstall_where_only_uninstall: bool = False
 	products: str | None = None
 	exclude_products: str | None = None
+	include_netboot: bool = False
 	product_groups: str | None = None
 	exclude_product_groups: str | None = None
 	set_action_request: str = "setup"
@@ -120,6 +121,7 @@ class SetActionRequestWorker(ClientActionWorker):
 		exclude_products_string: str | None = None,
 		product_groups_string: str | None = None,
 		exclude_product_groups_string: str | None = None,
+		include_netboot: bool = False,
 		use_default_excludes: bool = True,
 	) -> None:
 		exclude_products = []
@@ -151,7 +153,7 @@ class SetActionRequestWorker(ClientActionWorker):
 		logger.info("List of excluded products: %s", exclude_products)
 
 		product_objects: list[Product] = self.service.jsonrpc(
-			"product_getObjects", [[], {"type": "LocalbootProduct", "id": products or None}]
+			"product_getObjects", [[], {"type": None if include_netboot else "LocalbootProduct", "id": products or None}]
 		)
 		self.products = list(set((entry.id for entry in product_objects if entry.id not in exclude_products)))
 		self.products_with_only_uninstall = [
@@ -270,6 +272,7 @@ class SetActionRequestWorker(ClientActionWorker):
 			exclude_products_string=args.exclude_products,
 			product_groups_string=args.product_groups,
 			exclude_product_groups_string=args.exclude_product_groups,
+			include_netboot=args.include_netboot,
 			use_default_excludes=args.where_outdated or args.where_failed or args.where_installed,
 		)
 		if not self.products:

@@ -17,7 +17,7 @@ from unittest.mock import patch
 
 import pytest
 from opsicommon.client.opsiservice import ServiceClient
-from opsicommon.objects import ProductOnClient
+from opsicommon.objects import ProductOnClient, NetbootProduct
 
 from .utils import run_cli, tmp_client, tmp_host_group, tmp_product, tmp_product_group
 
@@ -122,6 +122,46 @@ def test_set_action_request_single(admin_service_client: ServiceClient) -> None:
 		assert len(pocs) == 4
 		for poc in pocs:
 			assert poc.actionRequest in ("none", None)
+
+
+@pytest.mark.opsi_service
+def test_set_action_request_netboot(admin_service_client: ServiceClient) -> None:
+	with (
+		tmp_client(admin_service_client, CLIENT1),
+		tmp_product(admin_service_client, PRODUCT1),
+		tmp_product(admin_service_client, PRODUCT2, product_type=NetbootProduct),
+	):
+		cmd = [
+			"client-action",
+			"--clients",
+			f"{CLIENT1}",
+			"set-action-request",
+			"--products",
+			f"{PRODUCT1},{PRODUCT2}",
+		]
+
+		exit_code, _stdout, _stderr = run_cli(cmd)
+		assert exit_code == 0
+		pocs = admin_service_client.jsonrpc(
+			"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1], "productId": [PRODUCT1, PRODUCT2]}]
+		)
+		assert len(pocs) == 2
+		for poc in pocs:
+			if poc.productId == PRODUCT2:  # netboot product
+				# Netboot product must be excluded
+				assert poc.actionRequest in ("none", None)
+			else:
+				assert poc.actionRequest == "setup"
+
+		cmd += ["--include-netboot"]
+		exit_code, _stdout, _stderr = run_cli(cmd)
+		assert exit_code == 0
+		pocs = admin_service_client.jsonrpc(
+			"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1], "productId": [PRODUCT1, PRODUCT2]}]
+		)
+		assert len(pocs) == 2
+		for poc in pocs:
+			assert poc.actionRequest == "setup"
 
 
 @pytest.mark.opsi_service

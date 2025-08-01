@@ -105,6 +105,12 @@ def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 	help="Do not set actionRequests for these product groups (comma-separated list).",
 )
 @click.option(
+	"--include-netboot",
+	help="Include netboot products.",
+	is_flag=True,
+	default=False,
+)
+@click.option(
 	"--request-type",
 	help="Deprecated, please use `--set-action-request`.",
 	show_default=False,
