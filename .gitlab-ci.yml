@@ -61,7 +61,7 @@ pytest-linux:
       alias: opsiconfd
   variables:
     FF_NETWORK_PER_BUILD: "1" # Create a new network for each build
-    #CI_DEBUG_SERVICES: "true"  # Show debug information for services in ci
+    CI_DEBUG_SERVICES: "true" # Show debug information for services in ci
     MYSQL_ROOT_PASSWORD: "opsi"
     MYSQL_DATABASE: "opsitest"
     MYSQL_USER: "opsi"
