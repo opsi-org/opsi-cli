@@ -145,13 +145,9 @@ def test_set_action_request_netboot(admin_service_client: ServiceClient) -> None
 		pocs = admin_service_client.jsonrpc(
 			"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1], "productId": [PRODUCT1, PRODUCT2]}]
 		)
-		assert len(pocs) == 2
-		for poc in pocs:
-			if poc.productId == PRODUCT2:  # netboot product
-				# Netboot product must be excluded
-				assert poc.actionRequest in ("none", None)
-			else:
-				assert poc.actionRequest == "setup"
+		assert len(pocs) == 1
+		assert pocs[0].productId == PRODUCT1
+		assert pocs[0].actionRequest == "setup"
 
 		cmd += ["--include-netboot"]
 		exit_code, _stdout, _stderr = run_cli(cmd)
