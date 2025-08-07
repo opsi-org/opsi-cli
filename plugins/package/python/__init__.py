@@ -13,7 +13,7 @@ from typing import Literal
 import rich_click as click
 from click.shell_completion import CompletionItem
 from opsicommon.logging import get_logger
-from opsicommon.objects import ProductOnDepot
+from opsicommon.objects import ProductDependency, ProductOnDepot
 from opsicommon.package import OpsiPackage
 from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
 from opsicommon.utils import make_temp_dir
@@ -51,6 +51,10 @@ __description__ = "Manage opsi packages"
 
 logger = get_logger("opsicli")
 
+argument_source_dir = click.argument(
+	"source_dir", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path), default=Path(".")
+)
+
 
 @click.group(cls=OPSICLIGroup, name="package", short_help="Manage opsi packages")
 @click.version_option(__version__, message="opsi-cli plugin package, version %(version)s")
@@ -66,7 +70,7 @@ def cli(ctx: click.Context) -> None:
 
 
 @cli.command(short_help="Create an opsi package")
-@click.argument("source_dir", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path), default=Path("."))
+@argument_source_dir
 @click.argument("destination_dir", type=click.Path(file_okay=False, dir_okay=True, path_type=Path), default=Path("."))
 @click.option("-o", "--overwrite", is_flag=True, default=False, help="Overwrite existing package if it exists.")
 @click.option("--follow-symlinks", is_flag=True, help="Flag to follow symlinks", default=False)
@@ -201,7 +205,7 @@ def package_list(depots: str, product_type: str, product_ids: list[str]) -> None
 
 
 @cli.command(short_help="Generate TOML from control file.")
-@click.argument("source_dir", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path), default=Path("."))
+@argument_source_dir
 def control_to_toml(source_dir: Path) -> None:
 	"""
 	opsi-cli package control_to_toml subcommand.
@@ -220,7 +224,7 @@ def control_to_toml(source_dir: Path) -> None:
 		logger.error(err, exc_info=True)
 		raise err
 
-	console_print("Control TOML has been successfully generated.\n", output_type=OutputType.MESSAGE)
+	console_print("Control TOML has been successfully generated.", output_type=OutputType.MESSAGE)
 
 
 @cli.command(short_help="Extract an opsi package.")
@@ -261,7 +265,155 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 			logger.error(err, exc_info=True)
 			raise err
 
-	console_print(f"Package archive has been successfully extracted at {destination_dir}\n", output_type=OutputType.MESSAGE)
+	console_print(f"Package archive has been successfully extracted at {destination_dir}", output_type=OutputType.MESSAGE)
+
+
+@cli.group(name="meta-edit", short_help="Edit the metadata (control file) of an opsi source package.")
+@click.pass_context
+@dry_run_handling(dry_run_capable=True)
+def meta_edit(ctx: click.Context) -> None:
+	"""
+	This command edits the metadata (control file) of an opsi source package.
+	"""
+	logger.trace("meta-edit command")
+
+
+@meta_edit.command(name="add-product-dependency", short_help="Add a product dependency to the control file of an opsi package.")
+@argument_source_dir
+@click.option(
+	"--product-action",
+	help="Action for which the dependency is needed.",
+	required=True,
+	type=click.Choice(["setup", "uninstall", "update", "always", "once", "custom"]),
+)
+@click.option("--required-product-id", help="ID of the required product.", required=True)
+@click.option("--required-product-version", help="Version of the required product (optional).")
+@click.option("--required-package-version", help="Package version of the required product (optional).")
+@click.option(
+	"--required-action",
+	help="Required action for the dependent product.",
+	type=click.Choice(["setup", "uninstall", "update", "always", "once", "custom"]),
+)
+@click.option(
+	"--required-installation-status",
+	help="Required installation status of the dependent product.",
+	type=click.Choice(["installed", "not_installed"]),
+)
+@click.option(
+	"--requirement-type",
+	help="Specifies whether the dependency must be satisfied before or after the action is performed (optional).",
+	type=click.Choice(["before", "after"]),
+)
+@click.pass_context
+@dry_run_handling(dry_run_capable=True)
+def meta_edit_add_product_dependency(
+	ctx: click.Context,
+	source_dir: Path,
+	product_action: str,
+	required_product_id: str,
+	required_product_version: str | None = None,
+	required_package_version: str | None = None,
+	required_action: str | None = None,
+	required_installation_status: str | None = None,
+	requirement_type: Literal["before", "after"] | None = None,
+) -> None:
+	"""
+	opsi-cli package meta-edit add-product-dependency subcommand.
+	This subcommand is used to add a product dependency to the control file of an opsi package.
+	You have to specify either a required installation status or a required action.
+	"""
+	logger.trace("meta-edit add-product-dependency")
+
+	if not required_action and not required_installation_status:
+		raise click.UsageError("You must specify either a required action or a required installation status.")
+
+	opsi_package = OpsiPackage()
+	control_file = opsi_package.find_and_parse_control_file(source_dir)
+	new_dependency = ProductDependency(
+		productId=opsi_package.product.id,
+		productVersion=opsi_package.product.productVersion,
+		packageVersion=opsi_package.product.packageVersion,
+		productAction=product_action,
+		requiredProductId=required_product_id,
+		requiredProductVersion=required_product_version,
+		requiredPackageVersion=required_package_version,
+		requiredAction=required_action,
+		requiredInstallationStatus=required_installation_status,
+		requirementType=requirement_type,
+	)
+	logger.notice("Adding product dependency: %s", new_dependency)
+	product_dependencies = [
+		dep
+		for dep in opsi_package.product_dependencies
+		if dep.productId != new_dependency.productId
+		or dep.productAction != new_dependency.productAction
+		or dep.requiredProductId != new_dependency.requiredProductId
+	]
+	product_dependencies.append(new_dependency)
+	if config.dry_run:
+		console_print(
+			"Product dependency would be added to the control file.",
+			output_type=OutputType.WARNING_MESSAGE,
+		)
+		return
+
+	opsi_package.product_dependencies = product_dependencies
+	opsi_package.generate_control_file(control_file)
+
+	console_print("Product dependency has been successfully added to the control file.", output_type=OutputType.MESSAGE)
+
+
+@meta_edit.command(name="remove-product-dependency", short_help="Remove a product dependency from the control file of an opsi package.")
+@argument_source_dir
+@click.option(
+	"--product-action",
+	help="Action for which the dependency is needed.",
+	required=True,
+	type=click.Choice(["setup", "uninstall", "update", "always", "once", "custom"]),
+)
+@click.option("--required-product-id", help="ID of the required product.", required=True)
+@click.option("--ignore-missing", is_flag=True, help="Ignore if the product dependency does not exist.", default=False)
+@click.pass_context
+@dry_run_handling(dry_run_capable=True)
+def meta_edit_remove_product_dependency(
+	ctx: click.Context, source_dir: Path, product_action: str, required_product_id: str, ignore_missing: bool = False
+) -> None:
+	"""
+	opsi-cli package meta-edit remove-product-dependency subcommand.
+	This subcommand is used to remove a product dependency from the control file of an opsi package.
+	"""
+	logger.trace("meta-edit remove-product-dependency")
+
+	opsi_package = OpsiPackage()
+	control_file = opsi_package.find_and_parse_control_file(source_dir)
+	product_dependencies = [
+		dep
+		for dep in opsi_package.product_dependencies
+		if dep.productId != opsi_package.product.id or dep.productAction != product_action or dep.requiredProductId != required_product_id
+	]
+	if len(product_dependencies) == len(opsi_package.product_dependencies):
+		logger.info("No product dependency found for action '%s' and required product ID '%s'", product_action, required_product_id)
+		if not ignore_missing:
+			raise ValueError(
+				f"No product dependency found for action '{product_action}' and required product ID '{required_product_id}'.",
+			)
+		console_print(
+			f"No product dependency found for action '{product_action}' and required product ID '{required_product_id}'.",
+			output_type=OutputType.MESSAGE,
+		)
+		return
+
+	if config.dry_run:
+		console_print(
+			"The product dependency would be removed from the control file.",
+			output_type=OutputType.WARNING_MESSAGE,
+		)
+		return
+
+	logger.notice("Removing product dependency for action '%s' and required product ID '%s'", product_action, required_product_id)
+	opsi_package.product_dependencies = product_dependencies
+	opsi_package.generate_control_file(control_file)
+	console_print("Product dependency has been successfully removed from the control file.", output_type=OutputType.MESSAGE)
 
 
 def complete_package_path(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
