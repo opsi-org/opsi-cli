@@ -140,7 +140,7 @@ linux-x64-pyinstaller:
     - docker-x64
   script:
     - export LC_ALL=C.UTF-8
-    - - curl -sS "${OPSIDEVTOOLS_INSTALLER_URL_LINUX_X64}" | sh
+    - curl -sS "${OPSIDEVTOOLS_INSTALLER_URL_LINUX_X64}" | sh
     - opsi-dev-cli binary pull ziplaunch
     - export UV_PYTHON="3.13"
     - export UV_PYTHON_PREFERENCE="only-managed"
