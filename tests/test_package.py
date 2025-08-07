@@ -568,3 +568,162 @@ def test_package_fetch(tmp_path: Path) -> None:
 
 	exit_code, _, _ = run_cli(["package", "uninstall", "opsi-client-agent"])
 	assert exit_code == 0
+
+
+@pytest.mark.parametrize("dry_run", (True, False))
+def test_meta_edit_add_product_dependency(tmp_path: Path, test_product_source: Path, dry_run: bool) -> None:
+	source_dir = test_product_source
+	exit_code, _stdout, stderr = run_cli(
+		(["--dry-run"] if dry_run else [])
+		+ [
+			"package",
+			"meta-edit",
+			"add-product-dependency",
+			str(source_dir),
+			"--product-action",
+			"setup",
+			"--required-product-id",
+			"dep1",
+			"--required-product-version",
+			"1.2",
+			"--required-package-version",
+			"3",
+			"--required-action",
+			"setup",
+			"--requirement-type",
+			"before",
+		]
+	)
+	stderr = re.sub(r"\s\s+", " ", stderr.replace("\n", " ").replace("│", " "))
+	assert exit_code == 0
+	if dry_run:
+		assert "Product dependency would be added to the control file." in stderr
+	else:
+		assert "Product dependency has been successfully added to the control file." in stderr
+
+	package = OpsiPackage()
+	package.parse_control_file(source_dir / "OPSI" / "control.toml")
+	dependencies = [dep for dep in package.product_dependencies if dep.requiredProductId == "dep1"]
+
+	if dry_run:
+		assert len(dependencies) == 0
+	else:
+		assert len(dependencies) == 1
+		assert dependencies[0].productId == package.product.id
+		assert dependencies[0].productAction == "setup"
+		assert dependencies[0].requiredProductId == "dep1"
+		assert dependencies[0].requiredProductVersion == "1.2"
+		assert dependencies[0].requiredPackageVersion == "3"
+		assert dependencies[0].requiredAction == "setup"
+		assert dependencies[0].requirementType == "before"
+
+
+@pytest.mark.parametrize(
+	"arguments, expected_error",
+	[
+		(
+			["--required-product-id", "dep1", "--product-action", "invalid"],
+			"Invalid value for '--product-action': 'invalid' is not one of 'setup', 'uninstall', 'update', 'always', 'once', 'custom'.",
+		),
+		(
+			["--required-product-id", "dep1", "--product-action", "setup", "--required-action", "invalid"],
+			"Invalid value for '--required-action': 'invalid' is not one of 'setup', 'uninstall', 'update', 'always', 'once', 'custom'.",
+		),
+		(
+			[
+				"--required-product-id",
+				"dep1",
+				"--product-action",
+				"setup",
+				"--required-action",
+				"uninstall",
+				"--requirement-type",
+				"invalid",
+			],
+			"Invalid value for '--requirement-type': 'invalid' is not one of 'before', 'after'.",
+		),
+		(
+			["--required-product-id", "dep1", "--product-action", "setup"],
+			"You must specify either a required action or a required installation status.",
+		),
+	],
+)
+def test_meta_edit_add_product_dependency_errors(
+	tmp_path: Path, test_product_source: Path, arguments: list[str], expected_error: str
+) -> None:
+	source_dir = test_product_source
+	exit_code, _stdout, stderr = run_cli(
+		[
+			"package",
+			"meta-edit",
+			"add-product-dependency",
+			str(source_dir),
+		]
+		+ arguments
+	)
+	assert exit_code == 2
+	stderr = re.sub(r"\s\s+", " ", stderr.replace("\n", " ").replace("│", " "))
+	assert expected_error in stderr
+
+
+@pytest.mark.parametrize("dry_run", (True, False))
+@pytest.mark.parametrize("ignore_missing", (True, False))
+def test_meta_edit_remove_product_dependency(tmp_path: Path, test_product_source: Path, dry_run: bool, ignore_missing: bool) -> None:
+	source_dir = test_product_source
+	exit_code, _stdout, _stderr = run_cli(
+		[
+			"package",
+			"meta-edit",
+			"add-product-dependency",
+			str(source_dir),
+			"--product-action",
+			"setup",
+			"--required-product-id",
+			"dep1",
+			"--required-product-version",
+			"1.2",
+			"--required-package-version",
+			"3",
+			"--required-installation-status",
+			"installed",
+		]
+	)
+	assert exit_code == 0
+	for call_num in (1, 2):
+		exit_code, _stdout, stderr = run_cli(
+			(["--dry-run"] if dry_run else [])
+			+ [
+				"package",
+				"meta-edit",
+				"remove-product-dependency",
+				str(source_dir),
+				"--product-action",
+				"setup",
+				"--required-product-id",
+				"dep1",
+			]
+			+ (["--ignore-missing"] if ignore_missing else [])
+		)
+		stderr = re.sub(r"\s\s+", " ", stderr.replace("\n", " ").replace("│", " "))
+
+		if call_num == 2 and not ignore_missing and not dry_run:
+			assert exit_code == 1
+			assert "No product dependency found for action 'setup' and required product ID 'dep1'." in stderr
+			continue
+
+		assert exit_code == 0
+
+		package = OpsiPackage()
+		package.parse_control_file(source_dir / "OPSI" / "control.toml")
+		dependencies = [dep for dep in package.product_dependencies if dep.requiredProductId == "dep1"]
+
+		if dry_run:
+			assert "The product dependency would be removed from the control file." in stderr
+			assert len(dependencies) == 1
+			continue
+
+		if call_num == 1:
+			assert "Product dependency has been successfully removed from the control file." in stderr
+		else:
+			assert "No product dependency found for action 'setup' and required product ID 'dep1'." in stderr
+		assert len(dependencies) == 0
