@@ -17,7 +17,7 @@ from unittest.mock import patch
 
 import pytest
 from opsicommon.client.opsiservice import ServiceClient
-from opsicommon.objects import ProductOnClient, NetbootProduct
+from opsicommon.objects import NetbootProduct, ProductOnClient
 
 from .utils import run_cli, tmp_client, tmp_host_group, tmp_product, tmp_product_group
 
@@ -62,7 +62,7 @@ def test_ClientActionArgs() -> None:
 	assert args.clients == {"all", "client2.opsi.test"}
 	assert args.client_groups == {"group1", "group2"}
 	assert args.clients_from_depots == {"depot1.opsi.test", "depot2.opsi.test"}
-	assert args.ip_addresses == {"10.10.10.1", "::1"}
+	assert args.ip_addresses == {"10.10.10.1/32", "::1/128"}  # network containing only one address
 	assert args.exclude_clients == {"client1.opsi.test"}
 	assert args.exclude_client_groups == {"group3", "group4"}
 	assert args.exclude_ip_addresses == {"192.168.1.1", "::1"}
