@@ -17,7 +17,7 @@ from unittest.mock import patch
 
 import pytest
 from opsicommon.client.opsiservice import ServiceClient
-from opsicommon.objects import ProductOnClient, NetbootProduct
+from opsicommon.objects import NetbootProduct, ProductOnClient
 
 from .utils import run_cli, tmp_client, tmp_host_group, tmp_product, tmp_product_group
 
@@ -62,10 +62,10 @@ def test_ClientActionArgs() -> None:
 	assert args.clients == {"all", "client2.opsi.test"}
 	assert args.client_groups == {"group1", "group2"}
 	assert args.clients_from_depots == {"depot1.opsi.test", "depot2.opsi.test"}
-	assert args.ip_addresses == {"10.10.10.1", "::1"}
+	assert args.ip_addresses == {"10.10.10.1/32", "::1/128"}  # network containing only one address
 	assert args.exclude_clients == {"client1.opsi.test"}
 	assert args.exclude_client_groups == {"group3", "group4"}
-	assert args.exclude_ip_addresses == {"192.168.1.1", "::1"}
+	assert args.exclude_ip_addresses == {"192.168.1.1/32", "::1/128"}
 	assert args.where_action_request == {"setup", "uninstall"}
 	assert args.only_online is True
 
@@ -572,6 +572,7 @@ def test_set_action_request_excludes(admin_service_client: ServiceClient) -> Non
 			f"--clients={CLIENT1},{CLIENT2}",
 			"--exclude-clients=nonexistent.test.tld",
 			f"--exclude-client-groups={H_GROUP1}",
+			"--exclude-ip-addresses=1.2.3.0/24,1.2.4.1",  # should handle both networks and single addresses
 			"set-action-request",
 			f"--products={PRODUCT1},{PRODUCT2}",
 			"--exclude-products=nonexistent",

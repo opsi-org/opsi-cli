@@ -17,7 +17,7 @@ from ipaddress import ip_network
 from opsicommon.logging import get_logger
 from opsicommon.objects import Group as GroupObject
 from opsicommon.objects import ObjectToGroup, OpsiClient
-from opsicommon.types import forceActionRequest, forceGroupId, forceHostId, forceIPAddress
+from opsicommon.types import forceActionRequest, forceGroupId, forceHostId, forceNetworkAddress
 from opsicommon.utils import ip_address_in_network
 
 from opsicli.io import deprecation_warning
@@ -55,12 +55,14 @@ class ClientActionArgs:
 		self.clients_from_depots: set[str] = {
 			forceHostId(depot.strip()) for depot in (clients_from_depots or "").split(",") if depot.strip()
 		}
-		self.ip_addresses: set[str] = {forceIPAddress(ip.strip()) for ip in (ip_addresses or "").split(",") if ip.strip()}
+		self.ip_addresses: set[str] = {forceNetworkAddress(ip.strip()) for ip in (ip_addresses or "").split(",") if ip.strip()}
 		self.exclude_clients: set[str] = {forceHostId(client.strip()) for client in (exclude_clients or "").split(",") if client.strip()}
 		self.exclude_client_groups: set[str] = {
 			forceGroupId(group.strip()) for group in (exclude_client_groups or "").split(",") if group.strip()
 		}
-		self.exclude_ip_addresses: set[str] = {forceIPAddress(ip.strip()) for ip in (exclude_ip_addresses or "").split(",") if ip.strip()}
+		self.exclude_ip_addresses: set[str] = {
+			forceNetworkAddress(ip.strip()) for ip in (exclude_ip_addresses or "").split(",") if ip.strip()
+		}
 		self.where_action_request: set[str] = {
 			forceActionRequest(request.strip()) for request in (where_action_request or "").split(",") if request.strip()
 		}
