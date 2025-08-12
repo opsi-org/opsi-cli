@@ -65,7 +65,7 @@ def test_ClientActionArgs() -> None:
 	assert args.ip_addresses == {"10.10.10.1/32", "::1/128"}  # network containing only one address
 	assert args.exclude_clients == {"client1.opsi.test"}
 	assert args.exclude_client_groups == {"group3", "group4"}
-	assert args.exclude_ip_addresses == {"192.168.1.1", "::1"}
+	assert args.exclude_ip_addresses == {"192.168.1.1/32", "::1/128"}
 	assert args.where_action_request == {"setup", "uninstall"}
 	assert args.only_online is True
 
