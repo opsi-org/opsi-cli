@@ -572,11 +572,11 @@ def test_set_action_request_excludes(admin_service_client: ServiceClient) -> Non
 			f"--clients={CLIENT1},{CLIENT2}",
 			"--exclude-clients=nonexistent.test.tld",
 			f"--exclude-client-groups={H_GROUP1}",
+			"--exclude-ip-addresses=1.2.3.0/24,1.2.4.1",  # should handle both networks and single addresses
 			"set-action-request",
 			f"--products={PRODUCT1},{PRODUCT2}",
 			"--exclude-products=nonexistent",
 			f"--exclude-product-groups={P_GROUP}",
-			"--exclude-ip-addresses=1.2.3.0/24,1.2.4.1",  # should handle both networks and single addresses
 		]
 
 		exit_code, stdout, _stderr = run_cli(cmd)
