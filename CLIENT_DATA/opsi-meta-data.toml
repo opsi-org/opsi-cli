@@ -1,0 +1,39 @@
+[[installers]]
+name = "opsi-cli-windows"
+processes = []
+check_processes_from_dirs = []
+install_dir = ''
+path = ''
+
+[[installers.requirement]]
+os_arch = 'x86'
+os = 'windows'
+requiredSpaceMB = 200
+
+[[installers]]
+name = "opsi-cli-linux"
+processes = []
+check_processes_from_dirs = []
+install_dir = ''
+path = ''
+
+[[installers.requirement]]
+os_arch = 'x64'
+os = 'linux'
+requiredSpaceMB = 200
+
+[[installers]]
+name = "opsi-cli-macos"
+processes = []
+check_processes_from_dirs = []
+install_dir = ''
+path = ''
+
+[[installers.requirement]]
+os_arch = 'x64'
+os = 'macos'
+requiredSpaceMB = 200
+
+
+[specification]
+version = '0.1'
