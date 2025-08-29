@@ -89,7 +89,7 @@ class HostControlWorker(ClientActionWorker):
 		if config.dry_run or not clients:
 			return ({c: None for c in clients}, {})
 
-		result = self.service.jsonrpc("hostControl_fireEvent", [event, clients])
+		result = self.service.jsonrpc("hostControl_fireEvent", [event, clients], read_timeout=60)
 		return evaluate_rpc_dict_result(result)
 
 	def _wakeup_clients(self, clients: set[str], wakeup_timeout: float = 0) -> tuple[dict[str, str | None], dict[str, str | None]]:
