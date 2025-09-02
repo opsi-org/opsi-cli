@@ -79,7 +79,7 @@ pytest-linux:
     #OPSICONFD_RESTORE_BACKUP_URL: "http://binaryindex.uib.gmbh/development/testbackup/all/all/testbackup_all_all_1.1.tar.gz"
     # issue for individually configurable timeouts https://gitlab.com/gitlab-org/gitlab/-/issues/30353
   before_script:
-    - for trynum in 1 2 3 4 5 6 7 8 9 10; do curl --insecure https://opsiconfd:4447 && break; sleep 6; done
+    - for trynum in $(seq 1 30); do curl --insecure https://opsiconfd:4447 && break; sleep 6; done
   script:
     - export UV_PYTHON="3.13"
     - export UV_PYTHON_PREFERENCE="only-managed"
