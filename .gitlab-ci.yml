@@ -59,8 +59,6 @@ pytest-linux:
       alias: redis
     - name: docker.uib.gmbh/opsi/opsi-server:4.3-development
       alias: opsiconfd
-      variables:
-        HEALTHCHECK_TCP_PORT: "4447"
   variables:
     FF_NETWORK_PER_BUILD: "1" # Create a new network for each build
     CI_DEBUG_SERVICES: "true" # Show debug information for services in ci
@@ -80,6 +78,11 @@ pytest-linux:
     # when restoring the test backup, this job takes > 60 seconds to start, so gitlab-ci kills it
     #OPSICONFD_RESTORE_BACKUP_URL: "http://binaryindex.uib.gmbh/development/testbackup/all/all/testbackup_all_all_1.1.tar.gz"
     # issue for individually configurable timeouts https://gitlab.com/gitlab-org/gitlab/-/issues/30353
+  before_script:
+    - for trynum in 1 2 3 4 5 6 7 8 9 10; do
+      curl --insecure https://opsiconfd:44447 && break
+      sleep 6
+      done
   script:
     - export UV_PYTHON="3.13"
     - export UV_PYTHON_PREFERENCE="only-managed"
