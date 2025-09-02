@@ -59,6 +59,8 @@ pytest-linux:
       alias: redis
     - name: docker.uib.gmbh/opsi/opsi-server:4.3-development
       alias: opsiconfd
+      variables:
+        HEALTHCHECK_TCP_PORT: "4447"
   variables:
     FF_NETWORK_PER_BUILD: "1" # Create a new network for each build
     CI_DEBUG_SERVICES: "true" # Show debug information for services in ci
