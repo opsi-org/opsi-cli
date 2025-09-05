@@ -5,7 +5,7 @@ check_processes_from_dirs = []
 install_dir = ''
 path = ''
 
-[[installers.requirement]]
+[installers.requirement]
 os_arch = 'x86'
 os = 'windows'
 requiredSpaceMB = 200
@@ -17,7 +17,7 @@ check_processes_from_dirs = []
 install_dir = ''
 path = ''
 
-[[installers.requirement]]
+[installers.requirement]
 os_arch = 'x64'
 os = 'linux'
 requiredSpaceMB = 200
@@ -29,7 +29,7 @@ check_processes_from_dirs = []
 install_dir = ''
 path = ''
 
-[[installers.requirement]]
+[installers.requirement]
 os_arch = 'x64'
 os = 'macos'
 requiredSpaceMB = 200
