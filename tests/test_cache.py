@@ -26,8 +26,14 @@ def test_cache_ttl() -> None:
 
 
 def test_read_write_cache() -> None:
-	cache.set("testkey", "testvalue")
+	value = {
+		"string": "value",
+		"int": 1,
+		"list": [1, 2, 3, False],
+		"dict": {"key": "value", "bool": True, "list": ["x", "y", "z"]},
+	}
+	cache.set("testkey", value)
 	cache.store()
 	cache.set("testkey", "othertestvalue")
 	cache.load()
-	assert cache.get("testkey") == "testvalue"
+	assert cache.get("testkey") == value

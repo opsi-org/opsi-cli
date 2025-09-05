@@ -25,7 +25,7 @@ from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 from plugins.jsonrpc.data.metadata import command_metadata
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 logger = get_logger("opsicli")
 
@@ -56,12 +56,17 @@ def cli(ctx: click.Context) -> None:
 
 
 @cli.command(short_help="Get JSONRPC method list")
-def methods() -> None:
+@click.option("--include-deprecated", is_flag=True, default=False, help="Include deprecated methods")
+def methods(include_deprecated: bool) -> None:
 	"""
 	opsi-cli jsonrpc methods subcommand.
 	"""
 	metadata = command_metadata.get("jsonrpc_methods")
-	write_output(cache.get("jsonrpc-interface-raw"), metadata=metadata, default_output_format="table")
+	write_output(
+		[m for m in cache.get("jsonrpc-interface-raw") if (not m["deprecated"]) or include_deprecated],
+		metadata=metadata,
+		default_output_format="table",
+	)
 
 
 def complete_methods(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
