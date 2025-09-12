@@ -9,8 +9,8 @@ template for opsi-cli plugins
 
 import rich_click as click
 from opsicommon.logging import get_logger
-from opsicommon.objects import Config, ConfigState
-from purecrypt import Crypt, Method  # type: ignore[import]
+from opsicommon.objects import BoolConfig, Config, ConfigState, UnicodeConfig
+from purecrypt import Crypt, Method  # type: ignore[import-untyped]
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_handling
@@ -18,102 +18,79 @@ from opsicli.io import Attribute, Metadata, OutputType, console_print, write_out
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __description__ = "Plugin to edit bootimage configs"
 
 
 logger = get_logger("opsicli")
 
 
-def patch_values(patch_dict: dict[str, str], values: list[str]) -> list[str]:
-	for key, value in patch_dict.items():
-		for index, entry in enumerate(values):
-			if entry.startswith(f"{key}="):
-				new_entry = f"{key}={value}"
-				logger.debug("Replacing %s with %s", entry, new_entry)
-				values[index] = new_entry
-				break
-		else:
-			new_entry = f"{key}={value}"
-			logger.debug("Adding new entry %s", new_entry)
-			values.append(new_entry)
-	return values
-
-
-def patch_flags(flags: list[str], values: list[str]) -> list[str]:
-	for entry in flags:
-		if entry not in values:
-			logger.debug("Adding new entry %s", entry)
-			values.append(entry)
-	return values
-
-
-def remove_old_password_hashes(values: dict[str, str] | None = None, flags: list[str] | None = None) -> None:
-	values = values or {}
-	flags = flags or []
+def set_linux_bootimage_cmdline_param(name: str, values: list[str], host_id: str | None = None) -> None:
+	values = values or []
+	config_id = f"netboot.linux-bootimage.cmdline.{name}"
 	service = get_service_connection()
-	configs: list[Config] = service.jsonrpc("config_getObjects", [[], {"id": "opsi-linux-bootimage.append"}])
-	if not configs[0].possibleValues:
-		configs[0].possibleValues = []
-	if not configs[0].defaultValues:
-		configs[0].defaultValues = []
-	possible_values: list[str] = []
-	for element in configs[0].possibleValues:
-		if element.startswith("pwh="):
-			possible_values.append(element)
-	for element in possible_values:
-		configs[0].possibleValues.remove(element)
-	default_values: list[str] = []
-	for element in configs[0].defaultValues:
-		if element.startswith("pwh="):
-			default_values.append(element)
-	for element in default_values:
-		configs[0].defaultValues.remove(element)
-	service.jsonrpc("config_updateObjects", [configs])
 
-
-def set_append_values(values: dict[str, str] | None = None, flags: list[str] | None = None, client: str | None = None) -> None:
-	values = values or {}
-	flags = flags or []
-	service = get_service_connection()
-	if client:
-		config_states: list[ConfigState] = service.jsonrpc(
-			"configState_getObjects", [[], {"configId": "opsi-linux-bootimage.append", "objectId": client}]
-		)
-		new_values = [f"{key}={value}" for key, value in values.items()] + flags
-		if not config_states:
-			service.jsonrpc("configState_create", ["opsi-linux-bootimage.append", client, new_values])
+	configs: list[Config] = service.jsonrpc("config_getObjects", [[], {"id": config_id}])
+	if not configs:
+		description: str = f"Linux bootimage cmdline parameter {name} created by opsi-cli"
+		if values and values[0].lower() in ("true", "false"):
+			configs = [
+				BoolConfig(
+					id=config_id,
+					description=description,
+				)
+			]
 		else:
-			config_states[0].values = patch_values(values, config_states[0].values or [])
-			config_states[0].values = patch_flags(flags, config_states[0].values or [])
-			service.jsonrpc("configState_updateObjects", [config_states])
+			configs = [
+				UnicodeConfig(
+					id=config_id,
+					description=description,
+					editable=True,
+				)
+			]
+		if host_id:
+			service.jsonrpc("config_createObjects", [configs])
+
+	new_values: list[str | bool] = []
+	if values:
+		if isinstance(configs[0], BoolConfig):
+			new_values = [values[0].lower() == "true"]
+		else:
+			new_values = [v for v in values]
+
+	if not host_id:
+		possible_values = configs[0].possibleValues or []
+		for v in new_values:
+			if v not in possible_values:
+				possible_values.append(v)
+		configs[0].setPossibleValues(possible_values)
+		configs[0].setDefaultValues(new_values)
+		service.jsonrpc("config_updateObjects", [configs])
 		return
 
-	configs: list[Config] = service.jsonrpc("config_getObjects", [[], {"id": "opsi-linux-bootimage.append"}])
-	if not configs[0].possibleValues:
-		configs[0].possibleValues = []
-	if not configs[0].defaultValues:
-		configs[0].defaultValues = []
-	new_values = patch_values(values, configs[0].defaultValues)
-	new_values = patch_flags(flags, new_values)
-	for new_value in new_values:
-		if new_value not in configs[0].possibleValues:
-			configs[0].possibleValues.append(new_value)
-	configs[0].defaultValues = new_values
-	service.jsonrpc("config_updateObjects", [configs])
+	service.jsonrpc(
+		"configState_updateObjects",
+		[
+			ConfigState(
+				configId=config_id,
+				objectId=host_id,
+				values=new_values,
+			)
+		],
+	)
 
 
 @click.group(cls=OPSICLIGroup, name="bootimage", short_help="Plugin for bootimage configuration")
 @click.version_option(__version__, message="opsi-cli plugin bootimage, version %(version)s")
-@click.option("--client", help="set value specific for this client", type=str)
+@click.option("--host", "--client", help="set value specific for this client", type=str)
 @click.pass_context
 @dry_run_handling()
-def cli(ctx: click.Context, client: str | None) -> None:
+def cli(ctx: click.Context, host: str | None) -> None:
 	"""
 	Custom plugin to edit bootimage append configs
 	"""
 	logger.trace("bootimage command")
-	ctx.obj = {"client": client}
+	ctx.obj = {"host": host}
 
 
 @cli.command(short_help="Set any bootimage (append) parameter")
@@ -125,17 +102,19 @@ def set_boot_parameter(ctx: click.Context, parameter: str, value: str | None = N
 	This subcommand sets an append parameter for opsi-linux-bootimage
 	"""
 	logger.trace("bootimage set-boot-parameter subcommand")
-	if ctx.obj["client"]:
-		logger.notice("Setting parameter %r for client %r", parameter, ctx.obj["client"])
+	if ctx.obj["host"]:
+		logger.notice("Setting parameter %r for client %r", parameter, ctx.obj["host"])
 	else:
 		logger.notice("Setting parameter %r globally", parameter)
-	if value:
-		set_append_values(values={parameter: value}, client=ctx.obj["client"])
-	else:
-		set_append_values(flags=[parameter], client=ctx.obj["client"])
 
-	if ctx.obj["client"]:
-		console_print(f"Parameter {parameter} set for client {ctx.obj['client']}.", output_type=OutputType.MESSAGE)
+	if not value:
+		# If no value is given, we assume it's a flag and set it to true
+		value = "true"
+
+	set_linux_bootimage_cmdline_param(name=parameter, values=[value], host_id=ctx.obj["host"])
+
+	if ctx.obj["host"]:
+		console_print(f"Parameter {parameter} set for client {ctx.obj['host']}.", output_type=OutputType.MESSAGE)
 	else:
 		console_print(f"Parameter {parameter} set globally.", output_type=OutputType.MESSAGE)
 
@@ -153,10 +132,9 @@ def set_boot_password(ctx: click.Context, password: str) -> None:
 		salt = Crypt.generate_salt(Method.SHA512)
 		salt = salt[:19]  # 16 bytes salt + 3 bytes $6$
 		password_hash = Crypt.encrypt(password, salt)
-	logger.notice("Setting pwh append parameter")
+	logger.notice("Setting linux bootimage cmdline parameter 'pwh'")
 
-	remove_old_password_hashes()
-	set_append_values(values={"pwh": password_hash}, client=ctx.obj["client"])
+	set_linux_bootimage_cmdline_param(name="pwh", values=[password_hash], host_id=ctx.obj["host"])
 
 	console_print("Password hash generated and applied successfully.", output_type=OutputType.MESSAGE)
 	metadata = Metadata(

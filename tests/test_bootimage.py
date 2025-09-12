@@ -24,12 +24,12 @@ CLIENT1 = "pytest-client1.test.tld"
 def test_bootimage_set_boot_parameter(admin_service_client: ServiceClient) -> None:
 	exit_code, _stdout, _stderr = run_cli(["bootimage", "set-boot-parameter", "nomodeset"])
 	assert exit_code == 0
-	configs = admin_service_client.jsonrpc("config_getObjects", params=[[], {"id": "opsi-linux-bootimage.append"}])
-	assert "nomodeset" in configs[0].defaultValues
+	configs = admin_service_client.jsonrpc("config_getObjects", params=[[], {"id": "netboot.linux-bootimage.cmdline.nomodeset"}])
+	assert configs[0].defaultValues == [True]
 	exit_code, _stdout, _stderr = run_cli(["bootimage", "set-boot-parameter", "lang", "de"])
 	assert exit_code == 0
-	configs = admin_service_client.jsonrpc("config_getObjects", params=[[], {"id": "opsi-linux-bootimage.append"}])
-	assert "lang=de" in configs[0].defaultValues
+	configs = admin_service_client.jsonrpc("config_getObjects", params=[[], {"id": "netboot.linux-bootimage.cmdline.lang"}])
+	assert configs[0].defaultValues == ["de"]
 
 
 @pytest.mark.opsi_service
@@ -38,15 +38,15 @@ def test_bootimage_set_boot_parameter_client(admin_service_client: ServiceClient
 		exit_code, _stdout, _stderr = run_cli(["bootimage", "--client", CLIENT1, "set-boot-parameter", "nomodeset"])
 		assert exit_code == 0
 		config_states = admin_service_client.jsonrpc(
-			"configState_getObjects", params=[[], {"configId": "opsi-linux-bootimage.append", "objectId": CLIENT1}]
+			"configState_getObjects", params=[[], {"configId": "netboot.linux-bootimage.cmdline.nomodeset", "objectId": CLIENT1}]
 		)
-		assert "nomodeset" in config_states[0].values
+		assert config_states[0].values == [True]
 		exit_code, _stdout, _stderr = run_cli(["bootimage", "--client", CLIENT1, "set-boot-parameter", "lang", "de"])
 		assert exit_code == 0
 		config_states = admin_service_client.jsonrpc(
-			"configState_getObjects", params=[[], {"configId": "opsi-linux-bootimage.append", "objectId": CLIENT1}]
+			"configState_getObjects", params=[[], {"configId": "netboot.linux-bootimage.cmdline.lang", "objectId": CLIENT1}]
 		)
-		assert "lang=de" in config_states[0].values
+		assert config_states[0].values == ["de"]
 
 
 @pytest.mark.opsi_service
@@ -58,8 +58,9 @@ def test_bootimage_set_boot_password(admin_service_client: ServiceClient) -> Non
 	password_hash = json.loads(stdout)["password_hash"]
 
 	assert Crypt.is_valid(password, password_hash)
-	configs = admin_service_client.jsonrpc("config_getObjects", params=[[], {"id": "opsi-linux-bootimage.append"}])
-	assert f"pwh={password_hash}" in configs[0].defaultValues
+
+	configs = admin_service_client.jsonrpc("config_getObjects", params=[[], {"id": "netboot.linux-bootimage.cmdline.pwh"}])
+	assert configs[0].defaultValues == [password_hash]
 
 
 @pytest.mark.opsi_service
@@ -72,8 +73,8 @@ def test_bootimage_remove_boot_password(admin_service_client: ServiceClient) -> 
 
 	assert Crypt.is_valid(password, first_password_hash)
 
-	configs = admin_service_client.jsonrpc("config_getObjects", params=[[], {"id": "opsi-linux-bootimage.append"}])
-	assert f"pwh={first_password_hash}" in configs[0].defaultValues
+	configs = admin_service_client.jsonrpc("config_getObjects", params=[[], {"id": "netboot.linux-bootimage.cmdline.pwh"}])
+	assert configs[0].defaultValues == [first_password_hash]
 
 	password = random_string(10)
 	exit_code, stdout, _stderr = run_cli(["bootimage", "set-boot-password", password])
@@ -82,6 +83,5 @@ def test_bootimage_remove_boot_password(admin_service_client: ServiceClient) -> 
 	second_password_hash = json.loads(stdout)["password_hash"]
 
 	assert Crypt.is_valid(password, second_password_hash)
-	configs = admin_service_client.jsonrpc("config_getObjects", params=[[], {"id": "opsi-linux-bootimage.append"}])
-	assert f"pwh={second_password_hash}" in configs[0].defaultValues
-	assert f"pwh={first_password_hash}" not in configs[0].defaultValues
+	configs = admin_service_client.jsonrpc("config_getObjects", params=[[], {"id": "netboot.linux-bootimage.cmdline.pwh"}])
+	assert configs[0].defaultValues == [second_password_hash]
