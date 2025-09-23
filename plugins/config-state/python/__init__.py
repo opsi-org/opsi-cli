@@ -9,13 +9,12 @@ opsi-cli basic command line interface for opsi
 config-states subcommand
 """
 
-import json
-
 import rich_click as click
 from opsicommon.logging import get_logger
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_handling
+from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.rpc_calls import execute_rpc_call
 
@@ -35,30 +34,37 @@ def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 	logger.trace("config states command group")
 
 
+"""
+clientconfig.configserver.url ['https://bonifax.uib.local:4447/rpc'] (client)
+clientconfig.depot.drive ['p:'] (default)
+client1.domain.tld config3 ["5"] (server)
+"""
+
+
 @cli.command(name="list", short_help="List all config states or get a filtered list")
-@click.argument("attributes", type=str, nargs=-1, required=False, default=None)
 @click.option("--config-id", type=str, default=None)
-@click.option("--object-id", type=str, default=None)
-def config_states_list(
-	attributes: list[str] | None = None, config_id: str | None = None, object_id: str | None = None, timeout: float | None = None
-) -> None:
+@click.argument("object_id", type=str, default=None)
+def config_states_list(config_id: str | None = None, object_id: str | None = None) -> None:
 	"""
 	opsi-cli config-state list subcommand.
 	"""
 
-	if not attributes:
-		attributes = "[]"
+	client = get_service_connection()
+	default_result = client.config_getObjects(id=config_id or [])
+	object_result = client.configState_getObjects(configId=config_id or [], objectId=object_id)
+	for entry in default_result:
+		if entry.id.startswith("clientconfig"):
+			print(entry.id, entry.defaultValues)
 
-	filter = {"configId": config_id, "objectId": object_id}
-	filter = {key: value for key, value in filter.items() if value is not None}
+	print("----------")
+	for entry in object_result:
+		if entry.configId.startswith("clientconfig"):
+			print(entry.configId, entry.values)
 
-	if filter:
-		params = [attributes, filter]
-
-	else:
-		params = [attributes]
-
-	execute_rpc_call("configState_getObjects", params)
+	# wenn client:
+	# siehe # opsi-cli jsonrpc execute configState_getClientToDepotserver null nils-client1.uib.local
+	# depot_id = execute_rpc_call("configState_getClientToDepotserver", [object_id])
+	# depot_result = client.jsonrpc("configState_getObjects", objectId=object_id)
 
 
 @cli.command(name="create", short_help="Create a config state")
