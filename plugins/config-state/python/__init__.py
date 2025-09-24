@@ -14,9 +14,9 @@ from opsicommon.logging import get_logger
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_handling
+from opsicli.io import Attribute, Metadata, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
-from opsicli.rpc_calls import execute_rpc_call
 
 __version__ = "0.1.0"
 __description__ = "This command can be used to identify potential problems in an opsi environment"
@@ -42,29 +42,42 @@ client1.domain.tld config3 ["5"] (server)
 
 
 @cli.command(name="list", short_help="List all config states or get a filtered list")
-@click.option("--config-id", type=str, default=None)
 @click.argument("object_id", type=str, default=None)
-def config_states_list(config_id: str | None = None, object_id: str | None = None) -> None:
+@click.option("--config-id", type=str, default=None)
+@click.option("--config-id-prefix", type=str, default="")
+def config_states_list(config_id: str | None = None, config_id_prefix: str | None = None, object_id: str | None = None) -> None:
 	"""
 	opsi-cli config-state list subcommand.
 	"""
-
 	client = get_service_connection()
-	default_result = client.config_getObjects(id=config_id or [])
-	object_result = client.configState_getObjects(configId=config_id or [], objectId=object_id)
-	for entry in default_result:
-		if entry.id.startswith("clientconfig"):
-			print(entry.id, entry.defaultValues)
+	server_id = client.host_getIdents(type="OpsiConfigserver")[0]
+	default_objects = client.config_getObjects(id=config_id or [])
+	server_objects = client.configState_getObjects(configId=config_id or [], objectId=server_id)
+	client_objects = client.configState_getObjects(configId=config_id or [], objectId=object_id)
+	default_entry_dict = {}
+	server_entry_dict = {}
+	client_entry_dict = {}
+	result_list = []
 
-	print("----------")
-	for entry in object_result:
-		if entry.configId.startswith("clientconfig"):
-			print(entry.configId, entry.values)
+	for entry in default_objects:
+		if entry.id.startswith(config_id_prefix):
+			default_entry_dict[entry.id] = [entry.defaultValues, "default"]
+	for entry in server_objects:
+		if entry.configId.startswith(config_id_prefix):
+			server_entry_dict[entry.configId] = [entry.values, "[yellow]server[/yellow]"]
+	for entry in client_objects:
+		if entry.configId.startswith(config_id_prefix):
+			client_entry_dict[entry.configId] = [entry.values, "[red]client[/red]"]
 
-	# wenn client:
-	# siehe # opsi-cli jsonrpc execute configState_getClientToDepotserver null nils-client1.uib.local
-	# depot_id = execute_rpc_call("configState_getClientToDepotserver", [object_id])
-	# depot_result = client.jsonrpc("configState_getObjects", objectId=object_id)
+	default_entry_dict.update(server_entry_dict)
+	default_entry_dict.update(client_entry_dict)
+
+	for key, values in default_entry_dict.items():
+		temp_list = [key]
+		temp_list.extend(values)
+		result_list.append(temp_list)
+
+	write_output(result_list, Metadata(attributes=[Attribute(id="configId"), Attribute(id="values"), Attribute(id="origin")]))
 
 
 @cli.command(name="create", short_help="Create a config state")
