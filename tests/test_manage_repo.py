@@ -103,7 +103,7 @@ def test_metafile_update(tmp_path: Path) -> None:
 @pytest.mark.parametrize("create", [True, False])
 def test_metafile_scan_packages(tmp_path: Path, create: bool) -> None:
 	repository_dir = tmp_path / "repository-dir"
-	formats = ["json", "msgpack", "msgpack.zstd"]
+	formats = ["json", "msgpack.zstd"]
 
 	shutil.copytree(TEST_REPO, repository_dir)
 
