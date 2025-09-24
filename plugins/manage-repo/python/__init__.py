@@ -144,10 +144,6 @@ def metafile_scan_packages(directory: Path, format: list[str]) -> None:
 	"""
 	This command scans for opsi packages in the specified directory and updates the metadata files.
 	"""
-	current_meta_files = list(directory.glob("packages.*"))
-	if not current_meta_files:
-		raise RuntimeError(f"No metadata files found in '{directory}'")
-
 	_metafile_update(directory=directory, read=True, format=format, scan=True)
 
 
