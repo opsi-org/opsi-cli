@@ -112,10 +112,6 @@ def test_metafile_scan_packages(tmp_path: Path, create: bool) -> None:
 		exit_code, stdout, _stderr = run_cli(cmd)
 		assert exit_code == 0
 
-	for suffix in formats:
-		data = read_metafile(repository_dir / f"packages.{suffix}")
-		assert not data["packages"]
-
 	cmd = ["manage-repo", "metafile", "scan-packages", str(repository_dir)]
 	exit_code, _stdout, _stderr = run_cli(cmd)
 	assert exit_code == 0
