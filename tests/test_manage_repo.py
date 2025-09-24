@@ -10,6 +10,7 @@ test_repository
 import shutil
 from pathlib import Path
 
+import pytest
 import zstandard
 from opsicommon.utils import json_decode, msgpack_decode
 
@@ -99,21 +100,17 @@ def test_metafile_update(tmp_path: Path) -> None:
 			assert not metafile.exists()
 
 
-def test_metafile_scan_packages(tmp_path: Path) -> None:
+@pytest.mark.parametrize("create", [True, False])
+def test_metafile_scan_packages(tmp_path: Path, create: bool) -> None:
 	repository_dir = tmp_path / "repository-dir"
 	formats = ["json", "msgpack", "msgpack.zstd"]
 
 	shutil.copytree(TEST_REPO, repository_dir)
 
-	# Update must create metafiles if they do not exist
-	cmd = ["manage-repo", "metafile", "scan-packages", str(repository_dir)]
-	exit_code, _stdout, stderr = run_cli(cmd)
-	assert exit_code == 1
-	assert "No metadata files" in stderr
-
-	cmd = ["manage-repo", "metafile", "create", str(repository_dir)] + [f"--format={f}" for f in formats]
-	exit_code, stdout, _stderr = run_cli(cmd)
-	assert exit_code == 0
+	if create:
+		cmd = ["manage-repo", "metafile", "create", str(repository_dir)] + [f"--format={f}" for f in formats]
+		exit_code, stdout, _stderr = run_cli(cmd)
+		assert exit_code == 0
 
 	for suffix in formats:
 		data = read_metafile(repository_dir / f"packages.{suffix}")
