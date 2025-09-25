@@ -29,6 +29,7 @@ STATIC_EXCLUDE_PRODUCTS = [
 	"opsi-script",
 	"shutdownwanted",
 	"windows10-upgrade",
+	"windows11-upgrade",
 	"activate-win",
 	"opsi-script-test",
 	"opsi-bootimage-local",
