@@ -9,6 +9,8 @@ opsi-cli basic command line interface for opsi
 config-states subcommand
 """
 
+from typing import Literal
+
 import rich_click as click
 from opsicommon.logging import get_logger
 from opsicommon.objects import BoolConfig, OpsiClient, UnicodeConfig
@@ -52,35 +54,34 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 
 	# get depot name/id for given object-id
 	def get_depot_id(object_id: str) -> str:
-		client_objects = service_connection.configState_getClientToDepotserver()
+		client_objects = service_connection.configState_getClientToDepotserver()  # type: ignore[attr-defined]
 		for client in client_objects:
 			if client["clientId"] == object_id:
 				return client["depotId"]
+		raise ValueError(f"No depot found for host '{object_id}'.")
 
-	def get_default_entries(config_id: str) -> dict:
+	def get_default_entries(config_id: str | list[str]) -> dict:
 		default_entry_dict = {}
-		default_objects = service_connection.config_getObjects(id=config_id or [])
+		default_objects = service_connection.config_getObjects(id=config_id or [])  # type: ignore[attr-defined]
 		for entry in default_objects:
-			default_entry_dict[entry.id] = [entry.defaultValues, "default"]
+			default_entry_dict[entry.id] = {"values": entry.defaultValues, "origin": "default", "configId": entry.id}
 		return default_entry_dict
 
-	def get_depot_entries(config_id: str, depot_id: str) -> dict:
-		depot_entry_dict = {}
-		depot_objects = service_connection.configState_getObjects(configId=config_id or [], objectId=depot_id)
+	def get_host_entries(
+		config_id: str | list[str],
+		object_id: str,
+		host_type: Literal["OpsiClient", "OpsiDepotserver"],
+	) -> dict:
+		origin = "[yellow]server[/yellow]" if host_type == "OpsiDepotserver" else "[red]client[/red]"
+		entry_dict = {}
+		depot_objects = service_connection.configState_getObjects(configId=config_id or [], objectId=object_id)  # type: ignore[attr-defined]
 		for entry in depot_objects:
-			depot_entry_dict[entry.configId] = [entry.values, "[yellow]server[/yellow]"]
-		return depot_entry_dict
-
-	def get_client_entries(config_id: str, object_id: str) -> dict:
-		client_entry_dict = {}
-		client_objects = service_connection.configState_getObjects(configId=config_id or [], objectId=object_id)
-		for entry in client_objects:
-			client_entry_dict[entry.configId] = [entry.values, "[red]client[/red]"]
-		return client_entry_dict
+			entry_dict[entry.configId] = {"values": entry.values, "origin": origin, "configId": entry.configId}
+		return entry_dict
 
 	def get_all_client_ids() -> list[str]:
 		ids = []
-		clients = service_connection.host_getObjects()
+		clients = service_connection.host_getObjects()  # type: ignore[attr-defined]
 		for c in clients:
 			if isinstance(c, OpsiClient):
 				id = c.id
@@ -97,21 +98,17 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 
 	# For every client: create dicts for (default/depot/client) and update them. Print the result
 	for obj_id in object_ids:
-		result_list = []
 		depot_id = get_depot_id(obj_id)
-		default_entry_dict = get_default_entries(config_id)
-		depot_entry_dict = get_depot_entries(config_id, depot_id)
-		client_entry_dict = get_client_entries(config_id, obj_id)
+		default_entry_dict = get_default_entries(config_id or [])
+		depot_entry_dict = get_host_entries(config_id or [], depot_id, "OpsiDepotserver")
+		client_entry_dict = get_host_entries(config_id or [], obj_id, "OpsiClient")
 
 		default_entry_dict.update(depot_entry_dict)
 		default_entry_dict.update(client_entry_dict)
-
-		for key, values in default_entry_dict.items():
-			temp_list = [key]
-			temp_list.extend(values)
-			result_list.append(temp_list)
-		print(f"\033[1mObjectId:	\033[0m {obj_id}\n\033[1mDepotId:	\033[0m {depot_id}\n\033[1mFilter:		\033[0m {config_id}")
-		write_output(result_list, Metadata(attributes=[Attribute(id="configId"), Attribute(id="values"), Attribute(id="origin")]))
+		write_output(
+			list(default_entry_dict.values()),
+			Metadata(attributes=[Attribute(id="configId"), Attribute(id="values"), Attribute(id="origin")]),
+		)
 
 
 class DatastorePlugin(OPSICLIPlugin):
