@@ -79,36 +79,35 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 			entry_dict[entry.configId] = {"values": entry.values, "origin": origin, "configId": entry.configId}
 		return entry_dict
 
-	def get_all_client_ids() -> list[str]:
-		ids = []
-		clients = service_connection.host_getObjects()  # type: ignore[attr-defined]
-		for c in clients:
-			if isinstance(c, OpsiClient):
-				id = c.id
-				ids.append(id)
-		return ids
-
 	service_connection = get_service_connection()
 	# get all objects if no object-id given, otherwise split the object-string
 	if object_id is None:
-		object_ids = get_all_client_ids()
+		object_ids = [entry.id for entry in service_connection.host_getObjects(type="OpsiClient")]  # type: ignore[attr-defined]
 	else:
 		object_ids = object_id.split(",")
 		object_ids = [item.strip() for item in object_ids]
 
+	default_entry_dict = get_default_entries(config_id or [])
+
+	result = []
 	# For every client: create dicts for (default/depot/client) and update them. Print the result
 	for obj_id in object_ids:
 		depot_id = get_depot_id(obj_id)
-		default_entry_dict = get_default_entries(config_id or [])
+
+		default_entry_dict_copy = default_entry_dict.copy()
 		depot_entry_dict = get_host_entries(config_id or [], depot_id, "OpsiDepotserver")
 		client_entry_dict = get_host_entries(config_id or [], obj_id, "OpsiClient")
 
-		default_entry_dict.update(depot_entry_dict)
-		default_entry_dict.update(client_entry_dict)
-		write_output(
-			list(default_entry_dict.values()),
-			Metadata(attributes=[Attribute(id="configId"), Attribute(id="values"), Attribute(id="origin")]),
-		)
+		default_entry_dict_copy.update(depot_entry_dict)
+		default_entry_dict_copy.update(client_entry_dict)
+		for key in default_entry_dict_copy:
+			default_entry_dict_copy[key]["objectId"] = obj_id
+			result.append(default_entry_dict_copy[key])
+		# result.append(default_entry_dict_copy.values())
+	write_output(
+		result,
+		Metadata(attributes=[Attribute(id="configId"), Attribute(id="values"), Attribute(id="origin"), Attribute(id="objectId")]),
+	)
 
 
 class DatastorePlugin(OPSICLIPlugin):
