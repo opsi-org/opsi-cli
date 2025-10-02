@@ -31,21 +31,13 @@ logger = get_logger("opsicli")
 @click.pass_context
 @dry_run_handling(dry_run_capable=True)
 def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
-	logger.trace("config states command group")
+	logger.trace("datastore command group")
 
 
 @cli.group(name="config-state", short_help="Change config state(s)")
 def config_state() -> None:
 	"""
-	opsi-cli datastore subcommand.
-	"""
-	pass
-
-
-@cli.group(name="product-prop", short_help="Change product propertie(s)")
-def product_properties() -> None:
-	"""
-	opsi-cli datastore subcommand.
+	opsi-cli datastore config-state subcommand.
 	"""
 	pass
 
@@ -55,7 +47,7 @@ def product_properties() -> None:
 @click.option("--config-id", type=str, default=None, help="Filter data with config_id. Wildcard * is possible")
 def list_config_state(config_id: str | None = None, object_id: str | None = None) -> None:
 	"""
-	opsi-cli datastore config-state subcommand.
+	opsi-cli datastore config-state list subcommand.
 	"""
 
 	# get depot name/id for given object-id
@@ -122,92 +114,7 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 		write_output(result_list, Metadata(attributes=[Attribute(id="configId"), Attribute(id="values"), Attribute(id="origin")]))
 
 
-@config_state.command(name="change", short_help="Change config state(s)")
-@click.argument("config-id", type=str)
-@click.argument("object-id", type=str, default=None)
-@click.argument("value", type=str)
-def change_config_state(config_id, object_id, value) -> None:
-	"""
-	opsi-cli datastore config-state subcommand.
-	"""
-	service_connection = get_service_connection()
-	config_list = service_connection.config_getObjects(id=config_id)
-	config = config_list[0]
-	possible_values = config.possibleValues
-	print(possible_values)
-
-	# test if config is type BoolConfig
-	if isinstance(config, BoolConfig):
-		if value in ["true", "True"]:
-			new_value = True
-			service_connection.configState_create(config_id, object_id, new_value)
-		elif value in ["false", "False"]:
-			new_value = False
-			service_connection.configState_create(config_id, object_id, new_value)
-		else:
-			print(f"\033[31mError:\033[0m '{value}' is not a possible value. Possible values are:\n{possible_values}")
-			return
-	# test if config is editable
-	if not config.editable:
-		print(f"\033[31mError:\033[0m {config_id} is not editable.")
-		return
-
-	# test if config is type UnicodeConfig
-	if isinstance(config, UnicodeConfig):
-		print("test")
-		if value in possible_values:
-			service_connection.configState_create(config_id, object_id, value)
-		else:
-			print(f"\033[31mError:\033[0m '{value}' is not a possible value. Possible values are:\n{possible_values}")
-			return
-
-	# test print
-	values = service_connection.configState_getValues(config_id, object_id, True)
-	print(values)
-
-	pass
-
-
-@config_state.command(name="delete", short_help="Delete a config state")
-def delete_config_state() -> None:
-	"""
-	opsi-cli datastore config-state subcommand.
-	"""
-	pass
-
-
-@product_properties.command(name="list", short_help="List all config states or get a filtered list")
-def list_product_properties(config_id: str | None = None, object_id: str | None = None) -> None:
-	"""
-	opsi-cli product-properties subcommand.
-	"""
-
-
-@product_properties.command(name="change", short_help="Change a config state")
-def change_product_properties() -> None:
-	"""
-	opsi-cli product-properties subcommand.
-	"""
-	pass
-
-
-@product_properties.command(name="create", short_help="Create a config state")
-def create_product_properties() -> None:
-	"""
-	opsi-cli product-properties list subcommand.
-	"""
-	pass
-
-
-@product_properties.command(name="delete", short_help="Delete a config state")
-def delete_product_properties() -> None:
-	"""
-	opsi-cli product-properties list subcommand.
-	"""
-	pass
-
-
-class SupportPlugin(OPSICLIPlugin):
+class DatastorePlugin(OPSICLIPlugin):
 	name: str = "Datastore"
 	description: str = __description__
 	version: str = __version__
