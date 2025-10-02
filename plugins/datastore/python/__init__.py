@@ -130,6 +130,42 @@ def change_config_state(config_id, object_id, value) -> None:
 	"""
 	opsi-cli datastore config-state subcommand.
 	"""
+	service_connection = get_service_connection()
+	config_list = service_connection.config_getObjects(id=config_id)
+	config = config_list[0]
+	possible_values = config.possibleValues
+	print(possible_values)
+
+	# test if config is type BoolConfig
+	if isinstance(config, BoolConfig):
+		if value in ["true", "True"]:
+			new_value = True
+			service_connection.configState_create(config_id, object_id, new_value)
+		elif value in ["false", "False"]:
+			new_value = False
+			service_connection.configState_create(config_id, object_id, new_value)
+		else:
+			print(f"\033[31mError:\033[0m '{value}' is not a possible value. Possible values are:\n{possible_values}")
+			return
+	# test if config is editable
+	if not config.editable:
+		print(f"\033[31mError:\033[0m {config_id} is not editable.")
+		return
+
+	# test if config is type UnicodeConfig
+	if isinstance(config, UnicodeConfig):
+		print("test")
+		if value in possible_values:
+			service_connection.configState_create(config_id, object_id, value)
+		else:
+			print(f"\033[31mError:\033[0m '{value}' is not a possible value. Possible values are:\n{possible_values}")
+			return
+
+	# test print
+	values = service_connection.configState_getValues(config_id, object_id, True)
+	print(values)
+
+	pass
 
 
 @config_state.command(name="delete", short_help="Delete a config state")
