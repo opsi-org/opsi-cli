@@ -13,7 +13,6 @@ from typing import Literal
 
 import rich_click as click
 from opsicommon.logging import get_logger
-from opsicommon.objects import BoolConfig, OpsiClient, UnicodeConfig
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_handling
@@ -45,8 +44,8 @@ def config_state() -> None:
 
 
 @config_state.command(name="list", short_help="List all config states or get a filtered list")
-@click.option("--object-id", type=str, default=None, help="Filter data with object_id(s). Use ',' as a separator.")
-@click.option("--config-id", type=str, default=None, help="Filter data with config_id. Wildcard * is possible")
+@click.option("--object-id", type=str, default=None, help="Filter data with object_id(s). Use ',' as a separator. Wildcard * is possible.")
+@click.option("--config-id", type=str, default=None, help="Filter data with config_id. Wildcard * is possible.")
 def list_config_state(config_id: str | None = None, object_id: str | None = None) -> None:
 	"""
 	opsi-cli datastore config-state list subcommand.
@@ -60,53 +59,87 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 				return client["depotId"]
 		raise ValueError(f"No depot found for host '{object_id}'.")
 
-	def get_default_entries(config_id: str | list[str]) -> dict:
+	def get_default_entries(config_id: str | list[str], object_id: str, depot_id: str) -> dict[str, dict[str, str]]:
 		default_entry_dict = {}
 		default_objects = service_connection.config_getObjects(id=config_id or [])  # type: ignore[attr-defined]
 		for entry in default_objects:
-			default_entry_dict[entry.id] = {"values": entry.defaultValues, "origin": "default", "configId": entry.id}
+			default_entry_dict[entry.id] = {
+				"values": entry.defaultValues,
+				"origin": "default",
+				"configId": entry.id,
+				"objectId": object_id,
+				"depotId": depot_id,
+			}
 		return default_entry_dict
 
 	def get_host_entries(
 		config_id: str | list[str],
 		object_id: str,
+		depot_id: str,
 		host_type: Literal["OpsiClient", "OpsiDepotserver"],
-	) -> dict:
+	) -> dict[str, dict[str, str]]:
 		origin = "[yellow]server[/yellow]" if host_type == "OpsiDepotserver" else "[red]client[/red]"
 		entry_dict = {}
-		depot_objects = service_connection.configState_getObjects(configId=config_id or [], objectId=object_id)  # type: ignore[attr-defined]
+		depot_objects = service_connection.configState_getObjects(
+			configId=config_id or [], objectId=object_id if host_type == "OpsiClient" else depot_id
+		)  # type: ignore[attr-defined]
 		for entry in depot_objects:
-			entry_dict[entry.configId] = {"values": entry.values, "origin": origin, "configId": entry.configId}
+			entry_dict[entry.configId] = {
+				"values": entry.values,
+				"origin": origin,
+				"configId": entry.configId,
+				"objectId": object_id,
+				"depotId": depot_id,
+			}
 		return entry_dict
 
+	def get_filtered_obj_ids(object_id: str | None) -> list[str]:
+		object_ids = []
+		all_object_ids = [entry.id for entry in service_connection.host_getObjects(type="OpsiClient")]  # type: ignore[attr-defined]
+
+		# get all object-ids if no object-id given
+		if object_id is None:
+			object_ids = all_object_ids
+		# filter all object-ids with wildcard * input, otherwise plit the object-id-string
+		elif object_id.endswith("*"):
+			object_id = object_id[:-1]
+			for id in all_object_ids:
+				if id.startswith(object_id):
+					object_ids.append(id)
+		else:
+			object_ids = object_id.split(",")
+			object_ids = [item.strip() for item in object_ids]
+		return object_ids
+
 	service_connection = get_service_connection()
-	# get all objects if no object-id given, otherwise split the object-string
-	if object_id is None:
-		object_ids = [entry.id for entry in service_connection.host_getObjects(type="OpsiClient")]  # type: ignore[attr-defined]
-	else:
-		object_ids = object_id.split(",")
-		object_ids = [item.strip() for item in object_ids]
-
-	default_entry_dict = get_default_entries(config_id or [])
-
+	object_ids = get_filtered_obj_ids(object_id)
 	result = []
 	# For every client: create dicts for (default/depot/client) and update them. Print the result
 	for obj_id in object_ids:
 		depot_id = get_depot_id(obj_id)
 
-		default_entry_dict_copy = default_entry_dict.copy()
-		depot_entry_dict = get_host_entries(config_id or [], depot_id, "OpsiDepotserver")
-		client_entry_dict = get_host_entries(config_id or [], obj_id, "OpsiClient")
+		default_entry_dict = get_default_entries(config_id or [], obj_id, depot_id)
+		depot_entry_dict = get_host_entries(config_id or [], obj_id, depot_id, "OpsiDepotserver")
+		client_entry_dict = get_host_entries(config_id or [], obj_id, depot_id, "OpsiClient")
 
-		default_entry_dict_copy.update(depot_entry_dict)
-		default_entry_dict_copy.update(client_entry_dict)
-		for key in default_entry_dict_copy:
-			default_entry_dict_copy[key]["objectId"] = obj_id
-			result.append(default_entry_dict_copy[key])
-		# result.append(default_entry_dict_copy.values())
+		default_entry_dict.update(depot_entry_dict)
+		default_entry_dict.update(client_entry_dict)
+
+		result.extend(list(default_entry_dict.values()))
+
 	write_output(
 		result,
-		Metadata(attributes=[Attribute(id="configId"), Attribute(id="values"), Attribute(id="origin"), Attribute(id="objectId")]),
+		Metadata(
+			attributes=[
+				Attribute(id="objectId", description="The ID of the object (host).", identifier=False, data_type="str", selected=True),
+				Attribute(
+					id="depotId", description="The ID of the object's (host's) depot.", identifier=False, data_type="str", selected=True
+				),
+				Attribute(id="configId", description="The ID of the config.", identifier=False, data_type="str", selected=True),
+				Attribute(id="values", description="Values of given configs.", identifier=False, data_type="str" or int, selected=True),
+				Attribute(id="origin", description="Location where the change was made.", identifier=False, data_type="str", selected=True),
+			]
+		),
 	)
 
 
