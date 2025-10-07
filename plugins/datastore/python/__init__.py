@@ -80,9 +80,9 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 	) -> dict[str, dict[str, str]]:
 		origin = "[yellow]server[/yellow]" if host_type == "OpsiDepotserver" else "[red]client[/red]"
 		entry_dict = {}
-		depot_objects = service_connection.configState_getObjects(
+		depot_objects = service_connection.configState_getObjects(  # type: ignore[attr-defined]
 			configId=config_id or [], objectId=object_id if host_type == "OpsiClient" else depot_id
-		)  # type: ignore[attr-defined]
+		)
 		for entry in depot_objects:
 			entry_dict[entry.configId] = {
 				"values": entry.values,
@@ -136,7 +136,7 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 					id="depotId", description="The ID of the object's (host's) depot.", identifier=False, data_type="str", selected=True
 				),
 				Attribute(id="configId", description="The ID of the config.", identifier=False, data_type="str", selected=True),
-				Attribute(id="values", description="Values of given configs.", identifier=False, data_type="str" or int, selected=True),
+				Attribute(id="values", description="Values of given configs.", identifier=False, data_type="str | Boolean", selected=True),
 				Attribute(id="origin", description="Location where the change was made.", identifier=False, data_type="str", selected=True),
 			]
 		),
