@@ -486,12 +486,13 @@ def install_package(
 	dest_package_name: str,
 	force: bool,
 	property_default_values: dict[str, list[Any]],
+	force_product_name: str | None = None,
 ) -> None:
 	"""
 	Installs a package on a depot.
 	"""
 	remote_package_file = DEPOT_REPOSITORY_PATH + "/" + dest_package_name
-	installation_params = [remote_package_file, str(force), property_default_values]
+	installation_params = [remote_package_file, str(force), property_default_values, None, force_product_name]
 	logger.notice("Starting installation of package %s to depot %s", dest_package_name, depot_id)
 	with get_progress() as progress:
 		task = progress.add_task(f"Installing '{dest_package_name}' on depot '{depot_id}'...", total=None)
