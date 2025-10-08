@@ -52,9 +52,8 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 	"""
 
 	# get depot name/id for given object-id
-	def get_depot_id(object_id: str) -> str:
-		client_objects = service_connection.configState_getClientToDepotserver()  # type: ignore[attr-defined]
-		for client in client_objects:
+	def get_depot_id(object_id: str, client_to_server_objects: list[dict]) -> str:
+		for client in client_to_server_objects:
 			if client["clientId"] == object_id:
 				return client["depotId"]
 		raise ValueError(f"No depot found for host '{object_id}'.")
@@ -93,34 +92,18 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 			}
 		return entry_dict
 
-	def get_filtered_obj_ids(object_id: str | None) -> list[str]:
-		object_ids = []
-		all_object_ids = [entry.id for entry in service_connection.host_getObjects(type="OpsiClient")]  # type: ignore[attr-defined]
-
-		# get all object-ids if no object-id given
-		if object_id is None:
-			object_ids = all_object_ids
-		# filter all object-ids with wildcard * input, otherwise plit the object-id-string
-		elif object_id.endswith("*"):
-			object_id = object_id[:-1]
-			for id in all_object_ids:
-				if id.startswith(object_id):
-					object_ids.append(id)
-		else:
-			object_ids = object_id.split(",")
-			object_ids = [item.strip() for item in object_ids]
-		return object_ids
-
 	service_connection = get_service_connection()
-	object_ids = get_filtered_obj_ids(object_id)
+	client_to_server_objects = service_connection.configState_getClientToDepotserver()  # type: ignore[attr-defined]
+	host_objects = service_connection.host_getObjects(id=object_id or [], type="OpsiClient")  # type: ignore[attr-defined]
 	result = []
-	# For every client: create dicts for (default/depot/client) and update them. Print the result
-	for obj_id in object_ids:
-		depot_id = get_depot_id(obj_id)
 
-		default_entry_dict = get_default_entries(config_id or [], obj_id, depot_id)
-		depot_entry_dict = get_host_entries(config_id or [], obj_id, depot_id, "OpsiDepotserver")
-		client_entry_dict = get_host_entries(config_id or [], obj_id, depot_id, "OpsiClient")
+	# For every client: create dicts for (default/depot/client) and update them. Print the result
+	for obj in host_objects:
+		depot_id = get_depot_id(obj.id, client_to_server_objects)
+
+		default_entry_dict = get_default_entries(config_id or [], obj.id, depot_id)
+		depot_entry_dict = get_host_entries(config_id or [], obj.id, depot_id, "OpsiDepotserver")
+		client_entry_dict = get_host_entries(config_id or [], obj.id, depot_id, "OpsiClient")
 
 		default_entry_dict.update(depot_entry_dict)
 		default_entry_dict.update(client_entry_dict)
