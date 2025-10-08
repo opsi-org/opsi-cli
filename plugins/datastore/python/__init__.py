@@ -77,7 +77,7 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 		depot_id: str,
 		host_type: Literal["OpsiClient", "OpsiDepotserver"],
 	) -> dict[str, dict[str, str]]:
-		origin = "[yellow]server[/yellow]" if host_type == "OpsiDepotserver" else "[red]client[/red]"
+		origin = "[yellow]server[/yellow]" if host_type == "OpsiDepotserver" else "[blue]client[/blue]"
 		entry_dict = {}
 		depot_objects = service_connection.configState_getObjects(  # type: ignore[attr-defined]
 			configId=config_id or [], objectId=object_id if host_type == "OpsiClient" else depot_id
@@ -116,7 +116,7 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 			attributes=[
 				Attribute(id="objectId", description="The ID of the object (host).", identifier=False, data_type="str", selected=True),
 				Attribute(
-					id="depotId", description="The ID of the object's (host's) depot.", identifier=False, data_type="str", selected=True
+					id="depotId", description="The ID of the object's (host's) depot.", identifier=False, data_type="str", selected=False
 				),
 				Attribute(id="configId", description="The ID of the config.", identifier=False, data_type="str", selected=True),
 				Attribute(id="values", description="Values of given configs.", identifier=False, data_type="str | Boolean", selected=True),
