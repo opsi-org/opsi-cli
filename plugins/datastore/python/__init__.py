@@ -13,10 +13,11 @@ from typing import Literal
 
 import rich_click as click
 from opsicommon.logging import get_logger
+from opsicommon.objects import BoolConfig, ConfigState, UnicodeConfig
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_handling
-from opsicli.io import Attribute, Metadata, write_output
+from opsicli.io import Attribute, Metadata, console_print, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 
@@ -43,7 +44,7 @@ def config_state() -> None:
 	pass
 
 
-@config_state.command(name="list", short_help="List all config states or get a filtered list")
+@config_state.command(name="list", short_help="List all config states or get a filtered list. ")
 @click.option("--object-id", type=str, default=None, help="Filter data with object_id(s). Use ',' as a separator. Wildcard * is possible.")
 @click.option("--config-id", type=str, default=None, help="Filter data with config_id. Wildcard * is possible.")
 def list_config_state(config_id: str | None = None, object_id: str | None = None) -> None:
@@ -124,6 +125,76 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 			]
 		),
 	)
+
+
+@config_state.command(name="set", short_help="Changes config state value. Create config state if there is none.")
+@click.argument("config-id", type=str)
+@click.argument("object-id", type=str)
+@click.argument("value", type=str)
+def set_config_state_value(config_id: str, object_id: str, value: str) -> None:
+	"""
+	opsi-cli datastore config-state set subcommand.
+	"""
+	# get server connection and the config object with given config_id
+	service_connection = get_service_connection()
+	config_list = service_connection.config_getObjects(id=config_id)  # type: ignore[attr-defined]
+
+	# test if a config for config_id exists
+	if not config_list:
+		raise AttributeError(f"There is no such configId: '{config_id}'")
+	if len(config_list) > 1:
+		raise AttributeError("Only one configId without wildcard is allowed.")
+	config = config_list[0]
+
+	possible_values = config.possibleValues
+	host_objects = service_connection.host_getObjects(id=object_id or [], type="OpsiClient")  # type: ignore[attr-defined]
+	object_ids = [obj.id for obj in host_objects]
+	object_value_dict = service_connection.configState_getValues(config_id, object_ids)  # type: ignore[attr-defined]
+
+	# set value for every given object
+	for obj_id in object_ids:
+		current_values = object_value_dict[obj_id][config_id]
+		# test if config is type BoolConfig
+		if isinstance(config, BoolConfig):
+			if value in ["true", "True"]:
+				bool_value = [True]
+				config_state = ConfigState(configId=config_id, objectId=obj_id, values=bool_value)
+			elif value in ["false", "False"]:
+				bool_value = [False]
+				config_state = ConfigState(configId=config_id, objectId=obj_id, values=bool_value)
+			else:
+				raise ValueError(f"'{value}' is not a valid value. Possible values are: {possible_values}")
+			service_connection.configState_updateObject(config_state)  # type: ignore[attr-defined]
+			console_print(
+				f"[yellow]{config_id}[/yellow] changed successfully for [yellow]{obj_id}[/yellow]. \nOld value: [red]{current_values}[/red] \nNew value: [green]{bool_value}[/green]\n"
+			)
+
+		# test if config is type UnicodeConfig
+		if isinstance(config, UnicodeConfig):
+			if not config.multiValue:
+				if value in possible_values:
+					config_state = ConfigState(configId=config_id, objectId=obj_id, values=[value])
+					service_connection.configState_updateObject(config_state)  # type: ignore[attr-defined]
+					console_print(
+						f"[yellow]{config_id}[/yellow] changed successfully for [yellow]{obj_id}[/yellow]. \nOld value: [red]{current_values}[/red] \nNew value: [green]{[value]}[/green]\n"
+					)
+				else:
+					raise ValueError(
+						f"Value is not valid for [yellow]{config_id}[/yellow]. \nPossible values are: [green]{possible_values}[/green]"
+					)
+			else:
+				value_list = []
+				if "," in value:
+					value_list = value.split(",")
+					value_list = [item.strip() for item in value_list]
+					value_list.sort()
+				else:
+					value_list.append(value)
+				config_state = ConfigState(configId=config_id, objectId=obj_id, values=value_list)
+				service_connection.configState_updateObject(config_state)  # type: ignore[attr-defined]
+				console_print(
+					f"[yellow]{config_id}[/yellow] changed successfully for [yellow]{obj_id}[/yellow]. \nOld value: [red]{current_values}[/red] \nNew values: [green]{value_list}[/green]\n"
+				)
 
 
 class DatastorePlugin(OPSICLIPlugin):
