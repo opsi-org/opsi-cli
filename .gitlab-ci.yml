@@ -241,8 +241,8 @@ windows-x86-pyinstaller:
     # Build python environment
     - $Env:UV_PYTHON_INSTALL_DIR = "c:\\uv\\python"
     - $Env:UV_CACHE_DIR = "c:\\uv\\cache"
-    - $Env:UV_PYTHON = ((uv python list --managed-python --all-arches | findstr 3.13 | findstr "\-x86\-" | findstr /v freethreaded) -split ' ')[0]
     - $Env:UV_PYTHON_PREFERENCE = "only-managed"
+    - $Env:UV_PYTHON = ((uv python list | findstr 3.13 | findstr "\-x86\-" | findstr /v freethreaded) -split ' ')[0]
     - uv sync --frozen
     # Get opsi-dev-tool
     - irm "${OPSIDEVTOOLS_INSTALLER_URL_WINDOWS_X86}" | iex

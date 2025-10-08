@@ -139,15 +139,12 @@ def metafile_update(directory: Path, format: list[str], repository_name: str, sc
 
 @metafile.command(short_help="Scan for opsi packages and update repository metadata files.", name="scan-packages")
 @argument_directory
-def metafile_scan_packages(directory: Path) -> None:
+@option_format
+def metafile_scan_packages(directory: Path, format: list[str]) -> None:
 	"""
 	This command scans for opsi packages in the specified directory and updates the metadata files.
 	"""
-	current_meta_files = list(directory.glob("packages.*"))
-	if not current_meta_files:
-		raise RuntimeError(f"No metadata files found in '{directory}'")
-
-	_metafile_update(directory=directory, read=True, scan=True)
+	_metafile_update(directory=directory, read=True, format=format, scan=True)
 
 
 @metafile.command(short_help="Adds or updates a package in repository metadata files.", name="add-package")

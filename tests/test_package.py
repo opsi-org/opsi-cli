@@ -429,6 +429,18 @@ def test_custom_package_installation() -> None:
 
 
 @pytest.mark.opsi_service
+def test_package_installation_new_id() -> None:
+	exit_code, _, _ = run_cli(["package", "install", str(TEST_DATA_PATH / "testdependency5_2-0.opsi"), "--new-product-id", "newid"])
+	assert exit_code == 0
+	if Path("/var/lib/opsi/repository").exists():  # we are probably running on the opsi-server itself (not just on same docker host)
+		for file in ["newid_1.0-5.opsi", "newid_1.0-5.opsi.md5", "newid_1.0-5.opsi.zsync"]:
+			assert (Path("/var/lib/opsi/repository") / file).exists()
+
+	exit_code, _, _ = run_cli(["package", "uninstall", "newid"])  # This also checks if newid is installed
+	assert exit_code == 0
+
+
+@pytest.mark.opsi_service
 def test_package_installation_from_urls() -> None:
 	with http_test_server(serve_directory=TEST_DATA_PATH) as server:
 		base_url = f"http://localhost:{server.port}"

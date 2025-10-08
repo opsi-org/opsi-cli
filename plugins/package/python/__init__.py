@@ -448,6 +448,7 @@ def complete_package_path(ctx: click.Context, param: click.Parameter, incomplete
 	default="keep",
 )
 @click.option("--force", is_flag=True, help="Force installation.", default=False)
+@click.option("--new-product-id", help="Rename product for installation on depot.")
 @click.option("--setup-where-installed", is_flag=True, help="Setup where installed.", default=False)
 @click.option("--setup-where-installed-with-dependencies", is_flag=True, help="Setup where installed with dependencies.", default=False)
 @click.option("--update-where-installed", is_flag=True, help="Update where installed.", default=False)
@@ -455,6 +456,7 @@ def install(
 	packages: list[str],
 	depots: str,
 	force: bool,
+	new_product_id: str | None,
 	update_properties: bool,
 	properties: Literal["keep", "ask", "package"],
 	setup_where_installed: bool,
@@ -494,6 +496,9 @@ def install(
 			try:
 				for package_path, opsi_package in path_to_opsipackage.items():
 					dest_package_name = fix_custom_package_name(package_path)
+					if new_product_id:
+						opsi_package.product.id = new_product_id
+						dest_package_name = opsi_package.package_archive_name()
 					upload_to_repository(depot_connection, depot.id, package_path, dest_package_name, temp_dir)
 
 					property_default_values = {
@@ -508,7 +513,9 @@ def install(
 						):
 							property_default_values[product_property_state.propertyId] = product_property_state.values or []
 
-					install_package(depot_connection, depot.id, dest_package_name, force, property_default_values)
+					install_package(
+						depot_connection, depot.id, dest_package_name, force, property_default_values, force_product_name=new_product_id
+					)
 
 					if setup_where_installed or setup_where_installed_with_dependencies or update_where_installed:
 						action_request = "update" if update_where_installed else "setup"
