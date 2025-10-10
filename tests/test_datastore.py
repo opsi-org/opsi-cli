@@ -3,13 +3,156 @@ from opsicommon.client.opsiservice import ServiceClient
 
 from .utils import run_cli, tmp_client
 
-CLIENT1 = "pytest-client1.test.tld"
+CLIENT_ID_1 = "pytest-client1.test.tld"
+CLIENT_ID_2 = "pytest-client2.test.tld"
+DEPOT_ID = "opsi.opsi.test"
+
+CONFIG_ID = "opsi.check.enabled"
+
+# configs for CLIENT_1
+CONFIGSTATE_1_CLIENT_1 = {"configId": f"{CONFIG_ID}", "objectId": f"{CLIENT_ID_1}", "values": True}
+CONFIGSTATE_2_CLIENT_1 = {"configId": f"{CONFIG_ID}", "objectId": f"{CLIENT_ID_1}", "values": False}
+
+# configs for DEPOT
+CONFIGSTATE_1_DEPOT = {"configId": f"{CONFIG_ID}", "objectId": f"{DEPOT_ID}", "values": False}
+CONFIGSTATE_2_DEPOT = {"configId": f"{CONFIG_ID}", "objectId": f"{DEPOT_ID}", "values": True}
+
+
+def stdout_into_list(_stdout: str) -> list[list[str]]:
+	stdout_result_list = []
+	stdout_list = _stdout.splitlines()
+
+	for line in stdout_list:
+		line_list = line.split(";")
+		stdout_result_list.append(line_list)
+	return stdout_result_list
 
 
 @pytest.mark.opsi_service
 def test_config_state_list(admin_service_client: ServiceClient) -> None:
-	# test if tmp_client is shown in output table
-	with tmp_client(admin_service_client, CLIENT1):
-		exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "list", "--object-id", f"{CLIENT1}"])
+	with (
+		tmp_client(admin_service_client, CLIENT_ID_1),
+		tmp_client(admin_service_client, CLIENT_ID_2),
+	):
+		all_configs = admin_service_client.jsonrpc("config_getObjects", params=[])
+
+		# One objectId, one configId
+		exit_code, _stdout, _stderr = run_cli(
+			["--output-format", "csv", "datastore", "config-state", "list", "--object-id", f"{CLIENT_ID_1}", "--config-id", f"{CONFIG_ID}"]
+		)
 		assert exit_code == 0
-		print(_stdout)
+		assert stdout_into_list(_stdout)[1][0] == CLIENT_ID_1
+		assert stdout_into_list(_stdout)[1][1] == CONFIG_ID
+		assert len(stdout_into_list(_stdout)) - 1 == 1
+
+		# One objectId, all configId's
+		exit_code, _stdout, _stderr = run_cli(
+			["--output-format", "csv", "datastore", "config-state", "list", "--object-id", f"{CLIENT_ID_1}"]
+		)
+		assert exit_code == 0
+		stdout_list = stdout_into_list(_stdout)
+		for element in stdout_list[1:]:
+			assert element[0] == CLIENT_ID_1
+		# test if all configs are shown in output table
+		assert len(stdout_list) - 1 == len(all_configs)
+
+		# All objectId's (2), one configId
+		exit_code, _stdout, _stderr = run_cli(
+			["--output-format", "csv", "datastore", "config-state", "list", "--config-id", f"{CONFIG_ID}"]
+		)
+		assert exit_code == 0
+		assert stdout_into_list(_stdout)[1][0] == CLIENT_ID_1
+		assert stdout_into_list(_stdout)[2][0] == CLIENT_ID_2
+		assert len(stdout_into_list(_stdout)) - 1 == 2
+
+		# All objectId's (2), all configId's
+		exit_code, _stdout, _stderr = run_cli(["--output-format", "csv", "datastore", "config-state", "list"])
+		assert exit_code == 0
+		assert len(stdout_into_list(_stdout)) - 1 == 2 * len(all_configs)
+
+		# (SERVER)
+		# test if the origin and changed value of a config is shown correctly
+		# opsi.check.enabled: False("0") -> True("1")
+		admin_service_client.jsonrpc("configState_createObjects", params=[CONFIGSTATE_1_DEPOT])
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"datastore",
+				"config-state",
+				"list",
+				"--object-id",
+				f"{CLIENT_ID_1}",
+				"--config-id",
+				f"{CONFIG_ID}",
+			]
+		)
+		assert exit_code == 0
+		assert (
+			stdout_into_list(_stdout)[1][2] == "0"
+		)  # only second row is of interest, first row of stdout_list[0][i]=([clientId, configId, value, origin])
+		assert stdout_into_list(_stdout)[1][3] == "[yellow]server[/yellow]"
+
+		admin_service_client.jsonrpc("configState_updateObjects", params=[CONFIGSTATE_2_DEPOT])
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"datastore",
+				"config-state",
+				"list",
+				"--object-id",
+				f"{CLIENT_ID_1}",
+				"--config-id",
+				f"{CONFIG_ID}",
+			]
+		)
+		assert exit_code == 0
+		assert (
+			stdout_into_list(_stdout)[1][2] == "1"
+		)  # only second row is of interest, first row of stdout_list[0][i]=([clientId, configId, value, origin])
+		assert stdout_into_list(_stdout)[1][3] == "[yellow]server[/yellow]"
+
+		# (CLIENT)
+		# test if the origin and changed value of a config is shown correctly
+		# opsi.check.enabled: True("1") -> False("0")
+		# check if CLIENT overrides origin from server -> client
+		admin_service_client.jsonrpc("configState_createObjects", params=[CONFIGSTATE_1_CLIENT_1])
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"datastore",
+				"config-state",
+				"list",
+				"--object-id",
+				f"{CLIENT_ID_1}",
+				"--config-id",
+				f"{CONFIG_ID}",
+			]
+		)
+		assert exit_code == 0
+		assert (
+			stdout_into_list(_stdout)[1][2] == "1"
+		)  # only second row is of interest, first row of stdout_list[0][i]=([clientId, configId, value, origin])
+		assert stdout_into_list(_stdout)[1][3] == "[blue]client[/blue]"
+
+		admin_service_client.jsonrpc("configState_updateObjects", params=[CONFIGSTATE_2_CLIENT_1])
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"datastore",
+				"config-state",
+				"list",
+				"--object-id",
+				f"{CLIENT_ID_1}",
+				"--config-id",
+				f"{CONFIG_ID}",
+			]
+		)
+		assert exit_code == 0
+		assert (
+			stdout_into_list(_stdout)[1][2] == "0"
+		)  # only second row is of interest, first row of stdout_list[0][i]=([clientId, configId, value, origin])
+		assert stdout_into_list(_stdout)[1][3] == "[blue]client[/blue]"
