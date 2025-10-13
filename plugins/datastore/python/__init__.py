@@ -138,6 +138,7 @@ def set_config_state_value(config_id: str, object_id: str, value: str) -> None:
 	# get server connection and the config object with given config_id
 	service_connection = get_service_connection()
 	config_list = service_connection.config_getObjects(id=config_id)  # type: ignore[attr-defined]
+	config_state_list = service_connection.configState_getObjects(configId=config_id)  # type: ignore[attr-defined]
 
 	# test if a config for config_id exists
 	if not config_list:
@@ -145,6 +146,7 @@ def set_config_state_value(config_id: str, object_id: str, value: str) -> None:
 	if len(config_list) > 1:
 		raise AttributeError("Only one configId without wildcard is allowed.")
 	config = config_list[0]
+	config_state_exists = config_state_list[0]
 
 	possible_values = config.possibleValues
 	host_objects = service_connection.host_getObjects(id=object_id or [], type="OpsiClient")  # type: ignore[attr-defined]
@@ -164,7 +166,10 @@ def set_config_state_value(config_id: str, object_id: str, value: str) -> None:
 				config_state = ConfigState(configId=config_id, objectId=obj_id, values=bool_value)
 			else:
 				raise ValueError(f"'{value}' is not a valid value. Possible values are: {possible_values}")
-			service_connection.configState_updateObject(config_state)  # type: ignore[attr-defined]
+			if config_state_exists:
+				service_connection.configState_updateObject(config_state)  # type: ignore[attr-defined]
+			else:
+				service_connection.configState_createObject(config_state)  # type: ignore[attr-defined]
 			console_print(
 				f"[yellow]{config_id}[/yellow] changed successfully for [yellow]{obj_id}[/yellow]. \nOld value: [red]{current_values}[/red] \nNew value: [green]{bool_value}[/green]\n"
 			)
@@ -174,7 +179,12 @@ def set_config_state_value(config_id: str, object_id: str, value: str) -> None:
 			if not config.multiValue:
 				if value in possible_values:
 					config_state = ConfigState(configId=config_id, objectId=obj_id, values=[value])
-					service_connection.configState_updateObject(config_state)  # type: ignore[attr-defined]
+
+					if config_state_exists:
+						service_connection.configState_updateObject(config_state)  # type: ignore[attr-defined]
+					else:
+						service_connection.configState_createObject(config_state)  # type: ignore[attr-defined]
+
 					console_print(
 						f"[yellow]{config_id}[/yellow] changed successfully for [yellow]{obj_id}[/yellow]. \nOld value: [red]{current_values}[/red] \nNew value: [green]{[value]}[/green]\n"
 					)
@@ -191,7 +201,12 @@ def set_config_state_value(config_id: str, object_id: str, value: str) -> None:
 				else:
 					value_list.append(value)
 				config_state = ConfigState(configId=config_id, objectId=obj_id, values=value_list)
-				service_connection.configState_updateObject(config_state)  # type: ignore[attr-defined]
+
+				if config_state_exists:
+					service_connection.configState_updateObject(config_state)  # type: ignore[attr-defined]
+				else:
+					service_connection.configState_createObject(config_state)  # type: ignore[attr-defined]
+
 				console_print(
 					f"[yellow]{config_id}[/yellow] changed successfully for [yellow]{obj_id}[/yellow]. \nOld value: [red]{current_values}[/red] \nNew values: [green]{value_list}[/green]\n"
 				)

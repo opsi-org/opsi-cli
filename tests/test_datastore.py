@@ -51,7 +51,10 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		)
 		assert exit_code == 0
 		stdout_list = stdout_into_list(_stdout)
+		print(_stdout)
+		print("-" * 80)
 		for element in stdout_list[1:]:
+			print(element[0])
 			assert element[0] == CLIENT_ID_1
 		# test if all configs are shown in output table
 		assert len(stdout_list) - 1 == len(all_configs)
