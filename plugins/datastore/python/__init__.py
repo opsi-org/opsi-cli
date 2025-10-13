@@ -14,6 +14,7 @@ from typing import Literal
 import rich_click as click
 from opsicommon.logging import get_logger
 from opsicommon.objects import BoolConfig, ConfigState, UnicodeConfig
+from opsicommon.types import forceBool
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_handling
@@ -59,7 +60,7 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 				return client["depotId"]
 		raise ValueError(f"No depot found for host '{object_id}'.")
 
-	def get_default_entries(config_id: str | list[str], object_id: str, depot_id: str) -> dict[str, dict[str, str]]:
+	def get_default_entries(config_id: str | None, object_id: str, depot_id: str) -> dict[str, dict[str, str]]:
 		default_entry_dict = {}
 		default_objects = service_connection.config_getObjects(id=config_id or [])  # type: ignore[attr-defined]
 		for entry in default_objects:
@@ -73,7 +74,7 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 		return default_entry_dict
 
 	def get_host_entries(
-		config_id: str | list[str],
+		config_id: str | None,
 		object_id: str,
 		depot_id: str,
 		host_type: Literal["OpsiClient", "OpsiDepotserver"],
@@ -95,24 +96,53 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 
 	service_connection = get_service_connection()
 	client_to_server_objects = service_connection.configState_getClientToDepotserver()  # type: ignore[attr-defined]
-	host_objects = service_connection.host_getObjects(id=object_id or [], type="OpsiClient")  # type: ignore[attr-defined]
+	host_objects = []
+	config_ids: list[str | None] = []
+	result_unique = []
 	result = []
+
+	# handle comma separated object-ids
+	if not object_id:
+		host_objects = service_connection.host_getObjects(id=[], type="OpsiClient")  # type: ignore[attr-defined]
+	else:
+		if "," in object_id:
+			object_ids = [item.strip() for item in object_id.split(",")]
+			for obj_id in object_ids:
+				host_objects = host_objects + service_connection.host_getObjects(id=obj_id, type="OpsiClient")  # type: ignore[attr-defined]
+			host_objects = list(set(host_objects))
+		else:
+			host_objects = service_connection.host_getObjects(id=object_id, type="OpsiClient")  # type: ignore[attr-defined]
+
+	# handle comma separated config-ids
+	if config_id:
+		if "," in config_id:
+			config_ids = [item.strip() for item in config_id.split(",")]
+		else:
+			config_ids.append(config_id)
+	else:
+		config_ids.append(config_id)
 
 	# For every client: create dicts for (default/depot/client) and update them. Print the result
 	for obj in host_objects:
 		depot_id = get_depot_id(obj.id, client_to_server_objects)
 
-		default_entry_dict = get_default_entries(config_id or [], obj.id, depot_id)
-		depot_entry_dict = get_host_entries(config_id or [], obj.id, depot_id, "OpsiDepotserver")
-		client_entry_dict = get_host_entries(config_id or [], obj.id, depot_id, "OpsiClient")
+		for conf_id in config_ids:
+			default_entry_dict = get_default_entries(conf_id, obj.id, depot_id)
+			depot_entry_dict = get_host_entries(conf_id, obj.id, depot_id, "OpsiDepotserver")
+			client_entry_dict = get_host_entries(conf_id, obj.id, depot_id, "OpsiClient")
 
-		default_entry_dict.update(depot_entry_dict)
-		default_entry_dict.update(client_entry_dict)
+			default_entry_dict.update(depot_entry_dict)
+			default_entry_dict.update(client_entry_dict)
 
-		result.extend(list(default_entry_dict.values()))
+			result.extend(list(default_entry_dict.values()))
+
+	# get rid of duplicates
+	for entry in result:
+		if entry not in result_unique:
+			result_unique.append(entry)
 
 	write_output(
-		result,
+		result_unique,
 		Metadata(
 			attributes=[
 				Attribute(id="objectId", description="The ID of the object (host).", identifier=False, data_type="str", selected=True),
@@ -149,7 +179,7 @@ def set_config_state_value(config_id: str, object_id: str, value: str) -> None:
 	config_state_exists = config_state_list[0]
 
 	possible_values = config.possibleValues
-	host_objects = service_connection.host_getObjects(id=object_id or [], type="OpsiClient")  # type: ignore[attr-defined]
+	host_objects = service_connection.host_getObjects(id=object_id, type="OpsiClient")  # type: ignore[attr-defined]
 	object_ids = [obj.id for obj in host_objects]
 	object_value_dict = service_connection.configState_getValues(config_id, object_ids)  # type: ignore[attr-defined]
 
@@ -159,11 +189,9 @@ def set_config_state_value(config_id: str, object_id: str, value: str) -> None:
 		# test if config is type BoolConfig
 		if isinstance(config, BoolConfig):
 			if value in ["true", "True"]:
-				bool_value = [True]
-				config_state = ConfigState(configId=config_id, objectId=obj_id, values=bool_value)
+				config_state = ConfigState(configId=config_id, objectId=obj_id, values=[forceBool(value)])
 			elif value in ["false", "False"]:
-				bool_value = [False]
-				config_state = ConfigState(configId=config_id, objectId=obj_id, values=bool_value)
+				config_state = ConfigState(configId=config_id, objectId=obj_id, values=[forceBool(value)])
 			else:
 				raise ValueError(f"'{value}' is not a valid value. Possible values are: {possible_values}")
 			if config_state_exists:
@@ -171,7 +199,7 @@ def set_config_state_value(config_id: str, object_id: str, value: str) -> None:
 			else:
 				service_connection.configState_createObject(config_state)  # type: ignore[attr-defined]
 			console_print(
-				f"[yellow]{config_id}[/yellow] changed successfully for [yellow]{obj_id}[/yellow]. \nOld value: [red]{current_values}[/red] \nNew value: [green]{bool_value}[/green]\n"
+				f"[yellow]{config_id}[/yellow] changed successfully for [yellow]{obj_id}[/yellow]. \nOld value: [red]{current_values}[/red] \nNew value: [green]{[forceBool(value)]}[/green]\n"
 			)
 
 		# test if config is type UnicodeConfig
@@ -193,13 +221,7 @@ def set_config_state_value(config_id: str, object_id: str, value: str) -> None:
 						f"Value is not valid for [yellow]{config_id}[/yellow]. \nPossible values are: [green]{possible_values}[/green]"
 					)
 			else:
-				value_list = []
-				if "," in value:
-					value_list = value.split(",")
-					value_list = [item.strip() for item in value_list]
-					value_list.sort()
-				else:
-					value_list.append(value)
+				value_list = [item.strip() for item in value.split(",")].sort()
 				config_state = ConfigState(configId=config_id, objectId=obj_id, values=value_list)
 
 				if config_state_exists:
