@@ -171,10 +171,12 @@ def test_wait_for_installation(installation_status: str, success: bool) -> None:
 				cht = FakeInstallationThread(daemon=True)
 				cht.start()
 				cmd = [
+					"-l7",
 					"messagebus",
 					"wait-for-installation",
 					"client1.test.tld",
 					"testproduct",
+					"--installation-status",
 					installation_status,
 					"--timeout",
 					"10",

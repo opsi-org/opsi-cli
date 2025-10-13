@@ -87,6 +87,8 @@ class EventMessagebusConnection(MessagebusConnection):
 						self.event_data_all.remove(event_data)
 				return
 
+		# [{'clientId': 'client1.test.tld', 'productId': 'testproduct', 'installationStatus': 'unknown', 'actionResult': 'failed'}]
+		# [{'clientId': 'client1.test.tld', 'productId': 'testproduct', 'installationStatus': 'installed', 'actionResult': 'successful'}]
 		logger.debug("Received event with non matching data: %s (data=%s)", message, message.data)
 
 	def output_events(
