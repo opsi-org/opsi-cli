@@ -92,7 +92,7 @@ def test_get_events(types: list[str], output_type: str | None) -> None:
 	for cid in (client_id, "some.other.host"):
 		cht = CreateHostThread(daemon=True)
 		cht.start()
-		cmd = ["-l5", "--output-format", "json", "messagebus", "get-events", "--timeout", "10"]
+		cmd = ["-l6", "--output-format", "json", "messagebus", "get-events", "--timeout", "10"]
 		for event_type in types:
 			cmd += ["--type", event_type]
 		if output_type:
@@ -101,6 +101,7 @@ def test_get_events(types: list[str], output_type: str | None) -> None:
 		exit_code, _stdout, _stderr = run_cli(cmd)
 		cht.join()
 		data = [json.loads(line.strip()) for line in _stdout.splitlines() if line]
+		print(data)
 		assert len(data) == len(types) if types else 2
 		if output_type == "message":
 			assert data[0]["sender"]
