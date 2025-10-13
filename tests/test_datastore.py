@@ -28,10 +28,15 @@ CONFIGSTATE_2_DEPOT = {"configId": f"{CONFIG_ID}", "objectId": f"{DEPOT_ID}", "v
 def stdout_into_list(_stdout: str) -> list[list[str]]:
 	stdout_result_list = []
 	stdout_list = _stdout.splitlines()
+	list_len = len(stdout_list)
+	i = 0
 
-	for line in stdout_list:
-		line_list = line.split(";")
-		stdout_result_list.append(line_list)
+	while i < list_len:
+		line = stdout_list[i]
+		if "netboot.grub.additional_menu_entries" in line:
+			i += 5
+		line_as_list = line.split(";")
+		stdout_result_list.append(line_as_list)
 	return stdout_result_list
 
 
