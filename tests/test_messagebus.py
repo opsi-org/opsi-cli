@@ -101,7 +101,6 @@ def test_get_events(types: list[str], output_type: str | None) -> None:
 		exit_code, _stdout, _stderr = run_cli(cmd)
 		cht.join()
 		data = [json.loads(line.strip()) for line in _stdout.splitlines() if line]
-		print(data)
 		assert len(data) == len(types) if types else 2
 		if output_type == "message":
 			assert data[0]["sender"]
