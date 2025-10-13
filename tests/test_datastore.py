@@ -59,8 +59,8 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 			["--output-format", "csv", "datastore", "config-state", "list", "--object-id", f"{CLIENT_ID_1}"]
 		)
 		assert exit_code == 0
-		print(_stdout)
 		stdout_list = stdout_into_list(_stdout)
+		print(stdout_list)
 		for element in stdout_list[1:]:
 			print(element[0])
 			assert element[0] == CLIENT_ID_1
@@ -170,7 +170,7 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		)  # only second row is of interest, first row of stdout_list[0][i]=([clientId, configId, value, origin])
 		assert stdout_into_list(_stdout)[1][3] == "[blue]client[/blue]"
 
-		# test comma seperated objectId's with wildcards
+		# test comma seperated objectId's and comma seperated objectId's with wildcards
 		exit_code, _stdout, _stderr = run_cli(
 			[
 				"--output-format",
@@ -186,7 +186,6 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 				f"{CONFIG_ID}",
 			]
 		)
-		print(_stdout)
 		assert exit_code == 0
 		assert stdout_into_list(_stdout)[1][0] == CLIENT_ID_3
 		assert stdout_into_list(_stdout)[2][0] == CLIENT_ID_4
