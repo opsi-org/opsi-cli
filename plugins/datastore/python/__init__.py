@@ -157,11 +157,14 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 	)
 
 
-@config_state.command(name="set", short_help="Changes config state value. Create config state if there is none.")
+@config_state.command(
+	name="set",
+	short_help="Changes config state value. Create config state if there is none. If 'all' is used as an objectId, the value will be set for all objects.",
+)
 @click.argument("config-id", type=str)
 @click.argument("object-id", type=str)
 @click.argument("value", type=str)
-def set_config_state_value(config_id: str, object_id: str, value: str) -> None:
+def set_config_state_value(config_id: str, object_id: str | None, value: str) -> None:
 	"""
 	opsi-cli datastore config-state set subcommand.
 	"""
@@ -179,7 +182,10 @@ def set_config_state_value(config_id: str, object_id: str, value: str) -> None:
 	config_state_exists = config_state_list[0]
 
 	possible_values = config.possibleValues
-	host_objects = service_connection.host_getObjects(id=object_id, type="OpsiClient")  # type: ignore[attr-defined]
+	if object_id == "all":
+		host_objects = service_connection.host_getObjects(id=[], type="OpsiClient")  # type: ignore[attr-defined]
+	else:
+		host_objects = service_connection.host_getObjects(id=object_id, type="OpsiClient")  # type: ignore[attr-defined]
 	object_ids = [obj.id for obj in host_objects]
 	object_value_dict = service_connection.configState_getValues(config_id, object_ids)  # type: ignore[attr-defined]
 
@@ -194,10 +200,12 @@ def set_config_state_value(config_id: str, object_id: str, value: str) -> None:
 				config_state = ConfigState(configId=config_id, objectId=obj_id, values=[forceBool(value)])
 			else:
 				raise ValueError(f"'{value}' is not a valid value. Possible values are: {possible_values}")
+
 			if config_state_exists:
 				service_connection.configState_updateObject(config_state)  # type: ignore[attr-defined]
 			else:
 				service_connection.configState_createObject(config_state)  # type: ignore[attr-defined]
+
 			console_print(
 				f"[yellow]{config_id}[/yellow] changed successfully for [yellow]{obj_id}[/yellow]. \nOld value: [red]{current_values}[/red] \nNew value: [green]{[forceBool(value)]}[/green]\n"
 			)
