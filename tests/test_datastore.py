@@ -33,10 +33,17 @@ def stdout_into_list(_stdout: str) -> list[list[str]]:
 
 	while i < list_len:
 		line = stdout_list[i]
-		if "netboot.grub.additional_menu_entries" in line:
-			i += 5
 		line_as_list = line.split(";")
+		if "netboot.grub.additional_menu_entries" in line_as_list:
+			line_as_list = [
+				line_as_list[0],
+				"netboot.grub.additional_menu_entries",
+				"if [ $grub_platform = efi ]; then menuentry 'UEFI Firmware Settings' --class firmware {fwsetup}fi",
+				stdout_list[i + 6].split(";")[1],
+			]
+			i += 6
 		stdout_result_list.append(line_as_list)
+		i += 1
 	return stdout_result_list
 
 
@@ -64,10 +71,10 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 			["--output-format", "csv", "datastore", "config-state", "list", "--object-id", f"{CLIENT_ID_1}"]
 		)
 		assert exit_code == 0
+		print(_stdout)
 		stdout_list = stdout_into_list(_stdout)
 		print(stdout_list)
 		for element in stdout_list[1:]:
-			print(element[0])
 			assert element[0] == CLIENT_ID_1
 		# test if all configs are shown in output table
 		assert len(stdout_list) - 1 == len(all_configs)
