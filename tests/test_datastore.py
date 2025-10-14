@@ -39,9 +39,9 @@ def stdout_into_list(_stdout: str) -> list[list[str]]:
 				line_as_list[0],
 				"netboot.grub.additional_menu_entries",
 				"if [ $grub_platform = efi ]; then menuentry 'UEFI Firmware Settings' --class firmware {fwsetup}fi",
-				stdout_list[i + 6].split(";")[1],
+				stdout_list[i + 5].split(";")[1],
 			]
-			i += 6
+			i += 5
 		stdout_result_list.append(line_as_list)
 		i += 1
 	return stdout_result_list
