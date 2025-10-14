@@ -12,17 +12,7 @@ CLIENT_ID_WILDCARD_2 = "cli*"
 CLIENT_ID_WILDCARD_3 = "pyt*"
 CLIENT_ID_WILDCARD_4 = "clie*"
 
-DEPOT_ID = "opsi.opsi.test"
-
 CONFIG_ID = "opsi.check.enabled"
-
-# configs for CLIENT_1
-CONFIGSTATE_1_CLIENT_1 = {"configId": f"{CONFIG_ID}", "objectId": f"{CLIENT_ID_1}", "values": True}
-CONFIGSTATE_2_CLIENT_1 = {"configId": f"{CONFIG_ID}", "objectId": f"{CLIENT_ID_1}", "values": False}
-
-# configs for DEPOT
-CONFIGSTATE_1_DEPOT = {"configId": f"{CONFIG_ID}", "objectId": f"{DEPOT_ID}", "values": False}
-CONFIGSTATE_2_DEPOT = {"configId": f"{CONFIG_ID}", "objectId": f"{DEPOT_ID}", "values": True}
 
 
 def stdout_into_list(_stdout: str) -> list[list[str]]:
@@ -56,6 +46,8 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		tmp_client(admin_service_client, CLIENT_ID_4),
 	):
 		all_configs = admin_service_client.jsonrpc("config_getObjects", params=[])
+		client_to_server_objects = admin_service_client.configState_getClientToDepotserver()
+		DEPOT_ID = client_to_server_objects[0]["depotId"]
 
 		# One objectId, one configId
 		exit_code, _stdout, _stderr = run_cli(
@@ -96,6 +88,10 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		# (SERVER)
 		# test if the origin and changed value of a config is shown correctly
 		# opsi.check.enabled: False("0") -> True("1")
+		# configs for DEPOT
+		CONFIGSTATE_1_DEPOT = {"configId": f"{CONFIG_ID}", "objectId": f"{DEPOT_ID}", "values": False}
+		CONFIGSTATE_2_DEPOT = {"configId": f"{CONFIG_ID}", "objectId": f"{DEPOT_ID}", "values": True}
+
 		admin_service_client.jsonrpc("configState_createObjects", params=[CONFIGSTATE_1_DEPOT])
 		exit_code, _stdout, _stderr = run_cli(
 			[
@@ -110,9 +106,7 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 				f"{CONFIG_ID}",
 			]
 		)
-		print(_stdout)
 		assert exit_code == 0
-		print(stdout_into_list(_stdout))
 		assert (
 			stdout_into_list(_stdout)[1][2] == "0"
 		)  # only second row is of interest, first row of stdout_list[0][i]=([clientId, configId, value, origin])
@@ -142,6 +136,10 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		# test if the origin and changed value of a config is shown correctly
 		# opsi.check.enabled: True("1") -> False("0")
 		# check if CLIENT overrides origin from server -> client
+		# configs for CLIENT_1
+		CONFIGSTATE_1_CLIENT_1 = {"configId": f"{CONFIG_ID}", "objectId": f"{CLIENT_ID_1}", "values": True}
+		CONFIGSTATE_2_CLIENT_1 = {"configId": f"{CONFIG_ID}", "objectId": f"{CLIENT_ID_1}", "values": False}
+
 		admin_service_client.jsonrpc("configState_createObjects", params=[CONFIGSTATE_1_CLIENT_1])
 		exit_code, _stdout, _stderr = run_cli(
 			[
