@@ -45,8 +45,8 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		tmp_client(admin_service_client, CLIENT_ID_3),
 		tmp_client(admin_service_client, CLIENT_ID_4),
 	):
-		all_configs = admin_service_client.jsonrpc("config_getObjects", params=[])
-		client_to_server_objects = admin_service_client.configState_getClientToDepotserver()
+		all_configs = admin_service_client.jsonrpc("config_getObjects", params=[])  # type:ignore[attr-defined]
+		client_to_server_objects = admin_service_client.configState_getClientToDepotserver()  # type:ignore[attr-defined]
 		DEPOT_ID = client_to_server_objects[0]["depotId"]
 
 		# One objectId, one configId
@@ -92,7 +92,7 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		CONFIGSTATE_1_DEPOT = {"configId": f"{CONFIG_ID}", "objectId": f"{DEPOT_ID}", "values": False}
 		CONFIGSTATE_2_DEPOT = {"configId": f"{CONFIG_ID}", "objectId": f"{DEPOT_ID}", "values": True}
 
-		admin_service_client.jsonrpc("configState_createObjects", params=[CONFIGSTATE_1_DEPOT])
+		admin_service_client.jsonrpc("configState_createObjects", params=[CONFIGSTATE_1_DEPOT])  # type:ignore[attr-defined]
 		exit_code, _stdout, _stderr = run_cli(
 			[
 				"--output-format",
@@ -112,7 +112,7 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		)  # only second row is of interest, first row of stdout_list[0][i]=([clientId, configId, value, origin])
 		assert stdout_into_list(_stdout)[1][3] == "[yellow]server[/yellow]"
 
-		admin_service_client.jsonrpc("configState_updateObjects", params=[CONFIGSTATE_2_DEPOT])
+		admin_service_client.jsonrpc("configState_updateObjects", params=[CONFIGSTATE_2_DEPOT])  # type:ignore[attr-defined]
 		exit_code, _stdout, _stderr = run_cli(
 			[
 				"--output-format",
@@ -140,7 +140,7 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		CONFIGSTATE_1_CLIENT_1 = {"configId": f"{CONFIG_ID}", "objectId": f"{CLIENT_ID_1}", "values": True}
 		CONFIGSTATE_2_CLIENT_1 = {"configId": f"{CONFIG_ID}", "objectId": f"{CLIENT_ID_1}", "values": False}
 
-		admin_service_client.jsonrpc("configState_createObjects", params=[CONFIGSTATE_1_CLIENT_1])
+		admin_service_client.jsonrpc("configState_createObjects", params=[CONFIGSTATE_1_CLIENT_1])  # type:ignore[attr-defined]
 		exit_code, _stdout, _stderr = run_cli(
 			[
 				"--output-format",
@@ -160,7 +160,7 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		)  # only second row is of interest, first row of stdout_list[0][i]=([clientId, configId, value, origin])
 		assert stdout_into_list(_stdout)[1][3] == "[blue]client[/blue]"
 
-		admin_service_client.jsonrpc("configState_updateObjects", params=[CONFIGSTATE_2_CLIENT_1])
+		admin_service_client.jsonrpc("configState_updateObjects", params=[CONFIGSTATE_2_CLIENT_1])  # type:ignore[attr-defined]
 		exit_code, _stdout, _stderr = run_cli(
 			[
 				"--output-format",
