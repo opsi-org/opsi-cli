@@ -215,7 +215,8 @@ def wait_for_installation(client: str, products: str, installation_status: str, 
 		logger.error("Something went wrong - no matching event received")
 		raise RuntimeError("No matching event received")
 
-	write_output(result[0].data, default_output_format="pretty-json")
+	for entry in result:
+		write_output(entry.data, default_output_format="pretty-json")
 	if result[0].data.get("installationStatus") == "unknown":
 		logger.error("Installation failed")
 		sys.exit(1)
