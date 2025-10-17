@@ -12,6 +12,7 @@ config-states subcommand
 from typing import Literal
 
 import rich_click as click
+from opsicommon.exceptions import BackendMissingDataError
 from opsicommon.logging import get_logger
 
 from opsicli.cli_helpers import OPSICLIGroup
@@ -124,6 +125,28 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 			]
 		),
 	)
+
+
+@cli.group(name="product", short_help="Configure products")
+def product() -> None:
+	"""
+	opsi-cli datastore config-state subcommand.
+	"""
+	pass
+
+
+@product.command(name="unlock", short_help="Unlock a product on the server.")
+@click.argument("product-id", type=str)
+def unlock_product(product_id: str) -> None:
+	service_connection = get_service_connection()
+	product_on_depots = service_connection.productOnDepot_getObjects(productId=product_id)  # type: ignore[attr-defined]
+
+	if not product_on_depots:
+		raise BackendMissingDataError(f"Product {product_id!r} not found on given depots")
+	for product_on_depot in product_on_depots:
+		product_on_depot.locked = False
+
+	service_connection.productOnDepot_updateObjects(product_on_depots)  # type: ignore[attr-defined]
 
 
 class DatastorePlugin(OPSICLIPlugin):
