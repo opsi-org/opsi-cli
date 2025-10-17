@@ -17,15 +17,15 @@ def test_product_unlock(admin_service_client: ServiceClient, tmp_path: Path) -> 
 	):
 		# get products from depot
 		# setting locked to 'True' manually
-		products = admin_service_client.productOnDepot_getObjects()  # ignore [attr-defined]
+		products = admin_service_client.productOnDepot_getObjects()  # type:ignore[attr-defined]
 		for product in products:
 			product.locked = True
 
 		# update depot with locked products
-		admin_service_client.productOnDepot_updateObjects(products)  # ignore [attr-defined]
+		admin_service_client.productOnDepot_updateObjects(products)  # type:ignore[attr-defined]
 
 		# get locked products from depot (locked = True)
-		locked_products = admin_service_client.productOnDepot_getObjects()  # ignore [attr-defined]
+		locked_products = admin_service_client.productOnDepot_getObjects()  # type:ignore[attr-defined]
 
 		# try unlocking them with 'opsi-cli datastore product unlock'
 		for product in locked_products:
@@ -33,6 +33,8 @@ def test_product_unlock(admin_service_client: ServiceClient, tmp_path: Path) -> 
 			run_cli(["datastore", "product", "unlock", id])
 
 		# get unlocked products from depot (locked = False)
-		unlocked_products = admin_service_client.productOnDepot_getObjects()  # ignore [attr-defined]
+		unlocked_products = admin_service_client.productOnDepot_getObjects()  # type:ignore[attr-defined]
 		for product in unlocked_products:
 			assert product.locked is False
+
+		# installing a package and check if products are locked during the process. Trying to set locked to False
