@@ -159,87 +159,121 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 
 @config_state.command(
 	name="set",
-	short_help="Changes config state value. Create config state if there is none. If 'all' is used as an objectId, the value will be set for all objects.",
+	short_help="Change a config state value. Create a config state if there is none. If 'all' is used as an objectId, the value will be set for all objects.",
 )
 @click.argument("config-id", type=str)
 @click.argument("object-id", type=str)
-@click.argument("value", type=str)
-def set_config_state_value(config_id: str, object_id: str | None, value: str) -> None:
+@click.argument("values", type=str, nargs=-1)
+def set_config_state_value(config_id: str, object_id: str | None, values: str) -> None:
 	"""
 	opsi-cli datastore config-state set subcommand.
 	"""
-	# get server connection and the config object with given config_id
-	service_connection = get_service_connection()
-	config_list = service_connection.config_getObjects(id=config_id)  # type: ignore[attr-defined]
-	config_state_list = service_connection.configState_getObjects(configId=config_id)  # type: ignore[attr-defined]
 
-	# test if a config for config_id exists
-	if not config_list:
-		raise AttributeError(f"There is no such configId: '{config_id}'")
-	if len(config_list) > 1:
-		raise AttributeError("Only one configId without wildcard is allowed.")
-	config = config_list[0]
-	config_state_exists = config_state_list[0]
+	def set_bool_config(object_ids: list[str], config_id: str, value: list[str]) -> None:
+		possible_values = config.possibleValues
+		object_value_dict = service_connection.configState_getValues(config_id, object_ids)  # type: ignore[attr-defined]
+		# set new value for every given object
+		for obj_id in object_ids:
+			current_values = object_value_dict[obj_id][config_id]
 
-	possible_values = config.possibleValues
-	if object_id == "all":
-		host_objects = service_connection.host_getObjects(id=[], type="OpsiClient")  # type: ignore[attr-defined]
-	else:
-		host_objects = service_connection.host_getObjects(id=object_id, type="OpsiClient")  # type: ignore[attr-defined]
-	object_ids = [obj.id for obj in host_objects]
-	object_value_dict = service_connection.configState_getValues(config_id, object_ids)  # type: ignore[attr-defined]
-
-	# set value for every given object
-	for obj_id in object_ids:
-		current_values = object_value_dict[obj_id][config_id]
-		# test if config is type BoolConfig
-		if isinstance(config, BoolConfig):
-			if value in ["true", "True"]:
-				config_state = ConfigState(configId=config_id, objectId=obj_id, values=[forceBool(value)])
-			elif value in ["false", "False"]:
-				config_state = ConfigState(configId=config_id, objectId=obj_id, values=[forceBool(value)])
+			# create configState Objects with new value
+			if value[0] in ["true", "True"]:
+				config_state = ConfigState(configId=config_id, objectId=obj_id, values=forceBool(value))
+			elif value[0] in ["false", "False"]:
+				config_state = ConfigState(configId=config_id, objectId=obj_id, values=forceBool(value))
 			else:
 				raise ValueError(f"'{value}' is not a valid value. Possible values are: {possible_values}")
 
+			# update current configState Objects
 			if config_state_exists:
-				service_connection.configState_updateObject(config_state)  # type: ignore[attr-defined]
+				service_connection.configState_updateObjects(config_state)  # type: ignore[attr-defined]
 			else:
-				service_connection.configState_createObject(config_state)  # type: ignore[attr-defined]
+				service_connection.configState_createObjects(config_state)  # type: ignore[attr-defined]
 
 			console_print(
 				f"[yellow]{config_id}[/yellow] changed successfully for [yellow]{obj_id}[/yellow]. \nOld value: [red]{current_values}[/red] \nNew value: [green]{[forceBool(value)]}[/green]\n"
 			)
 
-		# test if config is type UnicodeConfig
-		if isinstance(config, UnicodeConfig):
-			if not config.multiValue:
-				if value in possible_values:
-					config_state = ConfigState(configId=config_id, objectId=obj_id, values=[value])
+	def set_unicode_config(object_ids: list[str], config_id: str, value: list[str]) -> None:
+		possible_values = config.possibleValues
+		object_value_dict = service_connection.configState_getValues(config_id, object_ids)  # type: ignore[attr-defined]
+		# set new value for every given object
+		for obj_id in object_ids:
+			current_values = object_value_dict[obj_id][config_id]
 
-					if config_state_exists:
-						service_connection.configState_updateObject(config_state)  # type: ignore[attr-defined]
-					else:
-						service_connection.configState_createObject(config_state)  # type: ignore[attr-defined]
+			# [multiple values]
+			if len(value) > 1:
+				if not config.multiValue:
+					raise ValueError(f"Value is not valid for [yellow]{config_id}[/yellow]. \nMultivalues are not allowed.")
+				# create configState
+				config_state = ConfigState(configId=config_id, objectId=obj_id, values=value)
 
-					console_print(
-						f"[yellow]{config_id}[/yellow] changed successfully for [yellow]{obj_id}[/yellow]. \nOld value: [red]{current_values}[/red] \nNew value: [green]{[value]}[/green]\n"
-					)
+				# update configState
+				if config_state_exists:
+					service_connection.configState_updateObjects(config_state)  # type: ignore[attr-defined]
 				else:
+					service_connection.configState_createObjects(config_state)  # type: ignore[attr-defined]
+
+				console_print(
+					f"[yellow]{config_id}[/yellow] changed successfully for [yellow]{obj_id}[/yellow]. \nOld value: [red]{current_values}[/red] \nNew value: [green]{value}[/green]\n"
+				)
+			# [one value]
+			elif len(value) == 1:
+				# check for possible values if config is not multiValue
+				if value[0] not in possible_values and config.multiValue is False:
 					raise ValueError(
 						f"Value is not valid for [yellow]{config_id}[/yellow]. \nPossible values are: [green]{possible_values}[/green]"
 					)
-			else:
-				value_list = [item.strip() for item in value.split(",")].sort()
-				config_state = ConfigState(configId=config_id, objectId=obj_id, values=value_list)
+				# craete configState
+				config_state = ConfigState(configId=config_id, objectId=obj_id, values=value)
 
+				# update configState
 				if config_state_exists:
-					service_connection.configState_updateObject(config_state)  # type: ignore[attr-defined]
+					service_connection.configState_updateObjects(config_state)  # type: ignore[attr-defined]
 				else:
-					service_connection.configState_createObject(config_state)  # type: ignore[attr-defined]
+					service_connection.configState_createObjects(config_state)  # type: ignore[attr-defined]
 
 				console_print(
-					f"[yellow]{config_id}[/yellow] changed successfully for [yellow]{obj_id}[/yellow]. \nOld value: [red]{current_values}[/red] \nNew values: [green]{value_list}[/green]\n"
+					f"[yellow]{config_id}[/yellow] changed successfully for [yellow]{obj_id}[/yellow]. \nOld value: [red]{current_values}[/red] \nNew value: [green]{value}[/green]\n"
 				)
+
+	# get server connection and the config object with given config_id
+	service_connection = get_service_connection()
+	config_list = service_connection.config_getObjects(id=config_id)  # type: ignore[attr-defined]
+	config_state_list = service_connection.configState_getObjects(configId=config_id)  # type: ignore[attr-defined]
+
+	# test if config-id is valid
+	if not config_list:
+		raise AttributeError(f"There is no such configId: '{config_id}'")
+	if len(config_list) > 1:
+		raise AttributeError("Only one configId without wildcard is allowed.")
+
+	# get config from list
+	config = config_list[0]
+	config_state_exists = False if config_state_list == [] else True
+
+	# get values as list
+	value_list = list(values)
+	possible_values = config.possibleValues
+
+	# get all object_id's if object_id is 'all'
+	if object_id == "all":
+		host_objects = service_connection.host_getObjects(id=[], type="OpsiClient")  # type: ignore[attr-defined]
+		object_ids = [obj.id for obj in host_objects]
+	else:
+		object_ids = [object_id]
+
+	# set BoolConfig
+	if isinstance(config, BoolConfig):
+		if len(value_list) == 1:
+			set_bool_config(object_ids, config_id, value_list)
+		else:
+			raise ValueError(
+				f"Multivalues like {value_list} are not valid for [yellow]{config_id}[/yellow]. \nPossible values are: [green]{possible_values}[/green]"
+			)
+	# set UnicodeConfig
+	if isinstance(config, UnicodeConfig):
+		set_unicode_config(object_ids, config_id, value_list)
 
 
 class DatastorePlugin(OPSICLIPlugin):
