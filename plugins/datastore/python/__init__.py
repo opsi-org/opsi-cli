@@ -181,6 +181,7 @@ def set_config_state_value(config_id: str, object_id: str | None, values: str) -
 				config_state = ConfigState(configId=config_id, objectId=obj_id, values=forceBool(value[0]))
 			elif value[0] in ["false", "False"]:
 				config_state = ConfigState(configId=config_id, objectId=obj_id, values=forceBool(value[0]))
+				print(value[0])
 			else:
 				raise ValueError(f"'{value}' is not a valid value. Possible values are: {possible_values}")
 
@@ -191,7 +192,7 @@ def set_config_state_value(config_id: str, object_id: str | None, values: str) -
 				service_connection.configState_createObjects(config_state)  # type: ignore[attr-defined]
 
 			console_print(
-				f"[yellow]{config_id}[/yellow] changed successfully for [yellow]{obj_id}[/yellow]. \nOld value: [red]{current_values}[/red] \nNew value: [green]{[forceBool(value)]}[/green]\n"
+				f"[yellow]{config_id}[/yellow] changed successfully for [yellow]{obj_id}[/yellow]. \nOld value: [red]{current_values}[/red] \nNew value: [green]{[forceBool(value[0])]}[/green]\n"
 			)
 
 	def set_unicode_config(object_ids: list[str], config_id: str, value: list[str]) -> None:
