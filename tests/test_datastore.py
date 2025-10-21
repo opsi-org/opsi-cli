@@ -15,26 +15,44 @@ def test_product_unlock(admin_service_client: ServiceClient, tmp_path: Path) -> 
 		tmp_product(admin_service_client, PRODUCT_ID_1),
 		tmp_product(admin_service_client, PRODUCT_ID_2),
 	):
-		# get products from depot
-		# setting locked to 'True' manually
-		products = admin_service_client.productOnDepot_getObjects()  # type:ignore[attr-defined]
-		for product in products:
-			product.locked = True
-
+		# get products from depot and setting locked to 'True' manually
 		# update depot with locked products
-		admin_service_client.productOnDepot_updateObjects(products)  # type:ignore[attr-defined]
+		def lock_products(product_id: str | None = None) -> None:
+			products = admin_service_client.productOnDepot_getObjects(productId=product_id or [])  # type:ignore[attr-defined]
+			for product in products:
+				product.locked = True
+			admin_service_client.productOnDepot_updateObjects(products)  # type:ignore[attr-defined]
 
-		# get locked products from depot (locked = True)
-		locked_products = admin_service_client.productOnDepot_getObjects()  # type:ignore[attr-defined]
+		# get products from depot and setting locked to 'False' manually
+		# update depot with unlocked products
+		def unlock_products(product_id: str | None = None) -> None:
+			products = admin_service_client.productOnDepot_getObjects(productId=product_id or [])  # type:ignore[attr-defined]
+			for product in products:
+				id = product.productId
+				run_cli(["datastore", "product", "unlock", id])
 
-		# try unlocking them with 'opsi-cli datastore product unlock'
-		for product in locked_products:
-			id = product.productId
-			run_cli(["datastore", "product", "unlock", id])
+		# verify the given locked status (e.g. is product.locked = True or False?)
+		def verify_lock_status(is_locked: bool, product_id: str | None = None) -> None:
+			products = admin_service_client.productOnDepot_getObjects(productId=product_id or [])  # type:ignore[attr-defined]
+			for prod in products:
+				assert prod.locked is is_locked
 
-		# get unlocked products from depot (locked = False)
-		unlocked_products = admin_service_client.productOnDepot_getObjects()  # type:ignore[attr-defined]
-		for product in unlocked_products:
-			assert product.locked is False
+		# extract opsi package -> brake it -> make a new opsi package -> failed installation
+		def install_broken_package() -> None:
+			# dir / file names
+			package_name = "gimp2_broken_1.0-1.opsi"
+			# path
+			broken_package = Path(f"tests/test_data/plugins/package/{package_name}")
+			run_cli(["package", "install", str(broken_package)])
 
-		# installing a package and check if products are locked during the process. Trying to set locked to False
+		# lock product (manually) -> verify -> unlock (CLI) -> verify
+		lock_products()
+		verify_lock_status(is_locked=True)
+		unlock_products()
+		verify_lock_status(is_locked=False)
+
+		# lock product (failed installation) -> verify -> unlock (CLI) -> verify
+		install_broken_package()
+		verify_lock_status(is_locked=True, product_id="gimp2")
+		unlock_products(product_id="gimp2")
+		verify_lock_status(is_locked=False)
