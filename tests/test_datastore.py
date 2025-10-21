@@ -264,3 +264,16 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		assert stdout_into_list(_stdout)[3][0] == CLIENT_ID_1
 		assert stdout_into_list(_stdout)[4][0] == CLIENT_ID_2
 		assert len(stdout_into_list(_stdout)) - 1 == 4
+
+
+@pytest.mark.opsi_service
+def test_config_state_set(admin_service_client: ServiceClient) -> None:
+	# set Bool
+	# set Unicode one
+	# set Unicode multiple
+	# -----------------------------------------
+	# trigger errors and checking wrong input
+	# - bool config and multiple values
+	# - bool config and one value
+	# - unicode config and multiple values
+	pass

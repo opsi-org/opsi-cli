@@ -169,7 +169,7 @@ def set_config_state_value(config_id: str, object_id: str | None, values: str) -
 	opsi-cli datastore config-state set subcommand.
 	"""
 
-	def set_bool_config(object_ids: list[str], config_id: str, value: list[str]) -> None:
+	def set_bool_config(object_ids: list[str], config_id: str, value: str) -> None:
 		possible_values = config.possibleValues
 		object_value_dict = service_connection.configState_getValues(config_id, object_ids)  # type: ignore[attr-defined]
 		# set new value for every given object
@@ -178,9 +178,9 @@ def set_config_state_value(config_id: str, object_id: str | None, values: str) -
 
 			# create configState Objects with new value
 			if value[0] in ["true", "True"]:
-				config_state = ConfigState(configId=config_id, objectId=obj_id, values=forceBool(value))
+				config_state = ConfigState(configId=config_id, objectId=obj_id, values=forceBool(value[0]))
 			elif value[0] in ["false", "False"]:
-				config_state = ConfigState(configId=config_id, objectId=obj_id, values=forceBool(value))
+				config_state = ConfigState(configId=config_id, objectId=obj_id, values=forceBool(value[0]))
 			else:
 				raise ValueError(f"'{value}' is not a valid value. Possible values are: {possible_values}")
 
