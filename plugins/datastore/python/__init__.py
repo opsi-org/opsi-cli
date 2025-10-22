@@ -177,11 +177,10 @@ def set_config_state_value(config_id: str, object_id: str | None, values: str) -
 			current_values = object_value_dict[obj_id][config_id]
 
 			# create configState Objects with new value
-			if value[0] in ["true", "True"]:
-				config_state = ConfigState(configId=config_id, objectId=obj_id, values=[forceBool(value[0])])
-			elif value[0] in ["false", "False"]:
-				config_state = ConfigState(configId=config_id, objectId=obj_id, values=[forceBool(value[0])])
-				print(value[0])
+			if value in ["true", "True"]:
+				config_state = ConfigState(configId=config_id, objectId=obj_id, values=[forceBool(value)])
+			elif value in ["false", "False"]:
+				config_state = ConfigState(configId=config_id, objectId=obj_id, values=[forceBool(value)])
 			else:
 				raise ValueError(f"'{value}' is not a valid value. Possible values are: {possible_values}")
 
@@ -267,7 +266,7 @@ def set_config_state_value(config_id: str, object_id: str | None, values: str) -
 	# set BoolConfig
 	if isinstance(config, BoolConfig):
 		if len(value_list) == 1:
-			set_bool_config(object_ids, config_id, str(value_list))
+			set_bool_config(object_ids, config_id, value_list[0])
 		else:
 			raise ValueError(
 				f"Multivalues like {value_list} are not valid for [yellow]{config_id}[/yellow]. \nPossible values are: [green]{possible_values}[/green]"

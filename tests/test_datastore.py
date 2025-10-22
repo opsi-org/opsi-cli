@@ -268,24 +268,68 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 
 @pytest.mark.opsi_service
 def test_config_state_set(admin_service_client: ServiceClient) -> None:
+	with (
+		tmp_client(admin_service_client, CLIENT_ID_1),
+		tmp_client(admin_service_client, CLIENT_ID_2),
+	):
+		bool_config = "opsi.check.enabled"
+		# unicode_config_one_value =
+		# unicode_config_multi_value =
 
-	test_bool_config = "opsi.check.enabled"
-	test_unicode_config_one_value =
-	test_unicode_config_multi_value =
+		# TEST_SCENARIOS
 
-	# TEST_SCENARIOS
+		# set Bool -> create configState
+		# set Bool -> update configState
+		# set Bool -> objectId='all'
+		# --------------------------------------------
+		# set Unicode one -> create configState
+		# set Unicode one -> update configState
+		# set Unicode one -> objectId='all'
+		# --------------------------------------------
+		# set Unicode multiple -> create configState
+		# set Unicode multiple -> update configState
+		# set Unicode multiple -> objectId='all'
+		# --------------------------------------------
+		# trigger errors and checking wrong input
+		# - bool config and multiple values
+		# - bool config and wrong value
+		# - unicode config and multiple values
+		# - unicode config and wrong value
 
-	# set Bool -> create configState
-	# set Unicode one -> create configState
-	# set Unicode multiple -> create configState
-	# -----------------------------------------
-	# set Bool -> update configState
-	# set Unicode one -> update configState
-	# set Unicode multiple -> update configState
-	# -----------------------------------------
-	# trigger errors and checking wrong input
-	# - bool config and multiple values
-	# - bool config and wrong value
-	# - unicode config and multiple values
-	# - unicode config and wrong value
-	pass
+		def test_set_bool():
+			# set Bool -> create configState
+
+			exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set", f"{bool_config}", f"{CLIENT_ID_1}", "true"])
+			assert exit_code == 0
+			exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set", f"{bool_config}", f"{CLIENT_ID_2}", "True"])
+			assert exit_code == 0
+			assert admin_service_client.configState_getValues(bool_config, [CLIENT_ID_1])[CLIENT_ID_1][bool_config] == [True]
+			assert admin_service_client.configState_getValues(bool_config, [CLIENT_ID_2])[CLIENT_ID_2][bool_config] == [True]
+
+			# set Bool -> update configState
+			exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set", f"{bool_config}", f"{CLIENT_ID_1}", "false"])
+			assert exit_code == 0
+			exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set", f"{bool_config}", f"{CLIENT_ID_2}", "False"])
+			assert exit_code == 0
+			assert admin_service_client.configState_getValues(bool_config, [CLIENT_ID_1])[CLIENT_ID_1][bool_config] == [False]
+			assert admin_service_client.configState_getValues(bool_config, [CLIENT_ID_2])[CLIENT_ID_2][bool_config] == [False]
+
+			# set Bool -> objectId='all'
+			exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set", f"{bool_config}", "all", "True"])
+			assert exit_code == 0
+			assert admin_service_client.configState_getValues(bool_config, [CLIENT_ID_1])[CLIENT_ID_1][bool_config] == [True]
+			assert admin_service_client.configState_getValues(bool_config, [CLIENT_ID_2])[CLIENT_ID_2][bool_config] == [True]
+
+		def test_set_unicode_one_value():
+			pass
+
+		def test_set_unicode_multiple_values():
+			pass
+
+		def test_trigger_errors():
+			pass
+
+		test_set_bool()
+		test_set_unicode_one_value()
+		test_set_unicode_multiple_values()
+		test_trigger_errors()
