@@ -268,12 +268,24 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 
 @pytest.mark.opsi_service
 def test_config_state_set(admin_service_client: ServiceClient) -> None:
-	# set Bool
-	# set Unicode one
-	# set Unicode multiple
+
+	test_bool_config = "opsi.check.enabled"
+	test_unicode_config_one_value =
+	test_unicode_config_multi_value =
+
+	# TEST_SCENARIOS
+
+	# set Bool -> create configState
+	# set Unicode one -> create configState
+	# set Unicode multiple -> create configState
+	# -----------------------------------------
+	# set Bool -> update configState
+	# set Unicode one -> update configState
+	# set Unicode multiple -> update configState
 	# -----------------------------------------
 	# trigger errors and checking wrong input
 	# - bool config and multiple values
-	# - bool config and one value
+	# - bool config and wrong value
 	# - unicode config and multiple values
+	# - unicode config and wrong value
 	pass
