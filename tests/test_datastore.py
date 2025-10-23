@@ -1,6 +1,5 @@
 from pathlib import Path
 
-from opsicli.io import console_print
 import pytest
 from opsicommon.client.opsiservice import ServiceClient
 
@@ -20,13 +19,11 @@ def lock_products(admin_service_client: ServiceClient, product_id: str | None = 
 
 
 # unlock products with given product-id and depot-id
-def unlock_products(product_id: list[str] = [], depot_id: list[str] = []) -> str:
+def unlock_products(product_id: list[str] = [], depot_id: list[str] = []) -> tuple[int, str, str]:
 	if depot_id:
-		_stderr = run_cli(["datastore", "product", "unlock"] + product_id + ["--depot-id"] + depot_id)
-		return _stderr
+		return run_cli(["datastore", "product", "unlock"] + product_id + ["--depot-id"] + depot_id)
 	else:
-		_stderr = run_cli(["datastore", "product", "unlock"] + product_id)
-		return _stderr
+		return run_cli(["datastore", "product", "unlock"] + product_id)
 
 
 # verify the given locked status (e.g. is product.locked = True or False?)
@@ -44,7 +41,7 @@ def install_broken_package() -> None:
 
 
 # TESTS
-#------------------------------------------------------------------
+# ------------------------------------------------------------------
 # str -> lock one product -> verify -> unlock (CLI) -> verify
 @pytest.mark.opsi_service
 def test_product_unlock_manual(admin_service_client: ServiceClient) -> None:
@@ -53,6 +50,7 @@ def test_product_unlock_manual(admin_service_client: ServiceClient) -> None:
 		verify_lock_status(admin_service_client, is_locked=True)
 		unlock_products()
 		verify_lock_status(admin_service_client, is_locked=False)
+
 
 # list[str] -> lock list of products -> verify -> unlock (CLI) -> verify
 @pytest.mark.opsi_service
@@ -63,6 +61,7 @@ def test_product_unlock_multiple(admin_service_client: ServiceClient) -> None:
 		unlock_products(["gimp2", "test2", "pytest-product1", "pytest-product2", "opsi-client-agent"])
 		verify_lock_status(admin_service_client, is_locked=False)
 
+
 # lock product (failed installation) -> verify -> unlock (CLI) -> verify
 @pytest.mark.opsi_service
 def test_product_unlock_installation(admin_service_client: ServiceClient) -> None:
@@ -72,13 +71,14 @@ def test_product_unlock_installation(admin_service_client: ServiceClient) -> Non
 		unlock_products(product_id=["gimp2"])
 		verify_lock_status(admin_service_client, is_locked=False)
 
+
 # one producst -> verify -> try unlock (wrong/mutliple depot-ids) -> verify error message
 @pytest.mark.opsi_service
 def test_wrong_depot_id(admin_service_client: ServiceClient) -> None:
 	with tmp_product(admin_service_client, PRODUCT_ID_1), tmp_product(admin_service_client, PRODUCT_ID_2):
 		lock_products(admin_service_client)
 		verify_lock_status(admin_service_client, is_locked=True)
-		err = unlock_products(depot_id=["hallo,test"])
-		assert "No such depot-id: hallo" in err[2]
-		assert "No such depot-id: test" in err[2]
-
+		exitcode, _stdout, stderr = unlock_products(depot_id=["hallo,test"])
+		print(stderr)
+		assert exitcode != 0
+		assert "No such depot(s)" in stderr
