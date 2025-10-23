@@ -17,7 +17,7 @@ from opsicommon.logging import get_logger
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_handling
-from opsicli.io import Attribute, Metadata, write_output
+from opsicli.io import Attribute, Metadata, console_print, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 
@@ -135,18 +135,34 @@ def product() -> None:
 	pass
 
 
-@product.command(name="unlock", short_help="Unlock a product on the server.")
-@click.argument("product-id", type=str)
-def unlock_product(product_id: str) -> None:
+@product.command(name="unlock", short_help="Unlock product(s) on depot(s).")
+@click.argument("product-id", type=str, nargs=-1)
+@click.option("--depot-id", type=str, default=None, help="Choose the depot-id(s) where products should be unlocked. Comma seperated list.")
+def unlock_product(product_id: tuple[str], depot_id: str | None = None) -> None:
+
+	# help function, get products, unlock them, update them
+	def unlock_and_update(product_id: list[str], depot_id: str = []) -> None:
+		product_on_depots = service_connection.productOnDepot_getObjects(productId=product_id, depotId=depot_id or [])  # type: ignore[attr-defined]
+		if not product_on_depots:
+			raise BackendMissingDataError(f"No such depot-id: {depot_id}")
+		for product_on_depot in product_on_depots:
+			product_on_depot.locked = False
+		service_connection.productOnDepot_updateObjects(product_on_depots)  # type: ignore[attr-defined]
+
 	service_connection = get_service_connection()
-	product_on_depots = service_connection.productOnDepot_getObjects(productId=product_id)  # type: ignore[attr-defined]
+	product_id_list = list(product_id)
 
-	if not product_on_depots:
-		raise BackendMissingDataError(f"Product {product_id!r} not found on given depots")
-	for product_on_depot in product_on_depots:
-		product_on_depot.locked = False
-
-	service_connection.productOnDepot_updateObjects(product_on_depots)  # type: ignore[attr-defined]
+	if depot_id:
+		depot_id_list = [item.strip() for item in depot_id.split(",")]
+		# unlock products on everey given depot
+		for depot_id in depot_id_list:
+			try:
+				unlock_and_update(product_id_list, depot_id)
+			except BackendMissingDataError as e:
+				console_print(f"Failed to unlock {product_id_list} on {depot_id}. {e}.")
+	else:
+		# unlock products on ALL depots
+		unlock_and_update(product_id_list)
 
 
 class DatastorePlugin(OPSICLIPlugin):
