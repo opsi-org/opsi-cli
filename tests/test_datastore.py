@@ -13,6 +13,9 @@ CLIENT_ID_WILDCARD_3 = "pyt*"
 CLIENT_ID_WILDCARD_4 = "clie*"
 
 CONFIG_ID = "opsi.check.enabled"
+BOOL_CONFIG = "opsi.check.enabled"
+UNICODE_CONFIG_ONE = "clientconfig.depot.drive"
+UNICODE_CONFIG_MULTI = "opsi.check.ignore_products"
 
 
 def stdout_into_list(_stdout: str) -> list[list[str]]:
@@ -266,70 +269,72 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		assert len(stdout_into_list(_stdout)) - 1 == 4
 
 
+@pytest.mark.parametrize(
+	"config, object_id, value_in, value_out",
+	[
+		(BOOL_CONFIG, CLIENT_ID_1, ["true"], [True]),  # set Bool -> create configState
+		(BOOL_CONFIG, CLIENT_ID_2, ["True"], [True]),
+		(BOOL_CONFIG, CLIENT_ID_1, ["false"], [False]),  # set Bool -> update configState
+		(BOOL_CONFIG, CLIENT_ID_2, ["False"], [False]),
+		(BOOL_CONFIG, "all", ["true"], [True]),  # set Bool -> objectId='all'
+		(BOOL_CONFIG, "all", ["True"], [True]),
+		(UNICODE_CONFIG_ONE, CLIENT_ID_1, ["c:"], ["c:"]),  # set Unicode -> create configState
+		(UNICODE_CONFIG_ONE, CLIENT_ID_2, ["d:"], ["d:"]),
+		(UNICODE_CONFIG_ONE, CLIENT_ID_1, ["d:"], ["d:"]),  # set Unicode -> update configState
+		(UNICODE_CONFIG_ONE, CLIENT_ID_2, ["c:"], ["c:"]),
+		(UNICODE_CONFIG_ONE, "all", ["f:"], ["f:"]),  # set Unicode -> objectId='all'
+		(UNICODE_CONFIG_ONE, "all", ["g:"], ["g:"]),
+		(UNICODE_CONFIG_MULTI, CLIENT_ID_1, ["a", "b", "c"], ["a", "b", "c"]),  # set Unicode MultiValue-> create configState
+		(UNICODE_CONFIG_MULTI, CLIENT_ID_2, ["a", "b", "d"], ["a", "b", "d"]),
+		(UNICODE_CONFIG_MULTI, CLIENT_ID_1, ["d", "e", "f"], ["d", "e", "f"]),  # set Unicode MultiValue-> update configState
+		(UNICODE_CONFIG_MULTI, CLIENT_ID_2, ["d", "e", "f"], ["d", "e", "f"]),
+		(UNICODE_CONFIG_MULTI, "all", ["1", "2", "3"], ["1", "2", "3"]),  # set Unicode MultiValue-> objectId='all'
+		(UNICODE_CONFIG_MULTI, "all", ["3", "4", "5"], ["3", "4", "5"]),
+	],
+)
 @pytest.mark.opsi_service
-def test_config_state_set(admin_service_client: ServiceClient) -> None:
+def test_config_state_set(
+	admin_service_client: ServiceClient, config: str, object_id: str, value_in: list[str], value_out: list[str | bool]
+) -> None:
 	with (
 		tmp_client(admin_service_client, CLIENT_ID_1),
 		tmp_client(admin_service_client, CLIENT_ID_2),
 	):
-		bool_config = "opsi.check.enabled"
-		# unicode_config_one_value =
-		# unicode_config_multi_value =
+		if object_id == "all":
+			host_objects = admin_service_client.host_getObjects(id=[], type="OpsiClient")  # type: ignore[attr-defined]
+			object_ids = [obj.id for obj in host_objects]
+			for object_id in object_ids:
+				exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set"] + [config] + [object_id] + value_in)
+				assert exit_code == 0
+				assert admin_service_client.configState_getValues(config, [object_id])[object_id][config] == value_out  # type: ignore[attr-defined]
+		else:
+			exit_code, _stdout, _stderr = run_cli(
+				[
+					"datastore",
+					"config-state",
+					"set",
+				]
+				+ [config]
+				+ [object_id]
+				+ value_in
+			)
+			assert exit_code == 0
+			assert admin_service_client.configState_getValues(config, [object_id])[object_id][config] == value_out  # type: ignore[attr-defined]
 
-		# TEST_SCENARIOS
 
-		# set Bool -> create configState
-		# set Bool -> update configState
-		# set Bool -> objectId='all'
-		# --------------------------------------------
-		# set Unicode one -> create configState
-		# set Unicode one -> update configState
-		# set Unicode one -> objectId='all'
-		# --------------------------------------------
-		# set Unicode multiple -> create configState
-		# set Unicode multiple -> update configState
-		# set Unicode multiple -> objectId='all'
+@pytest.mark.opsi_service
+def test_config_state_set_errors(admin_service_client: ServiceClient) -> None:
+	with (
+		tmp_client(admin_service_client, CLIENT_ID_1),
+		tmp_client(admin_service_client, CLIENT_ID_2),
+	):
+		exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set"] + [BOOL_CONFIG] + [CLIENT_ID_1] + ["test"])
+		assert exit_code == 0
+		assert "Multivalues like" in _stderr
+
 		# --------------------------------------------
 		# trigger errors and checking wrong input
 		# - bool config and multiple values
 		# - bool config and wrong value
 		# - unicode config and multiple values
-		# - unicode config and wrong value
-
-		def test_set_bool():
-			# set Bool -> create configState
-
-			exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set", f"{bool_config}", f"{CLIENT_ID_1}", "true"])
-			assert exit_code == 0
-			exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set", f"{bool_config}", f"{CLIENT_ID_2}", "True"])
-			assert exit_code == 0
-			assert admin_service_client.configState_getValues(bool_config, [CLIENT_ID_1])[CLIENT_ID_1][bool_config] == [True]
-			assert admin_service_client.configState_getValues(bool_config, [CLIENT_ID_2])[CLIENT_ID_2][bool_config] == [True]
-
-			# set Bool -> update configState
-			exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set", f"{bool_config}", f"{CLIENT_ID_1}", "false"])
-			assert exit_code == 0
-			exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set", f"{bool_config}", f"{CLIENT_ID_2}", "False"])
-			assert exit_code == 0
-			assert admin_service_client.configState_getValues(bool_config, [CLIENT_ID_1])[CLIENT_ID_1][bool_config] == [False]
-			assert admin_service_client.configState_getValues(bool_config, [CLIENT_ID_2])[CLIENT_ID_2][bool_config] == [False]
-
-			# set Bool -> objectId='all'
-			exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set", f"{bool_config}", "all", "True"])
-			assert exit_code == 0
-			assert admin_service_client.configState_getValues(bool_config, [CLIENT_ID_1])[CLIENT_ID_1][bool_config] == [True]
-			assert admin_service_client.configState_getValues(bool_config, [CLIENT_ID_2])[CLIENT_ID_2][bool_config] == [True]
-
-		def test_set_unicode_one_value():
-			pass
-
-		def test_set_unicode_multiple_values():
-			pass
-
-		def test_trigger_errors():
-			pass
-
-		test_set_bool()
-		test_set_unicode_one_value()
-		test_set_unicode_multiple_values()
-		test_trigger_errors()
+		# - unicode config and wrong valu
