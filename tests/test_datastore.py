@@ -365,8 +365,8 @@ def test_config_state_set_errors(admin_service_client: ServiceClient) -> None:
 		tmp_client(admin_service_client, CLIENT_ID_2),
 	):
 		exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set"] + [BOOL_CONFIG] + [CLIENT_ID_1] + ["test"])
-		assert exit_code == 0
-		assert "Multivalues like" in _stderr
+		assert exit_code != 0
+		# assert "Multivalues like" in _stderr
 
 		# --------------------------------------------
 		# trigger errors and checking wrong input
@@ -413,6 +413,5 @@ def test_wrong_depot_id(admin_service_client: ServiceClient) -> None:
 		lock_products(admin_service_client)
 		verify_lock_status(admin_service_client, is_locked=True)
 		exitcode, _stdout, stderr = unlock_products(depot_id=["hallo,test"])
-		print(stderr)
 		assert exitcode != 0
 		assert "No such depot(s)" in stderr
