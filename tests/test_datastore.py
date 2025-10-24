@@ -76,6 +76,7 @@ def install_broken_package() -> None:
 	run_cli(["package", "install", str(broken_package)])
 
 
+# ===================================CONFIG-STATE LIST TESTS============================================
 @pytest.mark.opsi_service
 def test_config_state_list(admin_service_client: ServiceClient) -> None:
 	with (
@@ -305,6 +306,7 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		assert len(stdout_into_list(_stdout)) - 1 == 4
 
 
+# ===================================CONFIG-STATE SET TESTS============================================
 @pytest.mark.parametrize(
 	"config, object_id, value_in, value_out",
 	[
@@ -321,6 +323,7 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		(UNICODE_CONFIG_ONE, "all", ["f:"], ["f:"]),  # set Unicode -> objectId='all'
 		(UNICODE_CONFIG_ONE, "all", ["g:"], ["g:"]),
 		(UNICODE_CONFIG_MULTI, CLIENT_ID_1, ["a", "b", "c"], ["a", "b", "c"]),  # set Unicode MultiValue-> create configState
+		(UNICODE_CONFIG_MULTI, CLIENT_ID_1, [], []),  # empty list for MultiValue-> create configState
 		(UNICODE_CONFIG_MULTI, CLIENT_ID_2, ["a", "b", "d"], ["a", "b", "d"]),
 		(UNICODE_CONFIG_MULTI, CLIENT_ID_1, ["d", "e", "f"], ["d", "e", "f"]),  # set Unicode MultiValue-> update configState
 		(UNICODE_CONFIG_MULTI, CLIENT_ID_2, ["d", "e", "f"], ["d", "e", "f"]),
@@ -358,25 +361,39 @@ def test_config_state_set(
 			assert admin_service_client.configState_getValues(config, [object_id])[object_id][config] == value_out  # type: ignore[attr-defined]
 
 
+# trigger errors and checking wrong input
 @pytest.mark.opsi_service
 def test_config_state_set_errors(admin_service_client: ServiceClient) -> None:
 	with (
 		tmp_client(admin_service_client, CLIENT_ID_1),
 		tmp_client(admin_service_client, CLIENT_ID_2),
 	):
+		# - bool config and wrong value
 		exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set"] + [BOOL_CONFIG] + [CLIENT_ID_1] + ["test"])
 		assert exit_code != 0
-		# assert "Multivalues like" in _stderr
+		assert f"'test' is not valid for {BOOL_CONFIG}." in _stderr
+		assert "Possible values are: [False, True]" in _stderr
 
-		# --------------------------------------------
-		# trigger errors and checking wrong input
 		# - bool config and multiple values
-		# - bool config and wrong value
+		exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set"] + [BOOL_CONFIG] + [CLIENT_ID_1] + ["test", "testing"])
+		assert exit_code != 0
+		assert f"Multivalues are not valid for {BOOL_CONFIG}" in _stderr
+		assert "Possible values are: [False, True]" in _stderr
+
 		# - unicode config and multiple values
-		# - unicode config and wrong valu
+		exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set"] + [UNICODE_CONFIG_ONE] + [CLIENT_ID_1] + ["g:", "h:"])
+		assert exit_code != 0
+		assert f"Value is not valid for {UNICODE_CONFIG_ONE}." in _stderr
+		assert "Multivalues are not allowed." in _stderr
+
+		# - unicode config and wrong value
+		exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set"] + [UNICODE_CONFIG_ONE] + [CLIENT_ID_1] + ["test"])
+		assert exit_code != 0
+		assert f"Value is not valid for {UNICODE_CONFIG_ONE}." in _stderr
+		assert "Possible values are:" in _stderr
 
 
-# str -> lock one product -> verify -> unlock (CLI) -> verify
+# lock one product -> verify -> unlock (CLI) -> verify
 @pytest.mark.opsi_service
 def test_product_unlock_manual(admin_service_client: ServiceClient) -> None:
 	with tmp_product(admin_service_client, PRODUCT_ID_1), tmp_product(admin_service_client, PRODUCT_ID_2):
@@ -386,7 +403,7 @@ def test_product_unlock_manual(admin_service_client: ServiceClient) -> None:
 		verify_lock_status(admin_service_client, is_locked=False)
 
 
-# list[str] -> lock list of products -> verify -> unlock (CLI) -> verify
+# lock list of products -> verify -> unlock (CLI) -> verify
 @pytest.mark.opsi_service
 def test_product_unlock_multiple(admin_service_client: ServiceClient) -> None:
 	with tmp_product(admin_service_client, PRODUCT_ID_1), tmp_product(admin_service_client, PRODUCT_ID_2):
@@ -406,7 +423,7 @@ def test_product_unlock_installation(admin_service_client: ServiceClient) -> Non
 		verify_lock_status(admin_service_client, is_locked=False)
 
 
-# one producst -> verify -> try unlock (wrong/mutliple depot-ids) -> verify error message
+# lock products -> verify -> try unlock (wrong/mutliple depot-ids) -> verify error message
 @pytest.mark.opsi_service
 def test_wrong_depot_id(admin_service_client: ServiceClient) -> None:
 	with tmp_product(admin_service_client, PRODUCT_ID_1), tmp_product(admin_service_client, PRODUCT_ID_2):

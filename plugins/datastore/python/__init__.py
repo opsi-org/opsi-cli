@@ -165,7 +165,7 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 @click.argument("config-id", type=str)
 @click.argument("object-id", type=str)
 @click.argument("values", type=str, nargs=-1)
-def set_config_state_value(config_id: str, object_id: str | None, values: str) -> None:
+def set_config_state_value(config_id: str, object_id: str | None, values: tuple[str]) -> None:
 	"""
 	opsi-cli datastore config-state set subcommand.
 	"""
@@ -183,7 +183,7 @@ def set_config_state_value(config_id: str, object_id: str | None, values: str) -
 			elif value in ["false", "False"]:
 				config_state = ConfigState(configId=config_id, objectId=obj_id, values=[forceBool(value)])
 			else:
-				raise ValueError(f"'{value}' is not a valid value. Possible values are: {possible_values}")
+				raise ValueError(f"'{value}' is not valid for {config_id}. Possible values are: {possible_values}")
 
 			# update current configState Objects
 			if config_state_exists:
@@ -202,11 +202,14 @@ def set_config_state_value(config_id: str, object_id: str | None, values: str) -
 		for obj_id in object_ids:
 			current_values = object_value_dict[obj_id][config_id]
 
-			# [multiple values]
-			if len(value) > 1:
-				if not config.multiValue:
-					raise ValueError(f"Value is not valid for [yellow]{config_id}[/yellow]. \nMultivalues are not allowed.")
-				# create configState
+			# [one value]
+			if len(value) == 1:
+				# check for possible values if config is not multiValue
+				if value[0] not in possible_values and config.multiValue is False:
+					raise ValueError(
+						f"Value is not valid for [yellow]{config_id}[/yellow]. \nPossible values are: [green]{possible_values}[/green]"
+					)
+				# craete configState
 				config_state = ConfigState(configId=config_id, objectId=obj_id, values=value)
 
 				# update configState
@@ -218,14 +221,11 @@ def set_config_state_value(config_id: str, object_id: str | None, values: str) -
 				console_print(
 					f"[yellow]{config_id}[/yellow] changed successfully for [yellow]{obj_id}[/yellow]. \nOld value: [red]{current_values}[/red] \nNew value: [green]{value}[/green]\n"
 				)
-			# [one value]
-			elif len(value) == 1:
-				# check for possible values if config is not multiValue
-				if value[0] not in possible_values and config.multiValue is False:
-					raise ValueError(
-						f"Value is not valid for [yellow]{config_id}[/yellow]. \nPossible values are: [green]{possible_values}[/green]"
-					)
-				# craete configState
+			# [multiple values or no value]
+			else:
+				if not config.multiValue:
+					raise ValueError(f"Value is not valid for [yellow]{config_id}[/yellow]. \nMultivalues are not allowed.")
+				# create configState
 				config_state = ConfigState(configId=config_id, objectId=obj_id, values=value)
 
 				# update configState
@@ -253,8 +253,6 @@ def set_config_state_value(config_id: str, object_id: str | None, values: str) -
 	config = config_list[0]
 	config_state_exists = False if config_state_list == [] else True
 
-	# get values as list
-	value_list = list(values)
 	possible_values = config.possibleValues
 
 	# get all object_id's if object_id is 'all'
@@ -266,15 +264,15 @@ def set_config_state_value(config_id: str, object_id: str | None, values: str) -
 
 	# set BoolConfig
 	if isinstance(config, BoolConfig):
-		if len(value_list) == 1:
-			set_bool_config(object_ids, config_id, value_list[0])
+		if len(values) == 1:
+			set_bool_config(object_ids, config_id, values[0])
 		else:
 			raise ValueError(
-				f"Multivalues like {value_list} are not valid for [yellow]{config_id}[/yellow]. \nPossible values are: [green]{possible_values}[/green]"
+				f"Multivalues are not valid for [yellow]{config_id}[/yellow] \nPossible values are: [green]{possible_values}[/green]"
 			)
 	# set UnicodeConfig
 	if isinstance(config, UnicodeConfig):
-		set_unicode_config(object_ids, config_id, value_list)
+		set_unicode_config(object_ids, config_id, list(values))
 
 
 @cli.group(name="product", short_help="Configure products")
