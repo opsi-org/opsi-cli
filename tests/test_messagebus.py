@@ -92,7 +92,7 @@ def test_get_events(types: list[str], output_type: str | None) -> None:
 	for cid in (client_id, "some.other.host"):
 		cht = CreateHostThread(daemon=True)
 		cht.start()
-		cmd = ["-l5", "--output-format", "json", "messagebus", "get-events", "--timeout", "10"]
+		cmd = ["-l6", "--output-format", "json", "messagebus", "get-events", "--timeout", "10"]
 		for event_type in types:
 			cmd += ["--type", event_type]
 		if output_type:
@@ -170,10 +170,12 @@ def test_wait_for_installation(installation_status: str, success: bool) -> None:
 				cht = FakeInstallationThread(daemon=True)
 				cht.start()
 				cmd = [
+					"-l7",
 					"messagebus",
 					"wait-for-installation",
 					"client1.test.tld",
 					"testproduct",
+					"--installation-status",
 					installation_status,
 					"--timeout",
 					"10",

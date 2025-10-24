@@ -12,6 +12,7 @@ config-states subcommand
 from typing import Literal
 
 import rich_click as click
+from opsicommon.exceptions import BackendMissingDataError
 from opsicommon.logging import get_logger
 from opsicommon.objects import BoolConfig, ConfigState, UnicodeConfig
 from opsicommon.types import forceBool
@@ -274,6 +275,40 @@ def set_config_state_value(config_id: str, object_id: str | None, values: str) -
 	# set UnicodeConfig
 	if isinstance(config, UnicodeConfig):
 		set_unicode_config(object_ids, config_id, value_list)
+
+
+@cli.group(name="product", short_help="Configure products")
+def product() -> None:
+	"""
+	opsi-cli dawtastore config-state subcommand.
+	"""
+	pass
+
+
+@product.command(name="unlock", short_help="Unlock product(s) on depot(s).")
+@click.argument("product-id", type=str, nargs=-1)
+@click.option("--depot-id", type=str, default=None, help="Choose the depot-id(s) where products should be unlocked. Comma seperated list.")
+def unlock_product(product_id: tuple[str], depot_id: str | None = None) -> None:
+	# help function, get products, unlock them, update them
+	def unlock_and_update(product_id: list[str], depot_id: list[str]) -> None:
+		product_on_depots = service_connection.productOnDepot_getObjects(productId=product_id, depotId=depot_id or [])  # type: ignore[attr-defined]
+		if not product_on_depots:
+			logger.error("No such depot(s): %s", depot_id)
+			raise BackendMissingDataError(f"No such depot(s): {depot_id}")
+		for product_on_depot in product_on_depots:
+			product_on_depot.locked = False
+		service_connection.productOnDepot_updateObjects(product_on_depots)  # type: ignore[attr-defined]
+
+	service_connection = get_service_connection()
+	product_id_list = list(product_id)
+
+	if depot_id:
+		depot_id_list = [item.strip() for item in depot_id.split(",")]
+		# unlock products on every given depot
+		unlock_and_update(product_id_list, depot_id_list)
+	else:
+		# unlock products on ALL depots
+		unlock_and_update(product_id_list, [])
 
 
 class DatastorePlugin(OPSICLIPlugin):
