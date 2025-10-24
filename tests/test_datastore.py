@@ -372,13 +372,13 @@ def test_config_state_set_errors(admin_service_client: ServiceClient) -> None:
 		exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set"] + [BOOL_CONFIG] + [CLIENT_ID_1] + ["test"])
 		assert exit_code != 0
 		assert f"'test' is not valid for {BOOL_CONFIG}." in _stderr
-		assert "Possible values are: [False, True]" in _stderr
+		assert "Possible values are: [" in _stderr  # depending on monitor resolution output may contain line breaks
 
 		# - bool config and multiple values
 		exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set"] + [BOOL_CONFIG] + [CLIENT_ID_1] + ["test", "testing"])
 		assert exit_code != 0
 		assert f"Multivalues are not valid for {BOOL_CONFIG}" in _stderr
-		assert "Possible values are: [False, True]" in _stderr
+		assert "Possible values are: [" in _stderr  # depending on monitor resolution output may contain line breaks
 
 		# - unicode config and multiple values
 		exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set"] + [UNICODE_CONFIG_ONE] + [CLIENT_ID_1] + ["g:", "h:"])
