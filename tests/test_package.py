@@ -441,6 +441,34 @@ def test_package_installation_new_id() -> None:
 
 
 @pytest.mark.opsi_service
+def test_package_installation_product_lock() -> None:
+	broken_package = Path("tests/test_data/plugins/package/gimp2_broken_1.0-1.opsi")
+	working_package = Path("tests/test_data/plugins/package/gimp2_1.0-1.opsi")
+
+	# install broken package to lock the product
+	exitcode, _, _ = run_cli(["package", "install", str(broken_package)])
+	assert exitcode != 0
+
+	# try to install working package, should fail due to locked product
+	exitcode, _, _ = run_cli(["package", "install", str(working_package)])
+	assert exitcode != 0
+
+	# install product under new name
+	exitcode, _, _ = run_cli(["package", "install", str(working_package), "--new-product-id", "gimp2_new"])
+	assert exitcode == 0
+
+	exit_code, _, _ = run_cli(["package", "uninstall", "gimp2_new"])
+	assert exit_code == 0
+
+	# forcing installation of working package
+	exitcode, _, _ = run_cli(["package", "install", str(working_package), "--force"])
+	assert exitcode == 0
+
+	exit_code, _, _ = run_cli(["package", "uninstall", "gimp2"])
+	assert exit_code == 0
+
+
+@pytest.mark.opsi_service
 def test_package_installation_from_urls() -> None:
 	with http_test_server(serve_directory=TEST_DATA_PATH) as server:
 		base_url = f"http://localhost:{server.port}"
