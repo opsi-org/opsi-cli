@@ -482,6 +482,10 @@ def install(
 		path_to_opsipackage = map_and_sort_packages(local_packages)
 		depot_objects = get_depot_objects(service_client, depots)
 
+		if new_product_id:
+			for opsi_package in path_to_opsipackage.values():
+				opsi_package.product.id = new_product_id
+
 		if not force:
 			check_locked_products(service_client, depot_objects, path_to_opsipackage)
 
@@ -497,7 +501,6 @@ def install(
 				for package_path, opsi_package in path_to_opsipackage.items():
 					dest_package_name = fix_custom_package_name(package_path)
 					if new_product_id:
-						opsi_package.product.id = new_product_id
 						dest_package_name = opsi_package.package_archive_name()
 					upload_to_repository(depot_connection, depot.id, package_path, dest_package_name, temp_dir)
 
