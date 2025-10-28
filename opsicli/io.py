@@ -379,6 +379,10 @@ def write_output_msgpack(data: Any, metadata: Metadata | None = None) -> None:
 def write_output(
 	data: Any, metadata: Metadata | None = None, default_output_format: str | None = None, force_newline: bool = False
 ) -> None:
+	if output_file_is_stdout() and config.quiet:
+		logger.debug("Quiet mode enabled, skipping output")
+		return
+
 	output_format = config.output_format
 	if output_format == "auto":
 		output_format = default_output_format if default_output_format else "table"
