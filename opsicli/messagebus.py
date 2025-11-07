@@ -58,6 +58,7 @@ from opsicommon.types import forceHostId
 from rich.color import Color
 from rich.text import Text
 
+from opsicli.config import config
 from opsicli.io import COLORS, LOG_COLORS, OutputType, console_print, read_input_raw_bin
 from opsicli.opsiservice import get_service_connection
 from opsicli.utils import raw_terminal
@@ -431,7 +432,7 @@ class ProcessMessagebusConnection(MessagebusConnection):
 
 		stdin_data = bytearray(read_input_raw_bin())
 
-		color = "NO_COLOR" not in os.environ
+		color = config.color
 		for channel in channels:
 			prefix_color = Color.parse(COLORS[self.color_position]) if color else None
 			self.color_position += 1
