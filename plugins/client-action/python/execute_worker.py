@@ -79,22 +79,22 @@ class ExecuteWorker(ClientActionWorker):
 
 			for channel, result in results.items():
 				host_name = channel.split(":")[1]
-				line_prefix_color = COLORS[self.color_position]
+				line_prefix_color = COLORS[self.color_position] if config.color else ""
 				self.color_position = (self.color_position + 1) % len(COLORS)
 				line_prefix = Text(f"{host_name} | ", style=line_prefix_color)
 				console_print(output_type=OutputType.DATA)
-				console_print(rule=f"{host_name}", style="white", output_type=OutputType.DATA)
+				console_print(rule=f"{host_name}", output_type=OutputType.DATA)
 
 				if isinstance(result, Exception):
 					logger.error("Exception occured while executing opsiscript on %s: %s", channel, result)
-					console_print(line_prefix + Text(str(result), style="red"), output_type=OutputType.DATA)
+					console_print(line_prefix + Text(str(result), style="red" if config.color else None), output_type=OutputType.DATA)
 					highest_exit_code = max(highest_exit_code, 1)
 					continue
 
 				if "error" in result:
 					error_message = result["error"].get("message", "Unknown error")
 					logger.error("Error occurred while executing opsiscript on %s: %s", channel, error_message)
-					console_print(line_prefix + Text(error_message, style="red"), output_type=OutputType.DATA)
+					console_print(line_prefix + Text(error_message, style="red" if config.color else None), output_type=OutputType.DATA)
 					highest_exit_code = max(highest_exit_code, result["error"].get("code", 1))
 					continue
 
@@ -106,21 +106,21 @@ class ExecuteWorker(ClientActionWorker):
 
 				console_print(
 					line_prefix
-					+ Text("EXIT CODE: ", style="white")
+					+ Text("EXIT CODE: ")
 					+ Text(
 						f"{exit_code}",
-						style="green" if exit_code == 0 else "red" if exit_code != 0 else "white",
+						style="" if not config.color else ("green" if exit_code == 0 else "red"),
 					),
 					output_type=OutputType.DATA,
 				)
 
 				if stdout:
-					console_print(Text("\n") + line_prefix + Text("STDOUT:", style="white"), output_type=OutputType.DATA)
+					console_print(Text("\n") + line_prefix + Text("STDOUT:"), output_type=OutputType.DATA)
 					for line in stdout.splitlines():
-						console_print(line_prefix + Text(line, style="white"), output_type=OutputType.DATA)
+						console_print(line_prefix + Text(line), output_type=OutputType.DATA)
 
 				if log_content:
-					console_print(Text("\n") + line_prefix + Text("LOG:", style="white"), output_type=OutputType.DATA)
+					console_print(Text("\n") + line_prefix + Text("LOG:"), output_type=OutputType.DATA)
 					previous_color = "white"
 					for line in log_content.splitlines():
 						parts = line.split(" ", 1)
@@ -134,7 +134,7 @@ class ExecuteWorker(ClientActionWorker):
 							console_print(line_prefix + Text(line, style=color), output_type=OutputType.DATA)
 
 				if stderr:
-					console_print(Text("\n") + line_prefix + Text("STDERR:", style="white"), output_type=OutputType.DATA)
+					console_print(Text("\n") + line_prefix + Text("STDERR:"), output_type=OutputType.DATA)
 					for line in str(stderr).splitlines():
 						console_print(line_prefix + Text(line, style="red"), output_type=OutputType.DATA)
 
