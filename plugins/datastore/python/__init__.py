@@ -20,7 +20,7 @@ from opsicommon.types import forceBool
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_handling
 from opsicli.io import Attribute, Metadata, console_print, write_output
-from opsicli.opsiservice import get_service_connection
+from opsicli.opsiservice import ServiceClient, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 
 __version__ = "0.1.0"
@@ -28,6 +28,15 @@ __description__ = "This command can be used to manage data and objects"
 
 
 logger = get_logger("opsicli")
+
+
+# get depot name/id for given object-id
+def get_depot_id(object_id: str, service_connection: ServiceClient) -> str:
+	client_to_server_objects = service_connection.configState_getClientToDepotserver()  # type: ignore[attr-defined]
+	for client in client_to_server_objects:
+		if client["clientId"] == object_id:
+			return client["depotId"]
+	raise ValueError(f"No depot found for host '{object_id}'.")
 
 
 @click.group(cls=OPSICLIGroup, name="datastore", short_help="Manage data and objects")
@@ -53,13 +62,6 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 	"""
 	opsi-cli datastore config-state list subcommand.
 	"""
-
-	# get depot name/id for given object-id
-	def get_depot_id(object_id: str, client_to_server_objects: list[dict]) -> str:
-		for client in client_to_server_objects:
-			if client["clientId"] == object_id:
-				return client["depotId"]
-		raise ValueError(f"No depot found for host '{object_id}'.")
 
 	def get_default_entries(config_id: str | None, object_id: str, depot_id: str) -> dict[str, dict[str, str]]:
 		default_entry_dict = {}
@@ -96,7 +98,6 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 		return entry_dict
 
 	service_connection = get_service_connection()
-	client_to_server_objects = service_connection.configState_getClientToDepotserver()  # type: ignore[attr-defined]
 	host_objects = []
 	config_ids: list[str | None] = []
 	result_unique = []
@@ -125,7 +126,7 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 
 	# For every client: create dicts for (default/depot/client) and update them. Print the result
 	for obj in host_objects:
-		depot_id = get_depot_id(obj.id, client_to_server_objects)
+		depot_id = get_depot_id(obj.id, service_connection)
 
 		for conf_id in config_ids:
 			default_entry_dict = get_default_entries(conf_id, obj.id, depot_id)
@@ -273,6 +274,99 @@ def set_config_state_value(config_id: str, object_id: str | None, values: tuple[
 	# set UnicodeConfig
 	if isinstance(config, UnicodeConfig):
 		set_unicode_config(object_ids, config_id, list(values))
+
+
+@cli.group(name="product-property-state", short_help="Change product-property-states.")
+def product_property_state() -> None:
+	"""
+	opsi-cli datastore product-property-state subcommand.
+	"""
+	pass
+
+
+@product_property_state.command(name="list", short_help="List all product-property-states or get a filtered list. ")
+@click.option("--object-id", type=str, default=None, help="Filter data with object_id(s). Use ',' as a separator. Wildcard * is possible.")
+@click.option("--product-id", type=str, default=None, help="Filter data with product_id. Wildcard * is possible.")
+@click.option("--property-id", type=str, default=None, help="Filter data with property_id. Wildcard * is possible. ")
+def list_product_property_state(object_id: str | None = None, product_id: str | None = None, property_id: str | None = None) -> None:
+	"""
+	opsi-cli datastore product-property-state list subcommand.
+	"""
+
+	def get_default_properties(object_id: str, product_id: str | None, property_id: str | None) -> dict[str, dict[str, str]]:
+		default_entry_dict = {}
+		default_properties = service_connection.productProperty_getObjects(productId=product_id or [], propertyId=property_id or [])  # type: ignore[attr-defined]
+
+		for entry in default_properties:
+			default_entry_dict[object_id + entry.productId + entry.propertyId] = {
+				"values": entry.defaultValues,
+				"origin": "default",
+				"productId": entry.productId,
+				"propertyId": entry.propertyId,
+				"objectId": object_id,
+			}
+		return default_entry_dict
+
+	def get_host_property_states(
+		object_id: str,
+		product_id: str | None,
+		property_id: str | None,
+		depot_id: str | None,
+		current_results: dict[str, dict[str, str]],
+		host_type: Literal["Depot", "Client"],
+	) -> dict[str, dict[str, str]]:
+		depot_property_states = service_connection.productPropertyState_getObjects(  # type: ignore[attr-defined]
+			objectId=depot_id if host_type == "Depot" else object_id or [], productId=product_id or [], propertyId=property_id or []
+		)
+
+		for entry in depot_property_states:
+			if current_results[object_id + entry.productId + entry.propertyId]["values"] != entry.values:
+				current_results[object_id + entry.productId + entry.propertyId] = {
+					"values": entry.values,
+					"origin": "[yellow]server[/yellow]" if host_type == "Depot" else "[blue]client[/blue]",
+					"productId": entry.productId,
+					"propertyId": entry.propertyId,
+					"objectId": object_id,
+				}
+		return current_results
+
+	service_connection = get_service_connection()
+	host_objects = []
+	result = []
+
+	# handle comma separated object-ids
+	if not object_id:
+		host_objects = service_connection.host_getObjects(id=[], type="OpsiClient")  # type: ignore[attr-defined]
+	else:
+		if "," in object_id:
+			object_ids = [item.strip() for item in object_id.split(",")]
+			for obj_id in object_ids:
+				host_objects = host_objects + service_connection.host_getObjects(id=obj_id, type="OpsiClient")  # type: ignore[attr-defined]
+			host_objects = list(set(host_objects))
+		else:
+			host_objects = service_connection.host_getObjects(id=object_id, type="OpsiClient")  # type: ignore[attr-defined]
+
+	object_ids = [host.id for host in host_objects]
+
+	for object_id in object_ids:
+		depot_id = get_depot_id(object_id, service_connection)
+		default_states_dict = get_default_properties(object_id, product_id, property_id)
+		depot_states_dict = get_host_property_states(object_id, product_id, property_id, depot_id, default_states_dict, host_type="Depot")
+		client_states_dict = get_host_property_states(object_id, product_id, property_id, None, depot_states_dict, host_type="Client")
+		result.extend(list(client_states_dict.values()))
+
+	write_output(
+		result,
+		Metadata(
+			attributes=[
+				Attribute(id="objectId", description="The ID of the object.", identifier=False, data_type="str", selected=True),
+				Attribute(id="productId", description="The ID of the product.", identifier=False, data_type="str", selected=True),
+				Attribute(id="propertyId", description="The ID of the property.", identifier=False, data_type="str", selected=True),
+				Attribute(id="values", description="Values of given property.", identifier=False, data_type="str | Boolean", selected=True),
+				Attribute(id="origin", description="Location where the change was made.", identifier=False, data_type="str", selected=True),
+			]
+		),
+	)
 
 
 @cli.group(name="product", short_help="Configure products")
