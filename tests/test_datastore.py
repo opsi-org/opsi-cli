@@ -16,6 +16,8 @@ CLIENT_ID_WILDCARD_4 = "clie*"
 
 PRODUCT_ID_1 = "pytest-product1"
 PRODUCT_ID_2 = "pytest-product2"
+PROPERTY_ID_1 = "property1"
+PROPERTY_ID_2 = "property2"
 
 CONFIG_ID = "opsi.check.enabled"
 BOOL_CONFIG = "opsi.check.enabled"
@@ -23,6 +25,9 @@ UNICODE_CONFIG_ONE = "clientconfig.depot.drive"
 UNICODE_CONFIG_MULTI = "opsi.check.ignore_products"
 
 
+# ===============
+# HELP FUNCTIONS
+# ===============
 def stdout_into_list(_stdout: str) -> list[list[str]]:
 	stdout_result_list = []
 	stdout_list = _stdout.splitlines()
@@ -76,7 +81,12 @@ def install_broken_package() -> None:
 	run_cli(["package", "install", str(broken_package)])
 
 
-# ===================================CONFIG-STATE LIST TESTS============================================
+# =========
+# PYTESTS
+# =========
+
+
+# ===================================(CONFIG-STATE LIST || TESTS)============================================
 @pytest.mark.opsi_service
 def test_config_state_list(admin_service_client: ServiceClient) -> None:
 	with (
@@ -306,7 +316,7 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		assert len(stdout_into_list(_stdout)) - 1 == 4
 
 
-# ===================================CONFIG-STATE SET TESTS============================================
+# ===================================(CONFIG-STATE SET || TESTS)============================================
 @pytest.mark.parametrize(
 	"config, object_id, value_in, value_out",
 	[
@@ -393,6 +403,7 @@ def test_config_state_set_errors(admin_service_client: ServiceClient) -> None:
 		assert "Possible values are:" in _stderr
 
 
+# ===================================(PRODUCT UNLOCK || TESTS)============================================
 # lock one product -> verify -> unlock (CLI) -> verify
 @pytest.mark.opsi_service
 def test_product_unlock_manual(admin_service_client: ServiceClient) -> None:
@@ -432,3 +443,111 @@ def test_wrong_depot_id(admin_service_client: ServiceClient) -> None:
 		exitcode, _stdout, stderr = unlock_products(depot_id=["hallo,test"])
 		assert exitcode != 0
 		assert "No such depot(s)" in stderr
+
+
+# ===================================(PRODUCT-PROPTERY-STATE LIST || TESTS)============================================
+@pytest.mark.opsi_service
+def test_product_property_list(admin_service_client: ServiceClient) -> None:
+	with (
+		tmp_client(admin_service_client, CLIENT_ID_1),
+		tmp_client(admin_service_client, CLIENT_ID_2),
+		tmp_product(admin_service_client, PRODUCT_ID_1),
+		tmp_product(admin_service_client, PRODUCT_ID_2),
+	):
+		# add PRODUCT-PROPERTIES
+		admin_service_client.productProperty_create(
+			productId=PRODUCT_ID_1, productVersion="1", packageVersion="1", propertyId=PROPERTY_ID_1
+		)  # type:ignore[attr-defined]
+		admin_service_client.productProperty_create(
+			productId=PRODUCT_ID_2, productVersion="1", packageVersion="1", propertyId=PROPERTY_ID_2
+		)  # type:ignore[attr-defined]
+
+		# add PRODUCT-PROPERTY-STATES for client 1 & 2
+		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_1, propertyId=PROPERTY_ID_1, objectId=CLIENT_ID_1)  # type:ignore[attr-defined]
+		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_1, propertyId=PROPERTY_ID_1, objectId=CLIENT_ID_2)  # type:ignore[attr-defined]
+		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_1, propertyId=PROPERTY_ID_2, objectId=CLIENT_ID_1)  # type:ignore[attr-defined]
+		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_1, propertyId=PROPERTY_ID_2, objectId=CLIENT_ID_2)  # type:ignore[attr-defined]
+
+		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_2, propertyId=PROPERTY_ID_1, objectId=CLIENT_ID_1)  # type:ignore[attr-defined]
+		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_2, propertyId=PROPERTY_ID_1, objectId=CLIENT_ID_2)  # type:ignore[attr-defined]
+		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_2, propertyId=PROPERTY_ID_2, objectId=CLIENT_ID_1)  # type:ignore[attr-defined]
+		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_2, propertyId=PROPERTY_ID_2, objectId=CLIENT_ID_2)  # type:ignore[attr-defined]
+
+		# One productId, one propertyId, no object-id
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"--sort-by",
+				"objectId",
+				"datastore",
+				"product-property-state",
+				"list",
+				"--product-id",
+				f"{PRODUCT_ID_1}",
+				"--property-id",
+				f"{PROPERTY_ID_1}",
+			]
+		)
+		assert exit_code == 0
+		assert stdout_into_list(_stdout)[1][0] == CLIENT_ID_1
+		assert stdout_into_list(_stdout)[1][1] == PRODUCT_ID_1
+		assert stdout_into_list(_stdout)[1][2] == PROPERTY_ID_1
+		assert stdout_into_list(_stdout)[2][0] == CLIENT_ID_2
+		assert stdout_into_list(_stdout)[2][1] == PRODUCT_ID_1
+		assert stdout_into_list(_stdout)[2][2] == PROPERTY_ID_1
+		assert len(stdout_into_list(_stdout)) - 1 == 2
+
+		# One productId, one propertyId, object-id=py*
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"--sort-by",
+				"objectId",
+				"datastore",
+				"product-property-state",
+				"list",
+				"--object-id",
+				"py*",
+				"--product-id",
+				f"{PRODUCT_ID_2}",
+				"--property-id",
+				f"{PROPERTY_ID_2}",
+			]
+		)
+		assert exit_code == 0
+		assert stdout_into_list(_stdout)[1][0] == CLIENT_ID_1
+		assert stdout_into_list(_stdout)[1][1] == PRODUCT_ID_2
+		assert stdout_into_list(_stdout)[1][2] == PROPERTY_ID_2
+		assert stdout_into_list(_stdout)[2][0] == CLIENT_ID_2
+		assert stdout_into_list(_stdout)[2][1] == PRODUCT_ID_2
+		assert stdout_into_list(_stdout)[2][2] == PROPERTY_ID_2
+		assert len(stdout_into_list(_stdout)) - 1 == 2
+
+		# One productId, one propertyId, object-id=comma separated
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"--sort-by",
+				"objectId",
+				"datastore",
+				"product-property-state",
+				"list",
+				"--object-id",
+				f"{CLIENT_ID_1},{CLIENT_ID_2}",
+				"--product-id",
+				f"{PRODUCT_ID_2}",
+				"--property-id",
+				f"{PROPERTY_ID_2}",
+			]
+		)
+		assert exit_code == 0
+		assert stdout_into_list(_stdout)[1][0] == CLIENT_ID_1
+		assert stdout_into_list(_stdout)[1][1] == PRODUCT_ID_2
+		assert stdout_into_list(_stdout)[1][2] == PROPERTY_ID_2
+		assert stdout_into_list(_stdout)[2][0] == CLIENT_ID_2
+		assert stdout_into_list(_stdout)[2][1] == PRODUCT_ID_2
+		assert stdout_into_list(_stdout)[2][2] == PROPERTY_ID_2
+		assert len(stdout_into_list(_stdout)) - 1 == 2

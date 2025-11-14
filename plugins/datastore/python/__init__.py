@@ -39,6 +39,7 @@ def get_depot_id(object_id: str, service_connection: ServiceClient) -> str:
 	raise ValueError(f"No depot found for host '{object_id}'.")
 
 
+# DATASTORE
 @click.group(cls=OPSICLIGroup, name="datastore", short_help="Manage data and objects")
 @click.version_option(__version__, message="datastore plugin, version %(version)s")
 @click.pass_context
@@ -47,6 +48,7 @@ def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 	logger.trace("datastore command group")
 
 
+# CONFIG-STATE
 @cli.group(name="config-state", short_help="Change config state(s)")
 def config_state() -> None:
 	"""
@@ -55,6 +57,7 @@ def config_state() -> None:
 	pass
 
 
+# =======================================CONFIG-STATE LIST===========================================
 @config_state.command(name="list", short_help="List all config states or get a filtered list. ")
 @click.option("--object-id", type=str, default=None, help="Filter data with object_id(s). Use ',' as a separator. Wildcard * is possible.")
 @click.option("--config-id", type=str, default=None, help="Filter data with config_id. Wildcard * is possible.")
@@ -159,6 +162,7 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 	)
 
 
+# =======================================CONFIG-STATE SET=============================================
 @config_state.command(
 	name="set",
 	short_help="Change a config state value. Create a config state if there is none. If 'all' is used as an objectId, the value will be set for all objects.",
@@ -276,6 +280,7 @@ def set_config_state_value(config_id: str, object_id: str | None, values: tuple[
 		set_unicode_config(object_ids, config_id, list(values))
 
 
+# PRODUCT-PROPERTY-STATE
 @cli.group(name="product-property-state", short_help="Change product-property-states.")
 def product_property_state() -> None:
 	"""
@@ -284,6 +289,7 @@ def product_property_state() -> None:
 	pass
 
 
+# ====================================PRODUCT-PROPERTY-STATE LIST=======================================
 @product_property_state.command(name="list", short_help="List all product-property-states or get a filtered list. ")
 @click.option("--object-id", type=str, default=None, help="Filter data with object_id(s). Use ',' as a separator. Wildcard * is possible.")
 @click.option("--product-id", type=str, default=None, help="Filter data with product_id. Wildcard * is possible.")
@@ -347,6 +353,9 @@ def list_product_property_state(object_id: str | None = None, product_id: str | 
 			host_objects = service_connection.host_getObjects(id=object_id, type="OpsiClient")  # type: ignore[attr-defined]
 
 	object_ids = [host.id for host in host_objects]
+	if not product_id:
+		products_on_depot = service_connection.productOnDepot_getObjects()
+		product_id = [product.productId for product in products_on_depot]
 
 	for object_id in object_ids:
 		depot_id = get_depot_id(object_id, service_connection)
@@ -369,6 +378,7 @@ def list_product_property_state(object_id: str | None = None, product_id: str | 
 	)
 
 
+# PRODUCT
 @cli.group(name="product", short_help="Configure products")
 def product() -> None:
 	"""
@@ -377,6 +387,7 @@ def product() -> None:
 	pass
 
 
+# =========================================PRODUCT UNLOCK==============================================
 @product.command(name="unlock", short_help="Unlock product(s) on depot(s).")
 @click.argument("product-id", type=str, nargs=-1)
 @click.option("--depot-id", type=str, default=None, help="Choose the depot-id(s) where products should be unlocked. Comma seperated list.")
