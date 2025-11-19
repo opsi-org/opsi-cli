@@ -455,15 +455,15 @@ def test_product_property_list(admin_service_client: ServiceClient) -> None:
 		tmp_product(admin_service_client, PRODUCT_ID_2),
 	):
 		# add PRODUCT-PROPERTIES
-		admin_service_client.productProperty_create(
+		admin_service_client.productProperty_create(  # type:ignore[attr-defined]
 			productId=PRODUCT_ID_1,
 			productVersion="1",
 			packageVersion="1",
 			propertyId=PROPERTY_ID_1,
-		)  # type:ignore[attr-defined]
-		admin_service_client.productProperty_create(
+		)
+		admin_service_client.productProperty_create(  # type:ignore[attr-defined]
 			productId=PRODUCT_ID_2, productVersion="1", packageVersion="1", propertyId=PROPERTY_ID_2
-		)  # type:ignore[attr-defined]
+		)
 
 		# add PRODUCT-PROPERTY-STATES for client 1 & 2
 		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_1, propertyId=PROPERTY_ID_1, objectId=CLIENT_ID_1)  # type:ignore[attr-defined]
