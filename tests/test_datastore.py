@@ -456,7 +456,10 @@ def test_product_property_list(admin_service_client: ServiceClient) -> None:
 	):
 		# add PRODUCT-PROPERTIES
 		admin_service_client.productProperty_create(
-			productId=PRODUCT_ID_1, productVersion="1", packageVersion="1", propertyId=PROPERTY_ID_1
+			productId=PRODUCT_ID_1,
+			productVersion="1",
+			packageVersion="1",
+			propertyId=PROPERTY_ID_1,
 		)  # type:ignore[attr-defined]
 		admin_service_client.productProperty_create(
 			productId=PRODUCT_ID_2, productVersion="1", packageVersion="1", propertyId=PROPERTY_ID_2

@@ -353,9 +353,6 @@ def list_product_property_state(object_id: str | None = None, product_id: str | 
 			host_objects = service_connection.host_getObjects(id=object_id, type="OpsiClient")  # type: ignore[attr-defined]
 
 	object_ids = [host.id for host in host_objects]
-	if not product_id:
-		products_on_depot = service_connection.productOnDepot_getObjects()
-		product_id = [product.productId for product in products_on_depot]
 
 	for object_id in object_ids:
 		depot_id = get_depot_id(object_id, service_connection)
