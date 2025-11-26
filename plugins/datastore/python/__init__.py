@@ -31,8 +31,7 @@ logger = get_logger("opsicli")
 
 
 # get depot name/id for given object-id
-def get_depot_id(object_id: str, service_connection: ServiceClient) -> str:
-	client_to_server_objects = service_connection.configState_getClientToDepotserver()  # type: ignore[attr-defined]
+def get_depot_id(object_id: str, client_to_server_objects: dict[str, dict[str, str]]) -> str:
 	for client in client_to_server_objects:
 		if client["clientId"] == object_id:
 			return client["depotId"]
@@ -101,6 +100,7 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 		return entry_dict
 
 	service_connection = get_service_connection()
+	client_to_server_objects = service_connection.configState_getClientToDepotserver()  # type: ignore[attr-defined]
 	host_objects = []
 	config_ids: list[str | None] = []
 	result_unique = []
@@ -129,7 +129,7 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 
 	# For every client: create dicts for (default/depot/client) and update them. Print the result
 	for obj in host_objects:
-		depot_id = get_depot_id(obj.id, service_connection)
+		depot_id = get_depot_id(obj.id, client_to_server_objects)
 
 		for conf_id in config_ids:
 			default_entry_dict = get_default_entries(conf_id, obj.id, depot_id)
@@ -337,6 +337,7 @@ def list_product_property_state(object_id: str | None = None, product_id: str | 
 		return current_results
 
 	service_connection = get_service_connection()
+	client_to_server_objects = service_connection.configState_getClientToDepotserver()  # type: ignore[attr-defined]
 	host_objects = []
 	result = []
 
@@ -355,7 +356,7 @@ def list_product_property_state(object_id: str | None = None, product_id: str | 
 	object_ids = [host.id for host in host_objects]
 
 	for object_id in object_ids:
-		depot_id = get_depot_id(object_id, service_connection)
+		depot_id = get_depot_id(object_id, client_to_server_objects)
 		default_states_dict = get_default_properties(object_id, product_id, property_id)
 		depot_states_dict = get_host_property_states(object_id, product_id, property_id, depot_id, default_states_dict, host_type="Depot")
 		client_states_dict = get_host_property_states(object_id, product_id, property_id, None, depot_states_dict, host_type="Client")
