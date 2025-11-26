@@ -9,7 +9,7 @@ opsi-cli basic command line interface for opsi
 config-states subcommand
 """
 
-from typing import Literal
+from typing import Any, Literal
 
 import rich_click as click
 from opsicommon.exceptions import BackendMissingDataError
@@ -20,7 +20,7 @@ from opsicommon.types import forceBool
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_handling
 from opsicli.io import Attribute, Metadata, console_print, write_output
-from opsicli.opsiservice import ServiceClient, get_service_connection
+from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 
 __version__ = "0.1.0"
@@ -31,7 +31,7 @@ logger = get_logger("opsicli")
 
 
 # get depot name/id for given object-id
-def get_depot_id(object_id: str, client_to_server_objects: dict[str, dict[str, str]]) -> str:
+def get_depot_id(object_id: str, client_to_server_objects: list[dict[str, Any]]) -> str:
 	for client in client_to_server_objects:
 		if client["clientId"] == object_id:
 			return client["depotId"]
