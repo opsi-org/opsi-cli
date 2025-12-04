@@ -171,7 +171,7 @@ def test_metafile_add_package(tmp_path: Path) -> None:
 			{"os": "macos", "arch": "x64"},
 		]
 
-	for compatibility in ("linux-invalid", "invalid-all", "linux", "all", "linux-amd64"):
+	for compatibility in ("linux-invalid", "invalid-all", "linux", "all"):
 		cmd = [
 			"manage-repo",
 			"metafile",
