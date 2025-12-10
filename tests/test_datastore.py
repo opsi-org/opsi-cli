@@ -466,6 +466,15 @@ def test_product_property_list(admin_service_client: ServiceClient) -> None:
 		admin_service_client.productProperty_create(  # type:ignore[attr-defined]
 			productId=PRODUCT_ID_2, productVersion="1", packageVersion="1", propertyId=PROPERTY_ID_2
 		)
+		admin_service_client.productProperty_create(  # type:ignore[attr-defined]
+			productId=PRODUCT_ID_1,
+			productVersion="1",
+			packageVersion="1",
+			propertyId=PROPERTY_ID_2,
+		)
+		admin_service_client.productProperty_create(  # type:ignore[attr-defined]
+			productId=PRODUCT_ID_2, productVersion="1", packageVersion="1", propertyId=PROPERTY_ID_1
+		)
 
 		# add PRODUCT-PROPERTY-STATES for client 1 & 2
 		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_1, propertyId=PROPERTY_ID_1, objectId=CLIENT_ID_1)  # type:ignore[attr-defined]
@@ -556,6 +565,36 @@ def test_product_property_list(admin_service_client: ServiceClient) -> None:
 		assert stdout_into_list(_stdout)[2][1] == PRODUCT_ID_2
 		assert stdout_into_list(_stdout)[2][2] == PROPERTY_ID_2
 		assert len(stdout_into_list(_stdout)) - 1 == 2
+
+		# product-id=pytest*, property-id=proper*, object-id=py*
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"--sort-by",
+				"objectId",
+				"datastore",
+				"product-property-state",
+				"list",
+				"--object-id",
+				"py*",
+				"--product-id",
+				"pytest*",
+				"--property-id",
+				"proper*",
+			]
+		)
+		assert exit_code == 0
+
+		assert stdout_into_list(_stdout)[1][:3] == [CLIENT_ID_1, PRODUCT_ID_1, PROPERTY_ID_1]
+		assert stdout_into_list(_stdout)[2][:3] == [CLIENT_ID_1, PRODUCT_ID_1, PROPERTY_ID_2]
+		assert stdout_into_list(_stdout)[3][:3] == [CLIENT_ID_1, PRODUCT_ID_2, PROPERTY_ID_1]
+		assert stdout_into_list(_stdout)[4][:3] == [CLIENT_ID_1, PRODUCT_ID_2, PROPERTY_ID_2]
+		assert stdout_into_list(_stdout)[5][:3] == [CLIENT_ID_2, PRODUCT_ID_1, PROPERTY_ID_1]
+		assert stdout_into_list(_stdout)[6][:3] == [CLIENT_ID_2, PRODUCT_ID_1, PROPERTY_ID_2]
+		assert stdout_into_list(_stdout)[7][:3] == [CLIENT_ID_2, PRODUCT_ID_2, PROPERTY_ID_1]
+		assert stdout_into_list(_stdout)[8][:3] == [CLIENT_ID_2, PRODUCT_ID_2, PROPERTY_ID_2]
+		assert len(stdout_into_list(_stdout)) - 1 == 8
 
 	diff = time.perf_counter() - start
 	print(diff)
