@@ -494,7 +494,6 @@ def test_product_property_list(admin_service_client: ServiceClient) -> None:
 				f"{PROPERTY_ID_1}",
 			]
 		)
-		print(_stdout)
 		assert exit_code == 0
 		assert stdout_into_list(_stdout)[1][0] == CLIENT_ID_1
 		assert stdout_into_list(_stdout)[1][1] == PRODUCT_ID_1
@@ -557,5 +556,6 @@ def test_product_property_list(admin_service_client: ServiceClient) -> None:
 		assert stdout_into_list(_stdout)[2][1] == PRODUCT_ID_2
 		assert stdout_into_list(_stdout)[2][2] == PROPERTY_ID_2
 		assert len(stdout_into_list(_stdout)) - 1 == 2
+
 	diff = time.perf_counter() - start
 	print(diff)

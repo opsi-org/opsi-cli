@@ -35,11 +35,11 @@ def get_object_ids(
 	service_connection: ServiceClient,
 	object_id: str | None = None,
 ) -> list[str]:
+	object_ids: list[str] = []
 	if not object_id:
 		object_ids = service_connection.host_getIdents(id=[])  # type: ignore[attr-defined]
 	else:
 		if "," in object_id:
-			object_ids: list[str] = []
 			object_id_list = [item.strip() for item in object_id.split(",")]
 			for obj_id in object_id_list:
 				object_ids = object_ids + service_connection.host_getIdents(id=obj_id)  # type: ignore[attr-defined]
@@ -333,7 +333,7 @@ def list_product_property_state(object_id: str | None = None, product_id: str | 
 		return default_states
 
 	def update_default_states(
-		depot_ids: list[str] | None,
+		depot_ids: list[str],
 		object_ids: list[str],
 		product_id: str | None,
 		property_id: str | None,
@@ -368,7 +368,10 @@ def list_product_property_state(object_id: str | None = None, product_id: str | 
 		return default_states
 
 	service_connection = get_service_connection()
+
+	# handle different object_id input (e.g. normal, with * or comma seperated)
 	object_ids = get_object_ids(service_connection, object_id)
+
 	# map objectId's to depotId's for easier access
 	# getClientToDepotserver lässt * nicht zu, getIdents schon
 	client_to_depot_objects = service_connection.configState_getClientToDepotserver(clientIds=object_ids)  # type: ignore[attr-defined]
