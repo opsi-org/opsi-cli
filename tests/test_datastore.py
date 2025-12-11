@@ -612,7 +612,7 @@ def test_product_property_list(admin_service_client: ServiceClient) -> None:
 				"product-property-state",
 				"list",
 				"--object-id",
-				"opsi.opsi.test",
+				f"{DEPOT_ID}",
 				"--product-id",
 				"pytest*",
 			]
@@ -636,10 +636,12 @@ def test_product_property_list_stress_test(admin_service_client: ServiceClient) 
 	tmp_clients = []
 	tmp_products = []
 
+	# create clients
 	i = 0
 	while i < num_clients:
 		tmp_clients.append(tmp_client(admin_service_client, f"pytest-client{i}.test.tld"))
 		i += 1
+	# create products
 	j = 0
 	while j < num_products:
 		tmp_products.append(tmp_product(admin_service_client, f"pytest-product{j}"))
@@ -651,6 +653,7 @@ def test_product_property_list_stress_test(admin_service_client: ServiceClient) 
 		for product in tmp_products:
 			stack.enter_context(product)
 
+		# create properties and their property-states
 		i = 0
 		while i < num_clients:
 			j = 0
