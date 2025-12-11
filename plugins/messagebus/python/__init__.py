@@ -301,9 +301,11 @@ class FileUploadMessagebusConnection(MessagebusConnection):
 					if self._error:
 						raise RuntimeError(self._error.message)
 
+					assert self._file_upload_result
+
 					logger.notice("File '%s' uploaded successfully to '%s'", source, self._file_upload_result.path)
 
-					return self._file_upload_result.path
+					return self._file_upload_result.path or str(destination)
 
 				except Exception as exc:
 					message = f"Error during file upload: {exc}"
