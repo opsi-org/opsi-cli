@@ -52,7 +52,7 @@ from .conftest import PLATFORM
 		(OutputType.WARNING_MESSAGE, "stderr"),
 		(OutputType.PROGRESS, "stderr"),
 		(OutputType.DATA, "stdout"),
-		(OutputType.PROMPT, "stdout"),
+		(OutputType.PROMPT, "stderr"),
 	),
 )
 def test_get_console(capsys: CaptureFixture[str], output_type: OutputType, expected_auto_file: str) -> None:
