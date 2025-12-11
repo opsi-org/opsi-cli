@@ -40,6 +40,7 @@ dev = [
 	"pytest>=8.0",
 	"pytest-cov>=5.0",
 	"ruff>=0.6",
+	"ty>=0.0.1a33",
 	"types-psutil>=7.0.0.20250401",
 	"types-pywin32>=310.0.0.20250319",
 	"types-requests>=2.31",
