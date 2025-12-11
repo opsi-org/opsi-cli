@@ -1,4 +1,5 @@
 import time
+from contextlib import ExitStack
 from pathlib import Path
 
 import pytest
@@ -24,6 +25,8 @@ CONFIG_ID = "opsi.check.enabled"
 BOOL_CONFIG = "opsi.check.enabled"
 UNICODE_CONFIG_ONE = "clientconfig.depot.drive"
 UNICODE_CONFIG_MULTI = "opsi.check.ignore_products"
+
+DEPOT_ID = "opsi.opsi.test"
 
 
 # ===============
@@ -97,8 +100,6 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		tmp_client(admin_service_client, CLIENT_ID_4),
 	):
 		all_configs = admin_service_client.jsonrpc("config_getObjects", params=[])  # type:ignore[attr-defined]
-		client_to_server_objects = admin_service_client.configState_getClientToDepotserver()  # type:ignore[attr-defined]
-		DEPOT_ID = client_to_server_objects[0]["depotId"]
 
 		# One objectId, one configId
 		exit_code, _stdout, _stderr = run_cli(
@@ -585,7 +586,6 @@ def test_product_property_list(admin_service_client: ServiceClient) -> None:
 			]
 		)
 		assert exit_code == 0
-
 		assert stdout_into_list(_stdout)[1][:3] == [CLIENT_ID_1, PRODUCT_ID_1, PROPERTY_ID_1]
 		assert stdout_into_list(_stdout)[2][:3] == [CLIENT_ID_1, PRODUCT_ID_1, PROPERTY_ID_2]
 		assert stdout_into_list(_stdout)[3][:3] == [CLIENT_ID_1, PRODUCT_ID_2, PROPERTY_ID_1]
@@ -596,5 +596,97 @@ def test_product_property_list(admin_service_client: ServiceClient) -> None:
 		assert stdout_into_list(_stdout)[8][:3] == [CLIENT_ID_2, PRODUCT_ID_2, PROPERTY_ID_2]
 		assert len(stdout_into_list(_stdout)) - 1 == 8
 
+		# object-id is a depot-id
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"--sort-by",
+				"objectId",
+				"datastore",
+				"product-property-state",
+				"list",
+				"--object-id",
+				"opsi.opsi.test",
+				"--product-id",
+				"pytest*",
+			]
+		)
+		assert exit_code == 0
+		assert stdout_into_list(_stdout)[1][:3] == [DEPOT_ID, PRODUCT_ID_1, PROPERTY_ID_1]
+		assert stdout_into_list(_stdout)[2][:3] == [DEPOT_ID, PRODUCT_ID_1, PROPERTY_ID_2]
+		assert stdout_into_list(_stdout)[3][:3] == [DEPOT_ID, PRODUCT_ID_2, PROPERTY_ID_1]
+		assert stdout_into_list(_stdout)[4][:3] == [DEPOT_ID, PRODUCT_ID_2, PROPERTY_ID_2]
+		assert len(stdout_into_list(_stdout)) - 1 == 4
+
 	diff = time.perf_counter() - start
+	print(diff)
+
+
+@pytest.mark.opsi_service
+def test_product_property_list_stress_test(admin_service_client: ServiceClient) -> None:
+	num_clients = 500
+	num_products = 5
+	num_properties = 3
+	tmp_clients = []
+	tmp_products = []
+
+	i = 0
+	while i < num_clients:
+		tmp_clients.append(tmp_client(admin_service_client, f"pytest-client{i}.test.tld"))
+		i += 1
+	j = 0
+	while j < num_products:
+		tmp_products.append(tmp_product(admin_service_client, f"pytest-product{j}"))
+		j += 1
+
+	with ExitStack() as stack:
+		for client in tmp_clients:
+			stack.enter_context(client)
+		for product in tmp_products:
+			stack.enter_context(product)
+
+		i = 0
+		while i < num_clients:
+			j = 0
+			while j < num_products:
+				k = 0
+				while k < num_properties:
+					admin_service_client.productProperty_create(  # type:ignore[attr-defined]
+						productId=f"pytest-product{j}",
+						productVersion="1",
+						packageVersion="1",
+						propertyId=f"property{k}",
+					)
+					admin_service_client.productPropertyState_create(  # type:ignore[attr-defined]
+						productId=f"pytest-product{j}",
+						propertyId=f"property{k}",
+						objectId=f"pytest-client{i}.test.tld",
+					)
+					print(f"pytest-client{i}.test.tld; pytest-product{j}; property{k}")
+					k += 1
+				j += 1
+			i += 1
+
+		start = time.perf_counter()
+		# object-id is a depot-id
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"--sort-by",
+				"objectId",
+				"datastore",
+				"product-property-state",
+				"list",
+				"--product-id",
+				"pytest*",
+				"--property-id",
+				"property*",
+			]
+		)
+		assert exit_code == 0
+		assert len(stdout_into_list(_stdout)) - 1 == num_clients * num_products * num_properties
+	diff = time.perf_counter() - start
+
 	print(diff)

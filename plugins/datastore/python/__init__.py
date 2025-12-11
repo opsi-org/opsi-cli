@@ -330,7 +330,6 @@ def list_product_property_state(object_id: str | None = None, product_id: str | 
 					"propertyId": entry.propertyId,
 					"objectId": object_id,
 				}
-		# [print(state) for state in default_property_objects]
 		return default_states
 
 	def update_default_states(
@@ -343,9 +342,6 @@ def list_product_property_state(object_id: str | None = None, product_id: str | 
 		depot_property_objects = service_connection.productPropertyState_getObjects(  # type: ignore[attr-defined]
 			objectId=depot_ids, productId=product_id or [], propertyId=property_id or []
 		)
-		print(object_ids)
-		print(depot_ids)
-		# [print(state) for state in depot_property_objects]
 		for object_id in object_ids:
 			for entry in depot_property_objects:
 				key = object_id + entry.productId + entry.propertyId
@@ -364,7 +360,6 @@ def list_product_property_state(object_id: str | None = None, product_id: str | 
 		client_property_objects = service_connection.productPropertyState_getObjects(  # type: ignore[attr-defined]
 			objectId=object_ids, productId=product_id or [], propertyId=property_id or []
 		)
-		# [print(state) for state in client_property_objects]
 		for entry in client_property_objects:
 			key = entry.objectId + entry.productId + entry.propertyId
 			if key in depot_states and depot_states[key]["values"] != entry.values:
@@ -375,10 +370,11 @@ def list_product_property_state(object_id: str | None = None, product_id: str | 
 	service_connection = get_service_connection()
 
 	# handle different object_id input (e.g. normal, with * or comma seperated)
+	# getClientToDepotserver does not accept wildcards '*', getIdents in get_object_ids does.
 	object_ids = get_object_ids(service_connection, object_id)
 
 	# map objectId's to depotId's for easier access
-	# getClientToDepotserver lässt * nicht zu, getIdents schon
+	# getClientToDepotserver returns [] for a depot_id
 	client_to_depot_objects = service_connection.configState_getClientToDepotserver(clientIds=object_ids)  # type: ignore[attr-defined]
 	if not client_to_depot_objects:
 		client_to_depot_objects = service_connection.configState_getClientToDepotserver()  # type: ignore[attr-defined]
@@ -386,46 +382,20 @@ def list_product_property_state(object_id: str | None = None, product_id: str | 
 	else:
 		client_depot_map = {item["clientId"]: item["depotId"] for item in client_to_depot_objects}
 
-	# get depot_ids
+	# get depot_ids from map
 	depot_ids = list({depot for depot in client_depot_map.values()})
 
-	# remove depot_ids from object_ids if no object_ids were given (e.g. got all object_ids and depot_ids)
+	# remove depot_ids from object_ids if no object_ids were given (e.g. object_ids contains all object_ids and depot_ids)
 	if not object_id:
 		object_ids = [id for id in object_ids if id not in depot_ids]
 
 	# get default propertyState values
 	default_states = get_default_property_states(object_ids, product_id, property_id)
-
-	write_output(
-		list(default_states.values()),
-		Metadata(
-			attributes=[
-				Attribute(id="objectId", description="The ID of the object.", identifier=False, data_type="str", selected=True),
-				Attribute(id="productId", description="The ID of the product.", identifier=False, data_type="str", selected=True),
-				Attribute(id="propertyId", description="The ID of the property.", identifier=False, data_type="str", selected=True),
-				Attribute(id="values", description="Values of given property.", identifier=False, data_type="str | Boolean", selected=True),
-				Attribute(id="origin", description="Location where the change was made.", identifier=False, data_type="str", selected=True),
-			]
-		),
-	)
-
+	# update default values with depot values
 	depot_states = update_default_states(depot_ids, object_ids, product_id, property_id, default_states)
-	# [print(depot_states[state]) for state in depot_states]
-	write_output(
-		list(depot_states.values()),
-		Metadata(
-			attributes=[
-				Attribute(id="objectId", description="The ID of the object.", identifier=False, data_type="str", selected=True),
-				Attribute(id="productId", description="The ID of the product.", identifier=False, data_type="str", selected=True),
-				Attribute(id="propertyId", description="The ID of the property.", identifier=False, data_type="str", selected=True),
-				Attribute(id="values", description="Values of given property.", identifier=False, data_type="str | Boolean", selected=True),
-				Attribute(id="origin", description="Location where the change was made.", identifier=False, data_type="str", selected=True),
-			]
-		),
-	)
-
+	# update client depot values with client values
 	client_states = update_depot_states(object_ids, product_id, property_id, depot_states)
-	# [print(client_states[state]) for state in depot_states]
+
 	write_output(
 		list(client_states.values()),
 		Metadata(
