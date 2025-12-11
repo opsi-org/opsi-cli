@@ -26,8 +26,6 @@ BOOL_CONFIG = "opsi.check.enabled"
 UNICODE_CONFIG_ONE = "clientconfig.depot.drive"
 UNICODE_CONFIG_MULTI = "opsi.check.ignore_products"
 
-DEPOT_ID = "opsi.opsi.test"
-
 
 # ===============
 # HELP FUNCTIONS
@@ -461,6 +459,9 @@ def test_product_property_list(admin_service_client: ServiceClient) -> None:
 		tmp_product(admin_service_client, PRODUCT_ID_1),
 		tmp_product(admin_service_client, PRODUCT_ID_2),
 	):
+		client_to_server_objects = admin_service_client.configState_getClientToDepotserver()  # type:ignore[attr-defined]
+		DEPOT_ID = client_to_server_objects[0]["depotId"]
+
 		# add PRODUCT-PROPERTIES
 		admin_service_client.productProperty_create(  # type:ignore[attr-defined]
 			productId=PRODUCT_ID_1,
