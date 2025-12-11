@@ -11,16 +11,30 @@ messagebus plugin
 
 import sys
 import time
+from contextlib import contextmanager
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from threading import Event
-from typing import Any, Literal
+from typing import Any, BinaryIO, Generator, Literal
 
 import rich_click as click
 from opsicommon.logging import get_logger
-from opsicommon.messagebus.message import EventMessage
+from opsicommon.messagebus import CONNECTION_USER_CHANNEL
+from opsicommon.messagebus.message import (
+	Error,
+	EventMessage,
+	FileChunkMessage,
+	FileDownloadInformationMessage,
+	FileDownloadRequestMessage,
+	FileTransferErrorMessage,
+	FileUploadRequestMessage,
+	FileUploadResponseMessage,
+	FileUploadResultMessage,
+	GeneralErrorMessage,
+)
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_handling
-from opsicli.io import write_output
+from opsicli.io import OutputType, console_print, write_output
 from opsicli.messagebus import MessagebusConnection
 from opsicli.plugin import OPSICLIPlugin
 
@@ -126,6 +140,177 @@ class EventMessagebusConnection(MessagebusConnection):
 			self.event_found_event.clear()
 
 
+class FileDownloadMessagebusConnection(MessagebusConnection):
+	def __init__(self) -> None:
+		MessagebusConnection.__init__(self)
+		self._error: Error | None = None
+		self._file_download_information: FileDownloadInformationMessage | None = None
+		self._event_file_download_response_received = Event()
+		self._event_file_transfer_completed = Event()
+		self._file_handle: BinaryIO | None = None
+
+	def _on_general_error(self, message: GeneralErrorMessage) -> None:
+		logger.debug("Received general error: %s", message)
+		self._error = message.error
+		self._event_file_download_response_received.set()
+		self._event_file_transfer_completed.set()
+
+	def _on_file_transfer_error(self, message: FileTransferErrorMessage) -> None:
+		logger.debug("Received file transfer error: %s", message)
+		self._error = message.error
+		self._event_file_download_response_received.set()
+		self._event_file_transfer_completed.set()
+
+	def _on_file_download_information(self, message: FileDownloadInformationMessage) -> None:
+		logger.debug("Received file download information: %s", message)
+		self._file_download_information = message
+		self._event_file_download_response_received.set()
+
+	def _on_file_chunk(self, message: FileChunkMessage) -> None:
+		logger.debug("Received file chunk: %s", message)
+		assert self._file_handle
+		self._file_handle.write(message.data)
+		if message.last:
+			logger.info("Last file chunk received, file transfer completed")
+			self._event_file_download_response_received.wait(5)
+			self._event_file_transfer_completed.set()
+
+	def download_file(self, client: str, source: PureWindowsPath | PurePosixPath, destination: Path) -> None:
+		@contextmanager
+		def stdout() -> Generator[BinaryIO, None, None]:
+			yield sys.stdout.buffer
+
+		with self.connection():
+			ctx = stdout() if destination.name == "-" else open(destination, "wb")
+			with ctx as self._file_handle:
+				file_download_request = FileDownloadRequestMessage(
+					sender=CONNECTION_USER_CHANNEL,
+					channel=f"host:{client}",
+					chunk_size=256_000,
+					path=str(source),
+				)
+				self.send_message(file_download_request)
+				try:
+					if not self._event_file_download_response_received.wait(timeout=15):
+						raise TimeoutError("Timeout waiting for file download response")
+
+					if self._error:
+						raise RuntimeError(self._error.message)
+
+					assert self._file_download_information
+					logger.notice(
+						"Starting download of file '%s' (%d bytes) from client '%s'", source, self._file_download_information.size, client
+					)
+
+					self._event_file_transfer_completed.wait()
+					if self._error:
+						raise RuntimeError(self._error.message)
+
+					logger.notice("File '%s' downloaded successfully to '%s'", source, destination)
+
+				except Exception as exc:
+					message = f"Error during file download: {exc}"
+					logger.error(message, exc_info=True)
+					raise RuntimeError(message) from exc
+
+
+class FileUploadMessagebusConnection(MessagebusConnection):
+	def __init__(self) -> None:
+		MessagebusConnection.__init__(self)
+		self._error: Error | None = None
+		self._file_upload_response: FileUploadResponseMessage | None = None
+		self._event_file_upload_response_received = Event()
+		self._file_upload_result: FileUploadResultMessage | None = None
+		self._event_file_upload_result_received = Event()
+		self._file_handle: BinaryIO | None = None
+
+	def _on_general_error(self, message: GeneralErrorMessage) -> None:
+		logger.debug("Received general error: %s", message)
+		self._error = message.error
+		self._event_file_upload_response_received.set()
+		self._event_file_upload_result_received.set()
+
+	def _on_file_transfer_error(self, message: FileTransferErrorMessage) -> None:
+		logger.debug("Received file transfer error: %s", message)
+		self._error = message.error
+		self._event_file_upload_response_received.set()
+		self._event_file_upload_result_received.set()
+
+	def _on_file_upload_response(self, message: FileUploadResponseMessage) -> None:
+		logger.debug("Received file upload response: %s", message)
+		self._file_upload_response = message
+		self._event_file_upload_response_received.set()
+
+	def _on_file_upload_result(self, message: FileUploadResultMessage) -> None:
+		logger.debug("Received file upload result: %s", message)
+		self._file_upload_result = message
+		self._event_file_upload_result_received.set()
+
+	def upload_file(self, client: str, source: Path, destination: PureWindowsPath | PurePosixPath) -> str:
+		@contextmanager
+		def stdin() -> Generator[BinaryIO, None, None]:
+			yield sys.stdin.buffer
+
+		with self.connection():
+			ctx = stdin() if source.name == "-" else open(source, "rb")
+			with ctx as self._file_handle:
+				size = source.stat().st_size if source.name != "-" else None
+				file_upload_request = FileUploadRequestMessage(
+					sender=CONNECTION_USER_CHANNEL,
+					channel=f"host:{client}",
+					content_type="application/octet-stream",
+					name=destination.name,
+					size=size,
+					destination_dir=str(destination.parent),
+					# overwrite=True, # TODO: when supported by opsi-client-agent
+				)
+				self.send_message(file_upload_request)
+
+				try:
+					if not self._event_file_upload_response_received.wait(timeout=15):
+						raise TimeoutError("Timeout waiting for file upload response")
+
+					if self._error:
+						raise RuntimeError(self._error.message)
+
+					assert self._file_upload_response and self._file_handle
+
+					logger.notice("Starting upload of file '%s' (%s bytes) to client '%s'", source, size or "?", client)
+
+					chunk_size = 256_000
+					chunk_number = 0
+					last = False
+					while not last:
+						chunk_number += 1
+						chunk = self._file_handle.read(chunk_size)
+						if len(chunk) < chunk_size:
+							last = True
+						file_chunk_message = FileChunkMessage(
+							sender=CONNECTION_USER_CHANNEL,
+							channel=f"host:{client}",
+							file_id=self._file_upload_response.file_id,
+							data=chunk,
+							number=chunk_number,
+							last=last,
+						)
+						self.send_message(file_chunk_message)
+
+					if not self._event_file_upload_result_received.wait(timeout=15):
+						raise TimeoutError("Timeout waiting for file upload result")
+
+					if self._error:
+						raise RuntimeError(self._error.message)
+
+					logger.notice("File '%s' uploaded successfully to '%s'", source, self._file_upload_result.path)
+
+					return self._file_upload_result.path
+
+				except Exception as exc:
+					message = f"Error during file upload: {exc}"
+					logger.error(message, exc_info=True)
+					raise RuntimeError(message) from exc
+
+
 @click.group(cls=OPSICLIGroup, name="messagebus", short_help="Command group to interact with opsi messagebus")
 @click.version_option(__version__, message="opsi-cli plugin messagebus, version %(version)s")
 @click.pass_context
@@ -220,6 +405,52 @@ def wait_for_installation(client: str, products: str, installation_status: str, 
 	if result[0].data.get("installationStatus") == "unknown":
 		logger.error("Installation failed")
 		sys.exit(1)
+
+
+@cli.command(name="download", short_help="Download file from client via messagebus")
+@click.argument("client", type=str)
+@click.argument("source", type=str)
+@click.argument("destination", default=Path("."), type=click.Path(file_okay=True, dir_okay=True, path_type=Path))
+def download_file(client: str, source: str, destination: Path) -> None:
+	"""
+	Download files from client via messagebus.
+	Use '-' as destination to write to stdout.
+	"""
+	source_path: PureWindowsPath | PurePosixPath
+	try:
+		source_path = PureWindowsPath(source)
+		if not source_path.drive and (r"\\" not in source):
+			raise ValueError("Not a Windows path")
+	except Exception:
+		source_path = PurePosixPath(source)
+
+	if destination.is_dir():
+		destination = destination / source_path.name
+	mbus_connection = FileDownloadMessagebusConnection()
+	mbus_connection.download_file(client=client, source=source_path, destination=destination)
+	console_print(f"File '{source_path}' downloaded successfully to '{destination}'.", output_type=OutputType.MESSAGE)
+
+
+@cli.command(name="upload", short_help="Upload file to client via messagebus")
+@click.argument("client", type=str)
+@click.argument("source", type=click.Path(file_okay=True, dir_okay=False, path_type=Path))
+@click.argument("destination", type=str)
+def upload_file(client: str, source: Path, destination: str) -> None:
+	"""
+	Upload files to client via messagebus.
+	Use '-' as source to read from stdin.
+	"""
+	destination_path: PureWindowsPath | PurePosixPath
+	try:
+		destination_path = PureWindowsPath(destination)
+		if not destination_path.drive and (r"\\" not in destination):
+			raise ValueError("Not a Windows path")
+	except Exception:
+		destination_path = PurePosixPath(destination)
+
+	mbus_connection = FileUploadMessagebusConnection()
+	remote_dest = mbus_connection.upload_file(client=client, source=source, destination=destination_path)
+	console_print(f"File '{source}' uploaded successfully to '{remote_dest}'.", output_type=OutputType.MESSAGE)
 
 
 # This class keeps track of the plugins meta-information
