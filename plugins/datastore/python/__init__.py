@@ -389,11 +389,8 @@ def list_product_property_state(object_id: str | None = None, product_id: str | 
 	if not object_id:
 		object_ids = [id for id in object_ids if id not in depot_ids]
 
-	# get default propertyState values
 	default_states = get_default_property_states(object_ids, product_id, property_id)
-	# update default values with depot values
 	depot_states = update_default_states(depot_ids, object_ids, product_id, property_id, default_states)
-	# update client depot values with client values
 	client_states = update_depot_states(object_ids, product_id, property_id, depot_states)
 
 	write_output(
