@@ -147,6 +147,7 @@ class FileDownloadMessagebusConnection(MessagebusConnection):
 		self._file_download_information: FileDownloadInformationMessage | None = None
 		self._event_file_download_response_received = Event()
 		self._event_file_transfer_completed = Event()
+		self._file_handle_ready: Event = Event()
 		self._file_handle: BinaryIO | None = None
 
 	def _on_general_error(self, message: GeneralErrorMessage) -> None:
@@ -168,6 +169,7 @@ class FileDownloadMessagebusConnection(MessagebusConnection):
 
 	def _on_file_chunk(self, message: FileChunkMessage) -> None:
 		logger.debug("Received file chunk: %s", message)
+		self._file_handle_ready.wait()
 		assert self._file_handle
 		self._file_handle.write(message.data)
 		if message.last:
@@ -181,26 +183,27 @@ class FileDownloadMessagebusConnection(MessagebusConnection):
 			yield sys.stdout.buffer
 
 		with self.connection():
-			ctx = stdout() if destination.name == "-" else open(destination, "wb")
-			with ctx as self._file_handle:
-				file_download_request = FileDownloadRequestMessage(
-					sender=CONNECTION_USER_CHANNEL,
-					channel=f"host:{client}",
-					chunk_size=256_000,
-					path=str(source),
+			file_download_request = FileDownloadRequestMessage(
+				sender=CONNECTION_USER_CHANNEL,
+				channel=f"host:{client}",
+				chunk_size=256_000,
+				path=str(source),
+			)
+			self.send_message(file_download_request)
+			try:
+				if not self._event_file_download_response_received.wait(timeout=15):
+					raise TimeoutError("Timeout waiting for file download response")
+
+				if self._error:
+					raise RuntimeError(self._error.message)
+
+				assert self._file_download_information
+				logger.notice(
+					"Starting download of file '%s' (%d bytes) from client '%s'", source, self._file_download_information.size, client
 				)
-				self.send_message(file_download_request)
-				try:
-					if not self._event_file_download_response_received.wait(timeout=15):
-						raise TimeoutError("Timeout waiting for file download response")
-
-					if self._error:
-						raise RuntimeError(self._error.message)
-
-					assert self._file_download_information
-					logger.notice(
-						"Starting download of file '%s' (%d bytes) from client '%s'", source, self._file_download_information.size, client
-					)
+				ctx = stdout() if destination.name == "-" else open(destination, "wb")
+				with ctx as self._file_handle:
+					self._file_handle_ready.set()
 
 					self._event_file_transfer_completed.wait()
 					if self._error:
@@ -208,10 +211,10 @@ class FileDownloadMessagebusConnection(MessagebusConnection):
 
 					logger.notice("File '%s' downloaded successfully to '%s'", source, destination)
 
-				except Exception as exc:
-					message = f"Error during file download: {exc}"
-					logger.error(message, exc_info=True)
-					raise RuntimeError(message) from exc
+			except Exception as exc:
+				message = f"Error during file download: {exc}"
+				logger.error(message, exc_info=True)
+				raise RuntimeError(message) from exc
 
 
 class FileUploadMessagebusConnection(MessagebusConnection):
