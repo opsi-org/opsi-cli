@@ -25,14 +25,15 @@ from uuid import uuid4
 
 from opsicommon.client.opsiservice import MessagebusListener
 from opsicommon.logging import get_logger
+from opsicommon.logging.constants import DEBUG
 from opsicommon.messagebus import CONNECTION_USER_CHANNEL
 from opsicommon.messagebus.message import (
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
 	FileChunkMessage,
 	FileDownloadAbortRequestMessage,
+	FileDownloadInformationMessage,
 	FileDownloadRequestMessage,
-	FileDownloadResponseMessage,
 	FileTransferErrorMessage,
 	GeneralErrorMessage,
 	JSONRPCRequestMessage,
@@ -76,8 +77,10 @@ PROCESS_START_TIMEOUT = 15.0
 logger = get_logger("opsicli")
 
 
-def log_message(message: Message) -> None:
-	logger.info("Got message of type %s", message.type)
+def log_message(message: Message, direction: Literal["in", "out"]) -> None:
+	logger.info("%s message of type %s", "Received" if direction == "in" else "Sending", message.type)
+	if not logger.isEnabledFor(DEBUG):
+		return
 	debug_string = ""
 	for key, value in message.to_dict().items():
 		debug_string += f"\t{key}: {value}\n"
@@ -93,11 +96,11 @@ class MessagebusConnection(MessagebusListener):
 		self.service_client = get_service_connection(verify)
 
 	def send_message(self, message: Message) -> None:
-		log_message(message)
+		log_message(message, direction="out")
 		self.service_client.messagebus.send_message(message)
 
 	def message_received(self, message: Message) -> None:
-		log_message(message)
+		log_message(message, direction="in")
 		try:
 			callback_name = f"_on_{message.type}"
 			if hasattr(self, callback_name):
@@ -791,7 +794,7 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 		)
 		self.send_message(message)
 
-	def _on_file_download_response(self, message: FileDownloadResponseMessage) -> None:
+	def _on_file_download_response(self, message: FileDownloadInformationMessage) -> None:
 		logger.debug(f"File download started: {message}")
 
 	def _process_line(self, line: str) -> None:

@@ -183,7 +183,7 @@ def get_console(*, output_type: OutputType, file: IO[str] | None = None) -> Cons
 		sys.stderr for message, warning_message, error_message and progress
 	"""
 	if not file:
-		file = sys.stdout if output_type in (OutputType.DATA, OutputType.PROMPT) else sys.stderr
+		file = sys.stdout if output_type == OutputType.DATA else sys.stderr
 
 	cls = Console
 	if (output_type in (OutputType.WARNING_MESSAGE, OutputType.ERROR_MESSAGE) and config.hide_errors) or (

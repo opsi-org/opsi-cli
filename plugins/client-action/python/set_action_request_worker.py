@@ -87,7 +87,8 @@ class SetActionRequestArgs:
 class SetActionRequestWorker(ClientActionWorker):
 	def __init__(self, args: ClientActionArgs) -> None:
 		super().__init__(args)
-		self.products: list[str] = []
+		self.product_ids: list[str] = []
+		self.products: dict[str, dict[str, Product]] = {}
 		self.products_with_only_uninstall: list[str] = []
 		self.depot_versions: dict[str, dict[str, str]] = {}
 		self.product_action_scripts: dict[str, list[str]] = {}
@@ -106,6 +107,10 @@ class SetActionRequestWorker(ClientActionWorker):
 
 		products: list[Product] = self.service.jsonrpc("product_getObjects")
 		for product in products:
+			if product.id not in self.products:
+				self.products[product.id] = {}
+			if product.version:
+				self.products[product.id][product.version] = product
 			# store the available action request scripts (strip "Script" at the end of the property)
 			self.product_action_scripts[product.id] = [key[:-6] for key in ACTION_REQUEST_SCRIPTS if getattr(product, key, None)]
 
@@ -156,7 +161,7 @@ class SetActionRequestWorker(ClientActionWorker):
 		product_objects: list[Product] = self.service.jsonrpc(
 			"product_getObjects", [[], {"type": None if include_netboot else "LocalbootProduct", "id": products or None}]
 		)
-		self.products = list(set((entry.id for entry in product_objects if entry.id not in exclude_products)))
+		self.product_ids = list(set((entry.id for entry in product_objects if entry.id not in exclude_products)))
 		self.products_with_only_uninstall = [
 			entry.id
 			for entry in product_objects
@@ -167,9 +172,9 @@ class SetActionRequestWorker(ClientActionWorker):
 			and not entry.updateScript
 			and not entry.alwaysScript
 			and not entry.userLoginScript
-			and entry.id in self.products
+			and entry.id in self.product_ids
 		]
-		logger.notice("Handling products %s", self.products)
+		logger.notice("Handling products %s", self.product_ids)
 
 	def set_single_action_request(
 		self,
@@ -224,8 +229,8 @@ class SetActionRequestWorker(ClientActionWorker):
 
 	def set_action_requests_for_all(
 		self,
-		clients: Iterable[str],
-		products: list[str],
+		client_ids: Iterable[str],
+		product_ids: list[str],
 		*,
 		action_request: str | None = None,
 		force: bool = False,
@@ -242,18 +247,19 @@ class SetActionRequestWorker(ClientActionWorker):
 		existing_pocs: dict[str, dict[str, ProductOnClient]] = {}
 		pocs: list[ProductOnClient] = self.service.jsonrpc(
 			"productOnClient_getObjects",
-			[[], {"clientId": list(self.clients), "productType": "LocalbootProduct", "productId": self.products}],
+			[[], {"clientId": list(self.clients), "productId": self.product_ids}],
 		)
 		for exisiting_poc in pocs:
 			if exisiting_poc.clientId not in existing_pocs:
 				existing_pocs[exisiting_poc.clientId] = {}
 			existing_pocs[exisiting_poc.clientId].update({exisiting_poc.productId: exisiting_poc})
 
-		for client_id in clients:
-			for product in products:
-				poc = existing_pocs.get(client_id, {}).get(product) or ProductOnClient(
-					productId=product,
-					productType="LocalbootProduct",
+		for client_id in client_ids:
+			for product_id in product_ids:
+				products = list(self.products.get(product_id, {}).values())
+				poc = existing_pocs.get(client_id, {}).get(product_id) or ProductOnClient(
+					productId=product_id,
+					productType=products[0].getType() if products else "LocalbootProduct",
 					clientId=client_id,
 					installationStatus="not_installed",
 					actionRequest=None,
@@ -276,7 +282,7 @@ class SetActionRequestWorker(ClientActionWorker):
 			include_netboot=args.include_netboot,
 			use_default_excludes=args.where_outdated or args.where_failed or args.where_installed,
 		)
-		if not self.products:
+		if not self.product_ids:
 			raise ValueError("No product/s to set action request on. The specified product/s might not exist or might have been excluded.")
 
 		if args.uninstall_where_only_uninstall:
@@ -286,7 +292,7 @@ class SetActionRequestWorker(ClientActionWorker):
 		if args.where_failed or args.where_outdated or args.where_installed or args.uninstall_where_only_uninstall:
 			pocs: list[ProductOnClient] = self.service.jsonrpc(
 				"productOnClient_getObjects",
-				[[], {"clientId": list(self.clients), "productType": "LocalbootProduct", "productId": self.products}],
+				[[], {"clientId": list(self.clients), "productType": "LocalbootProduct", "productId": self.product_ids}],
 			)
 			for poc in pocs:
 				logger.debug(
@@ -332,7 +338,7 @@ class SetActionRequestWorker(ClientActionWorker):
 			if not args.products and not args.product_groups:
 				raise ValueError("When unconditionally setting actionRequests, you must supply --products or --product-groups.")
 			for add_poc in self.set_action_requests_for_all(
-				self.clients, self.products, action_request=args.set_action_request, force=True
+				self.clients, self.product_ids, action_request=args.set_action_request, force=True
 			):
 				new_pocs[add_poc.clientId][add_poc.productId] = add_poc
 
@@ -414,13 +420,13 @@ class SetActionRequestWorker(ClientActionWorker):
 			exclude_product_groups_string=args.exclude_product_groups,
 			use_default_excludes=True,
 		)
-		if not self.products:
+		if not self.product_ids:
 			raise ValueError("No products to process. The specified products might not exist or might have been excluded.")
 
 		if config.dry_run:
 			console_print(
 				f"Process actions skipped: would process action requests for {len(self.clients)} clients"
-				+ (f" and products: {len(self.products)}" if self.products else "")
+				+ (f" and products: {len(self.product_ids)}" if self.product_ids else "")
 				+ (f" with visibility: {args.process_visibility}" if args.process_visibility else ""),
 				output_type=OutputType.WARNING_MESSAGE,
 			)
@@ -428,7 +434,7 @@ class SetActionRequestWorker(ClientActionWorker):
 
 		result = self.service.jsonrpc(
 			"hostControl_processActionRequests",
-			[list(self.clients), self.products, args.process_visibility],
+			[list(self.clients), self.product_ids, args.process_visibility],
 			read_timeout=60,
 		)
 		logger.debug(f"Result of hostControl_processActionRequests: {result}")

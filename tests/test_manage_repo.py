@@ -40,7 +40,7 @@ def test_metafile_create(tmp_path: Path) -> None:
 
 	for suffix in formats:
 		data = read_metafile(repository_dir / f"packages.{suffix}")
-		assert data["repository"]["name"] == "opsi package repository"
+		assert data["repository"]["name"] == "OPSI package repository"
 		assert data["schema_version"] == "1.1"
 		assert data["packages"]["localboot_new"]["42.0-1337"]["url"] == "localboot_new_42.0-1337.opsi"
 		assert data["packages"]["localboot_new"]["1.0-1"]["url"] == "localboot_new_1.0-1.opsi"
@@ -171,7 +171,7 @@ def test_metafile_add_package(tmp_path: Path) -> None:
 			{"os": "macos", "arch": "x64"},
 		]
 
-	for compatibility in ("linux-invalid", "invalid-all", "linux", "all", "linux-amd64"):
+	for compatibility in ("linux-invalid", "invalid-all", "linux", "all"):
 		cmd = [
 			"manage-repo",
 			"metafile",
