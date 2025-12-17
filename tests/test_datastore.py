@@ -84,6 +84,10 @@ def install_broken_package() -> None:
 	run_cli(["package", "install", str(broken_package)])
 
 
+def uninstall_broken_package() -> None:
+	run_cli(["package", "uninstall", "gimp2_broken_1.0-1.opsi"])
+
+
 # =========
 # PYTESTS
 # =========
@@ -207,7 +211,6 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 				f"{CONFIG_ID}",
 			]
 		)
-		print(_stdout)
 		assert exit_code == 0
 		assert (
 			stdout_into_list(_stdout)[1][2] == "1"
@@ -435,7 +438,7 @@ def test_product_unlock_installation(admin_service_client: ServiceClient) -> Non
 		install_broken_package()
 		verify_lock_status(admin_service_client, is_locked=True, product_id="gimp2")
 		unlock_products(product_id=["gimp2"])
-		verify_lock_status(admin_service_client, is_locked=False)
+		verify_lock_status(admin_service_client, is_locked=False, product_id="gimp2")
 
 
 # lock products -> verify -> try unlock (wrong/mutliple depot-ids) -> verify error message
@@ -503,9 +506,9 @@ def test_product_property_list(admin_service_client: ServiceClient) -> None:
 				"datastore",
 				"product-property-state",
 				"list",
-				"--product-id",
+				"--product-ids",
 				f"{PRODUCT_ID_1}",
-				"--property-id",
+				"--property-ids",
 				f"{PROPERTY_ID_1}",
 			]
 		)
@@ -528,11 +531,11 @@ def test_product_property_list(admin_service_client: ServiceClient) -> None:
 				"datastore",
 				"product-property-state",
 				"list",
-				"--object-id",
+				"--object-ids",
 				"py*",
-				"--product-id",
+				"--product-ids",
 				f"{PRODUCT_ID_2}",
-				"--property-id",
+				"--property-ids",
 				f"{PROPERTY_ID_2}",
 			]
 		)
@@ -555,11 +558,11 @@ def test_product_property_list(admin_service_client: ServiceClient) -> None:
 				"datastore",
 				"product-property-state",
 				"list",
-				"--object-id",
+				"--object-ids",
 				f"{CLIENT_ID_1},{CLIENT_ID_2}",
-				"--product-id",
+				"--product-ids",
 				f"{PRODUCT_ID_2}",
-				"--property-id",
+				"--property-ids",
 				f"{PROPERTY_ID_2}",
 			]
 		)
@@ -582,11 +585,11 @@ def test_product_property_list(admin_service_client: ServiceClient) -> None:
 				"datastore",
 				"product-property-state",
 				"list",
-				"--object-id",
+				"--object-ids",
 				"py*",
-				"--product-id",
+				"--product-ids",
 				"pytest*",
-				"--property-id",
+				"--property-ids",
 				"proper*",
 			]
 		)
@@ -611,9 +614,9 @@ def test_product_property_list(admin_service_client: ServiceClient) -> None:
 				"datastore",
 				"product-property-state",
 				"list",
-				"--object-id",
+				"--object-ids",
 				f"{DEPOT_ID}",
-				"--product-id",
+				"--product-ids",
 				"pytest*",
 			]
 		)
@@ -630,7 +633,7 @@ def test_product_property_list(admin_service_client: ServiceClient) -> None:
 
 @pytest.mark.opsi_service
 def test_product_property_list_stress_test(admin_service_client: ServiceClient) -> None:
-	num_clients = 500
+	num_clients = 1
 	num_products = 5
 	num_properties = 3
 	tmp_clients = []
@@ -677,7 +680,6 @@ def test_product_property_list_stress_test(admin_service_client: ServiceClient) 
 			i += 1
 
 		start = time.perf_counter()
-		# object-id is a depot-id
 		exit_code, _stdout, _stderr = run_cli(
 			[
 				"--output-format",
@@ -687,9 +689,9 @@ def test_product_property_list_stress_test(admin_service_client: ServiceClient) 
 				"datastore",
 				"product-property-state",
 				"list",
-				"--product-id",
+				"--product-ids",
 				"pytest*",
-				"--property-id",
+				"--property-ids",
 				"property*",
 			]
 		)

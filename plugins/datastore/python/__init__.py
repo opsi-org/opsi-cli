@@ -37,14 +37,10 @@ def get_object_ids(
 ) -> list[str]:
 	object_ids: list[str] = []
 	if not object_id:
-		object_ids = service_connection.host_getIdents(id=[])  # type: ignore[attr-defined]
+		object_ids = service_connection.host_getIdents()  # type: ignore[attr-defined]
 	else:
-		if "," in object_id:
-			object_id_list = [item.strip() for item in object_id.split(",")]
-			for obj_id in object_id_list:
-				object_ids = object_ids + service_connection.host_getIdents(id=obj_id)  # type: ignore[attr-defined]
-		else:
-			object_ids = service_connection.host_getIdents(id=object_id)  # type: ignore[attr-defined]
+		object_id_list = [item.strip() for item in object_id.split(",")]
+		object_ids = service_connection.host_getIdents(id=object_id_list)  # type: ignore[attr-defined]
 	return object_ids
 
 
@@ -308,11 +304,11 @@ def product_property_state() -> None:
 
 
 # ====================================PRODUCT-PROPERTY-STATE LIST=======================================
-@product_property_state.command(name="list", short_help="List all product-property-states or get a filtered list. ")
-@click.option("--object-id", type=str, default=None, help="Filter data with object_id(s). Use ',' as a separator. Wildcard * is possible.")
-@click.option("--product-id", type=str, default=None, help="Filter data with product_id. Wildcard * is possible.")
-@click.option("--property-id", type=str, default=None, help="Filter data with property_id. Wildcard * is possible. ")
-def list_product_property_state(object_id: str | None = None, product_id: str | None = None, property_id: str | None = None) -> None:
+@product_property_state.command(name="list", short_help="List all product property states or apply filters to narrow the results.")
+@click.option("--object-ids", type=str, default=None, help="Filter by object ID(s). Use ',' as a separator. Wildcards (*) are supported.")
+@click.option("--product-ids", type=str, default=None, help="Filter by product ID(s). Wildcards (*) are supported.")
+@click.option("--property-ids", type=str, default=None, help="Filter by property ID(s). Wildcards (*) are supported.")
+def list_product_property_state(object_ids: str | None = None, product_ids: str | None = None, property_ids: str | None = None) -> None:
 	"""
 	opsi-cli datastore product-property-state list subcommand.
 	"""
@@ -369,13 +365,13 @@ def list_product_property_state(object_id: str | None = None, product_id: str | 
 
 	service_connection = get_service_connection()
 
-	# handle different object_id input (e.g. normal, with * or comma seperated)
-	# getClientToDepotserver does not accept wildcards '*', getIdents in get_object_ids does.
-	object_ids = get_object_ids(service_connection, object_id)
+	# Handle different object_id input formats (e.g. plain IDs, IDs with '*', or comma-separated strings)
+	# getClientToDepotserver does not support wildcard '*', whereas getIdents in get_object_ids does.
+	final_object_ids = get_object_ids(service_connection, object_ids)
 
 	# map objectId's to depotId's for easier access
+	client_to_depot_objects = service_connection.configState_getClientToDepotserver(clientIds=final_object_ids)  # type: ignore[attr-defined]
 	# getClientToDepotserver returns [] for a depot_id
-	client_to_depot_objects = service_connection.configState_getClientToDepotserver(clientIds=object_ids)  # type: ignore[attr-defined]
 	if not client_to_depot_objects:
 		client_to_depot_objects = service_connection.configState_getClientToDepotserver()  # type: ignore[attr-defined]
 		client_depot_map = {item["clientId"]: item["depotId"] for item in client_to_depot_objects}
@@ -385,13 +381,13 @@ def list_product_property_state(object_id: str | None = None, product_id: str | 
 	# get depot_ids from map
 	depot_ids = list({depot for depot in client_depot_map.values()})
 
-	# remove depot_ids from object_ids if no object_ids were given (e.g. object_ids contains all object_ids and depot_ids)
-	if not object_id:
-		object_ids = [id for id in object_ids if id not in depot_ids]
+	# remove depot_ids from final_object_ids if no object_ids were given (e.g. object_ids contains all object_ids and depot_ids)
+	if not object_ids:
+		final_object_ids = [id for id in final_object_ids if id not in depot_ids]
 
-	default_states = get_default_property_states(object_ids, product_id, property_id)
-	depot_states = update_default_states(depot_ids, object_ids, product_id, property_id, default_states)
-	client_states = update_depot_states(object_ids, product_id, property_id, depot_states)
+	default_states = get_default_property_states(final_object_ids, product_ids, property_ids)
+	depot_states = update_default_states(depot_ids, final_object_ids, product_ids, property_ids, default_states)
+	client_states = update_depot_states(final_object_ids, product_ids, property_ids, depot_states)
 
 	write_output(
 		list(client_states.values()),
