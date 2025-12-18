@@ -9,8 +9,6 @@ opsi-cli basic command line interface for opsi
 config-states subcommand
 """
 
-from typing import Any, Literal
-
 import rich_click as click
 from opsicommon.exceptions import BackendMissingDataError
 from opsicommon.logging import get_logger
@@ -33,26 +31,24 @@ logger = get_logger("opsicli")
 # handle comma separated object-ids
 def get_object_ids(
 	service_connection: ServiceClient,
-	object_id: str | None = None,
+	object_ids: str,
 ) -> list[str]:
-	object_ids: list[str] = []
-	if not object_id:
-		object_ids = service_connection.host_getIdents()  # type: ignore[attr-defined]
+	if object_ids == "all":
+		return service_connection.host_getIdents()  # type: ignore[attr-defined]
 	else:
-		object_id_list = [item.strip() for item in object_id.split(",")]
-		object_ids = service_connection.host_getIdents(id=object_id_list)  # type: ignore[attr-defined]
-	return object_ids
+		object_id_list = [item.strip() for item in object_ids.split(",")]
+		return service_connection.host_getIdents(id=object_id_list)  # type: ignore[attr-defined]
 
 
-# get depot name/id for given object-id
-def get_depot_id(object_id: str, client_to_server_objects: list[dict[str, Any]]) -> str:
-	for client in client_to_server_objects:
-		if client["clientId"] == object_id:
-			return client["depotId"]
-	raise ValueError(f"No depot found for host '{object_id}'.")
+def create_client_depot_mapping(service_connection: ServiceClient, object_ids: list[str]) -> dict[str, str]:
+	client_to_depot_objects = service_connection.configState_getClientToDepotserver(clientIds=object_ids)  # type: ignore[attr-defined]
+	# getClientToDepotserver returns [] for a depot_id
+	if not client_to_depot_objects:
+		client_to_depot_objects = service_connection.configState_getClientToDepotserver()  # type: ignore[attr-defined]
+	return {item["clientId"]: item["depotId"] for item in client_to_depot_objects}
 
 
-# DATASTORE
+# =============================================DATASTORE====================================================
 @click.group(cls=OPSICLIGroup, name="datastore", short_help="Manage data and objects")
 @click.version_option(__version__, message="datastore plugin, version %(version)s")
 @click.pass_context
@@ -61,7 +57,7 @@ def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 	logger.trace("datastore command group")
 
 
-# CONFIG-STATE
+# =============================================CONFIG-STATE=================================================
 @cli.group(name="config-state", short_help="Change config state(s)")
 def config_state() -> None:
 	"""
@@ -70,98 +66,83 @@ def config_state() -> None:
 	pass
 
 
-# =======================================CONFIG-STATE LIST===========================================
+# ===========================================CONFIG-STATE LIST===============================================
 @config_state.command(name="list", short_help="List all config states or get a filtered list. ")
-@click.option("--object-id", type=str, default=None, help="Filter data with object_id(s). Use ',' as a separator. Wildcard * is possible.")
-@click.option("--config-id", type=str, default=None, help="Filter data with config_id. Wildcard * is possible.")
-def list_config_state(config_id: str | None = None, object_id: str | None = None) -> None:
+@click.option(
+	"--object-ids", type=str, required=True, help="Filter data with object_id(s). Use ',' as a separator. Wildcard * is possible."
+)
+@click.option("--config-ids", type=str, required=True, help="Filter data with config_id. Wildcard * is possible.")
+def list_config_state(object_ids: str, config_ids: str | None) -> None:
 	"""
 	opsi-cli datastore config-state list subcommand.
 	"""
 
-	def get_default_entries(config_id: str | None, object_id: str, depot_id: str) -> dict[str, dict[str, str]]:
-		default_entry_dict = {}
-		default_objects = service_connection.config_getObjects(id=config_id or [])  # type: ignore[attr-defined]
-		for entry in default_objects:
-			default_entry_dict[entry.id] = {
-				"values": entry.defaultValues,
-				"origin": "default",
-				"configId": entry.id,
-				"objectId": object_id,
-				"depotId": depot_id,
-			}
-		return default_entry_dict
+	def get_default_config_states(object_ids: list[str], config_ids: list[str] | None) -> dict[str, dict[str, str]]:
+		default_config_objects = service_connection.config_getObjects(id=config_ids or [])  # type: ignore[attr-defined]
+		default_states = {}
 
-	def get_host_entries(
-		config_id: str | None,
-		object_id: str,
-		depot_id: str,
-		host_type: Literal["OpsiClient", "OpsiDepotserver"],
+		for object_id in object_ids:
+			for entry in default_config_objects:
+				default_states[object_id + entry.id] = {
+					"values": entry.defaultValues,
+					"origin": "default",
+					"configId": entry.id,
+					"objectId": object_id,
+				}
+		return default_states
+
+	def update_default_states(
+		depot_ids: list[str],
+		object_ids: list[str],
+		config_ids: list[str] | None,
+		default_states: dict[str, dict[str, str]],
 	) -> dict[str, dict[str, str]]:
-		origin = "[yellow]server[/yellow]" if host_type == "OpsiDepotserver" else "[blue]client[/blue]"
-		entry_dict = {}
-		depot_objects = service_connection.configState_getObjects(  # type: ignore[attr-defined]
-			configId=config_id or [], objectId=object_id if host_type == "OpsiClient" else depot_id
+		depot_config_state_objects = service_connection.configState_getObjects(  # type: ignore[attr-defined]
+			objectId=depot_ids, configId=config_ids or []
 		)
-		for entry in depot_objects:
-			entry_dict[entry.configId] = {
-				"values": entry.values,
-				"origin": origin,
-				"configId": entry.configId,
-				"objectId": object_id,
-				"depotId": depot_id,
-			}
-		return entry_dict
+		for object_id in object_ids:
+			for entry in depot_config_state_objects:
+				key = object_id + entry.configId
+				if key in default_states:
+					default_states[key]["values"] = entry.values
+					default_states[key]["origin"] = "[yellow]server[/yellow]"
+		return default_states
+
+	def update_depot_states(
+		object_ids: list[str],
+		config_ids: list[str] | None,
+		depot_states: dict[str, dict[str, str]],
+	) -> dict[str, dict[str, str]]:
+		client_config_state_objects = service_connection.configState_getObjects(  # type: ignore[attr-defined]
+			objectId=object_ids, configId=config_ids or []
+		)
+
+		for entry in client_config_state_objects:
+			key = entry.objectId + entry.configId
+			if key in depot_states:
+				depot_states[key]["values"] = entry.values
+				depot_states[key]["origin"] = "[blue]client[/blue]"
+		return depot_states
 
 	service_connection = get_service_connection()
-	client_to_server_objects = service_connection.configState_getClientToDepotserver()  # type: ignore[attr-defined]
-	host_objects = []
-	config_ids: list[str | None] = []
-	result_unique = []
-	result = []
+	# Handle different input formats (e.g. plain IDs, IDs with '*', or comma-separated strings)
+	final_object_ids = get_object_ids(service_connection, object_ids)
+	final_config_ids = None if config_ids == "all" else [item.strip() for item in config_ids.split(",")]
 
-	# handle comma separated object-ids
-	if not object_id:
-		host_objects = service_connection.host_getObjects(id=[], type="OpsiClient")  # type: ignore[attr-defined]
-	else:
-		if "," in object_id:
-			object_ids = [item.strip() for item in object_id.split(",")]
-			for obj_id in object_ids:
-				host_objects = host_objects + service_connection.host_getObjects(id=obj_id, type="OpsiClient")  # type: ignore[attr-defined]
-			host_objects = list(set(host_objects))
-		else:
-			host_objects = service_connection.host_getObjects(id=object_id, type="OpsiClient")  # type: ignore[attr-defined]
+	# get depot_ids from map
+	client_depot_map = create_client_depot_mapping(service_connection, final_object_ids)
+	final_depot_ids = list({depot for depot in client_depot_map.values()})
 
-	# handle comma separated config-ids
-	if config_id:
-		if "," in config_id:
-			config_ids = [item.strip() for item in config_id.split(",")]
-		else:
-			config_ids.append(config_id)
-	else:
-		config_ids.append(config_id)
+	# remove depot_ids from final_object_ids if no object_ids were given (e.g. object_ids contains all object_ids and depot_ids)
+	if object_ids == "all":
+		final_object_ids = [id for id in final_object_ids if id not in final_depot_ids]
 
-	# For every client: create dicts for (default/depot/client) and update them. Print the result
-	for obj in host_objects:
-		depot_id = get_depot_id(obj.id, client_to_server_objects)
-
-		for conf_id in config_ids:
-			default_entry_dict = get_default_entries(conf_id, obj.id, depot_id)
-			depot_entry_dict = get_host_entries(conf_id, obj.id, depot_id, "OpsiDepotserver")
-			client_entry_dict = get_host_entries(conf_id, obj.id, depot_id, "OpsiClient")
-
-			default_entry_dict.update(depot_entry_dict)
-			default_entry_dict.update(client_entry_dict)
-
-			result.extend(list(default_entry_dict.values()))
-
-	# get rid of duplicates
-	for entry in result:
-		if entry not in result_unique:
-			result_unique.append(entry)
+	default_states = get_default_config_states(final_object_ids, final_config_ids)
+	depot_states = update_default_states(final_depot_ids, final_object_ids, final_config_ids, default_states)
+	client_states = update_depot_states(final_object_ids, final_config_ids, depot_states)
 
 	write_output(
-		result_unique,
+		list(client_states.values()),
 		Metadata(
 			attributes=[
 				Attribute(id="objectId", description="The ID of the object (host).", identifier=False, data_type="str", selected=True),
@@ -176,7 +157,7 @@ def list_config_state(config_id: str | None = None, object_id: str | None = None
 	)
 
 
-# =======================================CONFIG-STATE SET=============================================
+# ========================================================CONFIG-STATE SET========================================================
 @config_state.command(
 	name="set",
 	short_help="Change a config state value. Create a config state if there is none. If 'all' is used as an objectId, the value will be set for all objects.",
@@ -294,7 +275,7 @@ def set_config_state_value(config_id: str, object_id: str | None, values: tuple[
 		set_unicode_config(object_ids, config_id, list(values))
 
 
-# PRODUCT-PROPERTY-STATE
+# ================================================PRODUCT-PROPERTY-STATE=====================================================
 @cli.group(name="product-property-state", short_help="Change product-property-states.")
 def product_property_state() -> None:
 	"""
@@ -303,12 +284,16 @@ def product_property_state() -> None:
 	pass
 
 
-# ====================================PRODUCT-PROPERTY-STATE LIST=======================================
+# ==============================================PRODUCT-PROPERTY-STATE LIST===================================================
 @product_property_state.command(name="list", short_help="List all product property states or apply filters to narrow the results.")
-@click.option("--object-ids", type=str, default=None, help="Filter by object ID(s). Use ',' as a separator. Wildcards (*) are supported.")
-@click.option("--product-ids", type=str, default=None, help="Filter by product ID(s). Wildcards (*) are supported.")
-@click.option("--property-ids", type=str, default=None, help="Filter by property ID(s). Wildcards (*) are supported.")
-def list_product_property_state(object_ids: str | None = None, product_ids: str | None = None, property_ids: str | None = None) -> None:
+@click.option("--object-ids", type=str, required=True, help="Filter by object ID(s). Use ',' as a separator. Wildcards (*) are supported.")
+@click.option(
+	"--product-ids", type=str, required=True, help="Filter by product ID(s). Use ',' as a separator. Wildcards (*) are supported."
+)
+@click.option(
+	"--property-ids", type=str, default=None, help="Filter by property ID(s). Use ',' as a separator. Wildcards (*) are supported."
+)
+def list_product_property_state(object_ids: str, product_ids: str | None, property_ids: str | None = None) -> None:
 	"""
 	opsi-cli datastore product-property-state list subcommand.
 	"""
@@ -361,33 +346,25 @@ def list_product_property_state(object_ids: str | None = None, product_ids: str 
 			if key in depot_states and depot_states[key]["values"] != entry.values:
 				depot_states[key]["values"] = entry.values
 				depot_states[key]["origin"] = "[blue]client[/blue]"
-		return default_states
+		return depot_states
 
 	service_connection = get_service_connection()
-
 	# Handle different object_id input formats (e.g. plain IDs, IDs with '*', or comma-separated strings)
-	# getClientToDepotserver does not support wildcard '*', whereas getIdents in get_object_ids does.
 	final_object_ids = get_object_ids(service_connection, object_ids)
-
-	# map objectId's to depotId's for easier access
-	client_to_depot_objects = service_connection.configState_getClientToDepotserver(clientIds=final_object_ids)  # type: ignore[attr-defined]
-	# getClientToDepotserver returns [] for a depot_id
-	if not client_to_depot_objects:
-		client_to_depot_objects = service_connection.configState_getClientToDepotserver()  # type: ignore[attr-defined]
-		client_depot_map = {item["clientId"]: item["depotId"] for item in client_to_depot_objects}
-	else:
-		client_depot_map = {item["clientId"]: item["depotId"] for item in client_to_depot_objects}
+	final_product_ids = None if product_ids == "all" else [item.strip() for item in product_ids.split(",")]
+	final_property_ids = None if property_ids == "all" else [item.strip() for item in property_ids.split(",")]
 
 	# get depot_ids from map
+	client_depot_map = create_client_depot_mapping(service_connection, final_object_ids)
 	depot_ids = list({depot for depot in client_depot_map.values()})
 
-	# remove depot_ids from final_object_ids if no object_ids were given (e.g. object_ids contains all object_ids and depot_ids)
-	if not object_ids:
+	# remove depot_ids from final_object_ids if object_ids == "all" were given (e.g. object_ids contains all object_ids and depot_ids)
+	if object_ids == "all":
 		final_object_ids = [id for id in final_object_ids if id not in depot_ids]
 
-	default_states = get_default_property_states(final_object_ids, product_ids, property_ids)
-	depot_states = update_default_states(depot_ids, final_object_ids, product_ids, property_ids, default_states)
-	client_states = update_depot_states(final_object_ids, product_ids, property_ids, depot_states)
+	default_states = get_default_property_states(final_object_ids, final_product_ids, final_property_ids)
+	depot_states = update_default_states(depot_ids, final_object_ids, final_product_ids, final_property_ids, default_states)
+	client_states = update_depot_states(final_object_ids, final_product_ids, final_property_ids, depot_states)
 
 	write_output(
 		list(client_states.values()),
@@ -403,7 +380,7 @@ def list_product_property_state(object_ids: str | None = None, product_ids: str 
 	)
 
 
-# PRODUCT
+# ====================================================PRODUCT========================================================
 @cli.group(name="product", short_help="Configure products")
 def product() -> None:
 	"""
@@ -412,7 +389,7 @@ def product() -> None:
 	pass
 
 
-# =========================================PRODUCT UNLOCK==============================================
+# ================================================PRODUCT UNLOCK=====================================================
 @product.command(name="unlock", short_help="Unlock product(s) on depot(s).")
 @click.argument("product-id", type=str, nargs=-1)
 @click.option("--depot-id", type=str, default=None, help="Choose the depot-id(s) where products should be unlocked. Comma seperated list.")
