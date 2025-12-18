@@ -291,7 +291,7 @@ def product_property_state() -> None:
 	"--product-ids", type=str, required=True, help="Filter by product ID(s). Use ',' as a separator. Wildcards (*) are supported."
 )
 @click.option(
-	"--property-ids", type=str, default=None, help="Filter by property ID(s). Use ',' as a separator. Wildcards (*) are supported."
+	"--property-ids", type=str, default="all", help="Filter by property ID(s). Use ',' as a separator. Wildcards (*) are supported."
 )
 def list_product_property_state(object_ids: str, product_ids: str | None, property_ids: str | None = None) -> None:
 	"""
