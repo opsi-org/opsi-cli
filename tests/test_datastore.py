@@ -104,8 +104,8 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		tmp_client(admin_service_client, CLIENT_ID_4),
 	):
 		all_configs = admin_service_client.jsonrpc("config_getObjects", params=[])  # type:ignore[attr-defined]
-		client_to_server_objects = admin_service_client.configState_getClientToDepotserver()  # type:ignore[attr-defined]
-		DEPOT_ID = client_to_server_objects[0]["depotId"]
+		client_to_depot_objects = admin_service_client.configState_getClientToDepotserver()  # type:ignore[attr-defined]
+		DEPOT_ID = client_to_depot_objects[0]["depotId"]
 
 		# One objectId, one configId
 		exit_code, _stdout, _stderr = run_cli(
@@ -194,7 +194,7 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		assert exit_code == 0
 		assert len(stdout_into_list(_stdout)) - 1 == 8
 
-		# (SERVER)
+		# (Depot)
 		# test if the origin and changed value of a config is shown correctly
 		# opsi.check.enabled: False("0") -> True("1")
 		# configs for DEPOT
@@ -217,9 +217,9 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		)
 		assert exit_code == 0
 		assert (
-			stdout_into_list(_stdout)[1][2] == "0"
+			stdout_into_list(_stdout)[1][2] == "[green]false[/green]"
 		)  # only second row is of interest, first row of stdout_list[0][i]=([clientId, configId, value, origin])
-		assert stdout_into_list(_stdout)[1][3] == "[yellow]server[/yellow]"
+		assert stdout_into_list(_stdout)[1][3] == "[yellow]depot[/yellow]"
 
 		admin_service_client.jsonrpc("configState_updateObjects", params=[CONFIGSTATE_2_DEPOT])  # type:ignore[attr-defined]
 		exit_code, _stdout, _stderr = run_cli(
@@ -237,14 +237,14 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		)
 		assert exit_code == 0
 		assert (
-			stdout_into_list(_stdout)[1][2] == "1"
+			stdout_into_list(_stdout)[1][2] == "[green]true[/green]"
 		)  # only second row is of interest, first row of stdout_list[0][i]=([clientId, configId, value, origin])
-		assert stdout_into_list(_stdout)[1][3] == "[yellow]server[/yellow]"
+		assert stdout_into_list(_stdout)[1][3] == "[yellow]depot[/yellow]"
 
 		# (CLIENT)
 		# test if the origin and changed value of a config is shown correctly
 		# opsi.check.enabled: True("1") -> False("0")
-		# check if CLIENT overrides origin from server -> client
+		# check if CLIENT overrides origin from depot -> client
 		# configs for CLIENT_1
 		CONFIGSTATE_1_CLIENT_1 = {"configId": f"{CONFIG_ID_1}", "objectId": f"{CLIENT_ID_1}", "values": True}
 		CONFIGSTATE_2_CLIENT_1 = {"configId": f"{CONFIG_ID_1}", "objectId": f"{CLIENT_ID_1}", "values": False}
@@ -265,7 +265,7 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		)
 		assert exit_code == 0
 		assert (
-			stdout_into_list(_stdout)[1][2] == "1"
+			stdout_into_list(_stdout)[1][2] == "[green]true[/green]"
 		)  # only second row is of interest, first row of stdout_list[0][i]=([clientId, configId, value, origin])
 		assert stdout_into_list(_stdout)[1][3] == "[blue]client[/blue]"
 
@@ -285,7 +285,7 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		)
 		assert exit_code == 0
 		assert (
-			stdout_into_list(_stdout)[1][2] == "0"
+			stdout_into_list(_stdout)[1][2] == "[green]false[/green]"
 		)  # only second row is of interest, first row of stdout_list[0][i]=([clientId, configId, value, origin])
 		assert stdout_into_list(_stdout)[1][3] == "[blue]client[/blue]"
 
@@ -514,8 +514,8 @@ def test_product_property_list(admin_service_client: ServiceClient) -> None:
 		tmp_product(admin_service_client, PRODUCT_ID_1),
 		tmp_product(admin_service_client, PRODUCT_ID_2),
 	):
-		client_to_server_objects = admin_service_client.configState_getClientToDepotserver()  # type:ignore[attr-defined]
-		DEPOT_ID = client_to_server_objects[0]["depotId"]
+		client_to_depot_objects = admin_service_client.configState_getClientToDepotserver()  # type:ignore[attr-defined]
+		DEPOT_ID = client_to_depot_objects[0]["depotId"]
 
 		# add PRODUCT-PROPERTIES
 		admin_service_client.productProperty_create(  # type:ignore[attr-defined]

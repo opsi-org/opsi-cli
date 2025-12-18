@@ -84,7 +84,10 @@ def list_config_state(object_ids: str, config_ids: str | None) -> None:
 		for object_id in object_ids:
 			for entry in default_config_objects:
 				default_states[object_id + entry.id] = {
-					"values": entry.defaultValues,
+					"final_values": f"[green]{','.join(str(v).lower() for v in entry.defaultValues)}[/green]",
+					"default_values": entry.defaultValues,
+					"depot_values": "",
+					"client_values": "",
 					"origin": "default",
 					"configId": entry.id,
 					"objectId": object_id,
@@ -103,9 +106,11 @@ def list_config_state(object_ids: str, config_ids: str | None) -> None:
 		for object_id in object_ids:
 			for entry in depot_config_state_objects:
 				key = object_id + entry.configId
-				if key in default_states:
-					default_states[key]["values"] = entry.values
-					default_states[key]["origin"] = "[yellow]server[/yellow]"
+				default_states[key]["depot_values"] = entry.values
+				default_states[key]["origin"] = "[yellow]depot[/yellow]"
+				if default_states[key]["default_values"] != entry.values:
+					default_states[key]["final_values"] = f"[green]{','.join(str(v).lower() for v in entry.values)}[/green]"
+
 		return default_states
 
 	def update_depot_states(
@@ -119,9 +124,11 @@ def list_config_state(object_ids: str, config_ids: str | None) -> None:
 
 		for entry in client_config_state_objects:
 			key = entry.objectId + entry.configId
+			depot_states[key]["client_values"] = entry.values
+			depot_states[key]["origin"] = "[blue]client[/blue]"
 			if key in depot_states:
-				depot_states[key]["values"] = entry.values
-				depot_states[key]["origin"] = "[blue]client[/blue]"
+				depot_states[key]["final_values"] = f"[green]{','.join(str(v).lower() for v in entry.values)}[/green]"
+
 		return depot_states
 
 	service_connection = get_service_connection()
@@ -146,11 +153,35 @@ def list_config_state(object_ids: str, config_ids: str | None) -> None:
 		Metadata(
 			attributes=[
 				Attribute(id="objectId", description="The ID of the object (host).", identifier=False, data_type="str", selected=True),
-				Attribute(
-					id="depotId", description="The ID of the object's (host's) depot.", identifier=False, data_type="str", selected=False
-				),
 				Attribute(id="configId", description="The ID of the config.", identifier=False, data_type="str", selected=True),
-				Attribute(id="values", description="Values of given configs.", identifier=False, data_type="str | Boolean", selected=True),
+				Attribute(
+					id="default_values",
+					description="Values of given Config.",
+					identifier=False,
+					data_type="str | Boolean",
+					selected=False,
+				),
+				Attribute(
+					id="depot_values",
+					description="Values of given config state.",
+					identifier=False,
+					data_type="str | Boolean",
+					selected=False,
+				),
+				Attribute(
+					id="client_values",
+					description="Values of given config state.",
+					identifier=False,
+					data_type="str | Boolean",
+					selected=False,
+				),
+				Attribute(
+					id="final_values",
+					description="Values of given config state.",
+					identifier=False,
+					data_type="str | Boolean",
+					selected=True,
+				),
 				Attribute(id="origin", description="Location where the change was made.", identifier=False, data_type="str", selected=True),
 			]
 		),
@@ -293,19 +324,24 @@ def product_property_state() -> None:
 @click.option(
 	"--property-ids", type=str, default="all", help="Filter by property ID(s). Use ',' as a separator. Wildcards (*) are supported."
 )
-def list_product_property_state(object_ids: str, product_ids: str | None, property_ids: str | None = None) -> None:
+def list_product_property_state(object_ids: str, product_ids: str, property_ids: str) -> None:
 	"""
 	opsi-cli datastore product-property-state list subcommand.
 	"""
 
-	def get_default_property_states(object_ids: list[str], product_id: str | None, property_id: str | None) -> dict[str, dict[str, str]]:
+	def get_default_property_states(
+		object_ids: list[str], product_id: list[str] | None, property_id: list[str] | None
+	) -> dict[str, dict[str, str]]:
 		default_property_objects = service_connection.productProperty_getObjects(productId=product_id or [], propertyId=property_id or [])  # type: ignore[attr-defined]
 		default_states = {}
 
 		for object_id in object_ids:
 			for entry in default_property_objects:
 				default_states[object_id + entry.productId + entry.propertyId] = {
-					"values": entry.defaultValues,
+					"final_values": f"[green]{','.join(str(v).lower() for v in entry.defaultValues)}[/green]",
+					"default_values": entry.defaultValues,
+					"depot_values": "",
+					"client_values": "",
 					"origin": "default",
 					"productId": entry.productId,
 					"propertyId": entry.propertyId,
@@ -316,36 +352,39 @@ def list_product_property_state(object_ids: str, product_ids: str | None, proper
 	def update_default_states(
 		depot_ids: list[str],
 		object_ids: list[str],
-		product_id: str | None,
-		property_id: str | None,
+		product_id: list[str] | None,
+		property_id: list[str] | None,
 		default_states: dict[str, dict[str, str]],
 	) -> dict[str, dict[str, str]]:
 		depot_property_objects = service_connection.productPropertyState_getObjects(  # type: ignore[attr-defined]
 			objectId=depot_ids, productId=product_id or [], propertyId=property_id or []
 		)
+
 		for object_id in object_ids:
 			for entry in depot_property_objects:
 				key = object_id + entry.productId + entry.propertyId
-				if key in default_states and default_states[key]["values"] != entry.values:
-					default_states[key]["values"] = entry.values
-					default_states[key]["origin"] = "[yellow]server[/yellow]"
+				default_states[key]["depot_values"] = entry.values
+				if default_states[key]["default_values"] != entry.values:
+					default_states[key]["final_values"] = f"[green]{','.join(str(v).lower() for v in entry.values)}[/green]"
+				default_states[key]["origin"] = "[yellow]depot[/yellow]"
 
 		return default_states
 
 	def update_depot_states(
 		object_ids: list[str],
-		product_id: str | None,
-		property_id: str | None,
+		product_ids: list[str] | None,
+		property_ids: list[str] | None,
 		depot_states: dict[str, dict[str, str]],
 	) -> dict[str, dict[str, str]]:
 		client_property_objects = service_connection.productPropertyState_getObjects(  # type: ignore[attr-defined]
-			objectId=object_ids, productId=product_id or [], propertyId=property_id or []
+			objectId=object_ids, productId=product_ids or [], propertyId=property_ids or []
 		)
 		for entry in client_property_objects:
 			key = entry.objectId + entry.productId + entry.propertyId
-			if key in depot_states and depot_states[key]["values"] != entry.values:
-				depot_states[key]["values"] = entry.values
-				depot_states[key]["origin"] = "[blue]client[/blue]"
+			depot_states[key]["client_values"] = entry.values
+			if depot_states[key]["depot_values"] != entry.values:
+				depot_states[key]["final_values"] = f"[green]{','.join(str(v).lower() for v in entry.values)}[/green]"
+			depot_states[key]["origin"] = "[blue]client[/blue]"
 		return depot_states
 
 	service_connection = get_service_connection()
@@ -373,7 +412,22 @@ def list_product_property_state(object_ids: str, product_ids: str | None, proper
 				Attribute(id="objectId", description="The ID of the object.", identifier=False, data_type="str", selected=True),
 				Attribute(id="productId", description="The ID of the product.", identifier=False, data_type="str", selected=True),
 				Attribute(id="propertyId", description="The ID of the property.", identifier=False, data_type="str", selected=True),
-				Attribute(id="values", description="Values of given property.", identifier=False, data_type="str | Boolean", selected=True),
+				Attribute(
+					id="default_values",
+					description="Values of given property.",
+					identifier=False,
+					data_type="str | Boolean",
+					selected=False,
+				),
+				Attribute(
+					id="depot_values", description="Values of given property.", identifier=False, data_type="str | Boolean", selected=False
+				),
+				Attribute(
+					id="client_values", description="Values of given property.", identifier=False, data_type="str | Boolean", selected=False
+				),
+				Attribute(
+					id="final_values", description="Values of given property.", identifier=False, data_type="str | Boolean", selected=True
+				),
 				Attribute(id="origin", description="Location where the change was made.", identifier=False, data_type="str", selected=True),
 			]
 		),
