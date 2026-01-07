@@ -69,6 +69,8 @@ class Attribute:
 	identifier: bool = False
 	selected: bool = True
 	data_type: str | None = None
+	column_style: str | None = None
+	value_style: dict[str, str] | None = None
 
 	def as_dict(self) -> dict[str, str | bool]:
 		return asdict(self)
@@ -272,7 +274,7 @@ def prompt(
 	)
 
 
-def write_output_table(data: Any, metadata: Metadata) -> None:
+def write_output_table(data: Any, metadata: Metadata, value_styles: dict[str, str] | None = None) -> None:
 	def to_string(value: Any) -> str:
 		if value is None:
 			return ""
@@ -280,6 +282,10 @@ def write_output_table(data: Any, metadata: Metadata) -> None:
 			return "true" if value else "false"
 		if isinstance(value, (list, tuple)):
 			return ", ".join([to_string(v) for v in value])
+		if value_styles:
+			style = value_styles.get(value)
+			if style:
+				return f"[{style}]{value}[/{style}]"
 		if inspect.isclass(value):
 			return value.__name__
 		return str(value)
@@ -289,7 +295,7 @@ def write_output_table(data: Any, metadata: Metadata) -> None:
 	row_ids = []
 	for attribute in metadata.attributes:
 		if attributes == ["all"] or attribute.id in attributes or (not attributes and attribute.selected):
-			style = "cyan" if attribute.identifier else None
+			style = "cyan" if attribute.identifier else attribute.column_style
 			no_wrap = bool(attribute.identifier)
 			table.add_column(header=attribute.id, style=style, no_wrap=no_wrap)
 			row_ids.append(attribute.id)
@@ -377,7 +383,11 @@ def write_output_msgpack(data: Any, metadata: Metadata | None = None) -> None:
 
 
 def write_output(
-	data: Any, metadata: Metadata | None = None, default_output_format: str | None = None, force_newline: bool = False
+	data: Any,
+	metadata: Metadata | None = None,
+	default_output_format: str | None = None,
+	value_styles: dict[str, str] | None = None,
+	force_newline: bool = False,
 ) -> None:
 	if output_file_is_stdout() and config.quiet:
 		logger.debug("Quiet mode enabled, skipping output")
@@ -412,7 +422,7 @@ def write_output(
 
 	if output_format in ("table"):
 		assert metadata
-		write_output_table(data, metadata)
+		write_output_table(data, metadata, value_styles)
 	elif output_format == "csv":
 		assert metadata
 		write_output_csv(data, metadata)
