@@ -385,8 +385,8 @@ def write_output_msgpack(data: Any, metadata: Metadata | None = None) -> None:
 def write_output(
 	data: Any,
 	metadata: Metadata | None = None,
-	value_styles: dict[str, str] | None = None,
 	default_output_format: str | None = None,
+	value_styles: dict[str, str] | None = None,
 	force_newline: bool = False,
 ) -> None:
 	if output_file_is_stdout() and config.quiet:
@@ -592,4 +592,4 @@ def list_attributes(data: Metadata) -> None:
 	attributes_list = [
 		{"id": attribute.id, "type": attribute.data_type} for attribute in data.attributes if attribute.selected is not False
 	]
-	write_output(attributes_list, None, default_output_format="table")
+	write_output(attributes_list, None, "table")
