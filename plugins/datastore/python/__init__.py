@@ -17,7 +17,7 @@ from opsicommon.types import forceBool
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_handling
-from opsicli.io import Attribute, Metadata, console_print, write_output
+from opsicli.io import Attribute, Metadata, console_print, write_output_table
 from opsicli.opsiservice import ServiceClient, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 
@@ -57,7 +57,7 @@ def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 	logger.trace("datastore command group")
 
 
-# =============================================CONFIG-STATE=================================================
+# =============================================CONFIG-STATE==================================================
 @cli.group(name="config-state", short_help="Change config state(s)")
 def config_state() -> None:
 	"""
@@ -66,7 +66,7 @@ def config_state() -> None:
 	pass
 
 
-# ===========================================CONFIG-STATE LIST===============================================
+# ===========================================CONFIG-STATE LIST================================================
 @config_state.command(name="list", short_help="List all config states or get a filtered list. ")
 @click.option(
 	"--object-ids", type=str, required=True, help="Filter data with object_id(s). Use ',' as a separator. Wildcard * is possible."
@@ -75,6 +75,14 @@ def config_state() -> None:
 def list_config_state(object_ids: str, config_ids: str | None) -> None:
 	"""
 	opsi-cli datastore config-state list subcommand.
+
+	# Head
+	`ls -la /var/lib`
+
+	## H2
+	- test
+	- test2
+
 	"""
 
 	def get_default_config_states(object_ids: list[str], config_ids: list[str] | None) -> dict[str, dict[str, str]]:
@@ -84,7 +92,7 @@ def list_config_state(object_ids: str, config_ids: str | None) -> None:
 		for object_id in object_ids:
 			for entry in default_config_objects:
 				default_states[object_id + entry.id] = {
-					"final_values": f"[green]{','.join(str(v).lower() for v in entry.defaultValues)}[/green]",
+					"final_values": entry.defaultValues,
 					"default_values": entry.defaultValues,
 					"depot_values": "",
 					"client_values": "",
@@ -107,9 +115,9 @@ def list_config_state(object_ids: str, config_ids: str | None) -> None:
 			for entry in depot_config_state_objects:
 				key = object_id + entry.configId
 				default_states[key]["depot_values"] = entry.values
-				default_states[key]["origin"] = "[yellow]depot[/yellow]"
+				default_states[key]["origin"] = "depot"
 				if default_states[key]["default_values"] != entry.values:
-					default_states[key]["final_values"] = f"[green]{','.join(str(v).lower() for v in entry.values)}[/green]"
+					default_states[key]["final_values"] = entry.values
 
 		return default_states
 
@@ -125,9 +133,9 @@ def list_config_state(object_ids: str, config_ids: str | None) -> None:
 		for entry in client_config_state_objects:
 			key = entry.objectId + entry.configId
 			depot_states[key]["client_values"] = entry.values
-			depot_states[key]["origin"] = "[blue]client[/blue]"
+			depot_states[key]["origin"] = "client"
 			if key in depot_states:
-				depot_states[key]["final_values"] = f"[green]{','.join(str(v).lower() for v in entry.values)}[/green]"
+				depot_states[key]["final_values"] = entry.values
 
 		return depot_states
 
@@ -148,7 +156,7 @@ def list_config_state(object_ids: str, config_ids: str | None) -> None:
 	depot_states = update_default_states(final_depot_ids, final_object_ids, final_config_ids, default_states)
 	client_states = update_depot_states(final_object_ids, final_config_ids, depot_states)
 
-	write_output(
+	write_output_table(
 		list(client_states.values()),
 		Metadata(
 			attributes=[
@@ -181,6 +189,7 @@ def list_config_state(object_ids: str, config_ids: str | None) -> None:
 					identifier=False,
 					data_type="str | Boolean",
 					selected=True,
+					column_style="green",
 				),
 				Attribute(id="origin", description="Location where the change was made.", identifier=False, data_type="str", selected=True),
 			]
@@ -338,7 +347,7 @@ def list_product_property_state(object_ids: str, product_ids: str, property_ids:
 		for object_id in object_ids:
 			for entry in default_property_objects:
 				default_states[object_id + entry.productId + entry.propertyId] = {
-					"final_values": f"[green]{','.join(str(v).lower() for v in entry.defaultValues)}[/green]",
+					"final_values": entry.defaultValues,
 					"default_values": entry.defaultValues,
 					"depot_values": "",
 					"client_values": "",
@@ -365,8 +374,8 @@ def list_product_property_state(object_ids: str, product_ids: str, property_ids:
 				key = object_id + entry.productId + entry.propertyId
 				default_states[key]["depot_values"] = entry.values
 				if default_states[key]["default_values"] != entry.values:
-					default_states[key]["final_values"] = f"[green]{','.join(str(v).lower() for v in entry.values)}[/green]"
-				default_states[key]["origin"] = "[yellow]depot[/yellow]"
+					default_states[key]["final_values"] = entry.values
+				default_states[key]["origin"] = "depot"
 
 		return default_states
 
@@ -383,8 +392,8 @@ def list_product_property_state(object_ids: str, product_ids: str, property_ids:
 			key = entry.objectId + entry.productId + entry.propertyId
 			depot_states[key]["client_values"] = entry.values
 			if depot_states[key]["depot_values"] != entry.values:
-				depot_states[key]["final_values"] = f"[green]{','.join(str(v).lower() for v in entry.values)}[/green]"
-			depot_states[key]["origin"] = "[blue]client[/blue]"
+				depot_states[key]["final_values"] = entry.values
+			depot_states[key]["origin"] = "client"
 		return depot_states
 
 	service_connection = get_service_connection()
@@ -405,7 +414,7 @@ def list_product_property_state(object_ids: str, product_ids: str, property_ids:
 	depot_states = update_default_states(depot_ids, final_object_ids, final_product_ids, final_property_ids, default_states)
 	client_states = update_depot_states(final_object_ids, final_product_ids, final_property_ids, depot_states)
 
-	write_output(
+	write_output_table(
 		list(client_states.values()),
 		Metadata(
 			attributes=[
@@ -417,20 +426,32 @@ def list_product_property_state(object_ids: str, product_ids: str, property_ids:
 					description="Values of given property.",
 					identifier=False,
 					data_type="str | Boolean",
-					selected=False,
+					selected=True,
 				),
 				Attribute(
-					id="depot_values", description="Values of given property.", identifier=False, data_type="str | Boolean", selected=False
+					id="depot_values", description="Values of given property.", identifier=False, data_type="str | Boolean", selected=True
 				),
 				Attribute(
-					id="client_values", description="Values of given property.", identifier=False, data_type="str | Boolean", selected=False
+					id="client_values", description="Values of given property.", identifier=False, data_type="str | Boolean", selected=True
 				),
 				Attribute(
-					id="final_values", description="Values of given property.", identifier=False, data_type="str | Boolean", selected=True
+					id="final_values",
+					description="Values of given property.",
+					identifier=False,
+					data_type="str | Boolean",
+					selected=True,
+					column_style="green",
 				),
-				Attribute(id="origin", description="Location where the change was made.", identifier=False, data_type="str", selected=True),
+				Attribute(
+					id="origin",
+					description="Location where the change was made.",
+					identifier=False,
+					data_type="str",
+					selected=True,
+				),
 			]
 		),
+		value_styles={"depot": "yellow", "client": "blue"},
 	)
 
 
