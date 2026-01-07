@@ -217,9 +217,9 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		)
 		assert exit_code == 0
 		assert (
-			stdout_into_list(_stdout)[1][2] == "[green]false[/green]"
+			stdout_into_list(_stdout)[1][2] == "0"
 		)  # only second row is of interest, first row of stdout_list[0][i]=([clientId, configId, value, origin])
-		assert stdout_into_list(_stdout)[1][3] == "[yellow]depot[/yellow]"
+		assert stdout_into_list(_stdout)[1][3] == "depot"
 
 		admin_service_client.jsonrpc("configState_updateObjects", params=[CONFIGSTATE_2_DEPOT])  # type:ignore[attr-defined]
 		exit_code, _stdout, _stderr = run_cli(
@@ -237,9 +237,9 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		)
 		assert exit_code == 0
 		assert (
-			stdout_into_list(_stdout)[1][2] == "[green]true[/green]"
+			stdout_into_list(_stdout)[1][2] == "1"
 		)  # only second row is of interest, first row of stdout_list[0][i]=([clientId, configId, value, origin])
-		assert stdout_into_list(_stdout)[1][3] == "[yellow]depot[/yellow]"
+		assert stdout_into_list(_stdout)[1][3] == "depot"
 
 		# (CLIENT)
 		# test if the origin and changed value of a config is shown correctly
@@ -265,9 +265,9 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		)
 		assert exit_code == 0
 		assert (
-			stdout_into_list(_stdout)[1][2] == "[green]true[/green]"
+			stdout_into_list(_stdout)[1][2] == "1"
 		)  # only second row is of interest, first row of stdout_list[0][i]=([clientId, configId, value, origin])
-		assert stdout_into_list(_stdout)[1][3] == "[blue]client[/blue]"
+		assert stdout_into_list(_stdout)[1][3] == "client"
 
 		admin_service_client.jsonrpc("configState_updateObjects", params=[CONFIGSTATE_2_CLIENT_1])  # type:ignore[attr-defined]
 		exit_code, _stdout, _stderr = run_cli(
@@ -285,9 +285,9 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		)
 		assert exit_code == 0
 		assert (
-			stdout_into_list(_stdout)[1][2] == "[green]false[/green]"
+			stdout_into_list(_stdout)[1][2] == "0"
 		)  # only second row is of interest, first row of stdout_list[0][i]=([clientId, configId, value, origin])
-		assert stdout_into_list(_stdout)[1][3] == "[blue]client[/blue]"
+		assert stdout_into_list(_stdout)[1][3] == "client"
 
 		# test comma seperated objectId's and comma seperated objectId's with wildcards
 		exit_code, _stdout, _stderr = run_cli(

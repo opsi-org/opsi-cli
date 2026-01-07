@@ -17,7 +17,7 @@ from opsicommon.types import forceBool
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_handling
-from opsicli.io import Attribute, Metadata, console_print, write_output_table
+from opsicli.io import Attribute, Metadata, console_print, write_output
 from opsicli.opsiservice import ServiceClient, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 
@@ -156,7 +156,7 @@ def list_config_state(object_ids: str, config_ids: str | None) -> None:
 	depot_states = update_default_states(final_depot_ids, final_object_ids, final_config_ids, default_states)
 	client_states = update_depot_states(final_object_ids, final_config_ids, depot_states)
 
-	write_output_table(
+	write_output(
 		list(client_states.values()),
 		Metadata(
 			attributes=[
@@ -194,6 +194,7 @@ def list_config_state(object_ids: str, config_ids: str | None) -> None:
 				Attribute(id="origin", description="Location where the change was made.", identifier=False, data_type="str", selected=True),
 			]
 		),
+		value_styles={"depot": "yellow", "client": "blue"},
 	)
 
 
@@ -414,7 +415,7 @@ def list_product_property_state(object_ids: str, product_ids: str, property_ids:
 	depot_states = update_default_states(depot_ids, final_object_ids, final_product_ids, final_property_ids, default_states)
 	client_states = update_depot_states(final_object_ids, final_product_ids, final_property_ids, depot_states)
 
-	write_output_table(
+	write_output(
 		list(client_states.values()),
 		Metadata(
 			attributes=[
