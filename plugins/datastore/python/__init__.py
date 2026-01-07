@@ -72,7 +72,7 @@ def config_state() -> None:
 	"--object-ids", type=str, required=True, help="Filter data with object_id(s). Use ',' as a separator. Wildcard * is possible."
 )
 @click.option("--config-ids", type=str, required=True, help="Filter data with config_id. Wildcard * is possible.")
-def list_config_state(object_ids: str, config_ids: str | None) -> None:
+def list_config_state(object_ids: str, config_ids: str) -> None:
 	"""
 	opsi-cli datastore config-state list subcommand.
 
