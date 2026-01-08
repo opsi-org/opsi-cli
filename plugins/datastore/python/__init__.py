@@ -34,7 +34,8 @@ def get_object_ids(
 	object_ids: str,
 ) -> list[str]:
 	if object_ids == "all":
-		return service_connection.host_getIdents()  # type: ignore[attr-defined]
+		host_objects = service_connection.host_getObjects(id=[], type="OpsiClient")  # type: ignore[attr-defined]
+		return [obj.id for obj in host_objects]
 	else:
 		object_id_list = [item.strip() for item in object_ids.split(",")]
 		return service_connection.host_getIdents(id=object_id_list)  # type: ignore[attr-defined]
@@ -49,7 +50,7 @@ def create_client_depot_mapping(service_connection: ServiceClient, object_ids: l
 
 
 # =============================================DATASTORE====================================================
-@click.group(cls=OPSICLIGroup, name="datastore", short_help="Manage data and objects")
+@click.group(cls=OPSICLIGroup, name="datastore", short_help="Manage objects and data")
 @click.version_option(__version__, message="datastore plugin, version %(version)s")
 @click.pass_context
 @dry_run_handling(dry_run_capable=True)
@@ -58,23 +59,31 @@ def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 
 
 # =============================================CONFIG-STATE==================================================
-@cli.group(name="config-state", short_help="Change config state(s)")
+@cli.group(name="config-state", short_help="Configure config states.")
 def config_state() -> None:
 	"""
-	opsi-cli datastore config-state subcommand.
+	View and manage config states.
 	"""
 	pass
 
 
 # ===========================================CONFIG-STATE LIST================================================
-@config_state.command(name="list", short_help="List all config states or get a filtered list. ")
+@config_state.command(name="list", short_help="List all config states or apply filters to narrow the results.")
 @click.option(
-	"--object-ids", type=str, required=True, help="Filter data with object_id(s). Use ',' as a separator. Wildcard * is possible."
+	"--object-ids",
+	type=str,
+	required=True,
+	help="Filter by object ID(s). Use commas as separators and 'all' to include all IDs. Wildcards (*) are supported.",
 )
-@click.option("--config-ids", type=str, required=True, help="Filter data with config_id. Wildcard * is possible.")
+@click.option(
+	"--config-ids",
+	type=str,
+	required=True,
+	help="Filter by config ID(s). Use commas as separators and 'all' to include all IDs. Wildcards (*) are supported.",
+)
 def list_config_state(object_ids: str, config_ids: str) -> None:
 	"""
-	opsi-cli datastore config-state list subcommand.
+	View all configuration states or apply filters to narrow your search.
 	"""
 
 	def get_default_config_states(object_ids: list[str], config_ids: list[str] | None) -> dict[str, dict[str, str]]:
@@ -193,14 +202,14 @@ def list_config_state(object_ids: str, config_ids: str) -> None:
 # ========================================================CONFIG-STATE SET========================================================
 @config_state.command(
 	name="set",
-	short_help="Change a config state value. Create a config state if there is none. If 'all' is used as an objectId, the value will be set for all objects.",
+	short_help="Update an existing config state or create a new one if it doesn't exist. Using 'all' as the object ID will apply the value to all objects.",
 )
 @click.argument("config-id", type=str)
 @click.argument("object-id", type=str)
 @click.argument("values", type=str, nargs=-1)
 def set_config_state_value(config_id: str, object_id: str, values: tuple[str]) -> None:
 	"""
-	opsi-cli datastore config-state set subcommand.
+	Change values of config states.
 	"""
 
 	def set_bool_config(object_ids: list[str], config_id: str, value: str) -> None:
@@ -288,13 +297,7 @@ def set_config_state_value(config_id: str, object_id: str, values: tuple[str]) -
 
 	possible_values = config.possibleValues
 
-	object_ids: list[str]
-	# get all object_id's if object_id is 'all'
-	if object_id == "all":
-		host_objects = service_connection.host_getObjects(id=[], type="OpsiClient")  # type: ignore[attr-defined]
-		object_ids = [obj.id for obj in host_objects]
-	else:
-		object_ids = [object_id]
+	object_ids = get_object_ids(service_connection, object_id)
 
 	# set BoolConfig
 	if isinstance(config, BoolConfig):
@@ -310,26 +313,37 @@ def set_config_state_value(config_id: str, object_id: str, values: tuple[str]) -
 
 
 # ================================================PRODUCT-PROPERTY-STATE=====================================================
-@cli.group(name="product-property-state", short_help="Change product-property-states.")
+@cli.group(name="product-property-state", short_help="Configure product property states.")
 def product_property_state() -> None:
 	"""
-	opsi-cli datastore product-property-state subcommand.
+	View and manage product property states.
 	"""
 	pass
 
 
 # ==============================================PRODUCT-PROPERTY-STATE LIST===================================================
 @product_property_state.command(name="list", short_help="List all product property states or apply filters to narrow the results.")
-@click.option("--object-ids", type=str, required=True, help="Filter by object ID(s). Use ',' as a separator. Wildcards (*) are supported.")
 @click.option(
-	"--product-ids", type=str, required=True, help="Filter by product ID(s). Use ',' as a separator. Wildcards (*) are supported."
+	"--object-ids",
+	type=str,
+	required=True,
+	help="Filter by object ID(s). Use commas as separators and 'all' to include all IDs. Wildcards (*) are supported.",
 )
 @click.option(
-	"--property-ids", type=str, default="all", help="Filter by property ID(s). Use ',' as a separator. Wildcards (*) are supported."
+	"--product-ids",
+	type=str,
+	required=True,
+	help="Filter by product ID(s). Use commas as separators and 'all' to include all IDs. Wildcards (*) are supported.",
+)
+@click.option(
+	"--property-ids",
+	type=str,
+	default="all",
+	help="Filter by property ID(s). Use commas as separators and 'all' to include all IDs. Wildcards (*) are supported.",
 )
 def list_product_property_state(object_ids: str, product_ids: str, property_ids: str) -> None:
 	"""
-	opsi-cli datastore product-property-state list subcommand.
+	View all product property states or apply filters to narrow your search.
 	"""
 
 	def get_default_property_states(
@@ -400,10 +414,6 @@ def list_product_property_state(object_ids: str, product_ids: str, property_ids:
 	client_depot_map = create_client_depot_mapping(service_connection, final_object_ids)
 	depot_ids = list({depot for depot in client_depot_map.values()})
 
-	# remove depot_ids from final_object_ids if object_ids == "all" were given (e.g. object_ids contains all object_ids and depot_ids)
-	if object_ids == "all":
-		final_object_ids = [id for id in final_object_ids if id not in depot_ids]
-
 	default_states = get_default_property_states(final_object_ids, final_product_ids, final_property_ids)
 	depot_states = update_default_states(depot_ids, final_object_ids, final_product_ids, final_property_ids, default_states)
 	client_states = update_depot_states(final_object_ids, final_product_ids, final_property_ids, depot_states)
@@ -420,13 +430,13 @@ def list_product_property_state(object_ids: str, product_ids: str, property_ids:
 					description="Values of given property.",
 					identifier=False,
 					data_type="str | Boolean",
-					selected=True,
+					selected=False,
 				),
 				Attribute(
-					id="depot_values", description="Values of given property.", identifier=False, data_type="str | Boolean", selected=True
+					id="depot_values", description="Values of given property.", identifier=False, data_type="str | Boolean", selected=False
 				),
 				Attribute(
-					id="client_values", description="Values of given property.", identifier=False, data_type="str | Boolean", selected=True
+					id="client_values", description="Values of given property.", identifier=False, data_type="str | Boolean", selected=False
 				),
 				Attribute(
 					id="final_values",
@@ -450,10 +460,10 @@ def list_product_property_state(object_ids: str, product_ids: str, property_ids:
 
 
 # ====================================================PRODUCT========================================================
-@cli.group(name="product", short_help="Configure products")
+@cli.group(name="product", short_help="Configure products.")
 def product() -> None:
 	"""
-	opsi-cli dawtastore config-state subcommand.
+	Configure products.
 	"""
 	pass
 
@@ -461,7 +471,12 @@ def product() -> None:
 # ================================================PRODUCT UNLOCK=====================================================
 @product.command(name="unlock", short_help="Unlock product(s) on depot(s).")
 @click.argument("product-id", type=str, nargs=-1)
-@click.option("--depot-id", type=str, default=None, help="Choose the depot-id(s) where products should be unlocked. Comma seperated list.")
+@click.option(
+	"--depot-id",
+	type=str,
+	default=None,
+	help="Specify the target depot ID(s) for product unlocking. Use a comma-separated list for multiple entries.",
+)
 def unlock_product(product_id: tuple[str], depot_id: str | None = None) -> None:
 	# help function, get products, unlock them, update them
 	def unlock_and_update(product_id: list[str], depot_id: list[str]) -> None:
