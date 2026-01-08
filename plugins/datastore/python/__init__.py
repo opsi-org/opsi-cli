@@ -431,13 +431,13 @@ def list_product_property_state(object_ids: str, product_ids: str, property_ids:
 					description="Values of given property.",
 					identifier=False,
 					data_type="str | Boolean",
-					selected=True,
+					selected=False,
 				),
 				Attribute(
-					id="depot_values", description="Values of given property.", identifier=False, data_type="str | Boolean", selected=True
+					id="depot_values", description="Values of given property.", identifier=False, data_type="str | Boolean", selected=False
 				),
 				Attribute(
-					id="client_values", description="Values of given property.", identifier=False, data_type="str | Boolean", selected=True
+					id="client_values", description="Values of given property.", identifier=False, data_type="str | Boolean", selected=False
 				),
 				Attribute(
 					id="final_values",
