@@ -203,7 +203,7 @@ def list_config_state(object_ids: str, config_ids: str) -> None:
 # ========================================================CONFIG-STATE SET========================================================
 @config_state.command(
 	name="set",
-	short_help="Update an existing config state or create one if it doesn't exist.",
+	short_help="Update an existing config state or create a new one if it doesn't exist. Using 'all' as the object ID will apply the value to all objects.",
 )
 @click.argument("config-id", type=str)
 @click.argument("object-id", type=str)
