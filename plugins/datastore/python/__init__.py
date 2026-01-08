@@ -75,14 +75,6 @@ def config_state() -> None:
 def list_config_state(object_ids: str, config_ids: str) -> None:
 	"""
 	opsi-cli datastore config-state list subcommand.
-
-	# Head
-	`ls -la /var/lib`
-
-	## H2
-	- test
-	- test2
-
 	"""
 
 	def get_default_config_states(object_ids: list[str], config_ids: list[str] | None) -> dict[str, dict[str, str]]:
