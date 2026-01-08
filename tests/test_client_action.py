@@ -10,7 +10,6 @@ test_client_action
 import contextlib
 import json
 import re
-import sys
 from pathlib import Path
 from typing import Any, Literal
 from unittest.mock import patch
@@ -19,10 +18,9 @@ import pytest
 from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.objects import NetbootProduct, ProductOnClient
 
-from .utils import run_cli, tmp_client, tmp_host_group, tmp_product, tmp_product_group
+from plugins.client_action.python.client_action_worker import ClientActionArgs
 
-sys.path.append(str(Path("./plugins/client-action").resolve()))
-from python.client_action_worker import ClientActionArgs  # type: ignore[import-not-found]
+from .utils import run_cli, tmp_client, tmp_host_group, tmp_product, tmp_product_group
 
 CLIENT1 = "pytest-client1.test.tld"
 CLIENT2 = "pytest-client2.test.tld"
