@@ -84,7 +84,6 @@ def config_state() -> None:
 def list_config_state(object_ids: str, config_ids: str) -> None:
 	"""
 	View all configuration states or apply filters to narrow your search.
-
 	"""
 
 	def get_default_config_states(object_ids: list[str], config_ids: list[str] | None) -> dict[str, dict[str, str]]:
