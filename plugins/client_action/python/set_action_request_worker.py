@@ -16,6 +16,7 @@ from typing import Iterable, Literal
 from opsicommon.logging import get_logger
 from opsicommon.objects import Product, ProductGroup, ProductOnClient, ProductOnDepot
 from opsicommon.types import forceActionProgress, forceActionRequest, forceActionResult, forceInstallationStatus
+from opsicommon.utils import timestamp
 from rich.text import Text
 
 from opsicli.config import config
@@ -224,6 +225,7 @@ class SetActionRequestWorker(ClientActionWorker):
 
 		# Remark: action_request="none" instead of None for compatibility with file backend
 		product_on_client.actionRequest = action_request
+		product_on_client.modificationTime = timestamp()
 
 		return [product_on_client]
 
@@ -263,6 +265,7 @@ class SetActionRequestWorker(ClientActionWorker):
 					clientId=client_id,
 					installationStatus="not_installed",
 					actionRequest=None,
+					modificationTime=timestamp(),
 				)
 				new_pocs.extend(
 					self.set_single_action_request(

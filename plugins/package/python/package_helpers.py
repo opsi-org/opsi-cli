@@ -28,6 +28,7 @@ from opsicommon.package import OpsiPackage
 from opsicommon.package.archive import extract_archive
 from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
 from opsicommon.types import forceHostIdList
+from opsicommon.utils import timestamp
 
 from opsicli.io import Attribute, Metadata, OutputType, console_print, get_progress, prompt, write_output
 from opsicli.opsiservice import get_depot_connection
@@ -581,6 +582,7 @@ def set_action_request(
 	else:
 		for poc in product_on_clients:
 			poc.actionRequest = action_request
+			poc.modificationTime = timestamp()
 		service_client.jsonrpc("productOnClient_updateObjects", [product_on_clients])
 
 
