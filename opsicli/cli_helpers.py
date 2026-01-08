@@ -130,7 +130,9 @@ def _format_help(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -
 
 
 def _get_usage(ctx: click.Context) -> str:
-	orig_usage = ctx.command.get_usage(ctx)
+	cls = type(ctx.command)
+	assert issubclass(cls, click.Command)
+	orig_usage = super(cls, ctx.command).get_usage(ctx)
 	match = re.match(r"(Usage:\s*)(.*)", orig_usage)
 	if not match:
 		return orig_usage
