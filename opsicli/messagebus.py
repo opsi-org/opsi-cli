@@ -20,7 +20,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from threading import Event, Lock
 from types import FrameType
-from typing import Any, Callable, Generator, Literal, cast
+from typing import Any, Callable, Generator, Literal
 from uuid import uuid4
 
 from opsicommon.client.opsiservice import MessagebusListener
@@ -300,7 +300,7 @@ class MessagebusProcess:
 				if idx != -1:
 					self.write_function(
 						data=buffer[: idx + 1],
-						stream=cast(Literal["stdout", "stderr"], stream),
+						stream=stream,
 						data_encoding=self.locale_encoding,
 						host_name=self.host_name,
 						prefix_color=self.prefix_color,

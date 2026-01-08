@@ -227,8 +227,8 @@ class ConfigItem:
 	def get_values(self, value_only: bool = True, sources: list[ConfigValueSource] | None = None) -> list[Any]:
 		values = [
 			val.value if value_only else val
-			for val in (self._value if self.multiple else [self._value])  # type: ignore[union-attr,list-item] # _value can be List or Scalar
-			if val and (not sources or val.source in sources)
+			for val in (self._value if self.multiple else [self._value])  # type: ignore[not-iterable]
+			if isinstance(val, ConfigValue) and (not sources or val.source in sources)
 		]
 		return values
 
@@ -581,7 +581,7 @@ class Config(metaclass=Singleton):
 		}
 		_args = [str(long_option)] + ([str(kwargs.pop("short_option"))] if "short_option" in kwargs else [])
 		_kwargs.update(kwargs)
-		return click.option(*_args, **_kwargs)
+		return click.option(*_args, **_kwargs)  # type: ignore[invalid-argument-type]
 
 	def process_option(self, ctx: click.Context, param: click.Option, value: Any) -> None:
 		if param.name is None:

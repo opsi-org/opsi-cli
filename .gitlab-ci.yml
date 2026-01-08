@@ -115,10 +115,8 @@ lint-pytest:
     - export UV_PYTHON_PREFERENCE="only-managed"
     - uv self update
     - uv sync --frozen
-    - uv run ruff check opsicli tests
-    - uv run mypy opsicli tests
-    - rm -rf .mypy_cache
-    - "for plugindir in $(find plugins/*/python/*.py | cut -d'/' -f1-2  | sort | uniq); do echo $plugindir; uv run mypy --explicit-package-bases $plugindir; done"
+    - uv run ruff check opsicli plugins tests
+    - uv run ty check opsicli plugins tests
     # Convert file.path to a relative path in coverage databases
     - for db in coverage_*; do sqlite3 $db 'update file set path=replace(substr(path,instr(path,"opsicli")),"\","/");'; done
     - for db in coverage_*; do sqlite3 $db 'update file set path=replace(substr(path,instr(path,"plugins")),"\","/");'; done

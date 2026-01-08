@@ -39,6 +39,8 @@ else:
 	import click  # type: ignore[no-redef]
 
 if not COMPLETION_MODE:
+	assert hasattr(click, "rich_click")
+
 	click.rich_click.USE_RICH_MARKUP = True
 	click.rich_click.MAX_WIDTH = 140
 
@@ -128,7 +130,7 @@ class OpsiCLI(click.MultiCommand):  # type: ignore
 
 	def list_commands(self, ctx: click.Context) -> list[str]:
 		logger.debug("list_commands")
-		return sorted(plugin_manager.plugins)
+		return sorted(p.replace("_", "-") for p in plugin_manager.plugins)
 
 	def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command:
 		logger.debug("get_command %r", cmd_name)
@@ -203,4 +205,4 @@ def main(*args: str, **kwargs: str) -> None:
 	prepare_cli_paths()
 	if config.quiet:
 		logger.debug("Quiet mode enabled, disabling print")
-		builtins.print = quiet_print
+		builtins.print = quiet_print  # type: ignore[invalid-assignment]

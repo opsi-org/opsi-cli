@@ -36,12 +36,12 @@ class LogLevel(int):
 		[f"[metavar]{name}[/metavar]/[metavar]{LEVEL_TO_OPSI_LEVEL[NAME_TO_LEVEL[name.upper()]]}[/metavar]" for name in possible_values]
 	)
 
-	def __new__(cls, value: Any) -> LogLevel:
+	def __new__(cls, value: str | int) -> LogLevel:
 		try:
 			value = min(9, max(0, int(value)))
 		except ValueError:
 			try:
-				value = LEVEL_TO_OPSI_LEVEL[NAME_TO_LEVEL[value.upper()]]
+				value = LEVEL_TO_OPSI_LEVEL[NAME_TO_LEVEL[str(value).upper()]]
 			except KeyError:
 				raise ValueError(f"{value!r} is not a valid log level, choose one of: {cls.possible_values_for_description}") from None
 		return super().__new__(cls, value)

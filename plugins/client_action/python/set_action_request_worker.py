@@ -75,7 +75,7 @@ class SetActionRequestArgs:
 
 	def __post_init__(self) -> None:
 		if self.set_action_request is not None:
-			self.set_action_request = forceActionRequest(self.set_action_request or "none")
+			self.set_action_request = forceActionRequest(self.set_action_request or "none") or "none"
 		if self.set_action_progress is not None:
 			self.set_action_progress = forceActionProgress(self.set_action_progress)
 		if self.set_action_result is not None:

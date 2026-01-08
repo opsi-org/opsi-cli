@@ -119,7 +119,7 @@ def _format_help(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -
 				),
 			)
 
-		rich_click.get_rich_usage = _custom_get_rich_usage
+		rich_click.get_rich_usage = _custom_get_rich_usage  # type: ignore[invalid-assignment]
 		rich_format_help(obj, ctx, formatter)
 
 	else:
@@ -130,8 +130,7 @@ def _format_help(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -
 
 
 def _get_usage(ctx: click.Context) -> str:
-	orig_usage = super(type(ctx.command), ctx.command).get_usage(ctx)
-
+	orig_usage = ctx.command.get_usage(ctx)
 	match = re.match(r"(Usage:\s*)(.*)", orig_usage)
 	if not match:
 		return orig_usage

@@ -206,7 +206,7 @@ def list_config_state(object_ids: str, config_ids: str) -> None:
 @click.argument("config-id", type=str)
 @click.argument("object-id", type=str)
 @click.argument("values", type=str, nargs=-1)
-def set_config_state_value(config_id: str, object_id: str | None, values: tuple[str]) -> None:
+def set_config_state_value(config_id: str, object_id: str, values: tuple[str]) -> None:
 	"""
 	opsi-cli datastore config-state set subcommand.
 	"""
@@ -296,6 +296,7 @@ def set_config_state_value(config_id: str, object_id: str | None, values: tuple[
 
 	possible_values = config.possibleValues
 
+	object_ids: list[str]
 	# get all object_id's if object_id is 'all'
 	if object_id == "all":
 		host_objects = service_connection.host_getObjects(id=[], type="OpsiClient")  # type: ignore[attr-defined]

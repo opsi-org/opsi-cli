@@ -33,7 +33,7 @@ pyinstaller:
     - --exclude-module=tkinter
     - --exclude-module=pytest
     - --exclude-module=ruff
-    - --exclude-module=mypy
+    - --exclude-module=ty
   scripts:
     - script: run-opsicli
       binaries:

@@ -35,7 +35,6 @@ email = "info@uib.de"
 
 [dependency-groups]
 dev = [
-	"mypy>=1.4",
 	"pyinstaller>=6.0",
 	"pytest>=8.0",
 	"pytest-cov>=5.0",
@@ -59,13 +58,6 @@ package = true
 
 [tool.ruff]
 line-length = 140
-
-[tool.mypy]
-disallow_untyped_calls = true
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-follow_imports = "silent"
-incremental = false
 
 [tool.ruff.format]
 indent-style = "tab"

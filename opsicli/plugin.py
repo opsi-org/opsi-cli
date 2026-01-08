@@ -69,7 +69,7 @@ class PluginImporter(BuiltinImporter):
 		logger.debug("Searching spec for %s", init_path)
 		if not os.path.exists(init_path):
 			return None
-		return importlib.util.spec_from_file_location(fullname, init_path)
+		return importlib.util.spec_from_file_location(fullname, init_path)  # type: ignore[possibly-missing-attribute]
 
 
 sys.meta_path.append(PluginImporter)  # type: ignore[arg-type]
@@ -121,6 +121,7 @@ class PluginManager(metaclass=Singleton):
 		return importlib.import_module(self.module_name(plugin_dir))
 
 	def get_plugin_dir(self, name: str) -> Path:
+		name = name.replace("-", "_")
 		for plugin_base_dir in (config.plugin_bundle_dir, config.plugin_system_dir, config.plugin_user_dir):
 			if not plugin_base_dir:
 				continue

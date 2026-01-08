@@ -1,9 +1,9 @@
 {
 	"recommendations": [
 		"ms-python.python",
-		"ryanluker.vscode-coverage-gutters",
-		"streetsidesoftware.code-spell-checker",
 		"charliermarsh.ruff",
-		"astral-sh.ty"
+		"astral-sh.ty",
+		"ryanluker.vscode-coverage-gutters",
+		"streetsidesoftware.code-spell-checker"
 	]
 }
