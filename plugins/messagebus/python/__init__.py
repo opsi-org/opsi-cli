@@ -133,7 +133,8 @@ class EventMessagebusConnection(MessagebusConnection):
 		try:
 			with self.connection():
 				self.subscribe_to_channel([f"event:{evt}" for evt in self.event_types])
-				self.event_found_event.wait(timeout)
+				if not self.event_found_event.wait(timeout):
+					raise TimeoutError("Timeout waiting for event")
 				return self.result
 		finally:
 			self.result = []
@@ -358,10 +359,13 @@ def wait_for_event(type: str, data: list[str], timeout: float | None) -> None:
 	"""
 	mbus_connection = EventMessagebusConnection()
 	data_list: list[dict[str, Any]] = [{kv[0].strip(): kv[1].strip() for kv in [dat.split("=", 1) for dat in data or []]}]
-	result = mbus_connection.wait_for_event(type=type, data_any=data_list, timeout=timeout)
-	if not result:
-		logger.error("Something went wrong - no matching event received")
-		raise RuntimeError("No matching event received")
+	try:
+		result = mbus_connection.wait_for_event(type=type, data_any=data_list, timeout=timeout)
+	except TimeoutError:
+		msg = f"Timed out after waiting {timeout:0.1f} seconds for the event"
+		logger.error(msg)
+		raise RuntimeError(msg) from None
+
 	write_output(result[0].data, default_output_format="pretty-json")
 
 
@@ -374,10 +378,12 @@ def wait_for_host(hostname: str, timeout: float | None) -> None:
 	"""
 	mbus_connection = EventMessagebusConnection()
 	data = {"host": {"type": "OpsiClient", "id": hostname}}
-	result = mbus_connection.wait_for_event(type="host_connected", data_any=[data], timeout=timeout)
-	if not result:
-		logger.error("Something went wrong - no matching event received")
-		raise RuntimeError("No matching event received")
+	try:
+		result = mbus_connection.wait_for_event(type="host_connected", data_any=[data], timeout=timeout)
+	except TimeoutError:
+		msg = f"Timed out after waiting {timeout:0.1f} seconds for the host to connect"
+		logger.error(msg)
+		raise RuntimeError(msg) from None
 
 	write_output(result[0].data, default_output_format="pretty-json")
 
@@ -400,10 +406,12 @@ def wait_for_installation(client: str, products: str, installation_status: str, 
 		for product in products
 	]
 
-	result = mbus_connection.wait_for_event(type="productOnClient_updated", data_any=data_any, data_all=data_all, timeout=timeout)
-	if not result:
-		logger.error("Something went wrong - no matching event received")
-		raise RuntimeError("No matching event received")
+	try:
+		result = mbus_connection.wait_for_event(type="productOnClient_updated", data_any=data_any, data_all=data_all, timeout=timeout)
+	except TimeoutError:
+		msg = f"Timed out after waiting {timeout:0.1f} seconds for installation events"
+		logger.error(msg)
+		raise RuntimeError(msg) from None
 
 	for entry in result:
 		write_output(entry.data, default_output_format="pretty-json")

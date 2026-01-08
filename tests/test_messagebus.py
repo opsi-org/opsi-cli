@@ -141,14 +141,18 @@ def test_wait_for_event(with_data: bool) -> None:
 		cmd = ["messagebus", "wait-for-event", "host_created", "--timeout", "10"]
 		if with_data:
 			cmd += ["--data", f"id={cid}"]
-		exit_code, _stdout, _stderr = run_cli(cmd)
+		exit_code, stdout, stderr = run_cli(cmd)
 		cht.join()
 		if with_data and cid != client_id:
-			# timeout reached
+			# Timeout reached
 			assert exit_code == 1
+			assert "Timed out after waiting 10.0 seconds for the event" in stderr
 		else:
 			# 'host_created' event found
 			assert exit_code == 0
+			data = json.loads(stdout)
+			assert data["type"] == "OpsiClient"
+			assert data["id"] == client_id
 
 
 @pytest.mark.opsi_service
