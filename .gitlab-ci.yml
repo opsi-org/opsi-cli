@@ -125,7 +125,7 @@ lint-pytest:
     - uv run coverage combine coverage_*
     - uv run coverage xml
     - uv run coverage report
-    - uv run opsi-dev-tool -l info --testreport-merge testreport_*.xml testreport.xml
+    - opsi-dev-cli -l info testing merge-junit-testreports testreport_*.xml testreport.xml
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
   artifacts:
     name: "opsi-cli_test"
