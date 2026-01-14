@@ -1,3 +1,4 @@
+import importlib
 import os
 import re
 from typing import Any, Optional
@@ -6,7 +7,7 @@ from rich.panel import Panel
 from rich.text import Text
 
 from opsicli.config import config
-from opsicli.io import OutputType, console_print, get_console
+from opsicli.io import OutputType, console_print, get_console, list_attributes
 
 COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE" in os.environ
 
@@ -159,6 +160,23 @@ def _get_usage(ctx: click.Context) -> str:
 
 
 class OPSICLICommand(click.Command):
+	def invoke(self, ctx: click.Context) -> Any:
+		if config.list_attributes:
+			command_parts = ctx.command_path.split()
+			plugin_name = command_parts[1]
+			command_sequence = "_".join(command_parts[1:])
+			module = importlib.import_module(f"plugins.{plugin_name}.data.metadata")
+			command_metadata = getattr(module, "command_metadata")
+			metadata = command_metadata.get(command_sequence)
+			if metadata:
+				list_attributes(metadata)
+				ctx.exit()
+			else:
+				console_print("[red]Warning: This command does not support the option --list-attributes.[/red]")
+				ctx.exit()
+
+		return super().invoke(ctx)
+
 	def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
 		_format_help(self, ctx, formatter)
 
