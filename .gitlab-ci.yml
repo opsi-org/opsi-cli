@@ -109,23 +109,16 @@ lint-pytest:
     - job: pytest-linux
       artifacts: true
   script:
-    - apt-get update
-    - apt-get --yes --allow-downgrades install libsqlite3-0=3.16.2-5+deb9u1
-    - apt-get --yes install sqlite3
     - export UV_PYTHON="3.13-x86_64"
     - export UV_PYTHON_PREFERENCE="only-managed"
     - uv self update
     - uv sync --frozen
     - uv run ruff check opsicli plugins tests
     - uv run ty check opsicli plugins tests
-    # Convert file.path to a relative path in coverage databases
-    - for db in coverage_*; do sqlite3 $db 'update file set path=replace(substr(path,instr(path,"opsicli")),"\","/");'; done
-    - for db in coverage_*; do sqlite3 $db 'update file set path=replace(substr(path,instr(path,"plugins")),"\","/");'; done
-    - echo -e '[run]\nrelative_files = True\n' > .coveragerc
-    - uv run coverage combine coverage_*
+    - opsi-dev-cli -l info testing merge-junit-testreports testreport_*.xml testreport.xml
+    - opsi-dev-cli -l info testing merge-coverage-files coverage_* .coverage
     - uv run coverage xml
     - uv run coverage report
-    - opsi-dev-cli -l info testing merge-junit-testreports testreport_*.xml testreport.xml
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
   artifacts:
     name: "opsi-cli_test"
