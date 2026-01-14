@@ -118,8 +118,7 @@ lint-pytest:
     - opsi-dev-cli self upgrade
     - opsi-dev-cli -l info testing merge-junit-testreports testreport_*.xml testreport.xml
     - opsi-dev-cli -l info testing merge-coverage-files coverage_* .coverage
-    - uv run coverage xml
-    - uv run coverage report
+    - opsi-dev-cli -l info testing coverage-report
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
   artifacts:
     name: "opsi-cli_test"
