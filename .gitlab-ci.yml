@@ -115,6 +115,7 @@ lint-pytest:
     - uv sync --frozen
     - uv run ruff check opsicli plugins tests
     - uv run ty check opsicli plugins tests
+    - opsi-dev-cli self upgrade
     - opsi-dev-cli -l info testing merge-junit-testreports testreport_*.xml testreport.xml
     - opsi-dev-cli -l info testing merge-coverage-files coverage_* .coverage
     - uv run coverage xml
