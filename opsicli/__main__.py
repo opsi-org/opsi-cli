@@ -89,6 +89,8 @@ class OpsiCLI(click.MultiCommand):  # type: ignore
 			# Avoid gigantic traceback for known errors
 			exc_type = type(err)
 			exc_info = not issubclass(exc_type, (OpsiCliRuntimeError, OpsiServiceConnectionError))
+			if not exc_info:
+				logger.debug(err, exc_info=True)
 			logger.error(err, exc_info=exc_info)
 
 			additional_info = ""
