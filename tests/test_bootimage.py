@@ -11,7 +11,7 @@ import json
 
 import pytest
 from opsicommon.client.opsiservice import ServiceClient
-from purecrypt import Crypt  # type: ignore[import]
+from purecrypt import Crypt
 
 from opsicli.utils import random_string
 

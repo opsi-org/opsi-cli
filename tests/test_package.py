@@ -941,6 +941,27 @@ def test_package_fetch(tmp_path: Path) -> None:
 	assert exit_code == 0
 
 
+def test_package_info() -> None:
+	exit_code, stdout, _stderr = run_cli(
+		[
+			"package",
+			"info",
+			str(TEST_DATA_PATH / "testdependency5_1.2-2.opsi"),
+			str(TEST_DATA_PATH / "opsi-client-agent_4.3.9.2-2.opsi"),
+		]
+	)
+	assert exit_code == 0
+	assert not _stderr
+
+	assert "package_filename: testdependency5_1.2-2.opsi" in stdout
+	assert "product_id: testdependency5" in stdout
+	assert "product_version: 1.2" in stdout
+
+	assert "package_filename: opsi-client-agent_4.3.9.2-2.opsi" in stdout
+	assert "product_id: opsi-client-agent" in stdout
+	assert "product_version: 4.3.9.2" in stdout
+
+
 @pytest.mark.parametrize("dry_run", (True, False))
 def test_meta_edit_add_product_dependency(tmp_path: Path, test_product_source: Path, dry_run: bool) -> None:
 	source_dir = test_product_source

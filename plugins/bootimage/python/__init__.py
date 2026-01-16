@@ -10,7 +10,7 @@ template for opsi-cli plugins
 import rich_click as click
 from opsicommon.logging import get_logger
 from opsicommon.objects import BoolConfig, Config, ConfigState, UnicodeConfig
-from purecrypt import Crypt, Method  # type: ignore[import-untyped]
+from purecrypt import Crypt, Method
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_handling
@@ -145,7 +145,7 @@ def set_boot_password(ctx: click.Context, password: str) -> None:
 	write_output(
 		data={"password_hash": password_hash},
 		metadata=metadata,
-		default_output_format="pretty-json",
+		default_output_format=OutputFormat.PRETTY_JSON,
 	)
 
 

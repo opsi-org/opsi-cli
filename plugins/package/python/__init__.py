@@ -21,9 +21,10 @@ from opsicommon.utils import make_temp_dir
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.config import config
 from opsicli.decorators import dry_run_handling, handle_list_attributes
-from opsicli.io import OutputType, console_print, get_progress, write_output
+from opsicli.io import Attribute, Metadata, OutputType, console_print, get_progress, write_output
 from opsicli.opsiservice import get_depot_connection, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
+from opsicli.types import OutputFormat
 from opsicli.utils import ProgressCallbackAdapter, create_nested_dict
 from plugins.package.data.metadata import command_metadata
 
@@ -201,7 +202,7 @@ def package_list(depots: str, product_type: str, product_ids: list[str]) -> None
 
 	combined_products = combine_products(product_dict, product_on_depot_dict)
 	metadata = command_metadata.get("package_list")
-	write_output(combined_products, metadata=metadata, default_output_format="table")
+	write_output(combined_products, metadata=metadata, default_output_format=OutputFormat.TABLE)
 
 
 @cli.command(short_help="Generate TOML from control file.")
@@ -225,6 +226,47 @@ def control_to_toml(source_dir: Path) -> None:
 		raise err
 
 	console_print("Control TOML has been successfully generated.", output_type=OutputType.MESSAGE)
+
+
+@cli.command(short_help="Show package information.")
+@click.argument("package_file", type=click.Path(exists=True, file_okay=True, dir_okay=False, path_type=Path), nargs=-1, required=True)
+def info(package_file: list[Path]) -> None:
+	"""
+	Show information about opsi packages.
+	"""
+	data = []
+	for package in package_file:
+		op = OpsiPackage(package)
+		data.append(
+			{
+				"package_path": str(package.resolve()),
+				"package_filename": package.name,
+				"product_id": op.product.id,
+				"product_version": op.product.productVersion,
+				"package_version": op.product.packageVersion,
+				"product_name": op.product.name,
+				"product_description": op.product.description,
+				"product_advice": op.product.advice,
+			}
+		)
+
+	metadata = Metadata(
+		attributes=[
+			Attribute(id="package_path", description="The path to the package file.", data_type="str", selected=False),
+			Attribute(id="package_filename", description="The filename of the package file.", data_type="str"),
+			Attribute(id="product_id", description="The ID of the product.", data_type="str"),
+			Attribute(id="product_version", description="The product version of the product.", data_type="str"),
+			Attribute(id="package_version", description="The package version of the product.", data_type="str"),
+			Attribute(id="product_name", description="The name of the product.", data_type="str"),
+			Attribute(id="product_description", description="The description of the product.", data_type="str"),
+			Attribute(id="product_advice", description="The advice of the product.", data_type="str", selected=False),
+		]
+	)
+	write_output(
+		data=data,
+		metadata=metadata,
+		default_output_format=OutputFormat.KEY_VALUE,
+	)
 
 
 @cli.command(short_help="Extract an opsi package.")

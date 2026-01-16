@@ -13,7 +13,7 @@ COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE"
 if COMPLETION_MODE:
 	import click
 else:
-	import rich_click as click  # type: ignore[no-redef]
+	import rich_click as click
 	import rich_click.rich_click as rich_click
 	from rich_click.rich_click import rich_format_help
 

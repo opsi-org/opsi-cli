@@ -30,13 +30,13 @@ from opsicli.types import OpsiCliRuntimeError
 original_print = builtins.print
 
 if not COMPLETION_MODE:
-	import rich_click as click  # type: ignore[no-redef]
+	import rich_click as click
 	from rich_click.rich_click import _get_rich_formatter, rich_abort_error, rich_format_error, rich_format_help
 
 	from opsicli.io import get_console
 else:
 	# Loads faster
-	import click  # type: ignore[no-redef]
+	import click
 
 if not COMPLETION_MODE:
 	assert hasattr(click, "rich_click")

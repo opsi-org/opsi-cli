@@ -234,17 +234,17 @@ def install_dependencies(path: Path, target_dir: Path) -> None:
 	# Import is slow (python requests/urllib3)
 
 	from pip._vendor.distlib import resources
-	from pipreqs import pipreqs  # type: ignore[import]
+	from pipreqs import pipreqs
 
 	logger.debug("Finder registry: %s", resources._finder_registry)
 
 	try:
-		import _frozen_importlib_external  # type: ignore[import-not-found]
+		import _frozen_importlib_external
 
 		try:
 			import pyimod02_importers  # type: ignore[import-not-found]
 		except ImportError:
-			from PyInstaller.loader import pyimod02_importers  # type: ignore
+			from PyInstaller.loader import pyimod02_importers
 
 		resources._finder_registry[pyimod02_importers.PyiFrozenLoader] = resources._finder_registry[
 			_frozen_importlib_external.SourceFileLoader

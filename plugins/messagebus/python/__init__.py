@@ -37,6 +37,7 @@ from opsicli.decorators import dry_run_handling
 from opsicli.io import OutputType, console_print, write_output
 from opsicli.messagebus import MessagebusConnection
 from opsicli.plugin import OPSICLIPlugin
+from opsicli.types import OutputFormat
 
 DEFAULT_EVENTS = [
 	"app_state_changed",
@@ -81,7 +82,7 @@ class EventMessagebusConnection(MessagebusConnection):
 
 		if self._output_type:
 			data = {"event": message.event} | dict(message.data) if self._output_type == "event" else message.to_dict()
-			write_output(data, default_output_format="pretty-json", force_newline=True)
+			write_output(data, default_output_format=OutputFormat.PRETTY_JSON, force_newline=True)
 
 		for event_data in self.event_data_any:
 			if all(message.data.get(attr) == val for attr, val in event_data.items()):
@@ -366,7 +367,7 @@ def wait_for_event(type: str, data: list[str], timeout: float | None) -> None:
 		logger.error(msg)
 		raise RuntimeError(msg) from None
 
-	write_output(result[0].data, default_output_format="pretty-json")
+	write_output(result[0].data, default_output_format=OutputFormat.PRETTY_JSON)
 
 
 @cli.command(name="wait-for-host", short_help="Wait for a host to connect to messagebus")
@@ -385,7 +386,7 @@ def wait_for_host(hostname: str, timeout: float | None) -> None:
 		logger.error(msg)
 		raise RuntimeError(msg) from None
 
-	write_output(result[0].data, default_output_format="pretty-json")
+	write_output(result[0].data, default_output_format=OutputFormat.PRETTY_JSON)
 
 
 @cli.command(name="wait-for-installation", short_help="Wait for a a product installation on a client")
@@ -414,7 +415,7 @@ def wait_for_installation(client: str, products: str, installation_status: str, 
 		raise RuntimeError(msg) from None
 
 	for entry in result:
-		write_output(entry.data, default_output_format="pretty-json")
+		write_output(entry.data, default_output_format=OutputFormat.PRETTY_JSON)
 	if result[0].data.get("installationStatus") == "unknown":
 		logger.error("Installation failed")
 		sys.exit(1)
