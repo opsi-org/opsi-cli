@@ -358,8 +358,6 @@ def write_output_key_value(data: Any, metadata: Metadata, value_styles: dict[str
 			lines.append("")
 
 	output = "\n".join(lines)
-	if output:
-		output += "\n"
 
 	with output_file_str() as file:
 		console = get_console(output_type=OutputType.DATA, file=file)
