@@ -17,6 +17,7 @@ from opsicli.decorators import dry_run_handling
 from opsicli.io import Attribute, Metadata, OutputType, console_print, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
+from opsicli.types import OutputFormat
 
 __version__ = "0.3.0"
 __description__ = "Plugin to edit bootimage configs"
