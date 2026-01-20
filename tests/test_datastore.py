@@ -67,9 +67,9 @@ def lock_products(admin_service_client: ServiceClient, product_id: str | None = 
 def unlock_products(product_ids: list[str] = [], depot_ids: list[str] = []) -> tuple[int, str, str]:
 	args = ["datastore", "product", "unlock"]
 	if product_ids:
-		args += ["--product-id", ",".join(product_ids)]
+		args += ["--product-ids", ",".join(product_ids)]
 	if depot_ids:
-		args += ["--depot-id", ",".join(depot_ids)]
+		args += ["--depot-ids", ",".join(depot_ids)]
 	return run_cli(args)
 
 
