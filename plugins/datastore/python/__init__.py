@@ -17,7 +17,7 @@ from opsicommon.types import forceBool
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_handling
-from opsicli.io import Attribute, Metadata, console_print, write_output
+from opsicli.io import Attribute, Metadata, OutputType, console_print, write_output
 from opsicli.opsiservice import ServiceClient, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 
@@ -469,16 +469,25 @@ def product() -> None:
 
 
 # ================================================PRODUCT UNLOCK=====================================================
-@product.command(name="unlock", short_help="Unlock product(s) on depot(s).")
-@click.argument("product-id", type=str, nargs=-1)
+@product.command(name="unlock", short_help="Unlock products on depots.")
+@click.option(
+	"--product-id",
+	type=str,
+	default=None,
+	help="Specify the product ID(s) to unlock, using a comma-separated list for multiple entries.",
+)
 @click.option(
 	"--depot-id",
 	type=str,
 	default=None,
-	help="Specify the target depot ID(s) for product unlocking. Use a comma-separated list for multiple entries.",
+	help="Specify the target depot ID(s) for product unlocking, using a comma-separated list for multiple entries.",
 )
-def unlock_product(product_id: tuple[str], depot_id: str | None = None) -> None:
-	# help function, get products, unlock them, update them
+def product_unlock(product_id: str | None = None, depot_id: str | None = None) -> None:
+	"""
+	Remove locks from products on specified depots.
+	"""
+
+	# Helper function, get products, unlock them, update them
 	def unlock_and_update(product_id: list[str], depot_id: list[str]) -> None:
 		product_on_depots = service_connection.productOnDepot_getObjects(productId=product_id, depotId=depot_id or [])  # type: ignore[attr-defined]
 		if not product_on_depots:
@@ -489,15 +498,27 @@ def unlock_product(product_id: tuple[str], depot_id: str | None = None) -> None:
 		service_connection.productOnDepot_updateObjects(product_on_depots)  # type: ignore[attr-defined]
 
 	service_connection = get_service_connection()
-	product_id_list = list(product_id)
+	product_id_list = [p.strip() for p in (product_id or "").split(",") if p.strip()]
+	depot_id_list = [d.strip() for d in (depot_id or "").split(",") if d.strip()]
+	unlock_and_update(product_id_list, depot_id_list)
 
-	if depot_id:
-		depot_id_list = [item.strip() for item in depot_id.split(",")]
-		# unlock products on every given depot
-		unlock_and_update(product_id_list, depot_id_list)
-	else:
-		# unlock products on ALL depots
-		unlock_and_update(product_id_list, [])
+
+@product.command(name="purge", short_help="Purge metadata related to uninstalled products.")
+@click.argument("product-id", type=str, nargs=-1)
+@click.option(
+	"--product-id",
+	type=str,
+	default=None,
+	help="Specify the product ID(s) to unlock, using a comma-separated list for multiple entries.",
+)
+def product_purge(product_id: str | None = None) -> None:
+	"""
+	Remove metadata associated with uninstalled products, such as installation status and product property states.
+
+	"""
+	product_id_list = [p.strip() for p in (product_id or "").split(",") if p.strip()]
+	get_service_connection().product_purge(id=product_id_list)  # type: ignore[attr-defined]
+	console_print("Product metadata purged successfully.", output_type=OutputType.MESSAGE)
 
 
 class DatastorePlugin(OPSICLIPlugin):

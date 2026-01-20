@@ -64,11 +64,13 @@ def lock_products(admin_service_client: ServiceClient, product_id: str | None = 
 
 
 # unlock products with given product-id and depot-id
-def unlock_products(product_id: list[str] = [], depot_id: list[str] = []) -> tuple[int, str, str]:
-	if depot_id:
-		return run_cli(["datastore", "product", "unlock"] + product_id + ["--depot-id"] + depot_id)
-	else:
-		return run_cli(["datastore", "product", "unlock"] + product_id)
+def unlock_products(product_ids: list[str] = [], depot_ids: list[str] = []) -> tuple[int, str, str]:
+	args = ["datastore", "product", "unlock"]
+	if product_ids:
+		args += ["--product-id", ",".join(product_ids)]
+	if depot_ids:
+		args += ["--depot-id", ",".join(depot_ids)]
+	return run_cli(args)
 
 
 # verify the given locked status (e.g. is product.locked = True or False?)
@@ -479,7 +481,7 @@ def test_product_unlock_multiple(admin_service_client: ServiceClient) -> None:
 	with tmp_product(admin_service_client, PRODUCT_ID_1), tmp_product(admin_service_client, PRODUCT_ID_2):
 		lock_products(admin_service_client)
 		verify_lock_status(admin_service_client, is_locked=True)
-		unlock_products(["gimp2", "test2", "pytest-product1", "pytest-product2", "opsi-client-agent"])
+		unlock_products(product_ids=["gimp2", "test2", "pytest-product1", "pytest-product2", "opsi-client-agent"])
 		verify_lock_status(admin_service_client, is_locked=False)
 
 
@@ -489,7 +491,7 @@ def test_product_unlock_installation(admin_service_client: ServiceClient) -> Non
 	with tmp_product(admin_service_client, PRODUCT_ID_1), tmp_product(admin_service_client, PRODUCT_ID_2):
 		install_broken_package()
 		verify_lock_status(admin_service_client, is_locked=True, product_id="gimp2")
-		unlock_products(product_id=["gimp2"])
+		unlock_products(product_ids=["gimp2"])
 		verify_lock_status(admin_service_client, is_locked=False, product_id="gimp2")
 
 
@@ -499,7 +501,7 @@ def test_wrong_depot_id(admin_service_client: ServiceClient) -> None:
 	with tmp_product(admin_service_client, PRODUCT_ID_1), tmp_product(admin_service_client, PRODUCT_ID_2):
 		lock_products(admin_service_client)
 		verify_lock_status(admin_service_client, is_locked=True)
-		exitcode, _stdout, stderr = unlock_products(depot_id=["hallo,test"])
+		exitcode, _stdout, stderr = unlock_products(depot_ids=["hallo,test"])
 		assert exitcode != 0
 		assert "No such depot(s)" in stderr
 

@@ -600,46 +600,6 @@ def complete_installed_products(ctx: click.Context, param: click.Parameter, inco
 	return suggestions[:MAX_RESULTS]
 
 
-def purge_products(product_ids: list[str] | None = None) -> None:
-	"""
-	Purge product metadata for given product IDs.
-	If no product IDs are given, metadata for all products will be purged.
-	"""
-	service_client = get_service_connection()
-	product_ids = [p["id"] for p in service_client.product_getIdents(returnType="dict", id=product_ids or [])]  # type: ignore[unresolved-attribute]
-
-	# Get all client_ids by depot
-	client_ids_by_depot = {}
-	for c2d in service_client.configState_getClientToDepotserver():  # type: ignore[unresolved-attribute]
-		if c2d["depotId"] not in client_ids_by_depot:
-			client_ids_by_depot[c2d["depotId"]] = []
-		client_ids_by_depot[c2d["depotId"]].append(c2d["clientId"])
-
-	for product_id in product_ids:
-		# Get all depots where the product is installed
-		depot_ids_where_installed = [
-			pod["depotId"]
-			for pod in service_client.productOnDepot_getIdents(returnType="dict", productId=[product_id])  # type: ignore[unresolved-attribute]
-		]
-
-		# Get all clients of the depots where the product is not installed
-		client_ids_for_purge = []
-		for depot_id, client_ids in client_ids_by_depot.items():
-			if depot_id not in depot_ids_where_installed:
-				client_ids_for_purge.extend(client_ids)
-		if not client_ids_for_purge:
-			continue
-
-		logger.debug("Deleting ProductOnClients for product '%s' on clients: %s", product_id, client_ids_for_purge)
-		service_client.productOnClient_delete(productId=[product_id], clientId=client_ids_for_purge)  # type: ignore[unresolved-attribute]
-		logger.debug("Deleting InstallationStatus for product '%s' on clients: %s", product_id, client_ids_for_purge)
-		service_client.productPropertyState_delete(productId=[product_id], propertyId=[], objectId=client_ids_for_purge)  # type: ignore[unresolved-attribute]
-
-		if not depot_ids_where_installed:
-			logger.debug("Deleting Product '%s'", product_id)
-			service_client.product_delete(id=[product_id])  # type: ignore[unresolved-attribute]
-
-
 @cli.command(short_help="Uninstall opsi products.")
 @click.argument("product_ids", type=str, nargs=-1, required=True, shell_complete=complete_installed_products)
 @click.option("--depots", help="Depot IDs (comma-separated) or 'all'. Default is configserver.")
@@ -664,16 +624,14 @@ def uninstall(product_ids: list[str], depots: str, force: bool, keep_files: bool
 		raise click.UsageError(f"No depots found for '{depots}'. Please specify valid depot IDs or 'all'.")
 
 	product_ids_by_depot: dict[str, list[str]] = {}
-	for pod in service_client.jsonrpc(
-		"productOnDepot_getObjects", [[], {"depotId": [depot.id for depot in depot_objects], "productId": product_ids}]
-	):
+	for pod in service_client.productOnDepot_getObjects(depotId=[depot.id for depot in depot_objects], productId=product_ids):  # type: ignore[unresolved-attribute]
 		if pod.depotId not in product_ids_by_depot:
 			product_ids_by_depot[pod.depotId] = []
 		product_ids_by_depot[pod.depotId].append(pod.productId)
 
 	if not product_ids_by_depot:
 		if purge:
-			purge_products(product_ids)
+			service_client.product_purge(product_ids)  # type: ignore[unresolved-attribute]
 			return
 		raise click.UsageError("No products found to uninstall.")
 
@@ -692,7 +650,7 @@ def uninstall(product_ids: list[str], depots: str, force: bool, keep_files: bool
 			depot_connection.disconnect()
 
 	if purge:
-		purge_products(product_ids)
+		service_client.product_purge(product_ids)  # type: ignore[unresolved-attribute]
 
 
 @cli.command(short_help="Fetch installed product(s) from depot and create an .opsi package archive. Use 'all' for all products.")
