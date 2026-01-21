@@ -122,6 +122,7 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 			]
 		)
 		assert exit_code == 0
+		print(_stdout)
 		assert stdout_into_list(_stdout)[1][0] == CLIENT_ID_1
 		assert stdout_into_list(_stdout)[1][1] == CONFIG_ID_1
 		assert len(stdout_into_list(_stdout)) - 1 == 1
@@ -216,6 +217,8 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 			]
 		)
 		assert exit_code == 0
+		print(_stdout)
+		print(stdout_into_list(_stdout))
 		assert (
 			stdout_into_list(_stdout)[1][2] == "0"
 		)  # only second row is of interest, first row of stdout_list[0][i]=([clientId, configId, value, origin])
