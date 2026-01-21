@@ -17,7 +17,7 @@ from opsicommon.types import forceBool
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_handling
-from opsicli.io import Attribute, Metadata, console_print, write_output
+from opsicli.io import console_print, write_output
 from opsicli.opsiservice import ServiceClient, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 from plugins.datastore.data.metadata import command_metadata
@@ -151,7 +151,7 @@ def list_config_state(object_ids: str, config_ids: str) -> None:
 
 	write_output(
 		data=list(client_states.values()),
-		metadata=command_metadata.get("datastore_config_state_list"),
+		metadata=command_metadata.get("datastore_config-state_list"),
 		value_styles={"depot": "yellow", "client": "blue"},
 	)
 
@@ -376,7 +376,7 @@ def list_product_property_state(object_ids: str, product_ids: str, property_ids:
 
 	write_output(
 		data=list(client_states.values()),
-		metadata=command_metadata.get("datastore_product_property_state_list"),
+		metadata=command_metadata.get("datastore_product-property-state_list"),
 		value_styles={"depot": "yellow", "client": "blue"},
 	)
 

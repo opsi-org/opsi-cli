@@ -20,7 +20,7 @@ from opsicommon.utils import make_temp_dir
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.config import config
-from opsicli.decorators import dry_run_handling, handle_list_attributes
+from opsicli.decorators import dry_run_handling
 from opsicli.io import OutputType, console_print, get_progress, write_output
 from opsicli.opsiservice import get_depot_connection, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
@@ -59,7 +59,6 @@ argument_source_dir = click.argument(
 @click.group(cls=OPSICLIGroup, name="package", short_help="Manage opsi packages")
 @click.version_option(__version__, message="opsi-cli plugin package, version %(version)s")
 @click.pass_context
-@handle_list_attributes
 @dry_run_handling()
 def cli(ctx: click.Context) -> None:
 	"""

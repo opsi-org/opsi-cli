@@ -9,7 +9,6 @@ opsi-cli Basic command line interface for opsi
 decorators
 """
 
-import importlib
 from functools import wraps
 from typing import Any, Callable
 
@@ -17,11 +16,11 @@ import rich_click as click
 from opsicommon.logging import get_logger
 
 from opsicli.config import config
-from opsicli.io import OutputType, console_print, list_attributes
+from opsicli.io import OutputType, console_print
 
 logger = get_logger("opsicli")
 
-
+"""
 def handle_list_attributes(func: Callable) -> Callable:
 	@wraps(func)
 	def wrapper_func(ctx: click.Context, *args: Any, **kwargs: Any) -> Any:
@@ -40,6 +39,7 @@ def handle_list_attributes(func: Callable) -> Callable:
 		return func(ctx, *args, **kwargs)
 
 	return wrapper_func
+"""
 
 
 def dry_run_handling(dry_run_capable: bool = False) -> Callable:

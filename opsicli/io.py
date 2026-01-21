@@ -589,7 +589,5 @@ def read_input() -> Any:
 
 
 def list_attributes(data: Metadata) -> None:
-	attributes_list = [
-		{"id": attribute.id, "type": attribute.data_type} for attribute in data.attributes if attribute.selected is not False
-	]
+	attributes_list = [{"id": attribute.id, "type": attribute.data_type} for attribute in data.attributes]
 	write_output(attributes_list, None, "table")

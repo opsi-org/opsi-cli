@@ -159,29 +159,46 @@ def _get_usage(ctx: click.Context) -> str:
 	return f"{prefix}{' '.join(parts)}"
 
 
+# Callback for the global --list-attributes option.
+# Store the fact that the flag was set in the root context for global access.
+def _list_attributes_callback(ctx, param, value) -> None:
+	if not value:
+		return
+	ctx.find_root().meta["list-attributes"] = True
+
+
+# Assemble command sequence and load module/metadata.
+# If metadata exists, output it.
+def _handle_list_attributes(ctx: click.Context):
+	arg_sequence = ctx.command_path.split(" ")[1:]
+	command_sequence = "_".join(arg_sequence)
+	module = importlib.import_module(f"plugins.{arg_sequence[0]}.data.metadata")
+	command_metadata = getattr(module, "command_metadata")
+	metadata = command_metadata.get(command_sequence)
+	if metadata:
+		list_attributes(metadata)
+		ctx.exit()
+	else:
+		console_print(f"[red]Warning: [/red]The command 'opsi-cli {' '.join(arg_sequence)}' does not support the option --list-attributes.")
+		ctx.exit()
+
+
 class OPSICLICommand(click.Command):
-	def invoke(self, ctx: click.Context) -> Any:
-		if config.list_attributes:
-			command_parts = ctx.command_path.split()
-			plugin_name = command_parts[1]
-			command_sequence = "_".join(command_parts[1:])
-			module = importlib.import_module(f"plugins.{plugin_name}.data.metadata")
-			command_metadata = getattr(module, "command_metadata")
-			metadata = command_metadata.get(command_sequence)
-			if metadata:
-				list_attributes(metadata)
-				ctx.exit()
-			else:
-				console_print("[red]Warning: This command does not support the option --list-attributes.[/red]")
-				ctx.exit()
-
-		return super().invoke(ctx)
-
 	def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
 		_format_help(self, ctx, formatter)
 
 	def get_usage(self, ctx: click.Context) -> str:
 		return _get_usage(ctx)
+
+	# During parsing, check if --list-attributes was set (root context).
+	# Why in OPSICLICommand and not OPSICLIGroup?
+	# - The Command is always the final 'instruction'
+	# - we are no longer interested in any options or arguments attached to it
+	def parse_args(self, ctx: click.Context, args):
+		root_ctx = ctx.find_root()
+		if root_ctx.meta.get("list-attributes"):
+			_handle_list_attributes(ctx)
+		return super().parse_args(ctx, args)
 
 
 class OPSICLIGroup(click.Group):
