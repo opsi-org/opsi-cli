@@ -17,7 +17,7 @@ from opsicommon.types import forceBool
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_handling
-from opsicli.io import Attribute, Metadata, OutputType, console_print, write_output
+from opsicli.io import OutputType, console_print, write_output
 from opsicli.opsiservice import ServiceClient, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 from plugins.datastore.data.metadata import command_metadata

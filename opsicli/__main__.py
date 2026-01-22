@@ -189,7 +189,6 @@ def quiet_print(*args: Any, **kwargs: Any) -> None:
 	is_flag=True,
 	is_eager=False,
 	default=False,
-	# callback=_list_attributes_callback,  # type: ignore
 	help=f"{config.get_description('list_attributes')}",
 )
 @config.get_click_option("sort_by", help=f"{config.get_description('sort_by')}. Comma separated list.")
