@@ -2,10 +2,13 @@ import importlib
 import sys
 from pathlib import Path
 
+import pytest
+
 from opsicli.io import list_attributes
 from tests.utils import run_cli
 
 
+@pytest.mark.opsi_service
 def test_list_attributes_flag(capsys) -> None:
 	path = Path("./plugins")
 	plugins = [f.name for f in path.iterdir() if f.is_dir]
