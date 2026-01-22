@@ -160,14 +160,6 @@ def _get_usage(ctx: click.Context) -> str:
 	return f"{prefix}{' '.join(parts)}"
 
 
-# Callback for the global --list-attributes option.
-# Store the fact that the flag was set in the root context for global access.
-def _list_attributes_callback(ctx, param, value) -> None:
-	if not value:
-		return
-	ctx.find_root().meta["list-attributes"] = True
-
-
 # Assemble command sequence and load module/metadata.
 # If metadata exists, output it.
 def _handle_list_attributes(ctx: click.Context):
@@ -191,13 +183,13 @@ class OPSICLICommand(click.Command):
 	def get_usage(self, ctx: click.Context) -> str:
 		return _get_usage(ctx)
 
-	# During parsing, check if --list-attributes was set (root context).
+	# During parsing, check if --list-attributes was set (config object).
 	# Why in OPSICLICommand and not OPSICLIGroup?
 	# - The Command is always the final 'instruction'
 	# - we are no longer interested in any options or arguments attached to it
 	def parse_args(self, ctx: click.Context, args):
-		root_ctx = ctx.find_root()
-		if root_ctx.meta.get("list-attributes"):
+		value_list_attribute = config.get_config_item(name="list_attributes").get_value()
+		if value_list_attribute:
 			_handle_list_attributes(ctx)
 		return super().parse_args(ctx, args)
 
@@ -219,6 +211,5 @@ class OPSICLIGroup(click.Group):
 	# otherwise '--help' won't be parsed in OPSICLICommand, if '--list-attributes' is set
 	def parse_args(self, ctx: click.Context, args):
 		if "--help" in sys.argv:
-			root_ctx = ctx.find_root()
-			root_ctx.meta["list-attributes"] = False
+			config.get_config_item(name="list_attributes").set_value(False)
 		return super().parse_args(ctx, args)

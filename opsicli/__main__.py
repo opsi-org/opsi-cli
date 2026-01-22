@@ -21,7 +21,6 @@ from opsicommon.logging import get_logger
 
 from opsicli import __version__, prepare_cli_paths
 from opsicli.cache import cache
-from opsicli.cli_helpers import _list_attributes_callback
 from opsicli.config import COMPLETION_MODE, config
 from opsicli.io import OutputType
 from opsicli.plugin import plugin_manager
@@ -188,9 +187,9 @@ def quiet_print(*args: Any, **kwargs: Any) -> None:
 	"list_attributes",
 	expose_value=False,
 	is_flag=True,
-	is_eager=True,
+	is_eager=False,
 	default=False,
-	callback=_list_attributes_callback,  # type: ignore
+	# callback=_list_attributes_callback,  # type: ignore
 	help=f"{config.get_description('list_attributes')}",
 )
 @config.get_click_option("sort_by", help=f"{config.get_description('sort_by')}. Comma separated list.")
