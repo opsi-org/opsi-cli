@@ -64,11 +64,13 @@ def lock_products(admin_service_client: ServiceClient, product_id: str | None = 
 
 
 # unlock products with given product-id and depot-id
-def unlock_products(product_id: list[str] = [], depot_id: list[str] = []) -> tuple[int, str, str]:
-	if depot_id:
-		return run_cli(["datastore", "product", "unlock"] + product_id + ["--depot-id"] + depot_id)
-	else:
-		return run_cli(["datastore", "product", "unlock"] + product_id)
+def unlock_products(product_ids: list[str] = [], depot_ids: list[str] = []) -> tuple[int, str, str]:
+	args = ["datastore", "product", "unlock"]
+	if product_ids:
+		args += ["--product-ids", ",".join(product_ids)]
+	if depot_ids:
+		args += ["--depot-ids", ",".join(depot_ids)]
+	return run_cli(args)
 
 
 # verify the given locked status (e.g. is product.locked = True or False?)
@@ -103,7 +105,7 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		tmp_client(admin_service_client, CLIENT_ID_3),
 		tmp_client(admin_service_client, CLIENT_ID_4),
 	):
-		all_configs = admin_service_client.jsonrpc("config_getObjects", params=[])  # type:ignore[attr-defined]
+		all_configs = admin_service_client.jsonrpc("config_getObjects", params=[])
 		client_to_depot_objects = admin_service_client.configState_getClientToDepotserver()  # type:ignore[attr-defined]
 		DEPOT_ID = client_to_depot_objects[0]["depotId"]
 
@@ -202,7 +204,7 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		CONFIGSTATE_1_DEPOT = {"configId": f"{CONFIG_ID_1}", "objectId": f"{DEPOT_ID}", "values": False}
 		CONFIGSTATE_2_DEPOT = {"configId": f"{CONFIG_ID_1}", "objectId": f"{DEPOT_ID}", "values": True}
 
-		admin_service_client.jsonrpc("configState_createObjects", params=[CONFIGSTATE_1_DEPOT])  # type:ignore[attr-defined]
+		admin_service_client.jsonrpc("configState_createObjects", params=[CONFIGSTATE_1_DEPOT])
 		exit_code, _stdout, _stderr = run_cli(
 			[
 				"--output-format",
@@ -224,7 +226,7 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		)  # only second row is of interest, first row of stdout_list[0][i]=([clientId, configId, value, origin])
 		assert stdout_into_list(_stdout)[1][3] == "depot"
 
-		admin_service_client.jsonrpc("configState_updateObjects", params=[CONFIGSTATE_2_DEPOT])  # type:ignore[attr-defined]
+		admin_service_client.jsonrpc("configState_updateObjects", params=[CONFIGSTATE_2_DEPOT])
 		exit_code, _stdout, _stderr = run_cli(
 			[
 				"--output-format",
@@ -252,7 +254,7 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		CONFIGSTATE_1_CLIENT_1 = {"configId": f"{CONFIG_ID_1}", "objectId": f"{CLIENT_ID_1}", "values": True}
 		CONFIGSTATE_2_CLIENT_1 = {"configId": f"{CONFIG_ID_1}", "objectId": f"{CLIENT_ID_1}", "values": False}
 
-		admin_service_client.jsonrpc("configState_createObjects", params=[CONFIGSTATE_1_CLIENT_1])  # type:ignore[attr-defined]
+		admin_service_client.jsonrpc("configState_createObjects", params=[CONFIGSTATE_1_CLIENT_1])
 		exit_code, _stdout, _stderr = run_cli(
 			[
 				"--output-format",
@@ -272,7 +274,7 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		)  # only second row is of interest, first row of stdout_list[0][i]=([clientId, configId, value, origin])
 		assert stdout_into_list(_stdout)[1][3] == "client"
 
-		admin_service_client.jsonrpc("configState_updateObjects", params=[CONFIGSTATE_2_CLIENT_1])  # type:ignore[attr-defined]
+		admin_service_client.jsonrpc("configState_updateObjects", params=[CONFIGSTATE_2_CLIENT_1])
 		exit_code, _stdout, _stderr = run_cli(
 			[
 				"--output-format",
@@ -482,7 +484,7 @@ def test_product_unlock_multiple(admin_service_client: ServiceClient) -> None:
 	with tmp_product(admin_service_client, PRODUCT_ID_1), tmp_product(admin_service_client, PRODUCT_ID_2):
 		lock_products(admin_service_client)
 		verify_lock_status(admin_service_client, is_locked=True)
-		unlock_products(["gimp2", "test2", "pytest-product1", "pytest-product2", "opsi-client-agent"])
+		unlock_products(product_ids=["gimp2", "test2", "pytest-product1", "pytest-product2", "opsi-client-agent"])
 		verify_lock_status(admin_service_client, is_locked=False)
 
 
@@ -492,7 +494,7 @@ def test_product_unlock_installation(admin_service_client: ServiceClient) -> Non
 	with tmp_product(admin_service_client, PRODUCT_ID_1), tmp_product(admin_service_client, PRODUCT_ID_2):
 		install_broken_package()
 		verify_lock_status(admin_service_client, is_locked=True, product_id="gimp2")
-		unlock_products(product_id=["gimp2"])
+		unlock_products(product_ids=["gimp2"])
 		verify_lock_status(admin_service_client, is_locked=False, product_id="gimp2")
 
 
@@ -502,7 +504,7 @@ def test_wrong_depot_id(admin_service_client: ServiceClient) -> None:
 	with tmp_product(admin_service_client, PRODUCT_ID_1), tmp_product(admin_service_client, PRODUCT_ID_2):
 		lock_products(admin_service_client)
 		verify_lock_status(admin_service_client, is_locked=True)
-		exitcode, _stdout, stderr = unlock_products(depot_id=["hallo,test"])
+		exitcode, _stdout, stderr = unlock_products(depot_ids=["hallo,test"])
 		assert exitcode != 0
 		assert "No such depot(s)" in stderr
 
@@ -751,13 +753,13 @@ def test_product_property_list_stress_test(admin_service_client: ServiceClient) 
 			while j < num_products:
 				k = 0
 				while k < num_properties:
-					admin_service_client.productProperty_create(  # type:ignore[attr-defined]
+					admin_service_client.productProperty_create(
 						productId=f"pytest-product{j}",
 						productVersion="1",
 						packageVersion="1",
 						propertyId=f"property{k}",
 					)
-					admin_service_client.productPropertyState_create(  # type:ignore[attr-defined]
+					admin_service_client.productPropertyState_create(
 						productId=f"pytest-product{j}",
 						propertyId=f"property{k}",
 						objectId=f"pytest-client{i}.test.tld",

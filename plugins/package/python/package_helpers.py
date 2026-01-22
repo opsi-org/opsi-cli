@@ -303,7 +303,7 @@ def fix_custom_package_name(package_path: Path) -> str:
 
 
 @lru_cache(maxsize=100)
-def get_md5_file(package_path: Path, temp_dir: Path) -> tuple[Path, str]:
+def get_md5_file(*, package_path: Path, temp_dir: Path) -> tuple[Path, str]:
 	"""
 	Create the MD5 for the package in a temporary path.
 	Also checks if the local MD5 file differs from the temporary one.
@@ -328,7 +328,7 @@ def get_md5_file(package_path: Path, temp_dir: Path) -> tuple[Path, str]:
 
 
 @lru_cache(maxsize=100)
-def get_zsync_file(package_path: Path, temp_dir: Path) -> Path:
+def get_zsync_file(*, package_path: Path, temp_dir: Path) -> Path:
 	"""
 	Create the zsync file for the package in a temporary path.
 	Also checks if the local zsync file differs from the temporary one.
@@ -353,6 +353,7 @@ def get_zsync_file(package_path: Path, temp_dir: Path) -> Path:
 
 
 def check_pkg_existence_and_integrity(
+	*,
 	depot_connection: ServiceClient,
 	dest_package_name: str,
 	package_size: int,
@@ -384,7 +385,7 @@ def check_pkg_existence_and_integrity(
 	return True
 
 
-def check_disk_space(depot_connection: ServiceClient, depot_id: str, package_size: int) -> None:
+def check_disk_space(*, depot_connection: ServiceClient, depot_id: str, package_size: int) -> None:
 	"""
 	Check if there is enough disk space on the depot for the package.
 	"""
@@ -397,7 +398,7 @@ def check_disk_space(depot_connection: ServiceClient, depot_id: str, package_siz
 		raise ValueError(f"Insufficient disk space on depot '{depot_id}'. Needed: {package_size} bytes, available: {available_space} bytes")
 
 
-def cleanup_packages_from_repo(depot_connection: ServiceClient, product_id: str, exclude_package_name: str | None = None) -> None:
+def cleanup_packages_from_repo(*, depot_connection: ServiceClient, product_id: str, exclude_package_name: str | None = None) -> None:
 	"""
 	Deletes packages from the depot repository.
 
@@ -423,7 +424,7 @@ def cleanup_packages_from_repo(depot_connection: ServiceClient, product_id: str,
 
 
 def validate_upload_and_check_disk_space(
-	depot_connection: ServiceClient, depot_id: str, local_checksum: str, dest_package_name: str
+	*, depot_connection: ServiceClient, depot_id: str, local_checksum: str, dest_package_name: str
 ) -> None:
 	"""
 	Validates the upload by comparing the checksums and also checks the disk space on the depot. If the disk space usage is above 90%, a warning is logged.
@@ -440,6 +441,7 @@ def validate_upload_and_check_disk_space(
 
 
 def upload_to_repository(
+	*,
 	depot_connection: ServiceClient,
 	depot_id: str,
 	source_package: Path,
@@ -449,15 +451,17 @@ def upload_to_repository(
 	"""
 	Uploads a package to the depot's repository.
 	"""
-	md5_file, local_checksum = get_md5_file(source_package, temp_dir)
+	md5_file, local_checksum = get_md5_file(package_path=source_package, temp_dir=temp_dir)
 	package_size = source_package.stat().st_size
 
-	if check_pkg_existence_and_integrity(depot_connection, dest_package_name, package_size, local_checksum):
+	if check_pkg_existence_and_integrity(
+		depot_connection=depot_connection, dest_package_name=dest_package_name, package_size=package_size, local_checksum=local_checksum
+	):
 		return
 
-	check_disk_space(depot_connection, depot_id, package_size)
+	check_disk_space(depot_connection=depot_connection, depot_id=depot_id, package_size=package_size)
 
-	zsync_file = get_zsync_file(source_package, temp_dir)
+	zsync_file = get_zsync_file(package_path=source_package, temp_dir=temp_dir)
 
 	for file in [source_package, md5_file, zsync_file]:
 		filename = dest_package_name
@@ -477,11 +481,16 @@ def upload_to_repository(
 
 		logger.notice("Finished upload of file %r to depot %r", filename, depot_id)
 
-	cleanup_packages_from_repo(depot_connection, OpsiPackage(source_package).product.id, dest_package_name)
-	validate_upload_and_check_disk_space(depot_connection, depot_id, local_checksum, dest_package_name)
+	cleanup_packages_from_repo(
+		depot_connection=depot_connection, product_id=OpsiPackage(source_package).product.id, exclude_package_name=dest_package_name
+	)
+	validate_upload_and_check_disk_space(
+		depot_connection=depot_connection, depot_id=depot_id, local_checksum=local_checksum, dest_package_name=dest_package_name
+	)
 
 
 def install_package(
+	*,
 	depot_connection: ServiceClient,
 	depot_id: str,
 	dest_package_name: str,
@@ -503,6 +512,7 @@ def install_package(
 
 
 def uninstall_package(
+	*,
 	depot_connection: ServiceClient,
 	depot_id: str,
 	product_id: str,
@@ -521,7 +531,7 @@ def uninstall_package(
 	logger.notice("Finished uninstallation of product %s from depot %s", product_id, depot_id)
 
 
-def handle_action_request(service_client: ServiceClient, depot_id: str, product: Product, action_request: str, dependency: bool) -> None:
+def handle_action_request(*, service_client: ServiceClient, depot_id: str, product: Product, action_request: str, dependency: bool) -> None:
 	if not validate_action_request(product, action_request):
 		return
 

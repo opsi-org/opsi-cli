@@ -59,6 +59,22 @@ def reset_service_client() -> None:
 	reset_service_connection()
 
 
+@pytest.fixture(autouse=True)
+def clean_backend() -> None:
+	if not _opsi_service_available():
+		return
+	with get_admin_service_client() as service_client:
+		with service_client.connection(connect_messagebus=False):
+			delete_host_ids = [
+				host.id
+				for host in service_client.host_getObjects(attributes=["id", "type"])  # type: ignore[unresolved-attribute]
+				if host.getType() != "OpsiConfigserver"
+			]
+			if delete_host_ids:
+				service_client.host_delete(id=delete_host_ids)  # type: ignore[unresolved-attribute]
+			service_client.product_delete(id=[])  # type: ignore[unresolved-attribute]
+
+
 def _update_depot_info() -> None:
 	configserver_address = admin_service_connection_params()[0]
 	with get_admin_service_client() as service_client:

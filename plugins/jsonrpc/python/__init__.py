@@ -23,6 +23,7 @@ from opsicli.decorators import dry_run_handling
 from opsicli.io import deprecation_warning, output_file_is_stdout, read_input, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
+from opsicli.types import OutputFormat
 from plugins.jsonrpc.data.metadata import command_metadata
 
 __version__ = "0.2.0"
@@ -64,7 +65,7 @@ def methods(include_deprecated: bool) -> None:
 	write_output(
 		[m for m in cache.get("jsonrpc-interface-raw") if (not m["deprecated"]) or include_deprecated],
 		metadata=metadata,
-		default_output_format="table",
+		default_output_format=OutputFormat.TABLE,
 	)
 
 
@@ -123,7 +124,7 @@ def execute(method: str, params: list[str] | None = None, timeout: float | None 
 		# TODO: Handle params depending on method parameters
 		params.append(inp_param)
 
-	default_output_format = "pretty-json" if output_file_is_stdout() else "json"
+	default_output_format = OutputFormat.PRETTY_JSON if output_file_is_stdout() else OutputFormat.JSON
 
 	client = get_service_connection()
 	method_interface = client.get_jsonrpc_method(method)

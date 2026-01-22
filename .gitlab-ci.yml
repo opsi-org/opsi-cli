@@ -12,7 +12,7 @@ pytest-darwin:
     - catalina-py311-x64
   script:
     - export ZIPLAUNCHER_CLEAN_TMP=true
-    - export UV_PYTHON="3.13"
+    - export UV_PYTHON="3.13-x86_64"
     - export UV_PYTHON_PREFERENCE="only-managed"
     - uv self update
     - uv sync --frozen
@@ -29,12 +29,13 @@ pytest-darwin:
 pytest-windows:
   stage: test_python
   tags:
-    - win10-py311-x86
+    - win10-x64
   script:
     - $Env:UV_PYTHON_INSTALL_DIR = "c:\\uv\\python"
     - $Env:UV_CACHE_DIR = "c:\\uv\\cache"
-    - $Env:UV_PYTHON = ((uv python list --managed-python --all-arches | findstr 3.13 | findstr "\-x86\-" | findstr /v freethreaded) -split ' ')[0]
+    - $Env:UV_PYTHON = "3.13-x86"
     - $Env:UV_PYTHON_PREFERENCE = "only-managed"
+    - $Env:RUSTUP_TOOLCHAIN = "stable-i686-pc-windows-msvc"
     - uv sync --frozen
     - uv run pytest --tb=short -x -o junit_family=xunit2 --junitxml=testreport_windows.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - Rename-Item -Path .coverage -NewName coverage_windows
@@ -81,7 +82,7 @@ pytest-linux:
   before_script:
     - for trynum in $(seq 1 30); do curl --insecure https://opsiconfd:4447 && break; sleep 6; done
   script:
-    - export UV_PYTHON="3.13"
+    - export UV_PYTHON="3.13-x86_64"
     - export UV_PYTHON_PREFERENCE="only-managed"
     - uv self update
     - uv sync --frozen
@@ -108,23 +109,16 @@ lint-pytest:
     - job: pytest-linux
       artifacts: true
   script:
-    - apt-get update
-    - apt-get --yes --allow-downgrades install libsqlite3-0=3.16.2-5+deb9u1
-    - apt-get --yes install sqlite3
-    - export UV_PYTHON="3.13"
+    - export UV_PYTHON="3.13-x86_64"
     - export UV_PYTHON_PREFERENCE="only-managed"
     - uv self update
     - uv sync --frozen
     - uv run ruff check opsicli plugins tests
     - uv run ty check opsicli plugins tests
-    # Convert file.path to a relative path in coverage databases
-    - for db in coverage_*; do sqlite3 $db 'update file set path=replace(substr(path,instr(path,"opsicli")),"\","/");'; done
-    - for db in coverage_*; do sqlite3 $db 'update file set path=replace(substr(path,instr(path,"plugins")),"\","/");'; done
-    - echo -e '[run]\nrelative_files = True\n' > .coveragerc
-    - uv run coverage combine coverage_*
-    - uv run coverage xml
-    - uv run coverage report
-    - uv run opsi-dev-tool -l info --testreport-merge testreport_*.xml testreport.xml
+    - opsi-dev-cli self upgrade
+    - opsi-dev-cli -l info testing merge-junit-testreports testreport_*.xml testreport.xml
+    - opsi-dev-cli -l info testing merge-coverage-files coverage_* .coverage
+    - opsi-dev-cli -l info testing coverage-report
   coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+)%/'
   artifacts:
     name: "opsi-cli_test"
@@ -142,7 +136,7 @@ linux-x64-pyinstaller:
     - export LC_ALL=C.UTF-8
     - curl -sS "${OPSIDEVTOOLS_INSTALLER_URL_LINUX_X64}" | sh
     - opsi-dev-cli binary pull ziplaunch
-    - export UV_PYTHON="3.13"
+    - export UV_PYTHON="3.13-x86_64"
     - export UV_PYTHON_PREFERENCE="only-managed"
     - uv self update
     - uv sync --frozen
@@ -170,7 +164,7 @@ linux-arm64-pyinstaller:
     - export LC_ALL=C.UTF-8
     - curl -sS "${OPSIDEVTOOLS_INSTALLER_URL_LINUX_ARM64}" | sh
     - opsi-dev-cli binary pull ziplaunch
-    - export UV_PYTHON="3.13"
+    - export UV_PYTHON="3.13-aarch64"
     - export UV_PYTHON_PREFERENCE="only-managed"
     - uv self update
     - uv sync --frozen
@@ -195,7 +189,7 @@ macos-x64-pyinstaller:
     - catalina-py311-x64
   script:
     - export LC_ALL=en_US.UTF-8
-    - export UV_PYTHON="3.13"
+    - export UV_PYTHON="3.13-x86_64"
     - export UV_PYTHON_PREFERENCE="only-managed"
     - uv self update
     - uv sync --frozen
@@ -234,13 +228,14 @@ macos-x64-pyinstaller:
 windows-x86-pyinstaller:
   stage: build
   tags:
-    - win10-py311-x86
+    - win10-x64
   script:
     # Build python environment
     - $Env:UV_PYTHON_INSTALL_DIR = "c:\\uv\\python"
     - $Env:UV_CACHE_DIR = "c:\\uv\\cache"
     - $Env:UV_PYTHON_PREFERENCE = "only-managed"
-    - $Env:UV_PYTHON = ((uv python list | findstr 3.13 | findstr "\-x86\-" | findstr /v freethreaded) -split ' ')[0]
+    - $Env:UV_PYTHON = "3.13-x86"
+    - $Env:RUSTUP_TOOLCHAIN = "stable-i686-pc-windows-msvc"
     - uv sync --frozen
     # Get opsi-dev-tool
     - irm "${OPSIDEVTOOLS_INSTALLER_URL_WINDOWS_X86}" | iex

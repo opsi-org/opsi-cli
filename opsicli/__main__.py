@@ -31,13 +31,13 @@ from opsicli.types import OpsiCliRuntimeError
 original_print = builtins.print
 
 if not COMPLETION_MODE:
-	import rich_click as click  # type: ignore[no-redef]
+	import rich_click as click
 	from rich_click.rich_click import _get_rich_formatter, rich_abort_error, rich_format_error, rich_format_help
 
 	from opsicli.io import get_console
 else:
 	# Loads faster
-	import click  # type: ignore[no-redef]
+	import click
 
 if not COMPLETION_MODE:
 	assert hasattr(click, "rich_click")
@@ -90,6 +90,8 @@ class OpsiCLI(click.MultiCommand):  # type: ignore
 			# Avoid gigantic traceback for known errors
 			exc_type = type(err)
 			exc_info = not issubclass(exc_type, (OpsiCliRuntimeError, OpsiServiceConnectionError))
+			if not exc_info:
+				logger.debug(err, exc_info=True)
 			logger.error(err, exc_info=exc_info)
 
 			additional_info = ""

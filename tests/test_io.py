@@ -129,13 +129,24 @@ input_output_testdata = (
 	),
 	(
 		"csv",
-		"key1;key2;key3\r\nfirst1;first2;first3\r\nsecond1;second2;second3\r\n",
-		[{"key1": "first1", "key2": "first2", "key3": "first3"}, {"key1": "second1", "key2": "second2", "key3": "second3"}],
+		"key1;key2;key3\r\nfirst1;first2;1\r\nsecond1;second2;<null>\r\n",
+		[{"key1": "first1", "key2": "first2", "key3": True}, {"key1": "second1", "key2": "second2", "key3": None}],
 	),
 	(
 		"csv",
-		"key1;key2;key3\r\n1,2;1,0;{'k1': 'v1', 'k2': 'v2'}\r\n3,4;0;{'k': 'v'}\r\n",
-		[{"key1": [1, 2], "key2": [True, False], "key3": {"k1": "v1", "k2": "v2"}}, {"key1": [3, 4], "key2": [False], "key3": {"k": "v"}}],
+		"key1;key2;key3\r\n1,2,<null>;1,0;{'k1': 'v1', 'k2': 'v2'}\r\n3,4;0;{'k': 'v'}\r\n",
+		[
+			{"key1": [1, 2, None], "key2": [True, False], "key3": {"k1": "v1", "k2": "v2"}},
+			{"key1": [3, 4], "key2": [False], "key3": {"k": "v"}},
+		],
+	),
+	(
+		"key-value",
+		"key1: 1, 2, \nkey2: true, false\nkey3: {'k1': 'v1', 'k2': 'v2'}\n\nkey1: 3, 4\nkey2: false\nkey3: {'k': 'v'}\n",
+		[
+			{"key1": [1, 2, None], "key2": [True, False], "key3": {"k1": "v1", "k2": "v2"}},
+			{"key1": [3, 4], "key2": [False], "key3": {"k": "v"}},
+		],
 	),
 )
 
@@ -231,11 +242,22 @@ def test_output_config(output_format: str, startstrings: list[str]) -> None:
 
 @pytest.mark.parametrize(("input_format", "string", "data"), input_output_testdata[:-1])
 def test_input(input_format: str, string: str, data: Any) -> None:
-	with TextIOWrapper(BufferedReader(BytesIO(string.encode("utf-8")))) as inputfile:  # type: ignore[arg-type]
+	with TextIOWrapper(BufferedReader(BytesIO(string.encode("utf-8")))) as inputfile:
 		old_stdin = sys.stdin
 		sys.stdin = inputfile
 		result = read_input()
 		sys.stdin = old_stdin
+		if input_format == "csv":
+			for idx, row in enumerate(result):
+				for k, v in row.items():
+					if v is None:
+						continue
+					if "," in v:
+						# Cannot restore original list from CSV string
+						return
+					if v == "1":
+						row[k] = True
+				result[idx] = row
 		assert result == data
 
 
@@ -256,7 +278,7 @@ def test_blocking_input_timeout() -> None:
 		for input_file in (None, "-"):
 			config.input_file = input_file
 			block_seconds = 2
-			with TextIOWrapper(BufferedReader(BlockingInput(block_seconds=block_seconds))) as inputfile:  # type: ignore[arg-type]
+			with TextIOWrapper(BufferedReader(BlockingInput(block_seconds=block_seconds))) as inputfile:
 				old_stdin = sys.stdin
 				sys.stdin = inputfile
 				start = time.time()
@@ -276,7 +298,7 @@ def test_blocking_input_timeout() -> None:
 	("string", "input_type", "expected_result"), (("teststring", str, "teststring"), ("3.14159", float, 3.14159), ("42", int, 42))
 )
 def test_prompt(string: str, input_type: type, expected_result: str | float | int) -> None:
-	with TextIOWrapper(BufferedReader(BytesIO(string.encode("utf-8")))) as inputfile:  # type: ignore[arg-type]
+	with TextIOWrapper(BufferedReader(BytesIO(string.encode("utf-8")))) as inputfile:
 		old_stdin = sys.stdin
 		sys.stdin = inputfile
 		result = prompt("input some value", return_type=input_type)

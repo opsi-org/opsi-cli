@@ -9,11 +9,21 @@ test_package.py is a test file for the package plugin.
 
 import re
 from pathlib import Path
-from typing import Optional
+from typing import Any, Callable, Optional
+from unittest.mock import patch
 
 import pytest
-from opsicommon.client.opsiservice import ServiceClient
-from opsicommon.objects import LocalbootProduct, NetbootProduct, ProductOnDepot
+from opsicommon.client.opsiservice import DAVFileInfo, ServiceClient
+from opsicommon.logging import get_logger
+from opsicommon.objects import (
+	LocalbootProduct,
+	NetbootProduct,
+	OpsiClient,
+	OpsiDepotserver,
+	ProductOnClient,
+	ProductOnDepot,
+	ProductPropertyState,
+)
 from opsicommon.package import OpsiPackage
 from opsicommon.testing.helpers import http_test_server
 
@@ -56,6 +66,8 @@ version = {{}}
 
 CONTROL_TOML = BASE_CONTROL_TOML.format("Test Product", PRODUCT_VERSION)
 CONTROL_TOML_CUSTOM = BASE_CONTROL_TOML.format("Test Product Custom Config", NEW_PRODUCT_VERSION)
+
+logger = get_logger("opsi-cli-test")
 
 
 @pytest.fixture
@@ -312,107 +324,335 @@ def test_package_list_filter_by_product_type(admin_service_client: ServiceClient
 
 
 @pytest.mark.opsi_service
-def test_package_install_and_uninstall() -> None:
-	# Test installing with a missing dependency
-	exit_code, _, _stderr = run_cli(["package", "install", str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi")])
-	assert exit_code != 0
-	_stderr = re.sub(r"\s+", " ", re.sub(r"[\n│]", "", _stderr))
-	assert (
-		"Failed to analyze package 'tests/test_data/plugins/package/testdependency4_1.0-5.opsi': "
-		"Dependency 'testdependency5' for package 'testdependency4' is not specified." in _stderr
-	)
+def test_package_install_and_uninstall(admin_service_client: ServiceClient) -> None:
+	admin_service_client.connect()
+	hosts = [
+		OpsiDepotserver(id="depot1.opsi.test"),
+		OpsiDepotserver(id="depot2.opsi.test"),
+		OpsiClient(id="client1.opsi.test"),
+		OpsiClient(id="client2.opsi.test"),
+		OpsiClient(id="client3.opsi.test"),
+	]
+	# Cleanup
+	admin_service_client.host_deleteObjects(hosts)  # type: ignore[unresolved-attribute]
+	admin_service_client.product_delete(id=["testdependency4", "testdependency5", "opsi-client-agent"])  # type: ignore[unresolved-attribute]
 
-	# Test with unfulfilled package dependency, this will lock the product 'testdependency4'
-	exit_code, _stdout, _stderr = run_cli(
-		[
-			"package",
-			"install",
-			str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi"),
-			str(TEST_DATA_PATH / "testdependency5_1.2-2.opsi"),
+	admin_service_client.host_createObjects(hosts)  # type: ignore[unresolved-attribute]
+	admin_service_client.configState_create(configId="clientconfig.depot.id", objectId="client1.opsi.test", values=["depot1.opsi.test"])  # type: ignore[unresolved-attribute]
+	admin_service_client.configState_create(configId="clientconfig.depot.id", objectId="client2.opsi.test", values=["depot2.opsi.test"])  # type: ignore[unresolved-attribute]
+	configserver_id = admin_service_client.host_getIdents(type="OpsiConfigserver")[0]  # type: ignore[unresolved-attribute]
+
+	client_ids_by_depot = {}
+	for c2d in admin_service_client.configState_getClientToDepotserver():  # type: ignore[unresolved-attribute]
+		if c2d["depotId"] not in client_ids_by_depot:
+			client_ids_by_depot[c2d["depotId"]] = []
+		client_ids_by_depot[c2d["depotId"]].append(c2d["clientId"])
+	assert client_ids_by_depot["depot1.opsi.test"] == ["client1.opsi.test"]
+	assert client_ids_by_depot["depot2.opsi.test"] == ["client2.opsi.test"]
+	assert client_ids_by_depot[configserver_id] == ["client3.opsi.test"]
+
+	def mock_get_depot_connection(depot: OpsiDepotserver) -> ServiceClient:
+		logger.debug("depot: %s", depot.id)
+		if depot.id == configserver_id:
+			return admin_service_client
+
+		class MockServiceClient(ServiceClient):
+			def __init__(self, depot: OpsiDepotserver) -> None:
+				super().__init__()
+				self.depot = depot
+
+			def connect(self, connect_messagebus: bool = False) -> None:
+				pass
+
+			def webdav_content(self, path: str, include_base_path: bool = False) -> list[DAVFileInfo]:
+				return []
+
+			def upload(self, source: Path, path: str, *, progress_callback: Callable | None = None) -> None:
+				pass
+
+			def jsonrpc(
+				self,
+				method: str,
+				params: tuple[Any, ...] | list[Any] | dict[str, Any] | None = None,
+				*,
+				connect_timeout: float | None = None,
+				read_timeout: float | None = None,
+				return_result_only: bool = True,
+				create_objects: bool | None = None,
+				assert_connected: bool = True,
+			) -> Any:
+				logger.info("Mock JSON-RPC call: %s %s", method, params)
+				if method == "depot_getDiskSpaceUsage":
+					return {"available": 1_000_000_000, "usage": 0.5}
+				if method == "depot_getMD5Sum":
+					if params and "testdependency5_1.2-2.opsi" in params[0]:
+						return "16c33c4939db6dc27e219bb381ee9b94"
+					if params and "testdependency4_1.0-5.opsi" in params[0]:
+						return "458bd972fd0e7d975474469da75cd4f1"
+					if params and "opsi-client-agent_4.3.9.2-2.opsi" in params[0]:
+						return "b76932c930256e90b32847a2d4a1d65d"
+				if method == "depot_installPackage":
+					assert params
+					product_id, version = params[0].split("/")[-1].split("_", 1)
+					product = LocalbootProduct(
+						id=product_id,
+						productVersion=version.split("-", 1)[0],
+						packageVersion=version.split("-", 1)[1],
+					)
+					product_on_depot = ProductOnDepot(
+						productId=product_id,
+						productType=product.getType(),
+						productVersion=product.productVersion,
+						packageVersion=product.packageVersion,
+						depotId=self.depot.id,
+						locked=True,
+					)
+					admin_service_client.product_updateObjects([product])  # type: ignore[unresolved-attribute]
+					admin_service_client.productOnDepot_createObjects([product_on_depot])  # type: ignore[unresolved-attribute]
+				if method == "depot_uninstallPackage":
+					assert params
+					product_id = params[0]
+					admin_service_client.productOnDepot_delete(productId=[product_id], depotId=[self.depot.id])  # type: ignore[unresolved-attribute]
+
+		return MockServiceClient(depot)
+
+	with patch("opsicli.opsiservice.get_depot_connection", mock_get_depot_connection):
+		# Test installing with a missing dependency
+		exit_code, _, _stderr = run_cli(["package", "install", str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi")])
+		assert exit_code != 0
+		_stderr = re.sub(r"\s+", " ", re.sub(r"[\n│]", "", _stderr))
+		assert (
+			"Failed to analyze package 'tests/test_data/plugins/package/testdependency4_1.0-5.opsi': "
+			"Dependency 'testdependency5' for package 'testdependency4' is not specified." in _stderr
+		)
+
+		# Test with unfulfilled package dependency, this will lock the product 'testdependency4'
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"package",
+				"install",
+				str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi"),
+				str(TEST_DATA_PATH / "testdependency5_1.2-2.opsi"),
+			]
+		)
+		assert exit_code != 0
+		assert "Opsi rpc error:" in _stderr
+
+		if Path("/var/lib/opsi/repository").exists():  # we are probably running on the opsi-server itself (not just on same docker host)
+			# Verify files exist after failed install
+			for file in [
+				"testdependency4_1.0-5.opsi",
+				"testdependency4_1.0-5.opsi.md5",
+				"testdependency4_1.0-5.opsi.zsync",
+				"testdependency5_1.2-2.opsi",
+				"testdependency5_1.2-2.opsi.md5",
+				"testdependency5_1.2-2.opsi.zsync",
+			]:
+				assert (Path("/var/lib/opsi/repository") / file).exists()
+
+		# Test with correct dependency version
+		exit_code, _, _stderr = run_cli(
+			[
+				"package",
+				"install",
+				str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi"),
+				str(TEST_DATA_PATH / "testdependency5_2-0.opsi"),
+			]
+		)
+		assert exit_code != 0
+		assert "Locked products found" in _stderr
+
+		# Force install with correct dependency version
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"package",
+				"install",
+				str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi"),
+				str(TEST_DATA_PATH / "testdependency5_2-0.opsi"),
+				"--force",
+			]
+		)
+		assert exit_code == 0
+		assert (
+			"Package 'testdependency4_1.0-5.opsi' already exists in the repository with matching size and checksum. Skipping upload"
+			in _stderr.replace("\n", " ").replace("  ", " ")
+		)
+
+		if Path("/var/lib/opsi/repository").exists():  # we are probably running on the opsi-server itself (not just on same docker host)
+			# Verify correct files exist after successful install
+			for file in [
+				"testdependency4_1.0-5.opsi",
+				"testdependency4_1.0-5.opsi.md5",
+				"testdependency4_1.0-5.opsi.zsync",
+				"testdependency5_2-0.opsi",
+				"testdependency5_2-0.opsi.md5",
+				"testdependency5_2-0.opsi.zsync",
+			]:
+				assert (Path("/var/lib/opsi/repository") / file).exists()
+
+			# Verify incorrect files do not exist
+			for file in ["testdependency5_1.2-2.opsi", "testdependency5_1.2-2.opsi.md5", "testdependency5_1.2-2.opsi.zsync"]:
+				assert not (Path("/var/lib/opsi/repository") / file).exists()
+
+		pods = sorted(
+			admin_service_client.productOnDepot_getObjects(productId=["testdependency4", "testdependency5", "opsi-client-agent"]),  # type: ignore[unresolved-attribute]
+			key=lambda p: (p.productId, p.depotId),
+		)
+		assert len(pods) == 2
+		assert pods[0].productId == "testdependency4"
+		assert pods[0].depotId == configserver_id
+		assert pods[0].productType == "LocalbootProduct"
+		assert pods[0].productVersion == "1.0"
+		assert pods[0].packageVersion == "5"
+		assert pods[1].productId == "testdependency5"
+		assert pods[1].depotId == configserver_id
+		assert pods[1].productType == "LocalbootProduct"
+		assert pods[1].productVersion == "2"
+		assert pods[1].packageVersion == "0"
+
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"package",
+				"install",
+				str(TEST_DATA_PATH / "opsi-client-agent_4.3.9.2-2.opsi"),
+				"--depots",
+				"depot1.opsi.test",
+			]
+		)
+		assert exit_code == 0
+		pods = sorted(
+			admin_service_client.productOnDepot_getObjects(productId=["testdependency4", "testdependency5", "opsi-client-agent"]),  # type: ignore[unresolved-attribute]
+			key=lambda p: (p.productId, p.depotId),
+		)
+		assert len(pods) == 3
+		assert pods[0].productId == "opsi-client-agent"
+		assert pods[0].depotId == "depot1.opsi.test"
+		assert pods[1].productId == "testdependency4"
+		assert pods[1].depotId == configserver_id
+		assert pods[2].productId == "testdependency5"
+		assert pods[2].depotId == configserver_id
+
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"package",
+				"install",
+				str(TEST_DATA_PATH / "opsi-client-agent_4.3.9.2-2.opsi"),
+				"--force",
+				"--depots",
+				"all",
+			]
+		)
+		assert exit_code == 0
+		pods = sorted(
+			admin_service_client.productOnDepot_getObjects(productId=["testdependency4", "testdependency5", "opsi-client-agent"]),  # type: ignore[unresolved-attribute]
+			key=lambda p: (p.productId, p.depotId),
+		)
+		assert len(pods) == 5
+		assert pods[0].productId == "opsi-client-agent"
+		assert pods[0].depotId == "depot1.opsi.test"
+		assert pods[1].productId == "opsi-client-agent"
+		assert pods[1].depotId == "depot2.opsi.test"
+		assert pods[2].productId == "opsi-client-agent"
+		assert pods[2].depotId == configserver_id
+		assert pods[3].productId == "testdependency4"
+		assert pods[3].depotId == configserver_id
+		assert pods[4].productId == "testdependency5"
+		assert pods[4].depotId == configserver_id
+
+		# Test uninstalling packages
+		exit_code, _stdout, _stderr = run_cli(["package", "uninstall", "testdependency4", "testdependency5"])
+		assert exit_code == 0
+		assert "Uninstalling" in _stderr
+
+		if Path("/var/lib/opsi/repository").exists():  # we are probably running on the opsi-server itself (not just on same docker host)
+			# Verify files do not exist after uninstall
+			for file in [
+				"testdependency4_1.0-5.opsi",
+				"testdependency4_1.0-5.opsi.md5",
+				"testdependency4_1.0-5.opsi.zsync",
+				"testdependency5_2-0.opsi",
+				"testdependency5_2-0.opsi.md5",
+				"testdependency5_2-0.opsi.zsync",
+			]:
+				assert not (Path("/var/lib/opsi/repository") / file).exists()
+
+		assert exit_code == 0
+		pods = sorted(
+			admin_service_client.productOnDepot_getObjects(productId=["testdependency4", "testdependency5", "opsi-client-agent"]),  # type: ignore[unresolved-attribute]
+			key=lambda p: (p.productId, p.depotId),
+		)
+		assert len(pods) == 3
+		assert pods[0].productId == "opsi-client-agent"
+		assert pods[0].depotId == "depot1.opsi.test"
+		assert pods[1].productId == "opsi-client-agent"
+		assert pods[1].depotId == "depot2.opsi.test"
+		assert pods[2].productId == "opsi-client-agent"
+		assert pods[2].depotId == configserver_id
+
+		# Add some states
+		pocs = [
+			ProductOnClient(
+				productId="opsi-client-agent",
+				productType="LocalbootProduct",
+				clientId=client_id,
+				installationStatus="installed",
+			)
+			for client_id in ["client1.opsi.test", "client2.opsi.test", "client3.opsi.test"]
 		]
-	)
-	assert exit_code != 0
-	assert "Opsi rpc error:" in _stderr
-
-	if Path("/var/lib/opsi/repository").exists():  # we are probably running on the opsi-server itself (not just on same docker host)
-		# Verify files exist after failed install
-		for file in [
-			"testdependency4_1.0-5.opsi",
-			"testdependency4_1.0-5.opsi.md5",
-			"testdependency4_1.0-5.opsi.zsync",
-			"testdependency5_1.2-2.opsi",
-			"testdependency5_1.2-2.opsi.md5",
-			"testdependency5_1.2-2.opsi.zsync",
-		]:
-			assert (Path("/var/lib/opsi/repository") / file).exists()
-
-	# Test with correct dependency version
-	exit_code, _, _stderr = run_cli(
-		[
-			"package",
-			"install",
-			str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi"),
-			str(TEST_DATA_PATH / "testdependency5_2-0.opsi"),
+		pps = [
+			ProductPropertyState(productId="opsi-client-agent", objectId=client_id, propertyId="allow_reboot", values=[True])
+			for client_id in ["client1.opsi.test", "client2.opsi.test", "client3.opsi.test"]
 		]
-	)
-	assert exit_code != 0
-	assert "Locked products found" in _stderr
+		admin_service_client.productOnClient_createObjects(pocs)  # type: ignore[unresolved-attribute]
+		admin_service_client.productPropertyState_createObjects(pps)  # type: ignore[unresolved-attribute]
 
-	# Force install with correct dependency version
-	exit_code, _stdout, _stderr = run_cli(
-		[
-			"package",
-			"install",
-			str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi"),
-			str(TEST_DATA_PATH / "testdependency5_2-0.opsi"),
-			"--force",
-		]
-	)
-	assert exit_code == 0
-	assert (
-		"Package 'testdependency4_1.0-5.opsi' already exists in the repository with matching size and checksum. Skipping upload"
-		in _stderr.replace("\n", " ").replace("  ", " ")
-	)
+		###########################################
+		# Uninstall opsi-client-agent
+		###########################################
+		exit_code, _stdout, _stderr = run_cli(["package", "uninstall", "opsi-client-agent", "--depots", configserver_id])
+		assert exit_code == 0
 
-	if Path("/var/lib/opsi/repository").exists():  # we are probably running on the opsi-server itself (not just on same docker host)
-		# Verify correct files exist after successful install
-		for file in [
-			"testdependency4_1.0-5.opsi",
-			"testdependency4_1.0-5.opsi.md5",
-			"testdependency4_1.0-5.opsi.zsync",
-			"testdependency5_2-0.opsi",
-			"testdependency5_2-0.opsi.md5",
-			"testdependency5_2-0.opsi.zsync",
-		]:
-			assert (Path("/var/lib/opsi/repository") / file).exists()
+		# Verify that product is not removed
+		product = admin_service_client.product_getObjects(id=["opsi-client-agent"])[0]  # type: ignore[unresolved-attribute]
+		assert product.id == "opsi-client-agent"
 
-		# Verify incorrect files do not exist
-		for file in ["testdependency5_1.2-2.opsi", "testdependency5_1.2-2.opsi.md5", "testdependency5_1.2-2.opsi.zsync"]:
-			assert not (Path("/var/lib/opsi/repository") / file).exists()
+		# Verify that productOnDepot is removed only from configserver depot
+		pods = sorted(
+			admin_service_client.productOnDepot_getObjects(productId=["opsi-client-agent"]),  # type: ignore[unresolved-attribute]
+			key=lambda p: (p.productId, p.depotId),
+		)
+		assert len(pods) == 2
+		assert pods[0].productId == "opsi-client-agent"
+		assert pods[0].depotId == "depot1.opsi.test"
+		assert pods[1].productId == "opsi-client-agent"
+		assert pods[1].depotId == "depot2.opsi.test"
 
-	# Test uninstalling packages
-	exit_code, _stdout, _stderr = run_cli(
-		[
-			"package",
-			"uninstall",
-			"testdependency4",
-			"testdependency5",
-		]
-	)
-	assert exit_code == 0
-	assert "Uninstalling" in _stderr
+		# Verify that productOnClient and productPropertyState are not removed
+		pocs = sorted(
+			admin_service_client.productOnClient_getObjects(productId=["opsi-client-agent"]),  # type: ignore[unresolved-attribute]
+			key=lambda p: (p.productId, p.clientId),
+		)
+		assert len(pocs) == 3
+		assert pocs[0].clientId == "client1.opsi.test"
+		assert pocs[1].clientId == "client2.opsi.test"
+		assert pocs[2].clientId == "client3.opsi.test"
 
-	if Path("/var/lib/opsi/repository").exists():  # we are probably running on the opsi-server itself (not just on same docker host)
-		# Verify files do not exist after uninstall
-		for file in [
-			"testdependency4_1.0-5.opsi",
-			"testdependency4_1.0-5.opsi.md5",
-			"testdependency4_1.0-5.opsi.zsync",
-			"testdependency5_2-0.opsi",
-			"testdependency5_2-0.opsi.md5",
-			"testdependency5_2-0.opsi.zsync",
-		]:
-			assert not (Path("/var/lib/opsi/repository") / file).exists()
+		ppss = sorted(
+			admin_service_client.productPropertyState_getObjects(  # type: ignore[unresolved-attribute]
+				productId=["opsi-client-agent"], objectId=["client1.opsi.test", "client2.opsi.test", "client3.opsi.test"]
+			),
+			key=lambda p: (p.productId, p.objectId),
+		)
+		assert len(ppss) == 3
+		assert ppss[0].objectId == "client1.opsi.test"
+		assert ppss[0].propertyId == "allow_reboot"
+		assert ppss[0].values == [True]
+		assert ppss[1].objectId == "client2.opsi.test"
+		assert ppss[1].propertyId == "allow_reboot"
+		assert ppss[1].values == [True]
+		assert ppss[2].objectId == "client3.opsi.test"
+		assert ppss[2].propertyId == "allow_reboot"
+		assert ppss[2].values == [True]
 
 
 @pytest.mark.opsi_service
@@ -608,6 +848,27 @@ def test_package_fetch(tmp_path: Path) -> None:
 
 	exit_code, _, _ = run_cli(["package", "uninstall", "opsi-client-agent"])
 	assert exit_code == 0
+
+
+def test_package_info() -> None:
+	exit_code, stdout, _stderr = run_cli(
+		[
+			"package",
+			"info",
+			str(TEST_DATA_PATH / "testdependency5_1.2-2.opsi"),
+			str(TEST_DATA_PATH / "opsi-client-agent_4.3.9.2-2.opsi"),
+		]
+	)
+	assert exit_code == 0
+	assert not _stderr
+
+	assert "package_filename: testdependency5_1.2-2.opsi" in stdout
+	assert "product_id: testdependency5" in stdout
+	assert "product_version: 1.2" in stdout
+
+	assert "package_filename: opsi-client-agent_4.3.9.2-2.opsi" in stdout
+	assert "product_id: opsi-client-agent" in stdout
+	assert "product_version: 4.3.9.2" in stdout
 
 
 @pytest.mark.parametrize("dry_run", (True, False))

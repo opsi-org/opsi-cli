@@ -29,7 +29,7 @@ if COMPLETION_MODE:
 	# Loads faster
 	import click
 else:
-	import rich_click as click  # type: ignore[no-redef]
+	import rich_click as click
 
 from click.core import ParameterSource  # noqa: E402
 from click.shell_completion import CompletionItem, ShellComplete, add_completion_class, split_arg_string  # noqa: E402
@@ -273,8 +273,8 @@ CONFIG_ITEMS = [
 		name="output_format",
 		type=OutputFormat,
 		group="IO",
-		default="auto",
-		description=f"Set output format. Possible values are: {OutputFormat.possible_values_for_description}.",
+		default=OutputFormat.AUTO.value,
+		description=f"Set output format. Possible values are: {str(OutputFormat.possible_values_for_description)}.",
 	),
 	ConfigItem(
 		name="output_file",
@@ -389,7 +389,7 @@ CONFIG_ITEMS.extend(
 )
 
 if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-	_plugin_bundle_dir = Path(sys._MEIPASS) / "plugins"  # type: ignore[attr-defined]
+	_plugin_bundle_dir = Path(sys._MEIPASS) / "plugins"
 else:
 	_plugin_bundle_dir = Path("plugins").resolve()
 

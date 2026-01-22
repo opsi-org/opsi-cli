@@ -17,9 +17,9 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 from io import BytesIO, StringIO
-from typing import IO, Any, Generator, Iterator, Type
+from typing import IO, Any, Generator, Iterator, Literal, Type
 
-import msgpack  # type: ignore[import]
+import msgpack
 import orjson
 from opsicommon.logging import get_logger
 from rich import print_json
@@ -31,6 +31,7 @@ from rich.table import Table, box
 from rich.text import Text
 
 from opsicli.config import config
+from opsicli.types import OutputFormat
 
 logger = get_logger("opsicli")
 
@@ -274,22 +275,41 @@ def prompt(
 	)
 
 
-def write_output_table(data: Any, metadata: Metadata, value_styles: dict[str, str] | None = None) -> None:
-	def to_string(value: Any) -> str:
-		if value is None:
-			return ""
-		if isinstance(value, bool):
+def to_string(
+	value: Any,
+	*,
+	null_format: Literal["empty_string", "<null>"] = "empty_string",
+	bool_format: Literal["true_false", "1_0"] = "true_false",
+	list_format: Literal["comma_space_separated", "comma_separated", "square_brackets"] = "comma_space_separated",
+	value_styles: dict[str, str] | None = None,
+) -> str:
+	if value is None:
+		return "" if null_format == "empty_string" else "<null>"
+	if isinstance(value, bool):
+		if bool_format == "true_false":
 			return "true" if value else "false"
-		if isinstance(value, (list, tuple)):
-			return ", ".join([to_string(v) for v in value])
-		if value_styles:
-			style = value_styles.get(value)
-			if style:
-				return f"[{style}]{value}[/{style}]"
-		if inspect.isclass(value):
-			return value.__name__
-		return str(value)
+		return "1" if value else "0"
+	if isinstance(value, (list, tuple)):
+		sep = "," if list_format == "comma_separated" else ", "
+		val = sep.join(
+			[
+				to_string(v, null_format=null_format, bool_format=bool_format, list_format=list_format, value_styles=value_styles)
+				for v in value
+			]
+		)
+		if list_format == "square_brackets":
+			return f"[{val}]"
+		return val
 
+	if inspect.isclass(value):
+		value = value.__name__
+	if value_styles:
+		if style := value_styles.get(value):
+			return f"[{style}]{value}[/{style}]"
+	return str(value)
+
+
+def write_output_table(data: Any, metadata: Metadata, value_styles: dict[str, str] | None = None) -> None:
 	attributes = config.attributes or []
 	table = Table(box=box.ROUNDED, show_header=config.header, show_lines=False)
 	row_ids = []
@@ -304,29 +324,47 @@ def write_output_table(data: Any, metadata: Metadata, value_styles: dict[str, st
 		row_type = type(data[0])
 		for row in data:
 			if issubclass(row_type, dict):
-				table.add_row(*[to_string(row.get(rid)) for rid in row_ids])
+				table.add_row(*[to_string(row.get(rid), value_styles=value_styles) for rid in row_ids])
 			elif issubclass(row_type, list):
-				table.add_row(*[to_string(el) for el in row])
+				table.add_row(*[to_string(el, value_styles=value_styles) for el in row])
 			else:
-				table.add_row(*[to_string(row)])
-
+				table.add_row(*[to_string(row, value_styles=value_styles)])
 	with output_file_str() as file:
 		console = get_console(output_type=OutputType.DATA, file=file)
 		console.print(table)
 
 
-def write_output_csv(data: Any, metadata: Metadata) -> None:
-	def to_string(value: Any) -> str:
-		if value is None:
-			return "<null>"
-		if isinstance(value, bool):
-			return "1" if value else "0"
-		if isinstance(value, (list, tuple)):
-			return ",".join([to_string(v) for v in value])
-		if inspect.isclass(value):
-			return value.__name__
-		return str(value)
+def write_output_key_value(data: Any, metadata: Metadata, value_styles: dict[str, str] | None = None) -> None:
+	attributes = config.attributes or []
+	row_ids: list[str] = []
+	for attribute in metadata.attributes:
+		if attributes == ["all"] or attribute.id in attributes or (not attributes and attribute.selected):
+			row_ids.append(attribute.id)
 
+	lines: list[str] = []
+	for ridx, row in enumerate(data):
+		if isinstance(row, dict):
+			for rid in row_ids:
+				lines.append(f"[bold]{rid}[/bold]: {to_string(row.get(rid), value_styles=value_styles)}")
+		elif isinstance(row, list):
+			for idx, rid in enumerate(row_ids):
+				value = row[idx] if idx < len(row) else None
+				lines.append(f"[bold]{rid}[/bold]: {to_string(value, value_styles=value_styles)}")
+		else:
+			rid = row_ids[0] if row_ids else "value0"
+			lines.append(f"[bold]{rid}[/bold]: {to_string(row, value_styles=value_styles)}")
+
+		if ridx != len(data) - 1:
+			lines.append("")
+
+	output = "\n".join(lines)
+
+	with output_file_str() as file:
+		console = get_console(output_type=OutputType.DATA, file=file)
+		console.print(output)
+
+
+def write_output_csv(data: Any, metadata: Metadata) -> None:
 	with output_file_str() as file:
 		writer = csv.writer(file, delimiter=";", quotechar='"', quoting=csv.QUOTE_MINIMAL)
 		row_ids = []
@@ -340,11 +378,13 @@ def write_output_csv(data: Any, metadata: Metadata) -> None:
 			writer.writerow(header)
 		for row in data:
 			if isinstance(row, dict):
-				writer.writerow([to_string(row.get(rid)) for rid in row_ids])
+				writer.writerow(
+					[to_string(row.get(rid), null_format="<null>", bool_format="1_0", list_format="comma_separated") for rid in row_ids]
+				)
 			elif isinstance(row, list):
-				writer.writerow([to_string(el) for el in row])
+				writer.writerow([to_string(el, null_format="<null>", bool_format="1_0", list_format="comma_separated") for el in row])
 			else:
-				writer.writerow([to_string(row)])
+				writer.writerow([to_string(row, null_format="<null>", bool_format="1_0", list_format="comma_separated")])
 
 
 def write_output_json(data: Any, metadata: Metadata | None = None, pretty: bool = False, force_newline: bool = False) -> None:
@@ -385,7 +425,7 @@ def write_output_msgpack(data: Any, metadata: Metadata | None = None) -> None:
 def write_output(
 	data: Any,
 	metadata: Metadata | None = None,
-	default_output_format: str | None = None,
+	default_output_format: OutputFormat | None = None,
 	value_styles: dict[str, str] | None = None,
 	force_newline: bool = False,
 ) -> None:
@@ -393,11 +433,14 @@ def write_output(
 		logger.debug("Quiet mode enabled, skipping output")
 		return
 
-	output_format = config.output_format
-	if output_format == "auto":
-		output_format = default_output_format if default_output_format else "table"
+	if isinstance(default_output_format, str):
+		default_output_format = OutputFormat(default_output_format)
 
-	if output_format in ("table", "csv"):
+	output_format = config.output_format
+	if output_format == OutputFormat.AUTO:
+		output_format = default_output_format if default_output_format else OutputFormat.TABLE
+
+	if output_format in (OutputFormat.TABLE, OutputFormat.CSV, OutputFormat.KEY_VALUE):
 		stt = get_structure_type(data)
 		if stt == dict:  # noqa: E721
 			data = [data]
@@ -420,15 +463,18 @@ def write_output(
 	if config.sort_by:
 		data = sort_data(data)
 
-	if output_format in ("table"):
+	if output_format == OutputFormat.TABLE:
 		assert metadata
 		write_output_table(data, metadata, value_styles)
-	elif output_format == "csv":
+	elif output_format == OutputFormat.CSV:
 		assert metadata
 		write_output_csv(data, metadata)
-	elif output_format in ("json", "pretty-json"):
-		write_output_json(data, metadata, output_format == "pretty-json", force_newline=force_newline)
-	elif output_format == "msgpack":
+	elif output_format == OutputFormat.KEY_VALUE:
+		assert metadata
+		write_output_key_value(data, metadata, value_styles)
+	elif output_format in (OutputFormat.JSON, OutputFormat.PRETTY_JSON):
+		write_output_json(data, metadata, output_format == OutputFormat.PRETTY_JSON, force_newline=force_newline)
+	elif output_format == OutputFormat.MSGPACK:
 		write_output_msgpack(data, metadata)
 	else:
 		raise ValueError(f"Invalid output-format: {output_format}")
@@ -523,7 +569,7 @@ def read_input_csv(data: bytes) -> list[dict | list[str]]:
 			continue
 		for cidx, val in enumerate(row):
 			if val == "<null>":
-				row[cidx] = None  # type: ignore[call-overload]
+				row[cidx] = None
 		if row:
 			if header:
 				rows.append({header[i]: row[i] for i in range(len(header))})
@@ -589,5 +635,7 @@ def read_input() -> Any:
 
 
 def list_attributes(data: Metadata) -> None:
-	attributes_list = [{"id": attribute.id, "type": attribute.data_type} for attribute in data.attributes]
-	write_output(attributes_list, None, "table")
+	attributes_list = [
+		{"id": attribute.id, "type": attribute.data_type} for attribute in data.attributes if attribute.selected is not False
+	]
+	write_output(attributes_list, None, OutputFormat.TABLE)

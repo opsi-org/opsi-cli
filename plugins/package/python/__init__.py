@@ -24,6 +24,7 @@ from opsicli.decorators import dry_run_handling
 from opsicli.io import OutputType, console_print, get_progress, write_output
 from opsicli.opsiservice import get_depot_connection, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
+from opsicli.types import OutputFormat
 from opsicli.utils import ProgressCallbackAdapter, create_nested_dict
 from plugins.package.data.metadata import command_metadata
 
@@ -200,7 +201,7 @@ def package_list(depots: str, product_type: str, product_ids: list[str]) -> None
 
 	combined_products = combine_products(product_dict, product_on_depot_dict)
 	metadata = command_metadata.get("package_list")
-	write_output(combined_products, metadata=metadata, default_output_format="table")
+	write_output(combined_products, metadata=metadata, default_output_format=OutputFormat.TABLE)
 
 
 @cli.command(short_help="Generate TOML from control file.")
@@ -224,6 +225,47 @@ def control_to_toml(source_dir: Path) -> None:
 		raise err
 
 	console_print("Control TOML has been successfully generated.", output_type=OutputType.MESSAGE)
+
+
+@cli.command(short_help="Show package information.")
+@click.argument("package_file", type=click.Path(exists=True, file_okay=True, dir_okay=False, path_type=Path), nargs=-1, required=True)
+def info(package_file: list[Path]) -> None:
+	"""
+	Show information about opsi packages.
+	"""
+	data = []
+	for package in package_file:
+		op = OpsiPackage(package)
+		data.append(
+			{
+				"package_path": str(package.resolve()),
+				"package_filename": package.name,
+				"product_id": op.product.id,
+				"product_version": op.product.productVersion,
+				"package_version": op.product.packageVersion,
+				"product_name": op.product.name,
+				"product_description": op.product.description,
+				"product_advice": op.product.advice,
+			}
+		)
+
+	metadata = Metadata(
+		attributes=[
+			Attribute(id="package_path", description="The path to the package file.", data_type="str", selected=False),
+			Attribute(id="package_filename", description="The filename of the package file.", data_type="str"),
+			Attribute(id="product_id", description="The ID of the product.", data_type="str"),
+			Attribute(id="product_version", description="The product version of the product.", data_type="str"),
+			Attribute(id="package_version", description="The package version of the product.", data_type="str"),
+			Attribute(id="product_name", description="The name of the product.", data_type="str"),
+			Attribute(id="product_description", description="The description of the product.", data_type="str"),
+			Attribute(id="product_advice", description="The advice of the product.", data_type="str", selected=False),
+		]
+	)
+	write_output(
+		data=data,
+		metadata=metadata,
+		default_output_format=OutputFormat.KEY_VALUE,
+	)
 
 
 @cli.command(short_help="Extract an opsi package.")
@@ -501,7 +543,13 @@ def install(
 					dest_package_name = fix_custom_package_name(package_path)
 					if new_product_id:
 						dest_package_name = opsi_package.package_archive_name()
-					upload_to_repository(depot_connection, depot.id, package_path, dest_package_name, temp_dir)
+					upload_to_repository(
+						depot_connection=depot_connection,
+						depot_id=depot.id,
+						source_package=package_path,
+						dest_package_name=dest_package_name,
+						temp_dir=temp_dir,
+					)
 
 					property_default_values = {
 						product_property.propertyId: product_property.defaultValues or []
@@ -516,13 +564,24 @@ def install(
 							property_default_values[product_property_state.propertyId] = product_property_state.values or []
 
 					install_package(
-						depot_connection, depot.id, dest_package_name, force, property_default_values, force_product_name=new_product_id
+						depot_connection=depot_connection,
+						depot_id=depot.id,
+						dest_package_name=dest_package_name,
+						force=force,
+						property_default_values=property_default_values,
+						force_product_name=new_product_id,
 					)
 
 					if setup_where_installed or setup_where_installed_with_dependencies or update_where_installed:
 						action_request = "update" if update_where_installed else "setup"
 						dependency = setup_where_installed_with_dependencies if setup_where_installed_with_dependencies else False
-						handle_action_request(service_client, depot.id, opsi_package.product, action_request, dependency)
+						handle_action_request(
+							service_client=service_client,
+							depot_id=depot.id,
+							product=opsi_package.product,
+							action_request=action_request,
+							dependency=dependency,
+						)
 			finally:
 				depot_connection.disconnect()
 
@@ -545,12 +604,18 @@ def complete_installed_products(ctx: click.Context, param: click.Parameter, inco
 @click.option("--depots", help="Depot IDs (comma-separated) or 'all'. Default is configserver.")
 @click.option("--force", is_flag=True, help="Force uninstallation.", default=False)
 @click.option("--keep-files", is_flag=True, help="Keep files on uninstallation.", default=False)
-def uninstall(product_ids: list[str], depots: str, force: bool, keep_files: bool) -> None:
+@click.option(
+	"--purge",
+	is_flag=True,
+	help="Remove all corresponding metadata, like installation states and product property states.",
+	default=False,
+)
+def uninstall(product_ids: list[str], depots: str, force: bool, keep_files: bool, purge: bool) -> None:
 	"""
 	opsi-cli package uninstall subcommand.
 	This subcommand is used to uninstall opsi products.
 	"""
-	logger.trace("uninstall package")
+	logger.trace("Uninstall package")
 
 	service_client = get_service_connection()
 	depot_objects = get_depot_objects(service_client, depots)
@@ -558,14 +623,15 @@ def uninstall(product_ids: list[str], depots: str, force: bool, keep_files: bool
 		raise click.UsageError(f"No depots found for '{depots}'. Please specify valid depot IDs or 'all'.")
 
 	product_ids_by_depot: dict[str, list[str]] = {}
-	for pod in service_client.jsonrpc(
-		"productOnDepot_getObjects", [[], {"depotId": [depot.id for depot in depot_objects], "productId": product_ids}]
-	):
+	for pod in service_client.productOnDepot_getObjects(depotId=[depot.id for depot in depot_objects], productId=product_ids):  # type: ignore[unresolved-attribute]
 		if pod.depotId not in product_ids_by_depot:
 			product_ids_by_depot[pod.depotId] = []
 		product_ids_by_depot[pod.depotId].append(pod.productId)
 
 	if not product_ids_by_depot:
+		if purge:
+			service_client.product_purge(product_ids)  # type: ignore[unresolved-attribute]
+			return
 		raise click.UsageError("No products found to uninstall.")
 
 	for depot in depot_objects:
@@ -575,10 +641,15 @@ def uninstall(product_ids: list[str], depots: str, force: bool, keep_files: bool
 		depot_connection = get_depot_connection(depot)
 		try:
 			for product_id in product_ids:
-				cleanup_packages_from_repo(depot_connection, product_id)
-				uninstall_package(depot_connection, depot.id, product_id, force, not keep_files)
+				cleanup_packages_from_repo(depot_connection=depot_connection, product_id=product_id)
+				uninstall_package(
+					depot_connection=depot_connection, depot_id=depot.id, product_id=product_id, force=force, delete_files=not keep_files
+				)
 		finally:
 			depot_connection.disconnect()
+
+	if purge:
+		service_client.product_purge(product_ids)  # type: ignore[unresolved-attribute]
 
 
 @cli.command(short_help="Fetch installed product(s) from depot and create an .opsi package archive. Use 'all' for all products.")

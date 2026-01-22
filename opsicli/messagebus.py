@@ -687,7 +687,7 @@ class TerminalMessagebusConnection(MessagebusConnection):
 						raise self._terminal_error
 					data = b""
 					if self._is_windows:
-						if con_buf_in.GetNumberOfConsoleInputEvents() == 0:  # type: ignore[no-untyped-call]
+						if con_buf_in.GetNumberOfConsoleInputEvents() == 0:
 							time.sleep(0.005)
 							continue
 						for event in con_buf_in.ReadConsoleInput(1024):

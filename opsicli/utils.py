@@ -97,16 +97,16 @@ def add_to_env_variable(key: str, value: str, system: bool = False) -> None:
 
 	import win32process
 
-	key_handle = winreg.CreateKey(  # type: ignore[attr-defined]
-		winreg.HKEY_LOCAL_MACHINE if system else winreg.HKEY_CURRENT_USER,  # type: ignore[attr-defined]
+	key_handle = winreg.CreateKey(
+		winreg.HKEY_LOCAL_MACHINE if system else winreg.HKEY_CURRENT_USER,
 		r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment" if system else r"Environment",
 	)
 	try:
 		if win32process.IsWow64Process():
-			winreg.DisableReflectionKey(key_handle)  # type: ignore[attr-defined]
+			winreg.DisableReflectionKey(key_handle)
 
 		try:
-			reg_value, value_type = winreg.QueryValueEx(key_handle, key)  # type: ignore[attr-defined]
+			reg_value, value_type = winreg.QueryValueEx(key_handle, key)
 			cur_reg_values = reg_value.split(";")
 			# Do some cleanup also.
 			# Remove empty values and values containing "pywin32_system32" and "opsi"
@@ -122,11 +122,11 @@ def add_to_env_variable(key: str, value: str, system: bool = False) -> None:
 				return
 
 			reg_value = ";".join(reg_values)
-			winreg.SetValueEx(key_handle, key, 0, value_type, reg_value)  # type: ignore[attr-defined]
+			winreg.SetValueEx(key_handle, key, 0, value_type, reg_value)
 		except FileNotFoundError as err:
 			raise ValueError(f"Key {key!r} not found in registry") from err
 	finally:
-		winreg.CloseKey(key_handle)  # type: ignore[attr-defined]
+		winreg.CloseKey(key_handle)
 
 
 @contextmanager
