@@ -13,7 +13,7 @@ import rich_click as click
 from opsicommon.logging import get_logger
 
 from opsicli.cli_helpers import OPSICLIGroup
-from opsicli.decorators import dry_run_handling
+from opsicli.decorators import dry_run_capable
 from opsicli.messagebus import FileTransferMessagebusConnection
 from opsicli.plugin import OPSICLIPlugin
 
@@ -27,7 +27,7 @@ logger = get_logger("opsicli")
 @click.group(cls=OPSICLIGroup, name="log", short_help="View logs")
 @click.version_option(__version__, message="opsi-cli plugin log, version %(version)s")
 @click.pass_context
-@dry_run_handling()
+@dry_run_capable
 def cli(ctx: click.Context) -> None:
 	"""
 	opsi-cli log command.

@@ -13,7 +13,7 @@ from opsicommon.objects import BoolConfig, Config, ConfigState, UnicodeConfig
 from purecrypt import Crypt, Method
 
 from opsicli.cli_helpers import OPSICLIGroup
-from opsicli.decorators import dry_run_handling
+from opsicli.decorators import dry_run_capable
 from opsicli.io import Attribute, Metadata, OutputType, console_print, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
@@ -85,7 +85,7 @@ def set_linux_bootimage_cmdline_param(name: str, values: list[str], host_id: str
 @click.version_option(__version__, message="opsi-cli plugin bootimage, version %(version)s")
 @click.option("--host", "--client", help="set value specific for this client", type=str)
 @click.pass_context
-@dry_run_handling()
+@dry_run_capable
 def cli(ctx: click.Context, host: str | None) -> None:
 	"""
 	Custom plugin to edit bootimage append configs

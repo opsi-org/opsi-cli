@@ -29,7 +29,7 @@ from rich.tree import Tree
 from opsicli import __version__ as opsi_cli_version
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.config import ConfigValueSource, config
-from opsicli.decorators import dry_run_handling
+from opsicli.decorators import dry_run_capable
 from opsicli.io import Attribute, Metadata, OutputType, console_print, get_progress, write_output
 from opsicli.plugin import OPSICLIPlugin, plugin_manager
 from opsicli.types import File
@@ -164,7 +164,7 @@ def print_installed_versions() -> None:
 @click.group(cls=OPSICLIGroup, name="self", short_help="Manage opsi-cli")
 @click.version_option(__version__, message="self plugin, version %(version)s")
 @click.pass_context
-@dry_run_handling()
+@dry_run_capable
 def cli(ctx: click.Context) -> None:
 	"""
 	opsi-cli self command.
@@ -224,7 +224,7 @@ def get_running_shell() -> str:
 	hidden=True,
 )
 @click.pass_context
-@dry_run_handling(dry_run_capable=True)
+@dry_run_capable
 def setup_shell_completion(ctx: click.Context, shell: str, completion_file: Path) -> None:
 	"""
 	opsi-cli self setup_shell_completion subcommand.
@@ -301,7 +301,7 @@ def setup_shell_completion(ctx: click.Context, shell: str, completion_file: Path
 	help="File path to store binary at (deprecated, please use --location).",
 )
 @click.pass_context
-@dry_run_handling(dry_run_capable=True)
+@dry_run_capable
 def install(ctx: click.Context, location: str, no_add_to_path: bool, system: bool | None, binary_path: Path | None = None) -> None:
 	"""
 	opsi-cli self install subcommand.
@@ -381,7 +381,7 @@ def install(ctx: click.Context, location: str, no_add_to_path: bool, system: boo
 	default=False,
 )
 @click.pass_context
-@dry_run_handling(dry_run_capable=True)
+@dry_run_capable
 def upgrade(ctx: click.Context, branch: str, source_url: str, location: str, allow_downgrade: bool) -> None:
 	"""
 	opsi-cli self upgrade subcommand.
@@ -470,7 +470,7 @@ def upgrade(ctx: click.Context, branch: str, source_url: str, location: str, all
 	help="File path to find binary at (deprecated, please use --location)",
 )
 @click.pass_context
-@dry_run_handling(dry_run_capable=True)
+@dry_run_capable
 def uninstall(ctx: click.Context, location: str, system: bool | None = None, binary_path: Path | None = None) -> None:
 	"""
 	opsi-cli self uninstall subcommand.

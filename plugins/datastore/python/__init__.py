@@ -16,7 +16,7 @@ from opsicommon.objects import BoolConfig, ConfigState, UnicodeConfig
 from opsicommon.types import forceBool
 
 from opsicli.cli_helpers import OPSICLIGroup
-from opsicli.decorators import dry_run_handling
+from opsicli.decorators import dry_run_capable
 from opsicli.io import OutputType, console_print, write_output
 from opsicli.opsiservice import ServiceClient, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
@@ -54,7 +54,6 @@ def create_client_depot_mapping(service_connection: ServiceClient, object_ids: l
 @click.group(cls=OPSICLIGroup, name="datastore", short_help="Manage objects and data")
 @click.version_option(__version__, message="datastore plugin, version %(version)s")
 @click.pass_context
-@dry_run_handling(dry_run_capable=True)
 def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 	logger.trace("datastore command group")
 

@@ -7,6 +7,7 @@ from typing import Any, Optional
 from rich.panel import Panel
 from rich.text import Text
 
+from opsicli import logger
 from opsicli.config import config
 from opsicli.io import OutputType, console_print, get_console, list_attributes
 
@@ -162,7 +163,7 @@ def _get_usage(ctx: click.Context) -> str:
 
 # Assemble command sequence and load module/metadata.
 # If metadata exists, output it.
-def _handle_list_attributes(ctx: click.Context):
+def _handle_list_attributes_flag(ctx: click.Context):
 	arg_sequence = ctx.command_path.split(" ")[1:]
 	command_sequence = "_".join(arg_sequence)
 	module = importlib.import_module(f"plugins.{arg_sequence[0]}.data.metadata")
@@ -172,7 +173,23 @@ def _handle_list_attributes(ctx: click.Context):
 		list_attributes(metadata)
 		ctx.exit()
 	else:
-		console_print(f"[red]Warning: [/red]The command 'opsi-cli {' '.join(arg_sequence)}' does not support the option --list-attributes.")
+		console_print(
+			f"ERROR: [/red]The command 'opsi-cli {' '.join(arg_sequence)}' does not support the option --list-attributes.",
+			output_type=OutputType.ERROR_MESSAGE,
+		)
+		ctx.exit()
+
+
+def _handle_dry_run_flag(ctx: click.Context):
+	if hasattr(ctx.command.callback, "is_dry_run_handled"):
+		warning_message = "WARNING: Operating in dry-run mode - no actions will be performed."
+		console_print(f"{warning_message}\n", output_type=OutputType.WARNING_MESSAGE)
+		logger.warning(warning_message)
+	else:
+		console_print(
+			f"ERROR: The command '{ctx.command_path}' does not support --dry-run. Aborting.",
+			output_type=OutputType.ERROR_MESSAGE,
+		)
 		ctx.exit()
 
 
@@ -188,9 +205,10 @@ class OPSICLICommand(click.Command):
 	# - The Command is always the final 'instruction'
 	# - we are no longer interested in any options or arguments attached to it
 	def parse_args(self, ctx: click.Context, args):
-		value_list_attribute = config.get_config_item(name="list_attributes").get_value()
-		if value_list_attribute:
-			_handle_list_attributes(ctx)
+		if config.dry_run:
+			_handle_dry_run_flag(ctx)
+		if config.list_attributes:
+			_handle_list_attributes_flag(ctx)
 		return super().parse_args(ctx, args)
 
 
@@ -208,8 +226,9 @@ class OPSICLIGroup(click.Group):
 	def get_usage(self, ctx: click.Context) -> str:
 		return _get_usage(ctx)
 
-	# otherwise '--help' won't be parsed in OPSICLICommand, if '--list-attributes' is set
+	# otherwise '--help' won't be parsed in OPSICLICommand, if '--list-attributes' or '--dry-run' is set
 	def parse_args(self, ctx: click.Context, args):
 		if "--help" in sys.argv:
-			config.get_config_item(name="list_attributes").set_value(False)
+			config.list_attributes = False
+			config.dry_run = False
 		return super().parse_args(ctx, args)

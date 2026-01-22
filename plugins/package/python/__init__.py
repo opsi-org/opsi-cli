@@ -20,7 +20,7 @@ from opsicommon.utils import make_temp_dir
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.config import config
-from opsicli.decorators import dry_run_handling
+from opsicli.decorators import dry_run_capable
 from opsicli.io import Attribute, Metadata, OutputType, console_print, get_progress, write_output
 from opsicli.opsiservice import get_depot_connection, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
@@ -60,7 +60,7 @@ argument_source_dir = click.argument(
 @click.group(cls=OPSICLIGroup, name="package", short_help="Manage opsi packages")
 @click.version_option(__version__, message="opsi-cli plugin package, version %(version)s")
 @click.pass_context
-@dry_run_handling()
+@dry_run_capable
 def cli(ctx: click.Context) -> None:
 	"""
 	opsi-cli package command.
@@ -311,7 +311,7 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 
 @cli.group(name="meta-edit", short_help="Edit the metadata (control file) of an opsi source package.")
 @click.pass_context
-@dry_run_handling(dry_run_capable=True)
+@dry_run_capable
 def meta_edit(ctx: click.Context) -> None:
 	"""
 	This command edits the metadata (control file) of an opsi source package.
@@ -346,7 +346,7 @@ def meta_edit(ctx: click.Context) -> None:
 	type=click.Choice(["before", "after"]),
 )
 @click.pass_context
-@dry_run_handling(dry_run_capable=True)
+@dry_run_capable
 def meta_edit_add_product_dependency(
 	ctx: click.Context,
 	source_dir: Path,
@@ -415,7 +415,7 @@ def meta_edit_add_product_dependency(
 @click.option("--required-product-id", help="ID of the required product.", required=True)
 @click.option("--ignore-missing", is_flag=True, help="Ignore if the product dependency does not exist.", default=False)
 @click.pass_context
-@dry_run_handling(dry_run_capable=True)
+@dry_run_capable
 def meta_edit_remove_product_dependency(
 	ctx: click.Context, source_dir: Path, product_action: str, required_product_id: str, ignore_missing: bool = False
 ) -> None:

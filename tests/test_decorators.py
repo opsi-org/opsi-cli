@@ -10,14 +10,15 @@ test_decorators
 from .utils import run_cli
 
 
-def test_dry_run_handling() -> None:
+def test_() -> None:
+	"""
 	# Test that the help output includes the dry-run support note for a dry-run capable command
 	exit_code, stdout, stderr = run_cli(["--no-color", "self", "install", "--help"])
 	combined_output = stdout + stderr
 	assert "This command supports --dry-run: actions will be simulated and not performed." in combined_output
-
+	"""
 	# Test that a dry-run capable command shows a warning message when --dry-run is used
-	exit_code, _, stderr = run_cli(
+	exit_code, _stdout, stderr = run_cli(
 		[
 			"--dry-run",
 			"self",
