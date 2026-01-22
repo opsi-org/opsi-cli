@@ -5,8 +5,6 @@ from pathlib import Path
 from opsicli.io import list_attributes
 from tests.utils import run_cli
 
-# from opsicli.io import list_attributes
-
 
 def test_list_attributes_flag(capsys) -> None:
 	path = Path("./plugins")
