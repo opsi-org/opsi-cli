@@ -10,8 +10,7 @@ from tests.utils import run_cli
 
 def test_list_attributes_flag(capsys) -> None:
 	path = Path("./plugins")
-	plugins = [f.name for f in path.iterdir() if f.is_dir()]
-
+	plugins = [f.name for f in path.iterdir() if f.is_dir]
 	for p in plugins:
 		# check for metadata.py
 		if Path(f"./plugins/{p}/data/metadata.py").exists():
@@ -25,12 +24,12 @@ def test_list_attributes_flag(capsys) -> None:
 			spec.loader.exec_module(plugin_metadata_module)
 
 			# sequences used as key for metadata  	e.g. ['datastore_config-state_list', 'jsonrpc_methods']
-			command_sequences_metadata = list(plugin_metadata_module.command_metadata.keys())
+			metadata_keys = list(plugin_metadata_module.command_metadata.keys())
 			# sequences used for cli 				e.g. [['datastore', 'config-state', 'list'], ['jsonrpc', 'methods']]
-			command_sequences_cli = [cs.replace("_", " ").split(" ") for cs in command_sequences_metadata]
+			command_sequences_cli = [cs.replace("_", " ").split(" ") for cs in metadata_keys]
 
-			for sequence_metadata, sequence_cli in zip(command_sequences_metadata, command_sequences_cli):
-				plugin_metadata = plugin_metadata_module.command_metadata[sequence_metadata]
+			for metadata_key, sequence_cli in zip(metadata_keys, command_sequences_cli):
+				plugin_metadata = plugin_metadata_module.command_metadata[metadata_key]
 
 				# expected
 				list_attributes(plugin_metadata)

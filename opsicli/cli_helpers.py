@@ -1,6 +1,7 @@
 import importlib
 import os
 import re
+import sys
 from typing import Any, Optional
 
 from rich.panel import Panel
@@ -159,6 +160,32 @@ def _get_usage(ctx: click.Context) -> str:
 	return f"{prefix}{' '.join(parts)}"
 
 
+def _get_all_command_chains(command, prefix=None):
+	"""
+	Durchläuft rekursiv einen Click-Befehlsbaum und gibt alle Pfade als Liste zurück.
+	"""
+	prefix = prefix or []
+	chains = []
+
+	# Prüfen, ob das aktuelle Objekt eine Gruppe mit Unterbefehlen ist
+	if isinstance(command, click.Group):
+		# Falls die Gruppe selbst keine Befehle hat (Sackgasse)
+		if not command.commands:
+			if prefix:
+				chains.append(" ".join(prefix))
+			return chains
+
+		for name, sub_command in command.commands.items():
+			# Rekursion: Name des Sub-Commands an den aktuellen Pfad hängen
+			sub_chains = _get_all_command_chains(sub_command, prefix + [name])
+			chains.extend(sub_chains)
+	else:
+		# Basis-Fall: Es ist ein einzelner Command (Endknoten)
+		chains.append(" ".join(prefix))
+
+	return chains
+
+
 # Callback for the global --list-attributes option.
 # Store the fact that the flag was set in the root context for global access.
 def _list_attributes_callback(ctx, param, value) -> None:
@@ -214,3 +241,10 @@ class OPSICLIGroup(click.Group):
 
 	def get_usage(self, ctx: click.Context) -> str:
 		return _get_usage(ctx)
+
+	# otherwise '--help' won't be parsed in OPSICLICommand, if '--list-attributes' is set
+	def parse_args(self, ctx: click.Context, args):
+		if "--help" in sys.argv:
+			root_ctx = ctx.find_root()
+			root_ctx.meta["list-attributes"] = False
+		return super().parse_args(ctx, args)
