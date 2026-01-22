@@ -160,32 +160,6 @@ def _get_usage(ctx: click.Context) -> str:
 	return f"{prefix}{' '.join(parts)}"
 
 
-def _get_all_command_chains(command, prefix=None):
-	"""
-	Durchläuft rekursiv einen Click-Befehlsbaum und gibt alle Pfade als Liste zurück.
-	"""
-	prefix = prefix or []
-	chains = []
-
-	# Prüfen, ob das aktuelle Objekt eine Gruppe mit Unterbefehlen ist
-	if isinstance(command, click.Group):
-		# Falls die Gruppe selbst keine Befehle hat (Sackgasse)
-		if not command.commands:
-			if prefix:
-				chains.append(" ".join(prefix))
-			return chains
-
-		for name, sub_command in command.commands.items():
-			# Rekursion: Name des Sub-Commands an den aktuellen Pfad hängen
-			sub_chains = _get_all_command_chains(sub_command, prefix + [name])
-			chains.extend(sub_chains)
-	else:
-		# Basis-Fall: Es ist ein einzelner Command (Endknoten)
-		chains.append(" ".join(prefix))
-
-	return chains
-
-
 # Callback for the global --list-attributes option.
 # Store the fact that the flag was set in the root context for global access.
 def _list_attributes_callback(ctx, param, value) -> None:
