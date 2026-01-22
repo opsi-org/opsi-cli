@@ -174,7 +174,7 @@ def _handle_list_attributes_flag(ctx: click.Context):
 		ctx.exit()
 	else:
 		console_print(
-			f"ERROR: [/red]The command 'opsi-cli {' '.join(arg_sequence)}' does not support the option --list-attributes.",
+			f"ERROR: The command 'opsi-cli {' '.join(arg_sequence)}' does not support the option --list-attributes.",
 			output_type=OutputType.ERROR_MESSAGE,
 		)
 		ctx.exit()
