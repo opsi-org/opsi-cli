@@ -175,7 +175,6 @@ def set_config_state_value(config_id: str, object_id: str, values: tuple[str]) -
 		# set new value for every given object
 		for obj_id in object_ids:
 			current_values = object_value_dict[obj_id][config_id]
-
 			# create configState Objects with new value
 			if value in ["true", "True"]:
 				config_state = ConfigState(configId=config_id, objectId=obj_id, values=[forceBool(value)])
