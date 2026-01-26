@@ -152,3 +152,10 @@ def test_flag_protected(tmp_path: Path) -> None:
 
 		exit_code, _stdout, stderr = run_cli(["plugin", "remove", "config"])
 		assert exit_code == 1  # not allowed to remove "config" as it is a protected plugin
+
+
+def test_run_unavailable_plugin() -> None:
+	with temp_context():
+		exit_code, _stdout, stderr = run_cli(["invalid-plugin", "somecommand"])
+		assert exit_code == 1
+		assert "Error: Plugin 'invalid-plugin' not found." in stderr

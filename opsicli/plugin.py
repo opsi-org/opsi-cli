@@ -137,17 +137,17 @@ class PluginManager(metaclass=Singleton):
 		return importlib.import_module(self.module_name(plugin_dir))
 
 	def get_plugin_dir(self, name: str) -> Path:
-		name = name.replace("-", "_")
+		dir_name = name.replace("-", "_")
 		for plugin_base_dir in (config.plugin_bundle_dir, config.plugin_system_dir, config.plugin_user_dir):
 			if not plugin_base_dir:
 				continue
 			if not plugin_base_dir.exists():
 				logger.debug("Plugin dir '%s' not found", plugin_base_dir)
 				continue
-			if (plugin_base_dir / name).exists():
-				logger.debug("Found plugin %s at %s", name, plugin_base_dir / name)
-				return plugin_base_dir / name
-		raise FileNotFoundError(f"Did not find plugin '{name}'.")
+			if (plugin_base_dir / dir_name).exists():
+				logger.debug("Found plugin %r at '%s'", name, plugin_base_dir / dir_name)
+				return plugin_base_dir / dir_name
+		raise FileNotFoundError(f"Plugin '{name}' not found.")
 
 	def load_plugin(self, name: str) -> OPSICLIPlugin:
 		plugin_dir = self.get_plugin_dir(name)
