@@ -24,7 +24,16 @@ from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.config import config
 from opsicli.decorators import dry_run_handling, handle_list_attributes
 from opsicli.io import OutputType, console_print, prompt, write_output
-from opsicli.plugin import PLUGIN_EXTENSION, OPSICLIPlugin, install_plugin, plugin_manager, prepare_plugin, replace_data
+from opsicli.plugin import (
+	PLUGIN_EXTENSION,
+	OPSICLIPlugin,
+	install_plugin,
+	plugin_manager,
+	prepare_plugin,
+	replace_data,
+	verify_plugin_id,
+	verify_plugin_name,
+)
 from plugins.plugin.data.metadata import command_metadata
 
 __version__ = "0.1.2"
@@ -91,6 +100,7 @@ def export(plugin_id: str, destination_dir: Path, src: bool) -> None:
 	It is packaged as an opsi-cli plugin file which can be added to another
 	instance of opsi-cli via "plugin add". Also see "plugin list".
 	"""
+	plugin_id = verify_plugin_id(plugin_id)
 	destination_dir.mkdir(parents=True, exist_ok=True)
 	path = plugin_manager.get_plugin_dir(plugin_id)
 	logger.debug("Getting plugin from path %s", path)
@@ -127,7 +137,7 @@ def extract(archive: Path, destination_dir: Path) -> None:
 	The operation is performed without importing the plugin.
 	The running opsi-cli instance is unaffected.
 	"""
-	plugin_id = archive.stem
+	plugin_id = verify_plugin_id(archive.stem)
 	if (destination_dir / plugin_id).exists():
 		raise FileExistsError(f"Directory {destination_dir / plugin_id} exists! Remove it before extracting {archive} to {destination_dir}")
 	logger.notice("Extracting plugin archive %s to path %s", archive, destination_dir)
@@ -146,7 +156,7 @@ def compress(source_dir: Path, destination_dir: Path) -> None:
 	The operation is performed without importing the plugin.
 	The running opsi-cli instance is unaffected.
 	"""
-	plugin_id = source_dir.stem
+	plugin_id = verify_plugin_id(source_dir.stem)
 	archive = destination_dir / f"{plugin_id}.{PLUGIN_EXTENSION}"
 	if (archive).exists():
 		raise FileExistsError(f"Archive {archive} exists! Remove it before compressing {source_dir} to {destination_dir}")
@@ -186,6 +196,7 @@ def remove(plugin_id: str) -> None:
 	opsi-cli plugin remove subcommand.
 	This subcommand removes an installed opsi-cli plugin. See "[bold]plugin list[/bold]".
 	"""
+	plugin_id = verify_plugin_id(plugin_id)
 	plugin_object = plugin_manager.load_plugin(plugin_id)
 	if "protected" in plugin_object.flags:
 		raise PermissionError(f"Plugin {plugin_id} has flag 'protected', cannot remove!")
@@ -225,6 +236,7 @@ def new(name: str, version: str, description: str, path: Path) -> None:
 		name = str(prompt("Please enter a name for the new plugin"))
 		if not name:
 			raise ValueError("Plugin name must not be empty")
+		name = verify_plugin_name(name)
 	if not version:
 		if not config.interactive:
 			raise ValueError("No version specified")
@@ -234,7 +246,8 @@ def new(name: str, version: str, description: str, path: Path) -> None:
 			description = ""
 		else:
 			description = str(prompt("Please enter description", default="")).replace('"', '\\"')
-	plugin_id = name.lower()
+
+	plugin_id = verify_plugin_id(name.lower().replace(" ", "-"))
 	logger.notice("Creating new plugin '%s'", plugin_id)
 	logger.debug("name='%s', version='%s', description='%s'", name, version, description)
 	plugin_path = path / plugin_id.replace("-", "_")
@@ -258,9 +271,9 @@ def new(name: str, version: str, description: str, path: Path) -> None:
 			for line in templatefile.readlines():
 				initfile.write(replace_data(line, replacements))
 	console_print(
-		f"Plugin {plugin_id!r} created at path {path}.\n"
+		f"Plugin {plugin_id!r} created at '{plugin_path}'.\n"
 		f"Add code to {path / 'python'} and optional data to {path / 'data'}\n"
-		f"Use 'opsi-cli plugin add {plugin_path}' to register the command at the current opsi-cli instance and to apply changes.",
+		f"Use 'opsi-cli plugin add \"{plugin_path}\"' to register the command at the current opsi-cli instance and to apply changes.",
 		file=sys.stderr,
 	)
 

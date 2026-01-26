@@ -11,6 +11,7 @@ plugin handling
 
 import importlib
 import os
+import re
 import shutil
 import sys
 import warnings
@@ -31,6 +32,21 @@ from opsicli.singelton import Singleton
 logger = get_logger("opsicli")
 
 PLUGIN_EXTENSION = "opsicliplug"
+
+PLUGIN_NAME_REGEX = re.compile(r"^[a-zA-Z0-9_\- ]+$")
+PLUGIN_ID_REGEX = re.compile(r"^[a-z0-9\-]+$")
+
+
+def verify_plugin_name(plugin_name: str) -> str:
+	if not re.match(PLUGIN_NAME_REGEX, plugin_name):
+		raise ValueError(f"Invalid plugin name '{plugin_name}'. Only alphanumeric characters, spaces, hyphens and underscores are allowed.")
+	return plugin_name
+
+
+def verify_plugin_id(plugin_id: str) -> str:
+	if not re.match(PLUGIN_ID_REGEX, plugin_id):
+		raise ValueError(f"Invalid plugin id '{plugin_id}'. Only alphanumeric characters, hyphens and underscores are allowed.")
+	return plugin_id
 
 
 class OPSICLIPlugin:
@@ -159,7 +175,7 @@ def replace_data(string: str, replacements: dict[str, str]) -> str:
 def prepare_plugin(path: Path, tmpdir: Path) -> str:
 	"""Creates the plugin and libs in tmp"""
 	logger.info("Inspecting plugin source '%s'", path)
-	plugin_id = path.stem
+	plugin_id = verify_plugin_id(path.stem)
 	if (path / "python" / "__init__.py").exists():
 		shutil.copytree(path, tmpdir / plugin_id)
 	elif path.suffix == f".{PLUGIN_EXTENSION}":
