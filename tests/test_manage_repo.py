@@ -41,7 +41,7 @@ def test_metafile_create(tmp_path: Path) -> None:
 	for suffix in formats:
 		data = read_metafile(repository_dir / f"packages.{suffix}")
 		assert data["repository"]["name"] == "OPSI package repository"
-		assert data["schema_version"] == "1.1"
+		assert data["schema_version"] == "1.2"
 		assert data["packages"]["localboot_new"]["42.0-1337"]["url"] == "localboot_new_42.0-1337.opsi"
 		assert data["packages"]["localboot_new"]["1.0-1"]["url"] == "localboot_new_1.0-1.opsi"
 		assert data["packages"]["test-netboot"]["1.0-2"]["url"] == "subdir/test-netboot_1.0-2.opsi"
@@ -56,7 +56,7 @@ def test_metafile_create(tmp_path: Path) -> None:
 		if suffix == "json":
 			data = read_metafile(metafile)
 			assert data["repository"]["name"] == "myrepo"
-			assert data["schema_version"] == "1.1"
+			assert data["schema_version"] == "1.2"
 			assert not data["packages"]
 		else:
 			assert not metafile.exists()
@@ -78,7 +78,7 @@ def test_metafile_update(tmp_path: Path) -> None:
 	for suffix in formats:
 		data = read_metafile(repository_dir / f"packages.{suffix}")
 		assert data["repository"]["name"] == "myrepo"
-		assert data["schema_version"] == "1.1"
+		assert data["schema_version"] == "1.2"
 		assert data["packages"]["localboot_new"]["42.0-1337"]["url"] == "localboot_new_42.0-1337.opsi"
 		assert data["packages"]["localboot_new"]["1.0-1"]["url"] == "localboot_new_1.0-1.opsi"
 		assert data["packages"]["test-netboot"]["1.0-2"]["url"] == "subdir/test-netboot_1.0-2.opsi"
@@ -93,7 +93,7 @@ def test_metafile_update(tmp_path: Path) -> None:
 		if suffix == "json":
 			data = read_metafile(metafile)
 			assert data["repository"]["name"] == "myrepo"
-			assert data["schema_version"] == "1.1"
+			assert data["schema_version"] == "1.2"
 			assert len(data["packages"]["localboot_new"]) == 3
 			assert len(data["packages"]["test-netboot"]) == 1
 		else:
