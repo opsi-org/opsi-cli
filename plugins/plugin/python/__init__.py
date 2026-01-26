@@ -237,11 +237,11 @@ def new(name: str, version: str, description: str, path: Path) -> None:
 	plugin_id = name.lower()
 	logger.notice("Creating new plugin '%s'", plugin_id)
 	logger.debug("name='%s', version='%s', description='%s'", name, version, description)
-	result_path = path / plugin_id
-	if result_path.exists():
-		raise FileExistsError(f"Path {result_path} already exists. Aborting.")
-	(result_path / "python").mkdir(parents=True)
-	(result_path / "data").mkdir()
+	plugin_path = path / plugin_id.replace("-", "_")
+	if plugin_path.exists():
+		raise FileExistsError(f"Path {plugin_path} already exists. Aborting.")
+	(plugin_path / "python").mkdir(parents=True)
+	(plugin_path / "data").mkdir()
 
 	template_file_path = plugin_manager.get_plugin_dir("plugin") / "data" / "template.py"  # Configurable?
 	if not template_file_path.exists():
@@ -253,14 +253,14 @@ def new(name: str, version: str, description: str, path: Path) -> None:
 		"{{DESCRIPTION}}": description,
 	}
 
-	with open(result_path / "python" / "__init__.py", "w", encoding="utf-8") as initfile:
+	with open(plugin_path / "python" / "__init__.py", "w", encoding="utf-8") as initfile:
 		with open(template_file_path, "r", encoding="utf-8") as templatefile:
 			for line in templatefile.readlines():
 				initfile.write(replace_data(line, replacements))
 	console_print(
 		f"Plugin {plugin_id!r} created at path {path}.\n"
 		f"Add code to {path / 'python'} and optional data to {path / 'data'}\n"
-		f"Use 'opsi-cli plugin add {result_path}' to register the command at the current opsi-cli instance and to apply changes.",
+		f"Use 'opsi-cli plugin add {plugin_path}' to register the command at the current opsi-cli instance and to apply changes.",
 		file=sys.stderr,
 	)
 
