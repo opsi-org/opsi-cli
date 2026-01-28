@@ -114,8 +114,13 @@ class PluginManager(metaclass=Singleton):
 				continue
 			logger.debug("Checking plugins from dir '%s'", plugin_base_dir)
 			for plugin_dir in plugin_base_dir.iterdir():
-				if (plugin_dir / "python" / "__init__.py").exists() and plugin_dir.name not in plugin_ids:
-					plugin_ids.append(plugin_dir.name)
+				try:
+					plugin_id = verify_plugin_id(plugin_dir.name.replace("_", "-"))
+				except ValueError as err:
+					logger.warning("Skipping invalid plugin dir '%s': %s", plugin_dir, err)
+					continue
+				if (plugin_dir / "python" / "__init__.py").exists() and plugin_id not in plugin_ids:
+					plugin_ids.append(plugin_id)
 		return plugin_ids
 
 	def load_plugin_module(self, plugin_dir: Path) -> ModuleType:
@@ -175,9 +180,11 @@ def replace_data(string: str, replacements: dict[str, str]) -> str:
 def prepare_plugin(path: Path, tmpdir: Path) -> str:
 	"""Creates the plugin and libs in tmp"""
 	logger.info("Inspecting plugin source '%s'", path)
-	plugin_id = verify_plugin_id(path.stem)
+	plugin_id = verify_plugin_id(path.stem.replace("_", "-"))
+	plugin_tmp_path = tmpdir / plugin_id.replace("-", "_")
+	logger.info("Preparing plugin '%s' in '%s'", plugin_id, plugin_tmp_path)
 	if (path / "python" / "__init__.py").exists():
-		shutil.copytree(path, tmpdir / plugin_id)
+		shutil.copytree(path, plugin_tmp_path)
 	elif path.suffix == f".{PLUGIN_EXTENSION}":
 		with zipfile.ZipFile(path, "r") as zfile:
 			zfile.extractall(tmpdir)
@@ -185,27 +192,29 @@ def prepare_plugin(path: Path, tmpdir: Path) -> str:
 		raise ValueError(f"Invalid path given '{path}'")
 
 	logger.info("Retrieving libraries for new plugin")
-	install_dependencies(tmpdir / plugin_id, tmpdir / "lib")
+	install_dependencies(plugin_tmp_path, tmpdir / "lib")
 	return plugin_id
 
 
-def install_plugin(source_dir: Path, name: str, system: bool = False) -> Path:
+def install_plugin(source_dir: Path, plugin_id: str, system: bool = False) -> Path:
 	"""Copy the prepared plugin from tmp to LIB_DIR"""
 	plugin_dir = config.plugin_system_dir if system else config.plugin_user_dir
 	if not plugin_dir.is_dir():
 		raise FileNotFoundError(f"Plugin dir '{plugin_dir}' does not exist")
 
-	if not name:
+	if not plugin_id:
 		raise ValueError("Attempting to install empty plugin.")
-	logger.info("Installing libraries from '%s'", source_dir / "lib")
-	shutil.rmtree(config.python_lib_dir / name, ignore_errors=True)
-	shutil.copytree(source_dir / "lib", config.python_lib_dir / name)
 
-	destination = plugin_dir / name
-	logger.info("Installing plugin from '%s' to '%s'", source_dir / name, destination)
+	plugin_path_name = plugin_id.replace("-", "_")
+	logger.info("Installing libraries from '%s'", source_dir / "lib")
+	shutil.rmtree(config.python_lib_dir / plugin_path_name, ignore_errors=True)
+	shutil.copytree(source_dir / "lib", config.python_lib_dir / plugin_path_name)
+
+	destination = plugin_dir / plugin_path_name
+	logger.info("Installing plugin from '%s' to '%s'", source_dir / plugin_path_name, destination)
 	if destination.exists():
 		shutil.rmtree(destination)
-	shutil.copytree(source_dir / name, destination)
+	shutil.copytree(source_dir / plugin_path_name, destination)
 	return destination
 
 

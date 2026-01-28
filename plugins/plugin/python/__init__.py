@@ -156,7 +156,7 @@ def compress(source_dir: Path, destination_dir: Path) -> None:
 	The operation is performed without importing the plugin.
 	The running opsi-cli instance is unaffected.
 	"""
-	plugin_id = verify_plugin_id(source_dir.stem)
+	plugin_id = verify_plugin_id(source_dir.stem.replace("_", "-"))
 	archive = destination_dir / f"{plugin_id}.{PLUGIN_EXTENSION}"
 	if (archive).exists():
 		raise FileExistsError(f"Archive {archive} exists! Remove it before compressing {source_dir} to {destination_dir}")
@@ -169,8 +169,8 @@ def compress(source_dir: Path, destination_dir: Path) -> None:
 			base = root_path.relative_to(source_dir)
 			for single_file in files:
 				logger.debug("Adding file '%s'", root_path / single_file)
-				zfile.write(str(root_path / single_file), arcname=str(Path(plugin_id) / base / single_file))
-	console_print(f"Plugin source {source_dir!s} compressed to '{archive!s}'", output_type=OutputType.MESSAGE)
+				zfile.write(str(root_path / single_file), arcname=str(Path(plugin_id.replace("-", "_")) / base / single_file))
+	console_print(f"Plugin source '{source_dir!s}' compressed to '{archive!s}'", output_type=OutputType.MESSAGE)
 
 
 @cli.command(name="list", short_help="List imported plugins")
@@ -247,7 +247,7 @@ def new(name: str, version: str, description: str, path: Path) -> None:
 		else:
 			description = str(prompt("Please enter description", default="")).replace('"', '\\"')
 
-	plugin_id = verify_plugin_id(name.lower().replace(" ", "-"))
+	plugin_id = verify_plugin_id(name.lower().replace(" ", "-").replace("_", "-"))
 	logger.notice("Creating new plugin '%s'", plugin_id)
 	logger.debug("name='%s', version='%s', description='%s'", name, version, description)
 	plugin_path = path / plugin_id.replace("-", "_")
