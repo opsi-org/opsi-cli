@@ -130,7 +130,7 @@ def test_plugin_new(tmp_path: Path) -> None:
 		exit_code, _stdout, stderr = run_cli(["-l", "4", "plugin", "compress", str(destination), str(tmp_path)])
 		assert exit_code == 0
 		plugin_archive = tmp_path / "new-plugin-1.opsicliplug"
-		assert f"Plugin source '{destination}' compressed to '{plugin_archive}'" in stderr
+		assert f"Plugin source '{destination}' compressed to '{plugin_archive}'" in stderr.replace("\n", "")
 		assert plugin_archive.exists()
 
 		exit_code, _stdout, stderr = run_cli(["-l", "4", "plugin", "add", str(plugin_archive)])
