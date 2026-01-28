@@ -18,6 +18,9 @@ logger = get_logger("opsicli")
 
 def dry_run_capable(func):
 	setattr(func, "is_dry_run_handled", True)
+	# add dry-run capability to docstring
+	dry_run_note = "\n\n* This command supports --dry-run: actions will be simulated and not performed."
+	func.__doc__ = (func.__doc__ or "") + dry_run_note
 
 	@wraps(func)
 	def wrapper(*args, **kwargs):

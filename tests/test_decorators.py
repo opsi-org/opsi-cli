@@ -15,6 +15,7 @@ def test_() -> None:
 	# Test that the help output includes the dry-run support note for a dry-run capable command
 	exit_code, stdout, stderr = run_cli(["--no-color", "self", "install", "--help"])
 	combined_output = stdout + stderr
+	combined_output = combined_output.replace("\n", "")
 	assert "This command supports --dry-run: actions will be simulated and not performed." in combined_output
 	"""
 	# Test that a dry-run capable command shows a warning message when --dry-run is used

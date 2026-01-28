@@ -169,28 +169,20 @@ def _handle_list_attributes_flag(ctx: click.Context):
 	module = importlib.import_module(f"plugins.{arg_sequence[0]}.data.metadata")
 	command_metadata = getattr(module, "command_metadata")
 	metadata = command_metadata.get(command_sequence)
-	if metadata:
-		list_attributes(metadata)
-		ctx.exit()
-	else:
-		console_print(
-			f"ERROR: The command 'opsi-cli {' '.join(arg_sequence)}' does not support the option --list-attributes.",
-			output_type=OutputType.ERROR_MESSAGE,
-		)
-		ctx.exit()
+	if not metadata:
+		raise click.UsageError(f"ERROR: The command 'opsi-cli {' '.join(arg_sequence)}' does not support --list-attributes. Aborting")
+
+	list_attributes(metadata)
+	ctx.exit()
 
 
 def _handle_dry_run_flag(ctx: click.Context):
-	if hasattr(ctx.command.callback, "is_dry_run_handled"):
-		warning_message = "WARNING: Operating in dry-run mode - no actions will be performed."
-		console_print(f"{warning_message}\n", output_type=OutputType.WARNING_MESSAGE)
-		logger.warning(warning_message)
-	else:
-		console_print(
-			f"ERROR: The command '{ctx.command_path}' does not support --dry-run. Aborting.",
-			output_type=OutputType.ERROR_MESSAGE,
-		)
-		ctx.exit()
+	if not hasattr(ctx.command.callback, "is_dry_run_handled"):
+		raise click.UsageError(f"The command '{ctx.command_path}' does not support --dry-run. Aborting.")
+
+	warning_message = "WARNING: Operating in dry-run mode - no actions will be performed."
+	console_print(f"{warning_message}\n", output_type=OutputType.WARNING_MESSAGE)
+	logger.warning(warning_message)
 
 
 class OPSICLICommand(click.Command):

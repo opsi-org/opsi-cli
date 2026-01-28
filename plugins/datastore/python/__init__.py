@@ -16,7 +16,6 @@ from opsicommon.objects import BoolConfig, ConfigState, UnicodeConfig
 from opsicommon.types import forceBool
 
 from opsicli.cli_helpers import OPSICLIGroup
-from opsicli.decorators import dry_run_capable
 from opsicli.io import OutputType, console_print, write_output
 from opsicli.opsiservice import ServiceClient, get_service_connection
 from opsicli.plugin import OPSICLIPlugin

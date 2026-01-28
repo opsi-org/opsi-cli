@@ -14,10 +14,8 @@ def test_list_attributes_flag(capsys) -> None:
 	plugins = [f.name for f in path.iterdir() if f.is_dir]
 	for p in plugins:
 		# check for metadata.py
-		if Path(f"./plugins/{p}/data/metadata.py").exists():
-			# build module_path
-			module_path = Path(f"./plugins/{p}/data/metadata.py").resolve()
-
+		module_path = Path(f"./plugins/{p}/data/metadata.py").resolve()
+		if module_path.exists():
 			# load module dynamically
 			spec = importlib.util.spec_from_file_location(p, module_path)
 			plugin_metadata_module = importlib.util.module_from_spec(spec)
@@ -32,11 +30,11 @@ def test_list_attributes_flag(capsys) -> None:
 			for metadata_key, sequence_cli in zip(metadata_keys, command_sequences_cli):
 				plugin_metadata = plugin_metadata_module.command_metadata[metadata_key]
 
-				# expected
+				# expected output
 				list_attributes(plugin_metadata)
 				expected_output = capsys.readouterr()
 
-				# test cli
+				# cli output
 				exit_code, _stdout, _stderr = run_cli(["--list-attributes"] + sequence_cli)
 				assert exit_code == 0
 				assert _stdout == expected_output.out
