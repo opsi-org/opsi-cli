@@ -191,17 +191,21 @@ class OPSICLICommand(click.Command):
 	def get_usage(self, ctx: click.Context) -> str:
 		return _get_usage(ctx)
 
-	# During parsing, check if --list-attributes was set (config object).
 	# Why in OPSICLICommand and not OPSICLIGroup?
 	# - This method is called last: only arguments and options can follow
 	def parse_args(self, ctx: click.Context, args):
+		# only check for dry-run and list-atteributes if --help was set
 		if "--help" in args or "-h" in args:
 			return super().parse_args(ctx, args)
 
+		# if dry-run or list-attributes are set: special side-effects
+		# parsing is stopped afterwards, command will not be executed
 		if config.dry_run:
 			_handle_dry_run_flag(ctx)
 		if config.list_attributes:
 			_handle_list_attributes_flag(ctx)
+
+		# execute command as usual
 		return super().parse_args(ctx, args)
 
 
