@@ -1,7 +1,6 @@
 import importlib
 import os
 import re
-import sys
 from typing import Any, Optional
 
 from rich.panel import Panel
@@ -194,9 +193,11 @@ class OPSICLICommand(click.Command):
 
 	# During parsing, check if --list-attributes was set (config object).
 	# Why in OPSICLICommand and not OPSICLIGroup?
-	# - The Command is always the final 'instruction'
-	# - we are no longer interested in any options or arguments attached to it
+	# - This method is called last: only arguments and options can follow
 	def parse_args(self, ctx: click.Context, args):
+		if "--help" in args or "-h" in args:
+			return super().parse_args(ctx, args)
+
 		if config.dry_run:
 			_handle_dry_run_flag(ctx)
 		if config.list_attributes:
@@ -220,8 +221,4 @@ class OPSICLIGroup(click.Group):
 
 	# otherwise '--help' won't be parsed in OPSICLICommand, if '--list-attributes' or '--dry-run' is set
 	def parse_args(self, ctx: click.Context, args):
-		if "--help" in sys.argv:
-			config.list_attributes = False
-			config.dry_run = False
-
 		return super().parse_args(ctx, args)
