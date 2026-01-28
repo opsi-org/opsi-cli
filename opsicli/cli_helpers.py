@@ -223,4 +223,5 @@ class OPSICLIGroup(click.Group):
 		if "--help" in sys.argv:
 			config.list_attributes = False
 			config.dry_run = False
+
 		return super().parse_args(ctx, args)
