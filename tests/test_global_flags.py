@@ -62,6 +62,6 @@ def test_dry_run_capability(capsys) -> None:
 		combined_output = captured.out + captured.err
 		print(combined_output)
 		if "@dry_run_capable" in source:
-			assert "WARNING: Operating in dry-run mode" in combined_output
+			assert "WARNING: Operating in dry-run mode" in combined_output.replace("\n", " ").replace("|", "")
 		else:
-			assert "does not support --dry-run. Aborting." in combined_output
+			assert "does not support --dry-run. Aborting." in combined_output.replace("\n", " ").replace("|", "")
