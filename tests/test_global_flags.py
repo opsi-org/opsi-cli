@@ -1,11 +1,21 @@
 import importlib
+import inspect
+import re
 import sys
 from pathlib import Path
 
 import pytest
 
+from opsicli.cli_helpers import _get_opsi_command_functions
 from opsicli.io import list_attributes
 from tests.utils import run_cli
+
+
+def clean_output(text: str) -> str:
+	ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+	text = ansi_escape.sub("", text)
+	text = re.sub(r"[^\x20-\x7E\s]", "", text)
+	return " ".join(text.split())
 
 
 @pytest.mark.opsi_service
@@ -34,7 +44,24 @@ def test_list_attributes_flag(capsys) -> None:
 				list_attributes(plugin_metadata)
 				expected_output = capsys.readouterr()
 
-				# cli output
+				# opsi-cli output
 				exit_code, _stdout, _stderr = run_cli(["--list-attributes"] + sequence_cli)
 				assert exit_code == 0
 				assert _stdout == expected_output.out
+
+
+@pytest.mark.opsi_service
+def test_dry_run_capability(capsys) -> None:
+	functions = _get_opsi_command_functions()
+
+	for path, func in functions.items():
+		source = inspect.getsource(func)
+		exit_code, stdout, stderr = run_cli(["--dry-run"] + path.split())
+
+		captured = capsys.readouterr()
+		combined_output = captured.out + captured.err
+		print(combined_output)
+		if "@dry_run_capable" in source:
+			assert "WARNING: Operating in dry-run mode" in combined_output
+		else:
+			assert "does not support --dry-run. Aborting." in combined_output

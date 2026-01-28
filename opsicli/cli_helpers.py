@@ -9,6 +9,7 @@ from rich.text import Text
 from opsicli import logger
 from opsicli.config import config
 from opsicli.io import OutputType, console_print, get_console, list_attributes
+from opsicli.plugin import plugin_manager
 
 COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE" in os.environ
 
@@ -184,6 +185,29 @@ def _handle_dry_run_flag(ctx: click.Context):
 	logger.warning(warning_message)
 
 
+def _get_opsi_command_functions() -> dict[str, Any]:
+	# dict[str, func] = {path: funtion}
+	commands_dict = {}
+
+	def walk_commands(command, prefix=""):
+		current_path = f"{prefix} {command.name}".strip()
+
+		# only save, if the lenght of the command is > 1
+		if command.callback and prefix:
+			commands_dict[current_path] = command.callback
+
+		if isinstance(command, click.Group):
+			for sub_command in command.commands.values():
+				walk_commands(sub_command, current_path)
+
+	for plugin_id in sorted(plugin_manager.plugins):
+		plugin = plugin_manager.load_plugin(plugin_id)
+		if plugin.cli:
+			walk_commands(plugin.cli)
+
+	return commands_dict
+
+
 class OPSICLICommand(click.Command):
 	def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
 		_format_help(self, ctx, formatter)
@@ -223,6 +247,5 @@ class OPSICLIGroup(click.Group):
 	def get_usage(self, ctx: click.Context) -> str:
 		return _get_usage(ctx)
 
-	# otherwise '--help' won't be parsed in OPSICLICommand, if '--list-attributes' or '--dry-run' is set
 	def parse_args(self, ctx: click.Context, args):
 		return super().parse_args(ctx, args)
