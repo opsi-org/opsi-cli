@@ -56,12 +56,12 @@ def test_dry_run_capability(capsys) -> None:
 
 	for path, func in functions.items():
 		source = inspect.getsource(func)
-		exit_code, stdout, stderr = run_cli(["--dry-run"] + path.split())
+		exit_code, stdout, stderr = run_cli(["--dry-run", "--no-color"] + path.split())
 
 		captured = capsys.readouterr()
-		combined_output = captured.out + captured.err
+		combined_output = captured.out + captured.err  # replace("\n", " ").replace("|", "")
 		print(combined_output)
 		if "@dry_run_capable" in source:
-			assert "WARNING: Operating in dry-run mode" in combined_output.replace("\n", " ").replace("|", "")
+			assert "WARNING: Operating in dry-run mode" in combined_output
 		else:
-			assert "does not support --dry-run. Aborting." in combined_output.replace("\n", " ").replace("|", "")
+			assert "does not support --dry-run. Aborting." in combined_output
