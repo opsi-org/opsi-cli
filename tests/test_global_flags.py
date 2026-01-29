@@ -59,3 +59,11 @@ def test_dry_run_capability(capsys) -> None:
 			assert "WARNING: Operating in dry-run mode" in combined_output
 		else:
 			assert "does not support --dry-run. Aborting." in combined_output
+
+
+def test_help_priority(capsys) -> None:
+	functions = _get_opsi_command_functions()
+
+	for path, func in functions.items():
+		exit_code, stdout, stderr = run_cli(["--dry-run", "--no-color"] + path.split() + ["--help"])
+		assert "GLOBAL OPTIONS" in stdout
