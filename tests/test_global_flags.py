@@ -59,7 +59,7 @@ def test_dry_run_capability(capsys) -> None:
 		exit_code, stdout, stderr = run_cli(["--dry-run", "--no-color"] + path.split())
 
 		captured = capsys.readouterr()
-		combined_output = captured.out + captured.err  # replace("\n", " ").replace("|", "")
+		combined_output = (captured.out + captured.err).replace("\n", " ")
 		print(combined_output)
 		if "@dry_run_capable" in source:
 			assert "WARNING: Operating in dry-run mode" in combined_output
