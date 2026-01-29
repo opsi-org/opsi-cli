@@ -10,7 +10,7 @@ test_decorators
 from .utils import run_cli
 
 
-def test_() -> None:
+def test_decorators() -> None:
 	# Test that the help output includes the dry-run support note for a dry-run capable command
 	exit_code, stdout, stderr = run_cli(["--no-color", "self", "install", "--help"])
 	combined_output = stdout + stderr
