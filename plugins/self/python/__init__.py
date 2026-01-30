@@ -30,7 +30,7 @@ from opsicli import __version__ as opsi_cli_version
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.config import ConfigValueSource, config
 from opsicli.decorators import dry_run_capable
-from opsicli.io import Attribute, Metadata, OutputType, console_print, get_progress, write_output
+from opsicli.io import OutputType, console_print, get_progress, write_output
 from opsicli.plugin import OPSICLIPlugin, plugin_manager
 from opsicli.types import File
 from opsicli.utils import (
@@ -42,20 +42,7 @@ from opsicli.utils import (
 	retry,
 	user_is_admin,
 )
-
-installed_version_metadata = Metadata(
-	attributes=[
-		Attribute(id="path", description="Location of the binary", identifier=True, data_type="str"),
-		Attribute(id="version", description="Version of the binary", data_type="str"),
-		Attribute(
-			id="in_path",
-			description="Is the binary file located in a directory that is contained in the PATH environment variable?",
-			data_type="bool",
-		),
-		Attribute(id="default", description="Default binary (first in PATH)?", data_type="bool"),
-		Attribute(id="writable", description="Is the binary writable?", data_type="bool"),
-	]
-)
+from plugins.self.data.metadata import command_metadata
 
 __version__ = "0.3.0"
 
@@ -158,7 +145,7 @@ def print_installed_versions() -> None:
 				"writable": os.access(binary, os.W_OK),
 			}
 		)
-	write_output(data, installed_version_metadata)
+	write_output(data, metadata=command_metadata.get("installed_versions_metadata"))
 
 
 @click.group(cls=OPSICLIGroup, name="self", short_help="Manage opsi-cli")

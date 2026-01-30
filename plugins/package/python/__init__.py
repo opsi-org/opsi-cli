@@ -249,21 +249,9 @@ def info(package_file: list[Path]) -> None:
 			}
 		)
 
-	metadata = Metadata(
-		attributes=[
-			Attribute(id="package_path", description="The path to the package file.", data_type="str", selected=False),
-			Attribute(id="package_filename", description="The filename of the package file.", data_type="str"),
-			Attribute(id="product_id", description="The ID of the product.", data_type="str"),
-			Attribute(id="product_version", description="The product version of the product.", data_type="str"),
-			Attribute(id="package_version", description="The package version of the product.", data_type="str"),
-			Attribute(id="product_name", description="The name of the product.", data_type="str"),
-			Attribute(id="product_description", description="The description of the product.", data_type="str"),
-			Attribute(id="product_advice", description="The advice of the product.", data_type="str", selected=False),
-		]
-	)
 	write_output(
 		data=data,
-		metadata=metadata,
+		metadata=command_metadata.get("info"),
 		default_output_format=OutputFormat.KEY_VALUE,
 	)
 

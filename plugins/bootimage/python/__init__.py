@@ -14,10 +14,11 @@ from purecrypt import Crypt, Method
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_capable
-from opsicli.io import Attribute, Metadata, OutputType, console_print, write_output
+from opsicli.io import OutputType, console_print, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.types import OutputFormat
+from plugins.bootimage.data.metadata import command_metadata
 
 __version__ = "0.3.0"
 __description__ = "Plugin to edit bootimage configs"
@@ -138,14 +139,10 @@ def set_boot_password(ctx: click.Context, password: str) -> None:
 	set_linux_bootimage_cmdline_param(name="pwh", values=[password_hash], host_id=ctx.obj["host"])
 
 	console_print("Password hash generated and applied successfully.", output_type=OutputType.MESSAGE)
-	metadata = Metadata(
-		attributes=[
-			Attribute(id="password_hash", description="The password hash.", data_type="str"),
-		]
-	)
+
 	write_output(
 		data={"password_hash": password_hash},
-		metadata=metadata,
+		metadata=command_metadata.get("set_boot_password"),
 		default_output_format=OutputFormat.PRETTY_JSON,
 	)
 

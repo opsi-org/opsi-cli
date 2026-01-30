@@ -22,5 +22,17 @@ command_metadata = {
 			Attribute(id="package_version", description="Package Version", data_type="str"),
 			Attribute(id="product_type", description="Product Type", data_type="str"),
 		]
-	)
+	),
+	"package_info": Metadata(
+		attributes=[
+			Attribute(id="package_path", description="The path to the package file.", data_type="str", selected=False),
+			Attribute(id="package_filename", description="The filename of the package file.", data_type="str"),
+			Attribute(id="product_id", description="The ID of the product.", data_type="str"),
+			Attribute(id="product_version", description="The product version of the product.", data_type="str"),
+			Attribute(id="package_version", description="The package version of the product.", data_type="str"),
+			Attribute(id="product_name", description="The name of the product.", data_type="str"),
+			Attribute(id="product_description", description="The description of the product.", data_type="str"),
+			Attribute(id="product_advice", description="The advice of the product.", data_type="str", selected=False),
+		]
+	),
 }

@@ -185,13 +185,17 @@ def _handle_dry_run_flag(ctx: click.Context):
 	logger.warning(warning_message)
 
 
+# returns the command_sequence with "_" as separators and the corresponding function
+# e.g. {"datastore_config-state_list": <function  at 0xfe12979w98d>}
+# in short {path: function}
 def _get_opsi_command_functions() -> dict[str, Any]:
-	# dict[str, func] = {path: funtion}
 	commands_dict = {}
 
 	def walk_commands(command, prefix=""):
-		current_path = f"{prefix} {command.name}".strip()
-
+		if prefix:
+			current_path = f"{prefix}_{command.name}".strip()
+		else:
+			current_path = f"{command.name}".strip()
 		# only save, if the lenght of the command is > 1
 		if command.callback and prefix:
 			commands_dict[current_path] = command.callback
@@ -216,9 +220,9 @@ class OPSICLICommand(click.Command):
 		return _get_usage(ctx)
 
 	# Why in OPSICLICommand and not OPSICLIGroup?
-	# - This method is called last: only arguments and options can follow
+	# - This method is called last: only arguments and options can follow after a command
 	def parse_args(self, ctx: click.Context, args):
-		# only check for dry-run and list-atteributes if --help was set
+		# only check for dry-run and list-atteributes if --help was not set
 		if "--help" in args or "-h" in args:
 			return super().parse_args(ctx, args)
 

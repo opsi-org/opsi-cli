@@ -9,11 +9,13 @@ from opsicli.cli_helpers import _get_opsi_command_functions
 from opsicli.io import list_attributes
 from tests.utils import run_cli
 
+functions = _get_opsi_command_functions()  # {command_sequence: func}
+
 
 @pytest.mark.opsi_service
 def test_list_attributes_flag(capsys) -> None:
-	path = Path("./plugins")
-	plugins = [f.name for f in path.iterdir() if f.is_dir]
+	plugin_path = Path("./plugins")
+	plugins = [f.name for f in plugin_path.iterdir() if f.is_dir]
 	for p in plugins:
 		# check for metadata.py
 		module_path = Path(f"./plugins/{p}/data/metadata.py").resolve()
@@ -45,25 +47,23 @@ def test_list_attributes_flag(capsys) -> None:
 
 @pytest.mark.opsi_service
 def test_dry_run_capability(capsys) -> None:
-	functions = _get_opsi_command_functions()
-
 	for path, func in functions.items():
 		source = inspect.getsource(func)
-		exit_code, stdout, stderr = run_cli(["--dry-run", "--no-color"] + path.split())
+		exit_code, stdout, stderr = run_cli(["--dry-run", "--no-color"] + path.split("_"))
 
 		captured = capsys.readouterr()
 		raw_output = captured.out + captured.err
 		combined_output = " ".join(raw_output.split())
 		print(combined_output)
+		# check if function is decorated
 		if "@dry_run_capable" in source:
 			assert "WARNING: Operating in dry-run mode" in combined_output
 		else:
 			assert "does not support --dry-run. Aborting." in combined_output
 
 
+@pytest.mark.opsi_service
 def test_help_priority(capsys) -> None:
-	functions = _get_opsi_command_functions()
-
 	for path, func in functions.items():
-		exit_code, stdout, stderr = run_cli(["--dry-run", "--no-color"] + path.split() + ["--help"])
+		exit_code, stdout, stderr = run_cli(["--dry-run", "--no-color"] + path.split("_") + ["--help"])
 		assert "GLOBAL OPTIONS" in stdout
