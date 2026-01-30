@@ -1,6 +1,8 @@
 import importlib
 from pathlib import Path
 
+import pytest
+
 from opsicli.cli_helpers import _get_opsi_command_functions
 from opsicli.io import console_print
 
@@ -9,6 +11,7 @@ plugins_dir = Path("./plugins")
 functions = _get_opsi_command_functions()
 
 
+@pytest.mark.opsi_service
 def test_plugin_structure():
 	errors = []
 
@@ -41,6 +44,7 @@ def test_plugin_structure():
 		assert True
 
 
+@pytest.mark.opsi_service
 def test_metadata_naming() -> None:
 	for plugin_folder in plugins_dir.iterdir():
 		metadata_path = plugin_folder / "data" / "metadata.py"

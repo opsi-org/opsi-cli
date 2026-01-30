@@ -142,7 +142,7 @@ def set_boot_password(ctx: click.Context, password: str) -> None:
 
 	write_output(
 		data={"password_hash": password_hash},
-		metadata=command_metadata.get("set_boot_password"),
+		metadata=command_metadata.get("bootimage_set-boot-password"),
 		default_output_format=OutputFormat.PRETTY_JSON,
 	)
 
