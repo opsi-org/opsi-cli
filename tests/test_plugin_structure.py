@@ -6,6 +6,7 @@ import pytest
 from opsicli.cli_helpers import _get_opsi_commands_and_functions
 
 plugins_dir = Path("./plugins")
+test_plugins_dir = Path(".tests/test_data_plugins")
 functions = _get_opsi_commands_and_functions()
 
 
@@ -66,4 +67,8 @@ def test_metadata_naming() -> None:
 				assert False, f"'{key}': Metadata should be named after corresponding command sequence."
 
 
-# def test_plguin_structure_test() -> None:
+@pytest.mark.parametrize("test_plugin_path", [test_plugins_dir / "false_structure_1",
+test_plugins_dir / "false_structure_2",
+test_plugins_dir / "false_structure_3",
+test_plugins_dir / "false_structure_4"])
+def test_plguin_structure_test(test_plugin_path) -> None:
