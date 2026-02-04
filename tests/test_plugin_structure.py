@@ -65,4 +65,5 @@ def test_metadata_naming() -> None:
 			if key not in functions_keys:
 				assert False, f"'{key}': Metadata should be named after corresponding command sequence."
 
-def test_plguin_structure_test() -> None:
+
+# def test_plguin_structure_test() -> None:
