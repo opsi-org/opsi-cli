@@ -10,7 +10,7 @@ functions = _get_opsi_commands_and_functions()
 
 
 @pytest.mark.opsi_service
-def test_plugin_structure(test_plugins_dir: Path | None = None) -> str:
+def test_plugin_structure(test_plugins_dir: Path | None = None) -> str | None:
 	errors = []
 	if test_plugins_dir:
 		plugins_dir = Path(test_plugins_dir)
