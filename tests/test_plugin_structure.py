@@ -81,6 +81,3 @@ def test_plugin_structure_test() -> None:
 	assert "Plugin false_metadata_and_missing_init: Metadata should be in" in errors
 	assert "Plugin false_metadata_dir: Metadata should be in" in errors
 	assert "For plugin false_named_init: Missing init file" in errors
-
-
-errors
