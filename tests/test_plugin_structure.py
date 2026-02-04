@@ -1,4 +1,4 @@
-import importlib
+import importlib.util
 from pathlib import Path
 
 import pytest
@@ -48,13 +48,15 @@ def test_plugin_structure(test_plugins_dir: Path | None = None) -> str | None:
 @pytest.mark.opsi_service
 def test_metadata_naming() -> None:
 	plugins_dir = Path("./plugins")
-	for plugin_folder in plugins_dir.iterdir():
-		metadata_path = plugin_folder / "data" / "metadata.py"
+	for plugin in plugins_dir.iterdir():
+		metadata_path = plugin / "data" / "metadata.py"
 
 		# does metadata.py exist?
 		if not metadata_path.exists():
 			continue
-		spec = importlib.util.spec_from_file_location(plugin_folder.name, metadata_path)
+		spec = importlib.util.spec_from_file_location(plugin.name, metadata_path)
+		if spec is None or spec.loader is None:
+			raise ImportError(f"Could not load spec for {Path(f'./plugins/{plugin}/data/metadata.py').resolve()}")
 		module = importlib.util.module_from_spec(spec)
 		spec.loader.exec_module(module)
 
