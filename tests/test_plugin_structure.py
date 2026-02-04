@@ -74,6 +74,7 @@ def test_metadata_naming() -> None:
 @pytest.mark.opsi_service
 def test_plugin_structure_test() -> None:
 	raw_errors = test_plugin_structure(test_plugins_dir)
+	assert raw_errors
 	errors = raw_errors.replace("\n", "")
 	assert "Invalid plugin directory structure" in errors
 	assert "For plugin false_init: Missing init file" in errors

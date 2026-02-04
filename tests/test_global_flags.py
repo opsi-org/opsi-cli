@@ -23,6 +23,10 @@ def test_list_attributes_flag(capsys) -> None:
 			continue
 		# load module dynamically
 		spec = importlib.util.spec_from_file_location(p, module_path)
+
+		if spec is None or spec.loader is None:
+			raise ImportError(f"Could not load spec for {module_path}")
+
 		plugin_metadata_module = importlib.util.module_from_spec(spec)
 		sys.modules[p] = plugin_metadata_module
 		spec.loader.exec_module(plugin_metadata_module)
