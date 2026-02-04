@@ -5,7 +5,6 @@ import pytest
 
 from opsicli.cli_helpers import _get_opsi_command_functions
 
-# Pfad zum Plugins-Ordner (basierend auf deinen Screenshots)
 plugins_dir = Path("./plugins")
 functions = _get_opsi_command_functions()
 
