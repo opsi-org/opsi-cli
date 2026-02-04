@@ -5,11 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from opsicli.cli_helpers import _get_opsi_command_functions
+from opsicli.cli_helpers import _get_opsi_commands_and_functions
 from opsicli.io import list_attributes
 from tests.utils import run_cli
 
-functions = _get_opsi_command_functions()  # {command_sequence: func}
+functions = _get_opsi_commands_and_functions()  # {command_sequence: func}
 
 
 @pytest.mark.opsi_service

@@ -188,7 +188,7 @@ def _handle_dry_run_flag(ctx: click.Context):
 # returns the command_sequence with "_" as separators and the corresponding function
 # e.g. {"datastore_config-state_list": <function  at 0xfe12979w98d>}
 # in short {path: function}
-def _get_opsi_command_functions() -> dict[str, Any]:
+def _get_opsi_commands_and_functions() -> dict[str, Any]:
 	commands_dict = {}
 
 	def walk_commands(command, prefix=""):
@@ -196,7 +196,7 @@ def _get_opsi_command_functions() -> dict[str, Any]:
 			current_path = f"{prefix}_{command.name}".strip()
 		else:
 			current_path = f"{command.name}".strip()
-		# only save, if the lenght of the command is > 1
+		# only save command, if the lenght is > 1
 		if command.callback and prefix:
 			commands_dict[current_path] = command.callback
 
