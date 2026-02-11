@@ -12,6 +12,8 @@ functions = _get_opsi_commands_and_functions()
 @pytest.mark.opsi_service
 def test_plugin_structure(test_plugins_dir: Path | None = None) -> str | None:
 	errors = []
+
+	# for testing this test
 	if test_plugins_dir:
 		plugins_dir = Path(test_plugins_dir)
 	else:
@@ -67,7 +69,7 @@ def test_metadata_naming() -> None:
 			functions_keys = functions.keys()
 		# test if there is a corresponding function with same command sequence as key
 		# metadata name should be command sequence name
-		# IMPORTANT for --list-attributes toalse_metadata_and_missing_init work
+		# IMPORTANT for --list-attributes to work
 		for key in metadata_keys:
 			if key not in functions_keys:
 				assert False, f"'{key}': Metadata should be named after corresponding command sequence."
