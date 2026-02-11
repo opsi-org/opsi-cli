@@ -60,6 +60,7 @@ class SetActionRequestArgs:
 	where_failed: bool = False
 	where_outdated: bool = False
 	where_installed: bool = False
+	where_not_installed: bool = False
 	uninstall_where_only_uninstall: bool = False
 	products: str | None = None
 	exclude_products: str | None = None
@@ -292,7 +293,13 @@ class SetActionRequestWorker(ClientActionWorker):
 			logger.notice("Uninstalling products (where installed): %s", self.products_with_only_uninstall)
 
 		new_pocs: dict[str, dict[str, ProductOnClient]] = defaultdict(lambda: dict())
-		if args.where_failed or args.where_outdated or args.where_installed or args.uninstall_where_only_uninstall:
+		if (
+			args.where_failed
+			or args.where_outdated
+			or args.where_installed
+			or args.uninstall_where_only_uninstall
+			or args.where_not_installed
+		):
 			pocs: list[ProductOnClient] = self.service.jsonrpc(
 				"productOnClient_getObjects",
 				[[], {"clientId": list(self.clients), "productType": "LocalbootProduct", "productId": self.product_ids}],
@@ -317,6 +324,8 @@ class SetActionRequestWorker(ClientActionWorker):
 					add_pocs = self.set_single_action_request(poc, action_request=args.set_action_request, force=True)
 				elif args.where_installed and poc.installationStatus == "installed":
 					add_pocs = self.set_single_action_request(poc, action_request=args.set_action_request, force=True)
+				elif args.where_not_installed and poc.installationStatus != "installed":
+					add_pocs = self.set_single_action_request(poc, action_request=args.set_action_request, force=True)
 				elif (
 					args.where_outdated
 					and poc.installationStatus == "installed"
@@ -336,7 +345,7 @@ class SetActionRequestWorker(ClientActionWorker):
 					if add_poc.productId not in new_pocs[add_poc.clientId]:
 						new_pocs[add_poc.clientId][add_poc.productId] = add_poc
 
-		# If neither where_failed nor where_outdated nor uninstall_where_only_uninstall is set, set action request for every selected client
+		# If neither where_failed nor where_outdated nor uninstall_where_only_uninstall nor where_not_installed is set, set action request for every selected client
 		else:
 			if not args.products and not args.product_groups:
 				raise ValueError("When unconditionally setting actionRequests, you must supply --products or --product-groups.")
