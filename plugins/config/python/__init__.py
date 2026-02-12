@@ -22,7 +22,8 @@ from opsicli.decorators import dry_run_capable
 from opsicli.io import OutputType, console_print, prompt, write_output
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.types import OPSIService, Password
-from plugins.config.data.metadata import command_metadata
+
+from .metadata import command_metadata
 
 __version__ = "0.1.0"
 

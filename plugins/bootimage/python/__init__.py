@@ -18,7 +18,8 @@ from opsicli.io import OutputType, console_print, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.types import OutputFormat
-from plugins.bootimage.data.metadata import command_metadata
+
+from .metadata import command_metadata
 
 __version__ = "0.3.0"
 __description__ = "Plugin to edit bootimage configs"

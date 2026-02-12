@@ -2,11 +2,14 @@ import importlib.util
 from pathlib import Path
 
 import pytest
+from opsicommon.logging import get_logger
 
 from opsicli.cli_helpers import _get_opsi_commands_and_functions
 
 test_plugins_dir = Path("./tests/test_data/false_structure_plugins")
 functions = _get_opsi_commands_and_functions()
+
+logger = get_logger("opsi-cli")
 
 
 @pytest.mark.opsi_service
@@ -21,37 +24,52 @@ def test_plugin_structure(test_plugins_dir: Path | None = None) -> str | None:
 
 	for plugin_path in plugins_dir.iterdir():
 		plugin_name = plugin_path.name
-		metadata_file_path = plugin_path / "data" / "metadata.py"
-		python_init_path = plugin_path / "python" / "__init__.py"
+		data_path = plugin_path / "data"
+		metadata_path = plugin_path / "python" / "metadata.py"
+		init_path = plugin_path / "python" / "__init__.py"
 
+		data_dir = list(plugin_path.rglob("data"))
 		metadata_file = list(plugin_path.rglob("metadata.py"))
+		init_file = list(plugin_path.rglob("__init__.py"))
+
+		# if data_dir: right path?
+		if data_dir:
+			if not data_path.exists():
+				errors.append(f"{plugin_name}: \n - data directory should be at '{data_path}'.")
 
 		# if metadata.py: right path?
 		if metadata_file:
-			if not metadata_file_path.exists():
+			if not metadata_path.exists():
 				errors.append(
-					f"Plugin {plugin_name}: Metadata should be in '{metadata_file_path}' and [red]named [/red]after corrsesponding command sequence. [red]e.g. 'datastore_config-state_list'[/red]"
+					f"{plugin_name}: \n - metadata.py should be at '{metadata_path}' and named after corrsesponding command sequence. (e.g. 'datastore_config-state_list')"
 				)
 
-		if not python_init_path.exists():
-			errors.append(f"For plugin {plugin_name}: Missing init file – '{python_init_path}'")
+		# if __init__.py: right path?
+		if init_file:
+			if not init_path.exists():
+				errors.append(f"{plugin_name}: \n - __init__.py should be at '{init_path}'.")
+			else:
+				# search for metadata in __init__.py
+				content = init_path.read_text()
+				if "Metadata(" in content:
+					errors.append(
+						f"{plugin_name}: \n - metadata should be in '{metadata_path}' and named after corrsesponding command sequence. (e.g. 'datastore_config-state_list')"
+					)
+		# __init__ does not exist
 		else:
-			# search for Metadata in __init__
-			content = python_init_path.read_text()
-			if "Metadata(" in content:
-				errors.append(
-					f"Plugin {plugin_name}: Metadata should be in '{metadata_file_path}' and [red]named [/red]after corrsesponding command sequence. [red]e.g. 'datastore_config-state_list'[/red]"
-				)
+			errors.append(f"{plugin_name}: \n - missing __init__.py. It should be at '{init_path}'.")
+
+	# return only if testing with test plugins
 	if test_plugins_dir:
-		return "\n--- Invalid plugin directory structure ---\n" + "\n".join(errors)
-	assert not errors, "\n--- Invalid plugin directory structure ---\n" + "\n".join(errors)
+		return "\n\n" + "\n--- Invalid plugin directory structure ---\n" + "\n".join(errors) + "\n\n"
+	assert not errors, "\n\n" + "\n--- Invalid plugin directory structure ---\n" + "\n".join(errors) + "\n\n"
 
 
 @pytest.mark.opsi_service
 def test_metadata_naming() -> None:
 	plugins_dir = Path("./plugins")
 	for plugin in plugins_dir.iterdir():
-		metadata_path = plugin / "data" / "metadata.py"
+		metadata_path = plugin / "python" / "metadata.py"
 
 		# does metadata.py exist?
 		if not metadata_path.exists():
@@ -78,11 +96,14 @@ def test_metadata_naming() -> None:
 @pytest.mark.opsi_service
 def test_plugin_structure_test() -> None:
 	raw_errors = test_plugin_structure(test_plugins_dir)
-	assert raw_errors
 	errors = raw_errors.replace("\n", "")
 	assert "Invalid plugin directory structure" in errors
-	assert "For plugin false_init: Missing init file" in errors
-	assert "For plugin false_metadata_and_missing_init: Missing init file" in errors
-	assert "Plugin false_metadata_and_missing_init: Metadata should be in" in errors
-	assert "Plugin false_metadata_dir: Metadata should be in" in errors
-	assert "For plugin false_named_init: Missing init file" in errors
+	# false_init
+	assert "false_init:  - __init__.py should be at" in errors
+	# false_metadata_and_missing_init
+	assert "false_metadata_and_missing_init:  - metadata.py should be at" in errors
+	assert "false_metadata_and_missing_init:  - missing __init__.py. It should be at" in errors
+	# false_named_init
+	assert "false_named_init:  - missing __init__.py. It should be at" in errors
+	# false_data
+	assert "false_data:  - data directory should be at"

@@ -18,8 +18,8 @@ from opsicli.io import console_print, write_output
 from opsicli.messagebus import JSONRPCMessagebusConnection
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
-from plugins.support.data.metadata import command_metadata
 
+from .metadata import command_metadata
 from .worker import category_health_check, default_health_check
 
 __version__ = "0.1.2"

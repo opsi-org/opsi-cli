@@ -26,8 +26,8 @@ from opsicli.opsiservice import get_depot_connection, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.types import OutputFormat
 from opsicli.utils import ProgressCallbackAdapter, create_nested_dict
-from plugins.package.data.metadata import command_metadata
 
+from .metadata import command_metadata
 from .package_helpers import (
 	check_locked_products,
 	cleanup_packages_from_repo,

@@ -25,7 +25,8 @@ from opsicli.config import config
 from opsicli.decorators import dry_run_capable
 from opsicli.io import OutputType, console_print, prompt, write_output
 from opsicli.plugin import PLUGIN_EXTENSION, OPSICLIPlugin, install_plugin, plugin_manager, prepare_plugin, replace_data
-from plugins.plugin.data.metadata import command_metadata
+
+from .metadata import command_metadata
 
 __version__ = "0.1.2"
 

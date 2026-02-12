@@ -19,7 +19,8 @@ from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.io import OutputType, console_print, write_output
 from opsicli.opsiservice import ServiceClient, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
-from plugins.datastore.data.metadata import command_metadata
+
+from .metadata import command_metadata
 
 __version__ = "0.1.0"
 __description__ = "This command can be used to manage data and objects"

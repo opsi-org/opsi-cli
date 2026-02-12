@@ -42,7 +42,8 @@ from opsicli.utils import (
 	retry,
 	user_is_admin,
 )
-from plugins.self.data.metadata import command_metadata
+
+from .metadata import command_metadata
 
 __version__ = "0.3.0"
 

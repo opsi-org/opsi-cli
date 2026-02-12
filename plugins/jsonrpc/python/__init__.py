@@ -24,7 +24,8 @@ from opsicli.io import deprecation_warning, output_file_is_stdout, read_input, w
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.types import OutputFormat
-from plugins.jsonrpc.data.metadata import command_metadata
+
+from .metadata import command_metadata
 
 __version__ = "0.2.0"
 
