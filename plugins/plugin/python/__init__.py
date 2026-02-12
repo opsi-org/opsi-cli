@@ -34,7 +34,8 @@ from opsicli.plugin import (
 	verify_plugin_id,
 	verify_plugin_name,
 )
-from plugins.plugin.data.metadata import command_metadata
+
+from .metadata import command_metadata
 
 __version__ = "0.1.2"
 
