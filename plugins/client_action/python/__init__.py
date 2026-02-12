@@ -83,6 +83,12 @@ def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 	default=False,
 )
 @click.option(
+	"--where-not-installed",
+	help="Set this to add actionRequests where the selected products are uninstalled, unknown or blank.",
+	is_flag=True,
+	default=False,
+)
+@click.option(
 	"--uninstall-where-only-uninstall",
 	help="If this is set, any installed package which only has an uninstall script will be set to uninstall.",
 	is_flag=True,

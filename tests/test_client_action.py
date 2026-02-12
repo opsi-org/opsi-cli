@@ -198,9 +198,11 @@ def test_set_action_request_group(admin_service_client: ServiceClient) -> None:
 		("failed", False, False),
 		("outdated", False, False),
 		("installed", False, False),
+		("not-installed", False, False),
 		("failed", True, False),
 		("outdated", True, False),
 		("installed", True, True),
+		("not-installed", True, False),
 	),
 )
 @pytest.mark.parametrize(
@@ -213,7 +215,7 @@ def test_set_action_request_group(admin_service_client: ServiceClient) -> None:
 )
 def test_set_action_request_where(
 	admin_service_client: ServiceClient,
-	selection: Literal["failed", "outdated", "installed"],
+	selection: Literal["failed", "outdated", "installed", "not-installed"],
 	process: bool,
 	dry_run: bool,
 	set_action_request: str | None,
@@ -405,6 +407,11 @@ def test_set_action_request_where(
 			expected_actions[CLIENT2][PRODUCT1] = "setup"  # installed => setup
 			expected_actions[CLIENT2][PRODUCT2] = "setup"  # installed => setup
 			expected_actions[CLIENT2][PRODUCT3] = "setup"  # setup-on-action
+		elif selection == "not-installed":
+			expected_actions[CLIENT1][PRODUCT1] = "setup"  # unknown => setup
+			expected_actions[CLIENT1][PRODUCT2] = "none"  # installed => none
+			expected_actions[CLIENT1][PRODUCT3] = "setup"  # setup-on-action
+			expected_actions[CLIENT2][PRODUCT3] = "setup"  # not_installed => setup
 
 		assert pocs[0].actionRequest == ("none" if dry_run else expected_actions[CLIENT1][PRODUCT1])
 		assert pocs[1].actionRequest == ("none" if dry_run else expected_actions[CLIENT1][PRODUCT2])
