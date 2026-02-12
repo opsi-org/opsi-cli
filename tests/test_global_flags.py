@@ -18,7 +18,7 @@ def test_list_attributes_flag(capsys) -> None:
 	plugins = [f.name for f in plugin_path.iterdir() if f.is_dir]
 	for p in plugins:
 		# check for metadata.py
-		module_path = Path(f"./plugins/{p}/data/metadata.py").resolve()
+		module_path = Path(f"./plugins/{p}/python/metadata.py").resolve()
 		if not module_path.exists():
 			continue
 		# load module dynamically
