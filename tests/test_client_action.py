@@ -409,6 +409,7 @@ def test_set_action_request_where(
 			expected_actions[CLIENT2][PRODUCT3] = "setup"  # setup-on-action
 		elif selection == "not-installed":
 			expected_actions[CLIENT1][PRODUCT1] = "setup"  # unknown => setup
+			expected_actions[CLIENT1][PRODUCT2] = "none"  # installed => none
 			expected_actions[CLIENT1][PRODUCT3] = "setup"  # setup-on-action
 			expected_actions[CLIENT2][PRODUCT3] = "setup"  # not_installed => setup
 
