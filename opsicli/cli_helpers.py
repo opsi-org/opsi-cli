@@ -166,7 +166,7 @@ def _get_usage(ctx: click.Context) -> str:
 def _handle_list_attributes_flag(ctx: click.Context):
 	arg_sequence = ctx.command_path.split(" ")[1:]
 	command_sequence = "_".join(arg_sequence)
-	module = importlib.import_module(f"plugins.{arg_sequence[0]}.data.metadata")
+	module = importlib.import_module(f"plugins.{arg_sequence[0]}.python.metadata")
 	command_metadata = getattr(module, "command_metadata")
 	metadata = command_metadata.get(command_sequence)
 	if not metadata:
