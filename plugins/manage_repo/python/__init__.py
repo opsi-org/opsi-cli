@@ -20,7 +20,7 @@ from opsicommon.package.repo_meta import (
 )
 
 from opsicli.cli_helpers import OPSICLIGroup
-from opsicli.decorators import dry_run_handling
+from opsicli.decorators import dry_run_capable
 from opsicli.plugin import OPSICLIPlugin
 
 __version__ = "0.2.0"
@@ -51,7 +51,7 @@ def add_changelog_and_releasenote_url(package: RepoMetaPackage) -> None:
 @click.group(cls=OPSICLIGroup, name="manage-repo", short_help="opsi-package-repository management.")
 @click.version_option(__version__, message="opsi-cli opsi-package-repository management, version %(version)s")
 @click.pass_context
-@dry_run_handling()
+@dry_run_capable
 def cli(ctx: click.Context) -> None:
 	"""
 	This command manages repositories for opsi packages

@@ -16,7 +16,7 @@ from pathlib import Path
 import rich_click as click
 
 from opsicli.cli_helpers import OPSICLICommand
-from opsicli.decorators import dry_run_handling
+from opsicli.decorators import dry_run_capable
 from opsicli.plugin import OPSICLIPlugin
 
 __version__ = "0.1.0"
@@ -30,7 +30,7 @@ __version__ = "0.1.0"
 @click.argument("file", type=click.Path(file_okay=True, dir_okay=False, path_type=Path), required=False)
 @click.argument("args", nargs=-1, type=str, required=False)
 @click.pass_context
-@dry_run_handling()
+@dry_run_capable
 def python(ctx: click.Context, version: bool, command: str, file: Path | None, args: list[str]) -> None:
 	"""
 	\b

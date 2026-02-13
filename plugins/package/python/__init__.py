@@ -20,14 +20,14 @@ from opsicommon.utils import make_temp_dir
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.config import config
-from opsicli.decorators import dry_run_handling, handle_list_attributes
-from opsicli.io import Attribute, Metadata, OutputType, console_print, get_progress, write_output
+from opsicli.decorators import dry_run_capable
+from opsicli.io import OutputType, console_print, get_progress, write_output
 from opsicli.opsiservice import get_depot_connection, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.types import OutputFormat
 from opsicli.utils import ProgressCallbackAdapter, create_nested_dict
-from plugins.package.data.metadata import command_metadata
 
+from .metadata import command_metadata
 from .package_helpers import (
 	check_locked_products,
 	cleanup_packages_from_repo,
@@ -60,8 +60,7 @@ argument_source_dir = click.argument(
 @click.group(cls=OPSICLIGroup, name="package", short_help="Manage opsi packages")
 @click.version_option(__version__, message="opsi-cli plugin package, version %(version)s")
 @click.pass_context
-@handle_list_attributes
-@dry_run_handling()
+@dry_run_capable
 def cli(ctx: click.Context) -> None:
 	"""
 	opsi-cli package command.
@@ -250,21 +249,9 @@ def info(package_file: list[Path]) -> None:
 			}
 		)
 
-	metadata = Metadata(
-		attributes=[
-			Attribute(id="package_path", description="The path to the package file.", data_type="str", selected=False),
-			Attribute(id="package_filename", description="The filename of the package file.", data_type="str"),
-			Attribute(id="product_id", description="The ID of the product.", data_type="str"),
-			Attribute(id="product_version", description="The product version of the product.", data_type="str"),
-			Attribute(id="package_version", description="The package version of the product.", data_type="str"),
-			Attribute(id="product_name", description="The name of the product.", data_type="str"),
-			Attribute(id="product_description", description="The description of the product.", data_type="str"),
-			Attribute(id="product_advice", description="The advice of the product.", data_type="str", selected=False),
-		]
-	)
 	write_output(
 		data=data,
-		metadata=metadata,
+		metadata=command_metadata.get("info"),
 		default_output_format=OutputFormat.KEY_VALUE,
 	)
 
@@ -312,7 +299,7 @@ def extract(package_archive: Path, destination_dir: Path, new_product_id: str, o
 
 @cli.group(name="meta-edit", short_help="Edit the metadata (control file) of an opsi source package.")
 @click.pass_context
-@dry_run_handling(dry_run_capable=True)
+@dry_run_capable
 def meta_edit(ctx: click.Context) -> None:
 	"""
 	This command edits the metadata (control file) of an opsi source package.
@@ -347,7 +334,7 @@ def meta_edit(ctx: click.Context) -> None:
 	type=click.Choice(["before", "after"]),
 )
 @click.pass_context
-@dry_run_handling(dry_run_capable=True)
+@dry_run_capable
 def meta_edit_add_product_dependency(
 	ctx: click.Context,
 	source_dir: Path,
@@ -416,7 +403,7 @@ def meta_edit_add_product_dependency(
 @click.option("--required-product-id", help="ID of the required product.", required=True)
 @click.option("--ignore-missing", is_flag=True, help="Ignore if the product dependency does not exist.", default=False)
 @click.pass_context
-@dry_run_handling(dry_run_capable=True)
+@dry_run_capable
 def meta_edit_remove_product_dependency(
 	ctx: click.Context, source_dir: Path, product_action: str, required_product_id: str, ignore_missing: bool = False
 ) -> None:

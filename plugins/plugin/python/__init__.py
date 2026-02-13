@@ -22,7 +22,7 @@ from opsicommon.logging import get_logger
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.config import config
-from opsicli.decorators import dry_run_handling, handle_list_attributes
+from opsicli.decorators import dry_run_capable
 from opsicli.io import OutputType, console_print, prompt, write_output
 from opsicli.plugin import (
 	PLUGIN_EXTENSION,
@@ -34,7 +34,8 @@ from opsicli.plugin import (
 	verify_plugin_id,
 	verify_plugin_name,
 )
-from plugins.plugin.data.metadata import command_metadata
+
+from .metadata import command_metadata
 
 __version__ = "0.1.2"
 
@@ -44,8 +45,7 @@ logger = get_logger("opsicli")
 @click.group(cls=OPSICLIGroup, name="plugin", short_help="Manage opsi-cli plugins")
 @click.version_option(__version__, message="opsi plugin, version %(version)s")
 @click.pass_context
-@handle_list_attributes
-@dry_run_handling()
+@dry_run_capable
 def cli(ctx: click.Context) -> None:
 	"""
 	opsi-cli plugin command.

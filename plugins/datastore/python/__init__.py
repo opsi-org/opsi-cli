@@ -16,10 +16,11 @@ from opsicommon.objects import BoolConfig, ConfigState, UnicodeConfig
 from opsicommon.types import forceBool
 
 from opsicli.cli_helpers import OPSICLIGroup
-from opsicli.decorators import dry_run_handling
-from opsicli.io import Attribute, Metadata, OutputType, console_print, write_output
+from opsicli.io import OutputType, console_print, write_output
 from opsicli.opsiservice import ServiceClient, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
+
+from .metadata import command_metadata
 
 __version__ = "0.1.0"
 __description__ = "This command can be used to manage data and objects"
@@ -53,7 +54,6 @@ def create_client_depot_mapping(service_connection: ServiceClient, object_ids: l
 @click.group(cls=OPSICLIGroup, name="datastore", short_help="Manage objects and data")
 @click.version_option(__version__, message="datastore plugin, version %(version)s")
 @click.pass_context
-@dry_run_handling(dry_run_capable=True)
 def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 	logger.trace("datastore command group")
 
@@ -158,43 +158,8 @@ def list_config_state(object_ids: str, config_ids: str) -> None:
 	client_states = update_depot_states(final_object_ids, final_config_ids, depot_states)
 
 	write_output(
-		list(client_states.values()),
-		Metadata(
-			attributes=[
-				Attribute(id="objectId", description="The ID of the object (host).", identifier=False, data_type="str", selected=True),
-				Attribute(id="configId", description="The ID of the config.", identifier=False, data_type="str", selected=True),
-				Attribute(
-					id="default_values",
-					description="Values of given Config.",
-					identifier=False,
-					data_type="str | Boolean",
-					selected=False,
-				),
-				Attribute(
-					id="depot_values",
-					description="Values of given config state.",
-					identifier=False,
-					data_type="str | Boolean",
-					selected=False,
-				),
-				Attribute(
-					id="client_values",
-					description="Values of given config state.",
-					identifier=False,
-					data_type="str | Boolean",
-					selected=False,
-				),
-				Attribute(
-					id="final_values",
-					description="Values of given config state.",
-					identifier=False,
-					data_type="str | Boolean",
-					selected=True,
-					column_style="green",
-				),
-				Attribute(id="origin", description="Location where the change was made.", identifier=False, data_type="str", selected=True),
-			]
-		),
+		data=list(client_states.values()),
+		metadata=command_metadata.get("datastore_config-state_list"),
 		value_styles={"depot": "yellow", "client": "blue"},
 	)
 
@@ -218,7 +183,6 @@ def set_config_state_value(config_id: str, object_id: str, values: tuple[str]) -
 		# set new value for every given object
 		for obj_id in object_ids:
 			current_values = object_value_dict[obj_id][config_id]
-
 			# create configState Objects with new value
 			if value in ["true", "True"]:
 				config_state = ConfigState(configId=config_id, objectId=obj_id, values=[forceBool(value)])
@@ -419,42 +383,8 @@ def list_product_property_state(object_ids: str, product_ids: str, property_ids:
 	client_states = update_depot_states(final_object_ids, final_product_ids, final_property_ids, depot_states)
 
 	write_output(
-		list(client_states.values()),
-		Metadata(
-			attributes=[
-				Attribute(id="objectId", description="The ID of the object.", identifier=False, data_type="str", selected=True),
-				Attribute(id="productId", description="The ID of the product.", identifier=False, data_type="str", selected=True),
-				Attribute(id="propertyId", description="The ID of the property.", identifier=False, data_type="str", selected=True),
-				Attribute(
-					id="default_values",
-					description="Values of given property.",
-					identifier=False,
-					data_type="str | Boolean",
-					selected=False,
-				),
-				Attribute(
-					id="depot_values", description="Values of given property.", identifier=False, data_type="str | Boolean", selected=False
-				),
-				Attribute(
-					id="client_values", description="Values of given property.", identifier=False, data_type="str | Boolean", selected=False
-				),
-				Attribute(
-					id="final_values",
-					description="Values of given property.",
-					identifier=False,
-					data_type="str | Boolean",
-					selected=True,
-					column_style="green",
-				),
-				Attribute(
-					id="origin",
-					description="Location where the change was made.",
-					identifier=False,
-					data_type="str",
-					selected=True,
-				),
-			]
-		),
+		data=list(client_states.values()),
+		metadata=command_metadata.get("datastore_product-property-state_list"),
 		value_styles={"depot": "yellow", "client": "blue"},
 	)
 

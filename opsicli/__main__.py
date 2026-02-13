@@ -187,6 +187,7 @@ def quiet_print(*args: Any, **kwargs: Any) -> None:
 	"list_attributes",
 	expose_value=False,
 	is_flag=True,
+	is_eager=False,
 	default=False,
 	help=f"{config.get_description('list_attributes')}",
 )

@@ -33,7 +33,7 @@ from opsicommon.messagebus.message import (
 )
 
 from opsicli.cli_helpers import OPSICLIGroup
-from opsicli.decorators import dry_run_handling
+from opsicli.decorators import dry_run_capable
 from opsicli.io import OutputType, console_print, write_output
 from opsicli.messagebus import MessagebusConnection
 from opsicli.plugin import OPSICLIPlugin
@@ -321,7 +321,7 @@ class FileUploadMessagebusConnection(MessagebusConnection):
 @click.group(cls=OPSICLIGroup, name="messagebus", short_help="Command group to interact with opsi messagebus")
 @click.version_option(__version__, message="opsi-cli plugin messagebus, version %(version)s")
 @click.pass_context
-@dry_run_handling()
+@dry_run_capable
 def cli(ctx: click.Context) -> None:
 	"""
 	This command can be used to interact with opsi messagebus.

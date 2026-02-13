@@ -19,12 +19,13 @@ from opsicommon.logging import get_logger
 from opsicli.cache import cache
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.config import config
-from opsicli.decorators import dry_run_handling, handle_list_attributes
+from opsicli.decorators import dry_run_capable
 from opsicli.io import deprecation_warning, output_file_is_stdout, read_input, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.types import OutputFormat
-from plugins.jsonrpc.data.metadata import command_metadata
+
+from .metadata import command_metadata
 
 __version__ = "0.2.0"
 
@@ -41,8 +42,7 @@ def cache_interface(interface: list[dict[str, Any]]) -> None:
 @click.group(cls=OPSICLIGroup, name="jsonrpc", short_help="opsi JSONRPC client")
 @click.version_option(__version__, message="jsonrpc plugin, version %(version)s")
 @click.pass_context
-@handle_list_attributes
-@dry_run_handling()
+@dry_run_capable
 def cli(ctx: click.Context) -> None:
 	"""
 	opsi-cli jsonrpc command.
