@@ -11,12 +11,14 @@ messagebus plugin
 
 import sys
 import time
+from cmath import e
 from contextlib import contextmanager
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from threading import Event
 from typing import Any, BinaryIO, Generator, Literal
 
 import rich_click as click
+from jinja2.filters import K
 from opsicommon.logging import get_logger
 from opsicommon.messagebus import CONNECTION_USER_CHANNEL
 from opsicommon.messagebus.message import (
@@ -179,7 +181,7 @@ class FileDownloadMessagebusConnection(MessagebusConnection):
 			self._event_file_download_response_received.wait(5)
 			self._event_file_transfer_completed.set()
 
-	def download_file(self, client: str, source: PureWindowsPath | PurePosixPath, destination: Path) -> None:
+	def download_file(self, client: str, source: PureWindowsPath | PurePosixPath, destination: Path, follow: bool = False) -> None:
 		@contextmanager
 		def stdout() -> Generator[BinaryIO, None, None]:
 			yield sys.stdout.buffer
@@ -190,6 +192,7 @@ class FileDownloadMessagebusConnection(MessagebusConnection):
 				channel=f"host:{client}",
 				chunk_size=256_000,
 				path=str(source),
+				follow=follow,
 			)
 			self.send_message(file_download_request)
 			try:
@@ -201,7 +204,7 @@ class FileDownloadMessagebusConnection(MessagebusConnection):
 
 				assert self._file_download_information
 				logger.notice(
-					"Starting download of file '%s' (%d bytes) from client '%s'", source, self._file_download_information.size, client
+					"Starting download of file '%s' (%r bytes) from client '%s'", source, self._file_download_information.size, client
 				)
 				ctx = stdout() if destination.name == "-" else open(destination, "wb")
 				with ctx as self._file_handle:
@@ -213,6 +216,10 @@ class FileDownloadMessagebusConnection(MessagebusConnection):
 
 					logger.notice("File '%s' downloaded successfully to '%s'", source, destination)
 
+			except KeyboardInterrupt:
+				logger.info("Aborting file download on keyboard interrupt")
+				self._event_file_transfer_completed.set()
+				return
 			except Exception as exc:
 				message = f"Error during file download: {exc}"
 				logger.error(message, exc_info=True)
@@ -425,7 +432,8 @@ def wait_for_installation(client: str, products: str, installation_status: str, 
 @click.argument("client", type=str)
 @click.argument("source", type=str)
 @click.argument("destination", default=Path("."), type=click.Path(file_okay=True, dir_okay=True, path_type=Path))
-def download_file(client: str, source: str, destination: Path) -> None:
+@click.option("--follow", is_flag=True, help="Follow the file for new content", default=False)
+def download_file(client: str, source: str, destination: Path, follow: bool) -> None:
 	"""
 	Download files from client via messagebus.
 	Use '-' as destination to write to stdout.
@@ -441,8 +449,14 @@ def download_file(client: str, source: str, destination: Path) -> None:
 	if destination.is_dir():
 		destination = destination / source_path.name
 	mbus_connection = FileDownloadMessagebusConnection()
-	mbus_connection.download_file(client=client, source=source_path, destination=destination)
-	console_print(f"File '{source_path}' downloaded successfully to '{destination}'.", output_type=OutputType.MESSAGE)
+	mbus_connection.download_file(
+		client=client,
+		source=source_path,
+		destination=destination,
+		follow=follow,
+	)
+	if not follow:
+		console_print(f"File '{source_path}' downloaded successfully to '{destination}'.", output_type=OutputType.MESSAGE)
 
 
 @cli.command(name="upload", short_help="Upload file to client via messagebus")
