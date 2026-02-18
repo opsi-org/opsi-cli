@@ -30,10 +30,11 @@ from opsicommon.package.associated_files import create_package_md5_file, create_
 from opsicommon.types import forceHostIdList
 from opsicommon.utils import timestamp
 
-from opsicli.io import Attribute, Metadata, OutputType, console_print, get_progress, prompt, write_output
+from opsicli.io import OutputType, console_print, get_progress, prompt, write_output
 from opsicli.opsiservice import get_depot_connection
 from opsicli.utils import ProgressCallbackAdapter, download
 
+from .metadata import command_metadata
 from .package_progress import PackageProgressListener
 
 DEPOT_REPOSITORY_PATH = "/var/lib/opsi/repository"
@@ -194,12 +195,7 @@ def check_locked_products(
 		"productOnDepot_getObjects", [["productId", "depotId"], {"productId": product_list, "depotId": depot_id_list, "locked": True}]
 	)
 	if locked_products:
-		metadata = Metadata(
-			attributes=[
-				Attribute(id="productId", description="Locked product ID", identifier=True, data_type="str"),
-				Attribute(id="depotId", description="Depot ID where the product is locked", identifier=True, data_type="str"),
-			]
-		)
+		metadata = command_metadata["package_install"]
 		logger.error("Locked products found: %s", locked_products)
 		console_print("Locked products:", output_type=OutputType.ERROR_MESSAGE)
 		write_output(data=[{"productId": p.productId, "depotId": p.depotId} for p in locked_products], metadata=metadata)

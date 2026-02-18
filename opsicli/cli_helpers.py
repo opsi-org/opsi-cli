@@ -164,13 +164,14 @@ def _get_usage(ctx: click.Context) -> str:
 # Assemble command sequence and load module/metadata.
 # If metadata exists, output it.
 def _handle_list_attributes_flag(ctx: click.Context):
-	arg_sequence = ctx.command_path.split(" ")[1:]
-	command_sequence = "_".join(arg_sequence)
-	module = importlib.import_module(f"plugins.{arg_sequence[0]}.python.metadata")
+	raw_arg_sequence = ctx.command_path.split(" ")[1:]
+	plugin_name = raw_arg_sequence[0].replace("-", "_")
+	command_sequence = "_".join(raw_arg_sequence)
+	module = importlib.import_module(f"plugins.{plugin_name}.python.metadata")
 	command_metadata = getattr(module, "command_metadata")
 	metadata = command_metadata.get(command_sequence)
 	if not metadata:
-		raise click.UsageError(f"ERROR: The command 'opsi-cli {' '.join(arg_sequence)}' does not support --list-attributes. Aborting")
+		raise click.UsageError(f"ERROR: The command 'opsi-cli {' '.join(raw_arg_sequence)}' does not support --list-attributes. Aborting")
 
 	list_attributes(metadata)
 	ctx.exit()

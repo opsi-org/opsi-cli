@@ -460,6 +460,7 @@ def test_package_install_and_uninstall(admin_service_client: ServiceClient) -> N
 			]
 		)
 		assert exit_code != 0
+		print(_stderr)
 		assert "Locked products found" in _stderr
 
 		# Force install with correct dependency version

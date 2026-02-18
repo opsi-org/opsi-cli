@@ -22,6 +22,7 @@ def test_list_attributes_flag(capsys) -> None:
 		if not module_path.exists():
 			continue
 		# load module dynamically
+		# print(f"{p} || {module_path}")
 		spec = importlib.util.spec_from_file_location(p, module_path)
 
 		if spec is None or spec.loader is None:

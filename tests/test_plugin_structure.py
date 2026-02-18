@@ -31,6 +31,8 @@ def test_plugin_structure(test_plugins_dir: Path | None = None) -> str | None:
 		data_dir = list(plugin_path.rglob("data"))
 		metadata_file = list(plugin_path.rglob("metadata.py"))
 		init_file = list(plugin_path.rglob("__init__.py"))
+		all_files = list(plugin_path.rglob("*.py"))
+		leftover_files = list(set(metadata_file) ^ set(init_file) ^ set(all_files))
 
 		# if data_dir: right path?
 		if data_dir:
@@ -53,13 +55,22 @@ def test_plugin_structure(test_plugins_dir: Path | None = None) -> str | None:
 				content = init_path.read_text()
 				if "Metadata(" in content:
 					errors.append(
-						f"{plugin_name}: \n - metadata should be in '{metadata_path}' and named after corrsesponding command sequence. (e.g. 'datastore_config-state_list')"
+						f"{plugin_name}: \n - metadata should be in '{metadata_path}', not in '{init_path}' and named after corrsesponding command sequence. (e.g. 'datastore_config-state_list')"
 					)
 		# __init__ does not exist
 		else:
 			errors.append(f"{plugin_name}: \n - missing __init__.py. It should be at '{init_path}'.")
 
-	# return only if testing with test plugins
+		if leftover_files:
+			for file in leftover_files:
+				# search for metadata in every other file
+				content = file.read_text()
+				if "Metadata(" in content:
+					errors.append(
+						f"{plugin_name}: \n - metadata should be in '{metadata_path}', not in '{file}' and named after corrsesponding command sequence. (e.g. 'datastore_config-state_list')"
+					)
+
+	# only return, if testing with test plugins
 	if test_plugins_dir:
 		return "\n\n" + "\n--- Invalid plugin directory structure ---\n" + "\n".join(errors) + "\n\n"
 	assert not errors, "\n\n" + "\n--- Invalid plugin directory structure ---\n" + "\n".join(errors) + "\n\n"
@@ -85,12 +96,16 @@ def test_metadata_naming() -> None:
 			data = getattr(module, "command_metadata")
 			metadata_keys = data.keys()
 			functions_keys = functions.keys()
+
 		# test if there is a corresponding function with same command sequence as key
 		# metadata name should be command sequence name
+		# e.g. 'datastore config-state list' => 'datastore_config-state_list'
 		# IMPORTANT for --list-attributes to work
 		for key in metadata_keys:
 			if key not in functions_keys:
-				assert False, f"'{key}': Metadata should be named after corresponding command sequence."
+				assert False, (
+					f"False metadata naming: '{key}'. Metadata should be named after corresponding command sequence. (e.g. 'datastore config-state list' => 'datastore_config-state_list')"
+				)
 
 
 @pytest.mark.opsi_service
@@ -106,4 +121,6 @@ def test_plugin_structure_test() -> None:
 	# false_named_init
 	assert "false_named_init:  - missing __init__.py. It should be at" in errors
 	# false_data
-	assert "false_data:  - data directory should be at"
+	assert "false_data:  - data directory should be at" in errors
+	# misplaced metadata
+	assert "misplaced_metadata:  - metadata should be in" in errors
