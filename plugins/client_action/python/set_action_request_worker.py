@@ -20,9 +20,10 @@ from opsicommon.utils import timestamp
 from rich.text import Text
 
 from opsicli.config import config
-from opsicli.io import COLORS, Attribute, Metadata, OutputType, console_print, write_output
+from opsicli.io import COLORS, OutputType, console_print, write_output
 
 from .client_action_worker import ClientActionArgs, ClientActionWorker
+from .metadata import command_metadata
 
 STATIC_EXCLUDE_PRODUCTS = [
 	"opsi-winst",
@@ -399,16 +400,6 @@ class SetActionRequestWorker(ClientActionWorker):
 
 		console_print(f"{msg}. Here are the updated ProductOnClient objects:\n", style="green", output_type=OutputType.MESSAGE)
 
-		metadata = Metadata(
-			attributes=[
-				Attribute(id="clientId", description="ID of the client", identifier=True, data_type="str"),
-				Attribute(id="productId", description="ID of the product", identifier=True, data_type="str"),
-				Attribute(id="actionRequest", description="Product action request set", data_type="str"),
-				Attribute(id="actionProgress", description="Product action progress", data_type="str", selected=False),
-				Attribute(id="actionResult", description="Product action result", data_type="str", selected=False),
-				Attribute(id="installationStatus", description="Product installation status", data_type="str", selected=False),
-			]
-		)
 		write_output(
 			data=[
 				{
@@ -421,7 +412,7 @@ class SetActionRequestWorker(ClientActionWorker):
 				}
 				for poc in update_pocs
 			],
-			metadata=metadata,
+			metadata=command_metadata["client-action_set-action-request"],
 		)
 
 	def process_actions(self, args: SetActionRequestArgs) -> None:

@@ -35,4 +35,10 @@ command_metadata = {
 			Attribute(id="product_advice", description="The advice of the product.", data_type="str", selected=False),
 		]
 	),
+	"package_install": Metadata(
+		attributes=[
+			Attribute(id="productId", description="Locked product ID", identifier=True, data_type="str"),
+			Attribute(id="depotId", description="Depot ID where the product is locked", identifier=True, data_type="str"),
+		]
+	),
 }
