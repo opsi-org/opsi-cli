@@ -11,14 +11,12 @@ messagebus plugin
 
 import sys
 import time
-from cmath import e
 from contextlib import contextmanager
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from threading import Event
 from typing import Any, BinaryIO, Generator, Literal
 
 import rich_click as click
-from jinja2.filters import K
 from opsicommon.logging import get_logger
 from opsicommon.messagebus import CONNECTION_USER_CHANNEL
 from opsicommon.messagebus.message import (
