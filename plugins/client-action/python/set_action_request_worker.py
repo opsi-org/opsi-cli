@@ -59,6 +59,7 @@ class SetActionRequestArgs:
 	where_failed: bool = False
 	where_outdated: bool = False
 	where_installed: bool = False
+	where_unknown: bool = False
 	uninstall_where_only_uninstall: bool = False
 	products: str | None = None
 	exclude_products: str | None = None
@@ -274,7 +275,7 @@ class SetActionRequestWorker(ClientActionWorker):
 			product_groups_string=args.product_groups,
 			exclude_product_groups_string=args.exclude_product_groups,
 			include_netboot=args.include_netboot,
-			use_default_excludes=args.where_outdated or args.where_failed or args.where_installed,
+			use_default_excludes=args.where_outdated or args.where_failed or args.where_installed or args.where_unknown,
 		)
 		if not self.products:
 			raise ValueError("No product/s to set action request on. The specified product/s might not exist or might have been excluded.")
@@ -283,7 +284,7 @@ class SetActionRequestWorker(ClientActionWorker):
 			logger.notice("Uninstalling products (where installed): %s", self.products_with_only_uninstall)
 
 		new_pocs: dict[str, dict[str, ProductOnClient]] = defaultdict(lambda: dict())
-		if args.where_failed or args.where_outdated or args.where_installed or args.uninstall_where_only_uninstall:
+		if args.where_failed or args.where_outdated or args.where_installed or args.where_unknown or args.uninstall_where_only_uninstall:
 			pocs: list[ProductOnClient] = self.service.jsonrpc(
 				"productOnClient_getObjects",
 				[[], {"clientId": list(self.clients), "productType": "LocalbootProduct", "productId": self.products}],
@@ -307,6 +308,8 @@ class SetActionRequestWorker(ClientActionWorker):
 				elif args.where_failed and poc.actionResult == "failed":
 					add_pocs = self.set_single_action_request(poc, action_request=args.set_action_request, force=True)
 				elif args.where_installed and poc.installationStatus == "installed":
+					add_pocs = self.set_single_action_request(poc, action_request=args.set_action_request, force=True)
+				elif args.where_unknown and poc.installationStatus == "unknown" and poc.actionRequest not in ("setup","uninstall","once", "update"):
 					add_pocs = self.set_single_action_request(poc, action_request=args.set_action_request, force=True)
 				elif (
 					args.where_outdated
