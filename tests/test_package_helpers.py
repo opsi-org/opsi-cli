@@ -108,7 +108,9 @@ def test_handle_action_request() -> None:
 	product = Product(id="testproduct", productVersion="1.0", packageVersion="1")
 	product.setSetupScript("setup_script")
 
-	handle_action_request(service_client, "pytest-depot1.test.tld", product, "setup", False)
+	handle_action_request(
+		service_client=service_client, depot_id="pytest-depot1.test.tld", product=product, action_request="setup", dependency=False
+	)
 
 	service_client.jsonrpc.assert_any_call("configState_getClientToDepotserver", ["pytest-depot1.test.tld"])
 	service_client.jsonrpc.assert_any_call(

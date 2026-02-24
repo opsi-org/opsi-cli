@@ -1,9 +1,9 @@
 {
 	"recommendations": [
 		"ms-python.python",
-		"ms-python.vscode-pylance",
+		"charliermarsh.ruff",
+		"astral-sh.ty",
 		"ryanluker.vscode-coverage-gutters",
-		"streetsidesoftware.code-spell-checker",
-		"charliermarsh.ruff"
+		"streetsidesoftware.code-spell-checker"
 	]
 }

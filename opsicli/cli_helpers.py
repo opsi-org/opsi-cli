@@ -1,3 +1,4 @@
+import importlib
 import os
 import re
 from typing import Any, Optional
@@ -5,15 +6,17 @@ from typing import Any, Optional
 from rich.panel import Panel
 from rich.text import Text
 
+from opsicli import logger
 from opsicli.config import config
-from opsicli.io import OutputType, console_print, get_console
+from opsicli.io import OutputType, console_print, get_console, list_attributes
+from opsicli.plugin import plugin_manager
 
 COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE" in os.environ
 
 if COMPLETION_MODE:
 	import click
 else:
-	import rich_click as click  # type: ignore[no-redef]
+	import rich_click as click
 	import rich_click.rich_click as rich_click
 	from rich_click.rich_click import rich_format_help
 
@@ -119,7 +122,7 @@ def _format_help(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -
 				),
 			)
 
-		rich_click.get_rich_usage = _custom_get_rich_usage
+		rich_click.get_rich_usage = _custom_get_rich_usage  # type: ignore[invalid-assignment]
 		rich_format_help(obj, ctx, formatter)
 
 	else:
@@ -130,8 +133,9 @@ def _format_help(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -
 
 
 def _get_usage(ctx: click.Context) -> str:
-	orig_usage = super(type(ctx.command), ctx.command).get_usage(ctx)
-
+	cls = type(ctx.command)
+	assert issubclass(cls, click.Command)
+	orig_usage = super(cls, ctx.command).get_usage(ctx)
 	match = re.match(r"(Usage:\s*)(.*)", orig_usage)
 	if not match:
 		return orig_usage
@@ -157,12 +161,81 @@ def _get_usage(ctx: click.Context) -> str:
 	return f"{prefix}{' '.join(parts)}"
 
 
+# Assemble command sequence and load module/metadata.
+# If metadata exists, output it.
+def _handle_list_attributes_flag(ctx: click.Context):
+	raw_arg_sequence = ctx.command_path.split(" ")[1:]
+	plugin_name = raw_arg_sequence[0].replace("-", "_")
+	command_sequence = "_".join(raw_arg_sequence)
+	module = importlib.import_module(f"plugins.{plugin_name}.python.metadata")
+	command_metadata = getattr(module, "command_metadata")
+	metadata = command_metadata.get(command_sequence)
+	if not metadata:
+		raise click.UsageError(f"ERROR: The command 'opsi-cli {' '.join(raw_arg_sequence)}' does not support --list-attributes. Aborting")
+
+	list_attributes(metadata)
+	ctx.exit()
+
+
+def _handle_dry_run_flag(ctx: click.Context):
+	if not hasattr(ctx.command.callback, "is_dry_run_handled"):
+		raise click.UsageError(f"The command '{ctx.command_path}' does not support --dry-run. Aborting.")
+
+	warning_message = "WARNING: Operating in dry-run mode - no actions will be performed."
+	console_print(f"{warning_message}\n", output_type=OutputType.WARNING_MESSAGE)
+	logger.warning(warning_message)
+
+
+# returns the command_sequence with "_" as separators and the corresponding function
+# e.g. {"datastore_config-state_list": <function  at 0xfe12979w98d>}
+# in short {path: function}
+def _get_opsi_commands_and_functions() -> dict[str, Any]:
+	commands_dict = {}
+
+	def walk_commands(command, prefix=""):
+		if prefix:
+			current_path = f"{prefix}_{command.name}".strip()
+		else:
+			current_path = f"{command.name}".strip()
+		# only save command, if the lenght is > 1
+		if command.callback and prefix:
+			commands_dict[current_path] = command.callback
+
+		if isinstance(command, click.Group):
+			for sub_command in command.commands.values():
+				walk_commands(sub_command, current_path)
+
+	for plugin_id in sorted(plugin_manager.plugins):
+		plugin = plugin_manager.load_plugin(plugin_id)
+		if plugin.cli:
+			walk_commands(plugin.cli)
+
+	return commands_dict
+
+
 class OPSICLICommand(click.Command):
 	def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
 		_format_help(self, ctx, formatter)
 
 	def get_usage(self, ctx: click.Context) -> str:
 		return _get_usage(ctx)
+
+	# Why in OPSICLICommand and not OPSICLIGroup?
+	# - This method is called last: only arguments and options can follow after a command
+	def parse_args(self, ctx: click.Context, args):
+		# only check for dry-run and list-atteributes if --help was not set
+		if "--help" in args or "-h" in args:
+			return super().parse_args(ctx, args)
+
+		# if dry-run or list-attributes are set: special side-effects
+		# parsing is stopped afterwards, command will not be executed
+		if config.dry_run:
+			_handle_dry_run_flag(ctx)
+		if config.list_attributes:
+			_handle_list_attributes_flag(ctx)
+
+		# execute command as usual
+		return super().parse_args(ctx, args)
 
 
 class OPSICLIGroup(click.Group):
@@ -178,3 +251,6 @@ class OPSICLIGroup(click.Group):
 
 	def get_usage(self, ctx: click.Context) -> str:
 		return _get_usage(ctx)
+
+	def parse_args(self, ctx: click.Context, args):
+		return super().parse_args(ctx, args)

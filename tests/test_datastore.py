@@ -1,3 +1,5 @@
+import time
+from contextlib import ExitStack
 from pathlib import Path
 
 import pytest
@@ -16,19 +18,26 @@ CLIENT_ID_WILDCARD_4 = "clie*"
 
 PRODUCT_ID_1 = "pytest-product1"
 PRODUCT_ID_2 = "pytest-product2"
+PROPERTY_ID_1 = "property1"
+PROPERTY_ID_2 = "property2"
 
-CONFIG_ID = "opsi.check.enabled"
+CONFIG_ID_1 = "opsi.check.enabled"
+CONFIG_ID_2 = "opsi.check.ignore_products"
 BOOL_CONFIG = "opsi.check.enabled"
 UNICODE_CONFIG_ONE = "clientconfig.depot.drive"
 UNICODE_CONFIG_MULTI = "opsi.check.ignore_products"
 
 
+# ===============
+# HELP FUNCTIONS
+# ===============
 def stdout_into_list(_stdout: str) -> list[list[str]]:
 	stdout_result_list = []
 	stdout_list = _stdout.splitlines()
 	list_len = len(stdout_list)
 	i = 0
 
+	# not pretty but working
 	while i < list_len:
 		line = stdout_list[i]
 		line_as_list = line.split(";")
@@ -55,11 +64,13 @@ def lock_products(admin_service_client: ServiceClient, product_id: str | None = 
 
 
 # unlock products with given product-id and depot-id
-def unlock_products(product_id: list[str] = [], depot_id: list[str] = []) -> tuple[int, str, str]:
-	if depot_id:
-		return run_cli(["datastore", "product", "unlock"] + product_id + ["--depot-id"] + depot_id)
-	else:
-		return run_cli(["datastore", "product", "unlock"] + product_id)
+def unlock_products(product_ids: list[str] = [], depot_ids: list[str] = []) -> tuple[int, str, str]:
+	args = ["datastore", "product", "unlock"]
+	if product_ids:
+		args += ["--product-ids", ",".join(product_ids)]
+	if depot_ids:
+		args += ["--depot-ids", ",".join(depot_ids)]
+	return run_cli(args)
 
 
 # verify the given locked status (e.g. is product.locked = True or False?)
@@ -76,7 +87,16 @@ def install_broken_package() -> None:
 	run_cli(["package", "install", str(broken_package)])
 
 
-# ===================================CONFIG-STATE LIST TESTS============================================
+def uninstall_broken_package() -> None:
+	run_cli(["package", "uninstall", "gimp2_broken_1.0-1.opsi"])
+
+
+# =========
+# PYTESTS
+# =========
+
+
+# ===================================(CONFIG-STATE LIST || TESTS)============================================
 @pytest.mark.opsi_service
 def test_config_state_list(admin_service_client: ServiceClient) -> None:
 	with (
@@ -85,22 +105,33 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		tmp_client(admin_service_client, CLIENT_ID_3),
 		tmp_client(admin_service_client, CLIENT_ID_4),
 	):
-		all_configs = admin_service_client.jsonrpc("config_getObjects", params=[])  # type:ignore[attr-defined]
-		client_to_server_objects = admin_service_client.configState_getClientToDepotserver()  # type:ignore[attr-defined]
-		DEPOT_ID = client_to_server_objects[0]["depotId"]
+		all_configs = admin_service_client.jsonrpc("config_getObjects", params=[])
+		client_to_depot_objects = admin_service_client.configState_getClientToDepotserver()  # type:ignore[attr-defined]
+		DEPOT_ID = client_to_depot_objects[0]["depotId"]
 
 		# One objectId, one configId
 		exit_code, _stdout, _stderr = run_cli(
-			["--output-format", "csv", "datastore", "config-state", "list", "--object-id", f"{CLIENT_ID_1}", "--config-id", f"{CONFIG_ID}"]
+			[
+				"--output-format",
+				"csv",
+				"datastore",
+				"config-state",
+				"list",
+				"--object-ids",
+				f"{CLIENT_ID_1}",
+				"--config-ids",
+				f"{CONFIG_ID_1}",
+			]
 		)
 		assert exit_code == 0
+		print(_stdout)
 		assert stdout_into_list(_stdout)[1][0] == CLIENT_ID_1
-		assert stdout_into_list(_stdout)[1][1] == CONFIG_ID
+		assert stdout_into_list(_stdout)[1][1] == CONFIG_ID_1
 		assert len(stdout_into_list(_stdout)) - 1 == 1
 
 		# One objectId, all configId's
 		exit_code, _stdout, _stderr = run_cli(
-			["--output-format", "csv", "datastore", "config-state", "list", "--object-id", f"{CLIENT_ID_1}"]
+			["--output-format", "csv", "datastore", "config-state", "list", "--object-ids", f"{CLIENT_ID_1}", "--config-ids", "all"]
 		)
 		assert exit_code == 0
 		stdout_list = stdout_into_list(_stdout)
@@ -111,7 +142,19 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 
 		# All objectId's (4), one configId
 		exit_code, _stdout, _stderr = run_cli(
-			["--output-format", "csv", "--sort-by", "objectId", "datastore", "config-state", "list", "--config-id", f"{CONFIG_ID}"]
+			[
+				"--output-format",
+				"csv",
+				"--sort-by",
+				"objectId",
+				"datastore",
+				"config-state",
+				"list",
+				"--object-ids",
+				"all",
+				"--config-ids",
+				f"{CONFIG_ID_1}",
+			]
 		)
 		assert exit_code == 0
 		assert stdout_into_list(_stdout)[1][0] == CLIENT_ID_3
@@ -121,18 +164,6 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		assert len(stdout_into_list(_stdout)) - 1 == 4
 
 		# All objectId's (2), all configId's
-		exit_code, _stdout, _stderr = run_cli(["--output-format", "csv", "datastore", "config-state", "list"])
-		assert exit_code == 0
-		assert len(stdout_into_list(_stdout)) - 1 == 4 * len(all_configs)
-
-		# (SERVER)
-		# test if the origin and changed value of a config is shown correctly
-		# opsi.check.enabled: False("0") -> True("1")
-		# configs for DEPOT
-		CONFIGSTATE_1_DEPOT = {"configId": f"{CONFIG_ID}", "objectId": f"{DEPOT_ID}", "values": False}
-		CONFIGSTATE_2_DEPOT = {"configId": f"{CONFIG_ID}", "objectId": f"{DEPOT_ID}", "values": True}
-
-		admin_service_client.jsonrpc("configState_createObjects", params=[CONFIGSTATE_1_DEPOT])  # type:ignore[attr-defined]
 		exit_code, _stdout, _stderr = run_cli(
 			[
 				"--output-format",
@@ -140,19 +171,16 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 				"datastore",
 				"config-state",
 				"list",
-				"--object-id",
-				f"{CLIENT_ID_1}",
-				"--config-id",
-				f"{CONFIG_ID}",
+				"--object-ids",
+				"all",
+				"--config-ids",
+				"all",
 			]
 		)
 		assert exit_code == 0
-		assert (
-			stdout_into_list(_stdout)[1][2] == "0"
-		)  # only second row is of interest, first row of stdout_list[0][i]=([clientId, configId, value, origin])
-		assert stdout_into_list(_stdout)[1][3] == "[yellow]server[/yellow]"
+		assert len(stdout_into_list(_stdout)) - 1 == 4 * len(all_configs)
 
-		admin_service_client.jsonrpc("configState_updateObjects", params=[CONFIGSTATE_2_DEPOT])  # type:ignore[attr-defined]
+		# comma-separated config-ids
 		exit_code, _stdout, _stderr = run_cli(
 			[
 				"--output-format",
@@ -160,27 +188,73 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 				"datastore",
 				"config-state",
 				"list",
-				"--object-id",
+				"--object-ids",
+				"all",
+				"--config-ids",
+				f"{CONFIG_ID_1},{CONFIG_ID_2}",
+			]
+		)
+		assert exit_code == 0
+		assert len(stdout_into_list(_stdout)) - 1 == 8
+
+		# (Depot)
+		# test if the origin and changed value of a config is shown correctly
+		# opsi.check.enabled: False("0") -> True("1")
+		# configs for DEPOT
+		CONFIGSTATE_1_DEPOT = {"configId": f"{CONFIG_ID_1}", "objectId": f"{DEPOT_ID}", "values": False}
+		CONFIGSTATE_2_DEPOT = {"configId": f"{CONFIG_ID_1}", "objectId": f"{DEPOT_ID}", "values": True}
+
+		admin_service_client.jsonrpc("configState_createObjects", params=[CONFIGSTATE_1_DEPOT])
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"datastore",
+				"config-state",
+				"list",
+				"--object-ids",
 				f"{CLIENT_ID_1}",
-				"--config-id",
-				f"{CONFIG_ID}",
+				"--config-ids",
+				f"{CONFIG_ID_1}",
+			]
+		)
+		assert exit_code == 0
+		print(_stdout)
+		print(stdout_into_list(_stdout))
+		assert (
+			stdout_into_list(_stdout)[1][2] == "0"
+		)  # only second row is of interest, first row of stdout_list[0][i]=([clientId, configId, value, origin])
+		assert stdout_into_list(_stdout)[1][3] == "depot"
+
+		admin_service_client.jsonrpc("configState_updateObjects", params=[CONFIGSTATE_2_DEPOT])
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"datastore",
+				"config-state",
+				"list",
+				"--object-ids",
+				f"{CLIENT_ID_1}",
+				"--config-ids",
+				f"{CONFIG_ID_1}",
 			]
 		)
 		assert exit_code == 0
 		assert (
 			stdout_into_list(_stdout)[1][2] == "1"
 		)  # only second row is of interest, first row of stdout_list[0][i]=([clientId, configId, value, origin])
-		assert stdout_into_list(_stdout)[1][3] == "[yellow]server[/yellow]"
+		assert stdout_into_list(_stdout)[1][3] == "depot"
 
 		# (CLIENT)
 		# test if the origin and changed value of a config is shown correctly
 		# opsi.check.enabled: True("1") -> False("0")
-		# check if CLIENT overrides origin from server -> client
+		# check if CLIENT overrides origin from depot -> client
 		# configs for CLIENT_1
-		CONFIGSTATE_1_CLIENT_1 = {"configId": f"{CONFIG_ID}", "objectId": f"{CLIENT_ID_1}", "values": True}
-		CONFIGSTATE_2_CLIENT_1 = {"configId": f"{CONFIG_ID}", "objectId": f"{CLIENT_ID_1}", "values": False}
+		CONFIGSTATE_1_CLIENT_1 = {"configId": f"{CONFIG_ID_1}", "objectId": f"{CLIENT_ID_1}", "values": True}
+		CONFIGSTATE_2_CLIENT_1 = {"configId": f"{CONFIG_ID_1}", "objectId": f"{CLIENT_ID_1}", "values": False}
 
-		admin_service_client.jsonrpc("configState_createObjects", params=[CONFIGSTATE_1_CLIENT_1])  # type:ignore[attr-defined]
+		admin_service_client.jsonrpc("configState_createObjects", params=[CONFIGSTATE_1_CLIENT_1])
 		exit_code, _stdout, _stderr = run_cli(
 			[
 				"--output-format",
@@ -188,19 +262,19 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 				"datastore",
 				"config-state",
 				"list",
-				"--object-id",
+				"--object-ids",
 				f"{CLIENT_ID_1}",
-				"--config-id",
-				f"{CONFIG_ID}",
+				"--config-ids",
+				f"{CONFIG_ID_1}",
 			]
 		)
 		assert exit_code == 0
 		assert (
 			stdout_into_list(_stdout)[1][2] == "1"
 		)  # only second row is of interest, first row of stdout_list[0][i]=([clientId, configId, value, origin])
-		assert stdout_into_list(_stdout)[1][3] == "[blue]client[/blue]"
+		assert stdout_into_list(_stdout)[1][3] == "client"
 
-		admin_service_client.jsonrpc("configState_updateObjects", params=[CONFIGSTATE_2_CLIENT_1])  # type:ignore[attr-defined]
+		admin_service_client.jsonrpc("configState_updateObjects", params=[CONFIGSTATE_2_CLIENT_1])
 		exit_code, _stdout, _stderr = run_cli(
 			[
 				"--output-format",
@@ -208,17 +282,17 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 				"datastore",
 				"config-state",
 				"list",
-				"--object-id",
+				"--object-ids",
 				f"{CLIENT_ID_1}",
-				"--config-id",
-				f"{CONFIG_ID}",
+				"--config-ids",
+				f"{CONFIG_ID_1}",
 			]
 		)
 		assert exit_code == 0
 		assert (
 			stdout_into_list(_stdout)[1][2] == "0"
 		)  # only second row is of interest, first row of stdout_list[0][i]=([clientId, configId, value, origin])
-		assert stdout_into_list(_stdout)[1][3] == "[blue]client[/blue]"
+		assert stdout_into_list(_stdout)[1][3] == "client"
 
 		# test comma seperated objectId's and comma seperated objectId's with wildcards
 		exit_code, _stdout, _stderr = run_cli(
@@ -230,10 +304,10 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 				"datastore",
 				"config-state",
 				"list",
-				"--object-id",
+				"--object-ids",
 				f"{CLIENT_ID_3},{CLIENT_ID_4}",
-				"--config-id",
-				f"{CONFIG_ID}",
+				"--config-ids",
+				f"{CONFIG_ID_1}",
 			]
 		)
 		assert exit_code == 0
@@ -250,10 +324,10 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 				"datastore",
 				"config-state",
 				"list",
-				"--object-id",
+				"--object-ids",
 				f"{CLIENT_ID_WILDCARD_1},{CLIENT_ID_WILDCARD_2}",
-				"--config-id",
-				f"{CONFIG_ID}",
+				"--config-ids",
+				f"{CONFIG_ID_1}",
 			]
 		)
 		assert exit_code == 0
@@ -272,10 +346,10 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 				"datastore",
 				"config-state",
 				"list",
-				"--object-id",
+				"--object-ids",
 				f"{CLIENT_ID_WILDCARD_1},{CLIENT_ID_WILDCARD_3}",
-				"--config-id",
-				f"{CONFIG_ID}",
+				"--config-ids",
+				f"{CONFIG_ID_1}",
 			]
 		)
 		assert exit_code == 0
@@ -292,10 +366,10 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 				"datastore",
 				"config-state",
 				"list",
-				"--object-id",
+				"--object-ids",
 				f"{CLIENT_ID_WILDCARD_1},{CLIENT_ID_WILDCARD_2},{CLIENT_ID_WILDCARD_3},{CLIENT_ID_WILDCARD_4}",
-				"--config-id",
-				f"{CONFIG_ID}",
+				"--config-ids",
+				f"{CONFIG_ID_1}",
 			]
 		)
 		assert exit_code == 0
@@ -306,7 +380,7 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		assert len(stdout_into_list(_stdout)) - 1 == 4
 
 
-# ===================================CONFIG-STATE SET TESTS============================================
+# ===================================(CONFIG-STATE SET || TESTS)============================================
 @pytest.mark.parametrize(
 	"config, object_id, value_in, value_out",
 	[
@@ -393,6 +467,7 @@ def test_config_state_set_errors(admin_service_client: ServiceClient) -> None:
 		assert "Possible values are:" in _stderr
 
 
+# ===================================(PRODUCT UNLOCK || TESTS)============================================
 # lock one product -> verify -> unlock (CLI) -> verify
 @pytest.mark.opsi_service
 def test_product_unlock_manual(admin_service_client: ServiceClient) -> None:
@@ -409,7 +484,7 @@ def test_product_unlock_multiple(admin_service_client: ServiceClient) -> None:
 	with tmp_product(admin_service_client, PRODUCT_ID_1), tmp_product(admin_service_client, PRODUCT_ID_2):
 		lock_products(admin_service_client)
 		verify_lock_status(admin_service_client, is_locked=True)
-		unlock_products(["gimp2", "test2", "pytest-product1", "pytest-product2", "opsi-client-agent"])
+		unlock_products(product_ids=["gimp2", "test2", "pytest-product1", "pytest-product2", "opsi-client-agent"])
 		verify_lock_status(admin_service_client, is_locked=False)
 
 
@@ -419,8 +494,8 @@ def test_product_unlock_installation(admin_service_client: ServiceClient) -> Non
 	with tmp_product(admin_service_client, PRODUCT_ID_1), tmp_product(admin_service_client, PRODUCT_ID_2):
 		install_broken_package()
 		verify_lock_status(admin_service_client, is_locked=True, product_id="gimp2")
-		unlock_products(product_id=["gimp2"])
-		verify_lock_status(admin_service_client, is_locked=False)
+		unlock_products(product_ids=["gimp2"])
+		verify_lock_status(admin_service_client, is_locked=False, product_id="gimp2")
 
 
 # lock products -> verify -> try unlock (wrong/mutliple depot-ids) -> verify error message
@@ -429,6 +504,291 @@ def test_wrong_depot_id(admin_service_client: ServiceClient) -> None:
 	with tmp_product(admin_service_client, PRODUCT_ID_1), tmp_product(admin_service_client, PRODUCT_ID_2):
 		lock_products(admin_service_client)
 		verify_lock_status(admin_service_client, is_locked=True)
-		exitcode, _stdout, stderr = unlock_products(depot_id=["hallo,test"])
+		exitcode, _stdout, stderr = unlock_products(depot_ids=["hallo,test"])
 		assert exitcode != 0
 		assert "No such depot(s)" in stderr
+
+
+# ===================================(PRODUCT-PROPTERY-STATE LIST || TESTS)============================================
+@pytest.mark.opsi_service
+def test_product_property_list(admin_service_client: ServiceClient) -> None:
+	start = time.perf_counter()
+	with (
+		tmp_client(admin_service_client, CLIENT_ID_1),
+		tmp_client(admin_service_client, CLIENT_ID_2),
+		tmp_product(admin_service_client, PRODUCT_ID_1),
+		tmp_product(admin_service_client, PRODUCT_ID_2),
+	):
+		client_to_depot_objects = admin_service_client.configState_getClientToDepotserver()  # type:ignore[attr-defined]
+		DEPOT_ID = client_to_depot_objects[0]["depotId"]
+
+		# add PRODUCT-PROPERTIES
+		admin_service_client.productProperty_create(  # type:ignore[attr-defined]
+			productId=PRODUCT_ID_1,
+			productVersion="1",
+			packageVersion="1",
+			propertyId=PROPERTY_ID_1,
+		)
+		admin_service_client.productProperty_create(  # type:ignore[attr-defined]
+			productId=PRODUCT_ID_2, productVersion="1", packageVersion="1", propertyId=PROPERTY_ID_2
+		)
+		admin_service_client.productProperty_create(  # type:ignore[attr-defined]
+			productId=PRODUCT_ID_1,
+			productVersion="1",
+			packageVersion="1",
+			propertyId=PROPERTY_ID_2,
+		)
+		admin_service_client.productProperty_create(  # type:ignore[attr-defined]
+			productId=PRODUCT_ID_2, productVersion="1", packageVersion="1", propertyId=PROPERTY_ID_1
+		)
+
+		# add PRODUCT-PROPERTY-STATES for client 1 & 2
+		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_1, propertyId=PROPERTY_ID_1, objectId=CLIENT_ID_1)  # type:ignore[attr-defined]
+		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_1, propertyId=PROPERTY_ID_1, objectId=CLIENT_ID_2)  # type:ignore[attr-defined]
+		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_1, propertyId=PROPERTY_ID_2, objectId=CLIENT_ID_1)  # type:ignore[attr-defined]
+		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_1, propertyId=PROPERTY_ID_2, objectId=CLIENT_ID_2)  # type:ignore[attr-defined]
+
+		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_2, propertyId=PROPERTY_ID_1, objectId=CLIENT_ID_1)  # type:ignore[attr-defined]
+		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_2, propertyId=PROPERTY_ID_1, objectId=CLIENT_ID_2)  # type:ignore[attr-defined]
+		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_2, propertyId=PROPERTY_ID_2, objectId=CLIENT_ID_1)  # type:ignore[attr-defined]
+		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_2, propertyId=PROPERTY_ID_2, objectId=CLIENT_ID_2)  # type:ignore[attr-defined]
+
+		# One productId, one propertyId, no object-id
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"--sort-by",
+				"objectId",
+				"datastore",
+				"product-property-state",
+				"list",
+				"--object-ids",
+				"all",
+				"--product-ids",
+				f"{PRODUCT_ID_1}",
+				"--property-ids",
+				f"{PROPERTY_ID_1}",
+			]
+		)
+		assert exit_code == 0
+		assert stdout_into_list(_stdout)[1][0] == CLIENT_ID_1
+		assert stdout_into_list(_stdout)[1][1] == PRODUCT_ID_1
+		assert stdout_into_list(_stdout)[1][2] == PROPERTY_ID_1
+		assert stdout_into_list(_stdout)[2][0] == CLIENT_ID_2
+		assert stdout_into_list(_stdout)[2][1] == PRODUCT_ID_1
+		assert stdout_into_list(_stdout)[2][2] == PROPERTY_ID_1
+		assert len(stdout_into_list(_stdout)) - 1 == 2
+
+		# One productId, one propertyId, object-id=py*
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"--sort-by",
+				"objectId",
+				"datastore",
+				"product-property-state",
+				"list",
+				"--object-ids",
+				"py*",
+				"--product-ids",
+				f"{PRODUCT_ID_2}",
+				"--property-ids",
+				f"{PROPERTY_ID_2}",
+			]
+		)
+		assert exit_code == 0
+		assert stdout_into_list(_stdout)[1][0] == CLIENT_ID_1
+		assert stdout_into_list(_stdout)[1][1] == PRODUCT_ID_2
+		assert stdout_into_list(_stdout)[1][2] == PROPERTY_ID_2
+		assert stdout_into_list(_stdout)[2][0] == CLIENT_ID_2
+		assert stdout_into_list(_stdout)[2][1] == PRODUCT_ID_2
+		assert stdout_into_list(_stdout)[2][2] == PROPERTY_ID_2
+		assert len(stdout_into_list(_stdout)) - 1 == 2
+
+		# One productId, one propertyId, object-id=comma separated
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"--sort-by",
+				"objectId",
+				"datastore",
+				"product-property-state",
+				"list",
+				"--object-ids",
+				f"{CLIENT_ID_1},{CLIENT_ID_2}",
+				"--product-ids",
+				f"{PRODUCT_ID_2}",
+				"--property-ids",
+				f"{PROPERTY_ID_2}",
+			]
+		)
+		assert exit_code == 0
+		assert stdout_into_list(_stdout)[1][0] == CLIENT_ID_1
+		assert stdout_into_list(_stdout)[1][1] == PRODUCT_ID_2
+		assert stdout_into_list(_stdout)[1][2] == PROPERTY_ID_2
+		assert stdout_into_list(_stdout)[2][0] == CLIENT_ID_2
+		assert stdout_into_list(_stdout)[2][1] == PRODUCT_ID_2
+		assert stdout_into_list(_stdout)[2][2] == PROPERTY_ID_2
+		assert len(stdout_into_list(_stdout)) - 1 == 2
+
+		# product-id=pytest*, property-id=proper*, object-id=py*
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"--sort-by",
+				"objectId",
+				"datastore",
+				"product-property-state",
+				"list",
+				"--object-ids",
+				"py*",
+				"--product-ids",
+				"pytest*",
+				"--property-ids",
+				"proper*",
+			]
+		)
+		assert exit_code == 0
+		assert stdout_into_list(_stdout)[1][:3] == [CLIENT_ID_1, PRODUCT_ID_1, PROPERTY_ID_1]
+		assert stdout_into_list(_stdout)[2][:3] == [CLIENT_ID_1, PRODUCT_ID_1, PROPERTY_ID_2]
+		assert stdout_into_list(_stdout)[3][:3] == [CLIENT_ID_1, PRODUCT_ID_2, PROPERTY_ID_1]
+		assert stdout_into_list(_stdout)[4][:3] == [CLIENT_ID_1, PRODUCT_ID_2, PROPERTY_ID_2]
+		assert stdout_into_list(_stdout)[5][:3] == [CLIENT_ID_2, PRODUCT_ID_1, PROPERTY_ID_1]
+		assert stdout_into_list(_stdout)[6][:3] == [CLIENT_ID_2, PRODUCT_ID_1, PROPERTY_ID_2]
+		assert stdout_into_list(_stdout)[7][:3] == [CLIENT_ID_2, PRODUCT_ID_2, PROPERTY_ID_1]
+		assert stdout_into_list(_stdout)[8][:3] == [CLIENT_ID_2, PRODUCT_ID_2, PROPERTY_ID_2]
+		assert len(stdout_into_list(_stdout)) - 1 == 8
+
+		# product-id=comma-separated, property-id=comma-separated, object-id=comma-separated
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"--sort-by",
+				"objectId",
+				"datastore",
+				"product-property-state",
+				"list",
+				"--object-ids",
+				f"{CLIENT_ID_1},{CLIENT_ID_2}",
+				"--product-ids",
+				f"{PRODUCT_ID_1},{PRODUCT_ID_2}",
+				"--property-ids",
+				f"{PROPERTY_ID_1},{PROPERTY_ID_2}",
+			]
+		)
+		assert exit_code == 0
+		assert stdout_into_list(_stdout)[1][:3] == [CLIENT_ID_1, PRODUCT_ID_1, PROPERTY_ID_1]
+		assert stdout_into_list(_stdout)[2][:3] == [CLIENT_ID_1, PRODUCT_ID_1, PROPERTY_ID_2]
+		assert stdout_into_list(_stdout)[3][:3] == [CLIENT_ID_1, PRODUCT_ID_2, PROPERTY_ID_1]
+		assert stdout_into_list(_stdout)[4][:3] == [CLIENT_ID_1, PRODUCT_ID_2, PROPERTY_ID_2]
+		assert stdout_into_list(_stdout)[5][:3] == [CLIENT_ID_2, PRODUCT_ID_1, PROPERTY_ID_1]
+		assert stdout_into_list(_stdout)[6][:3] == [CLIENT_ID_2, PRODUCT_ID_1, PROPERTY_ID_2]
+		assert stdout_into_list(_stdout)[7][:3] == [CLIENT_ID_2, PRODUCT_ID_2, PROPERTY_ID_1]
+		assert stdout_into_list(_stdout)[8][:3] == [CLIENT_ID_2, PRODUCT_ID_2, PROPERTY_ID_2]
+		assert len(stdout_into_list(_stdout)) - 1 == 8
+
+		# object-id is a depot-id
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"--sort-by",
+				"objectId",
+				"datastore",
+				"product-property-state",
+				"list",
+				"--object-ids",
+				f"{DEPOT_ID}",
+				"--product-ids",
+				"pytest*",
+				"--property-ids",
+				"all",
+			]
+		)
+		assert exit_code == 0
+		assert stdout_into_list(_stdout)[1][:3] == [DEPOT_ID, PRODUCT_ID_1, PROPERTY_ID_1]
+		assert stdout_into_list(_stdout)[2][:3] == [DEPOT_ID, PRODUCT_ID_1, PROPERTY_ID_2]
+		assert stdout_into_list(_stdout)[3][:3] == [DEPOT_ID, PRODUCT_ID_2, PROPERTY_ID_1]
+		assert stdout_into_list(_stdout)[4][:3] == [DEPOT_ID, PRODUCT_ID_2, PROPERTY_ID_2]
+		assert len(stdout_into_list(_stdout)) - 1 == 4
+
+	diff = time.perf_counter() - start
+	print(diff)
+
+
+@pytest.mark.opsi_service
+def test_product_property_list_stress_test(admin_service_client: ServiceClient) -> None:
+	num_clients = 1
+	num_products = 5
+	num_properties = 3
+	tmp_clients = []
+	tmp_products = []
+
+	# create clients
+	i = 0
+	while i < num_clients:
+		tmp_clients.append(tmp_client(admin_service_client, f"pytest-client{i}.test.tld"))
+		i += 1
+	# create products
+	j = 0
+	while j < num_products:
+		tmp_products.append(tmp_product(admin_service_client, f"pytest-product{j}"))
+		j += 1
+
+	with ExitStack() as stack:
+		for client in tmp_clients:
+			stack.enter_context(client)
+		for product in tmp_products:
+			stack.enter_context(product)
+
+		# create properties and their property-states
+		i = 0
+		while i < num_clients:
+			j = 0
+			while j < num_products:
+				k = 0
+				while k < num_properties:
+					admin_service_client.productProperty_create(
+						productId=f"pytest-product{j}",
+						productVersion="1",
+						packageVersion="1",
+						propertyId=f"property{k}",
+					)
+					admin_service_client.productPropertyState_create(
+						productId=f"pytest-product{j}",
+						propertyId=f"property{k}",
+						objectId=f"pytest-client{i}.test.tld",
+					)
+					print(f"pytest-client{i}.test.tld; pytest-product{j}; property{k}")
+					k += 1
+				j += 1
+			i += 1
+
+		start = time.perf_counter()
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"--sort-by",
+				"objectId",
+				"datastore",
+				"product-property-state",
+				"list",
+				"--object-ids",
+				"all",
+				"--product-ids",
+				"pytest*",
+				"--property-ids",
+				"property*",
+			]
+		)
+		assert exit_code == 0
+		assert len(stdout_into_list(_stdout)) - 1 == num_clients * num_products * num_properties
+	diff = time.perf_counter() - start
+
+	print(diff)

@@ -10,9 +10,10 @@ opsi-cli Basic command line interface for opsi
 import sys
 
 from opsicommon.logging import get_logger
+
 from opsicli.config import config
 
-__version__ = "4.3.15.0"
+__version__ = "4.3.30.5"
 logger = get_logger("opsi-cli")
 
 

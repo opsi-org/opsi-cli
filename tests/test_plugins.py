@@ -105,24 +105,37 @@ def test_pluginarchive_export_import(tmp_path: Path) -> None:
 
 def test_plugin_new(tmp_path: Path) -> None:
 	with temp_context():
-		destination = tmp_path / "newplugin"
+		destination = tmp_path / "new_plugin_1"
 
-		print(f'Calling opsicli with ["plugin", "new", "--description", "", "--version", "0.1.0", "--path", {str(tmp_path)}, "newplugin"]')
-		exit_code, _stdout, stderr = run_cli(
-			["plugin", "new", "--description", "", "--version", "0.1.0", "--path", str(tmp_path), "newplugin"]
-		)
+		args = ["plugin", "new", "--description", "", "--version", "1.2.3", "--path", str(tmp_path), "New Plugin_1"]
+		print(f"Calling opsicli with: {args}")
+		exit_code, _stdout, stderr = run_cli(args)
 		print(stderr)
 		assert exit_code == 0
-		assert "Plugin 'newplugin' created" in stderr
+		assert "Plugin 'new-plugin-1' created" in stderr
 		assert (destination / "python" / "__init__.py").exists()
 
-		exit_code, _stdout, stderr = run_cli(["plugin", "add", str(destination)])
-		assert exit_code == 0
-		assert "Plugin 'newplugin' installed" in stderr
+		init_code = (destination / "python" / "__init__.py").read_text("utf-8")
+		assert 'name: str = "New Plugin_1"' in init_code
+		assert '__version__ = "1.2.3"' in init_code
 
-		exit_code, stdout, _stderr = run_cli(["plugin", "list"])
+		exit_code, _stdout, stderr = run_cli(["-l", "4", "plugin", "add", str(destination)])
 		assert exit_code == 0
-		assert "newplugin" in stdout
+		assert "Plugin 'new-plugin-1' installed" in stderr
+
+		exit_code, stdout, _stderr = run_cli(["-l", "4", "plugin", "list"])
+		assert exit_code == 0
+		assert "new-plugin-1" in stdout
+
+		exit_code, _stdout, stderr = run_cli(["-l", "4", "plugin", "compress", str(destination), str(tmp_path)])
+		assert exit_code == 0
+		plugin_archive = tmp_path / "new-plugin-1.opsicliplug"
+		assert f"Plugin source '{destination}' compressed to '{plugin_archive}'" in stderr.replace("\n", "")
+		assert plugin_archive.exists()
+
+		exit_code, _stdout, stderr = run_cli(["-l", "4", "plugin", "add", str(plugin_archive)])
+		assert exit_code == 0
+		assert "Plugin 'new-plugin-1' installed" in stderr
 
 
 def test_pluginarchive_extract_compress(tmp_path: Path) -> None:
@@ -152,3 +165,10 @@ def test_flag_protected(tmp_path: Path) -> None:
 
 		exit_code, _stdout, stderr = run_cli(["plugin", "remove", "config"])
 		assert exit_code == 1  # not allowed to remove "config" as it is a protected plugin
+
+
+def test_run_unavailable_plugin() -> None:
+	with temp_context():
+		exit_code, _stdout, stderr = run_cli(["invalid-plugin", "somecommand"])
+		assert exit_code == 1
+		assert "Error: Plugin 'invalid-plugin' not found." in stderr

@@ -30,15 +30,17 @@ from opsicli.types import OpsiCliRuntimeError
 original_print = builtins.print
 
 if not COMPLETION_MODE:
-	import rich_click as click  # type: ignore[no-redef]
+	import rich_click as click
 	from rich_click.rich_click import _get_rich_formatter, rich_abort_error, rich_format_error, rich_format_help
 
 	from opsicli.io import get_console
 else:
 	# Loads faster
-	import click  # type: ignore[no-redef]
+	import click
 
 if not COMPLETION_MODE:
+	assert hasattr(click, "rich_click")
+
 	click.rich_click.USE_RICH_MARKUP = True
 	click.rich_click.MAX_WIDTH = 140
 
@@ -87,6 +89,8 @@ class OpsiCLI(click.MultiCommand):  # type: ignore
 			# Avoid gigantic traceback for known errors
 			exc_type = type(err)
 			exc_info = not issubclass(exc_type, (OpsiCliRuntimeError, OpsiServiceConnectionError))
+			if not exc_info:
+				logger.debug(err, exc_info=True)
 			logger.error(err, exc_info=exc_info)
 
 			additional_info = ""
@@ -128,7 +132,7 @@ class OpsiCLI(click.MultiCommand):  # type: ignore
 
 	def list_commands(self, ctx: click.Context) -> list[str]:
 		logger.debug("list_commands")
-		return sorted(plugin_manager.plugins)
+		return sorted(p.replace("_", "-") for p in plugin_manager.plugins)
 
 	def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command:
 		logger.debug("get_command %r", cmd_name)
@@ -183,6 +187,7 @@ def quiet_print(*args: Any, **kwargs: Any) -> None:
 	"list_attributes",
 	expose_value=False,
 	is_flag=True,
+	is_eager=False,
 	default=False,
 	help=f"{config.get_description('list_attributes')}",
 )
@@ -203,4 +208,4 @@ def main(*args: str, **kwargs: str) -> None:
 	prepare_cli_paths()
 	if config.quiet:
 		logger.debug("Quiet mode enabled, disabling print")
-		builtins.print = quiet_print
+		builtins.print = quiet_print  # type: ignore[invalid-assignment]

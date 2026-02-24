@@ -11,7 +11,7 @@ import rich_click as click
 from opsicommon.logging import get_logger
 
 from opsicli.cli_helpers import OPSICLICommand
-from opsicli.decorators import dry_run_handling
+from opsicli.decorators import dry_run_capable
 from opsicli.messagebus import TerminalMessagebusConnection
 from opsicli.plugin import OPSICLIPlugin
 
@@ -27,7 +27,7 @@ logger = get_logger("opsicli")
 @click.option("--terminal-id", help="Connect to existing terminal session with this id.")
 @click.option("--shell", help="Use this shell for the terminal session.")
 @click.pass_context
-@dry_run_handling()
+@dry_run_capable
 def cli(ctx: click.Context, target: str, terminal_id: str | None, shell: str | None) -> None:
 	"""
 	This command starts an interactive console session.

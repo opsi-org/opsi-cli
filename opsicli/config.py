@@ -29,7 +29,7 @@ if COMPLETION_MODE:
 	# Loads faster
 	import click
 else:
-	import rich_click as click  # type: ignore[no-redef]
+	import rich_click as click
 
 from click.core import ParameterSource  # noqa: E402
 from click.shell_completion import CompletionItem, ShellComplete, add_completion_class, split_arg_string  # noqa: E402
@@ -227,8 +227,8 @@ class ConfigItem:
 	def get_values(self, value_only: bool = True, sources: list[ConfigValueSource] | None = None) -> list[Any]:
 		values = [
 			val.value if value_only else val
-			for val in (self._value if self.multiple else [self._value])  # type: ignore[union-attr,list-item] # _value can be List or Scalar
-			if val and (not sources or val.source in sources)
+			for val in (self._value if self.multiple else [self._value])  # type: ignore[not-iterable]
+			if isinstance(val, ConfigValue) and (not sources or val.source in sources)
 		]
 		return values
 
@@ -273,8 +273,8 @@ CONFIG_ITEMS = [
 		name="output_format",
 		type=OutputFormat,
 		group="IO",
-		default="auto",
-		description=f"Set output format. Possible values are: {OutputFormat.possible_values_for_description}.",
+		default=OutputFormat.AUTO.value,
+		description=f"Set output format. Possible values are: {str(OutputFormat.possible_values_for_description)}.",
 	),
 	ConfigItem(
 		name="output_file",
@@ -389,7 +389,7 @@ CONFIG_ITEMS.extend(
 )
 
 if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-	_plugin_bundle_dir = Path(sys._MEIPASS) / "plugins"  # type: ignore[attr-defined]
+	_plugin_bundle_dir = Path(sys._MEIPASS) / "plugins"
 else:
 	_plugin_bundle_dir = Path("plugins").resolve()
 
@@ -581,7 +581,7 @@ class Config(metaclass=Singleton):
 		}
 		_args = [str(long_option)] + ([str(kwargs.pop("short_option"))] if "short_option" in kwargs else [])
 		_kwargs.update(kwargs)
-		return click.option(*_args, **_kwargs)
+		return click.option(*_args, **_kwargs)  # type: ignore[invalid-argument-type]
 
 	def process_option(self, ctx: click.Context, param: click.Option, value: Any) -> None:
 		if param.name is None:

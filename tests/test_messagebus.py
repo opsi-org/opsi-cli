@@ -9,12 +9,24 @@ test_messagebus
 
 import json
 import time
+from contextlib import chdir
+from pathlib import Path
 from threading import Thread
 
 import pytest
 from opsicommon.logging import get_logger, log_context
+from opsicommon.messagebus import CONNECTION_USER_CHANNEL
+from opsicommon.messagebus.message import (
+	FileChunkMessage,
+	FileDownloadInformationMessage,
+	FileDownloadRequestMessage,
+	FileUploadRequestMessage,
+	FileUploadResponseMessage,
+	FileUploadResultMessage,
+	Message,
+)
 
-from opsicli.messagebus import JSONRPCMessagebusConnection
+from opsicli.messagebus import JSONRPCMessagebusConnection, MessagebusListener
 from opsicli.opsiservice import get_service_connection
 
 from .conftest import get_admin_service_client, get_host_service_client
@@ -92,7 +104,7 @@ def test_get_events(types: list[str], output_type: str | None) -> None:
 	for cid in (client_id, "some.other.host"):
 		cht = CreateHostThread(daemon=True)
 		cht.start()
-		cmd = ["-l6", "--output-format", "json", "messagebus", "get-events", "--timeout", "10"]
+		cmd = ["--output-format", "json", "messagebus", "get-events", "--timeout", "10"]
 		for event_type in types:
 			cmd += ["--type", event_type]
 		if output_type:
@@ -129,14 +141,18 @@ def test_wait_for_event(with_data: bool) -> None:
 		cmd = ["messagebus", "wait-for-event", "host_created", "--timeout", "10"]
 		if with_data:
 			cmd += ["--data", f"id={cid}"]
-		exit_code, _stdout, _stderr = run_cli(cmd)
+		exit_code, stdout, stderr = run_cli(cmd)
 		cht.join()
 		if with_data and cid != client_id:
-			# timeout reached
+			# Timeout reached
 			assert exit_code == 1
+			assert "Timed out after waiting 10.0 seconds for the event" in stderr
 		else:
 			# 'host_created' event found
 			assert exit_code == 0
+			data = json.loads(stdout)
+			assert data["type"] == "OpsiClient"
+			assert data["id"] == client_id
 
 
 @pytest.mark.opsi_service
@@ -170,7 +186,6 @@ def test_wait_for_installation(installation_status: str, success: bool) -> None:
 				cht = FakeInstallationThread(daemon=True)
 				cht.start()
 				cmd = [
-					"-l7",
 					"messagebus",
 					"wait-for-installation",
 					"client1.test.tld",
@@ -209,3 +224,120 @@ def test_wait_for_host() -> None:
 				exit_code, _stdout, _stderr = run_cli(cmd)
 				thread.join()
 				assert exit_code == 0
+
+
+@pytest.mark.opsi_service
+def test_download(tmp_path: Path) -> None:
+	class TestDownloadMessagebusListener(MessagebusListener):
+		def message_received(self, message: Message) -> None:
+			assert self.messagebus
+			# print(f"Message received: {message.to_dict()}")
+			if isinstance(message, FileDownloadRequestMessage):
+				self.messagebus.send_message(
+					FileDownloadInformationMessage(sender=CONNECTION_USER_CHANNEL, channel=message.response_channel, size=12)
+				)
+				self.messagebus.send_message(
+					FileChunkMessage(sender=CONNECTION_USER_CHANNEL, channel=message.response_channel, data=b"chunk1", number=1, last=False)
+				)
+				self.messagebus.send_message(
+					FileChunkMessage(sender=CONNECTION_USER_CHANNEL, channel=message.response_channel, data=b"chunk2", number=2, last=True)
+				)
+
+	class FakeHostConnectionThread(Thread):
+		should_stop = False
+
+		def run(self) -> None:
+			with log_context({"instance": "FakeHostConnectionThread"}):
+				with get_host_service_client("client1.test.tld", "00000000000000000000000000000000") as client:
+					listener = TestDownloadMessagebusListener(client.messagebus)
+					client.messagebus.register_messagebus_listener(listener)
+					client.connect_messagebus()
+					while not self.should_stop:
+						time.sleep(1)
+
+	destination_file = tmp_path / "file.txt"
+	with chdir(tmp_path):
+		with admin_service_config():
+			with get_service_connection() as connection:
+				with tmp_client(connection, "client1.test.tld", "00000000000000000000000000000000"):
+					thread = FakeHostConnectionThread(daemon=True)
+					thread.start()
+					time.sleep(2)
+					for dest in None, "-", destination_file, destination_file.parent:
+						print("Downloading to", dest)
+						cmd = [
+							"messagebus",
+							"download",
+							"client1.test.tld",
+							"/path/to/source/file.txt",
+						]
+						if dest is not None:
+							cmd.append(str(dest))
+						exit_code, stdout, stderr = run_cli(cmd)
+
+						assert exit_code == 0
+						assert "File '/path/to/source/file.txt' downloaded successfully to" in stderr.replace("\n", "")
+						if dest == "-":
+							assert stdout == "chunk1chunk2"
+						else:
+							assert stdout == ""
+							assert destination_file.read_bytes() == b"chunk1chunk2"
+							destination_file.unlink()
+
+					thread.should_stop = True
+					thread.join()
+
+
+@pytest.mark.opsi_service
+def test_upload(tmp_path: Path) -> None:
+	class TestUploadMessagebusListener(MessagebusListener):
+		def message_received(self, message: Message) -> None:
+			assert self.messagebus
+			# print(f"Message received: {message.to_dict()}")
+			if isinstance(message, FileUploadRequestMessage):
+				self.messagebus.send_message(
+					FileUploadResponseMessage(sender=CONNECTION_USER_CHANNEL, channel=message.response_channel, path="/remote/path")
+				)
+			elif isinstance(message, FileChunkMessage) and message.last:
+				self.messagebus.send_message(
+					FileUploadResultMessage(sender=CONNECTION_USER_CHANNEL, channel=message.response_channel, path="/remote/path")
+				)
+
+	class FakeHostConnectionThread(Thread):
+		should_stop = False
+
+		def run(self) -> None:
+			with log_context({"instance": "FakeHostConnectionThread"}):
+				with get_host_service_client("client1.test.tld", "00000000000000000000000000000000") as client:
+					listener = TestUploadMessagebusListener(client.messagebus)
+					client.messagebus.register_messagebus_listener(listener)
+					client.connect_messagebus()
+					while not self.should_stop:
+						time.sleep(1)
+
+	source_file = tmp_path / "file.txt"
+	source_file.write_bytes(b"data")
+	with chdir(tmp_path):
+		with admin_service_config():
+			with get_service_connection() as connection:
+				with tmp_client(connection, "client1.test.tld", "00000000000000000000000000000000"):
+					thread = FakeHostConnectionThread(daemon=True)
+					thread.start()
+					time.sleep(2)
+					for src in "-", source_file:
+						print("Uploading", src)
+						cmd = [
+							"messagebus",
+							"upload",
+							"client1.test.tld",
+							str(src),
+							"/path/to/destination/file.txt",
+						]
+						exit_code, stdout, stderr = run_cli(cmd, stdin=(["data"] if src == "-" else None))
+
+						assert exit_code == 0
+						assert f"File '{src}' uploaded successfully to '/remote/path'" in stderr.replace("\n", "")
+						assert stdout == ""
+
+					thread.should_stop = True
+					thread.join()

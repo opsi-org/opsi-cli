@@ -19,7 +19,7 @@
 				"editor.formatOnSave": true,
 				"files.trimTrailingWhitespace": true,
 				"pylint.enabled": false,
-				"python.languageServer": "Pylance",
+				"python.languageServer": "None",
 				"[python]": {
 					"editor.codeActionsOnSave": {
 						"source.fixAll": "explicit",
@@ -30,9 +30,8 @@
 			},
 			"extensions": [
 				"ms-python.python",
-				"ms-python.vscode-pylance",
-				"ms-python.mypy-type-checker",
 				"charliermarsh.ruff",
+				"astral-sh.ty",
 				"ryanluker.vscode-coverage-gutters",
 				"streetsidesoftware.code-spell-checker"
 			]

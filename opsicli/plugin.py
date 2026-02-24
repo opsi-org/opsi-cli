@@ -11,6 +11,7 @@ plugin handling
 
 import importlib
 import os
+import re
 import shutil
 import sys
 import warnings
@@ -31,6 +32,21 @@ from opsicli.singelton import Singleton
 logger = get_logger("opsicli")
 
 PLUGIN_EXTENSION = "opsicliplug"
+
+PLUGIN_NAME_REGEX = re.compile(r"^[a-zA-Z0-9_\- ]+$")
+PLUGIN_ID_REGEX = re.compile(r"^[a-z0-9\-]+$")
+
+
+def verify_plugin_name(plugin_name: str) -> str:
+	if not re.match(PLUGIN_NAME_REGEX, plugin_name):
+		raise ValueError(f"Invalid plugin name '{plugin_name}'. Only alphanumeric characters, spaces, hyphens and underscores are allowed.")
+	return plugin_name
+
+
+def verify_plugin_id(plugin_id: str) -> str:
+	if not re.match(PLUGIN_ID_REGEX, plugin_id):
+		raise ValueError(f"Invalid plugin id '{plugin_id}'. Only alphanumeric characters, hyphens and underscores are allowed.")
+	return plugin_id
 
 
 class OPSICLIPlugin:
@@ -69,7 +85,7 @@ class PluginImporter(BuiltinImporter):
 		logger.debug("Searching spec for %s", init_path)
 		if not os.path.exists(init_path):
 			return None
-		return importlib.util.spec_from_file_location(fullname, init_path)
+		return importlib.util.spec_from_file_location(fullname, init_path)  # type: ignore[possibly-missing-attribute]
 
 
 sys.meta_path.append(PluginImporter)  # type: ignore[arg-type]
@@ -98,8 +114,13 @@ class PluginManager(metaclass=Singleton):
 				continue
 			logger.debug("Checking plugins from dir '%s'", plugin_base_dir)
 			for plugin_dir in plugin_base_dir.iterdir():
-				if (plugin_dir / "python" / "__init__.py").exists() and plugin_dir.name not in plugin_ids:
-					plugin_ids.append(plugin_dir.name)
+				try:
+					plugin_id = verify_plugin_id(plugin_dir.name.replace("_", "-"))
+				except ValueError as err:
+					logger.warning("Skipping invalid plugin dir '%s': %s", plugin_dir, err)
+					continue
+				if (plugin_dir / "python" / "__init__.py").exists() and plugin_id not in plugin_ids:
+					plugin_ids.append(plugin_id)
 		return plugin_ids
 
 	def load_plugin_module(self, plugin_dir: Path) -> ModuleType:
@@ -121,16 +142,17 @@ class PluginManager(metaclass=Singleton):
 		return importlib.import_module(self.module_name(plugin_dir))
 
 	def get_plugin_dir(self, name: str) -> Path:
+		dir_name = name.replace("-", "_")
 		for plugin_base_dir in (config.plugin_bundle_dir, config.plugin_system_dir, config.plugin_user_dir):
 			if not plugin_base_dir:
 				continue
 			if not plugin_base_dir.exists():
 				logger.debug("Plugin dir '%s' not found", plugin_base_dir)
 				continue
-			if (plugin_base_dir / name).exists():
-				logger.debug("Found plugin %s at %s", name, plugin_base_dir / name)
-				return plugin_base_dir / name
-		raise FileNotFoundError(f"Did not find plugin '{name}'.")
+			if (plugin_base_dir / dir_name).exists():
+				logger.debug("Found plugin %r at '%s'", name, plugin_base_dir / dir_name)
+				return plugin_base_dir / dir_name
+		raise FileNotFoundError(f"Plugin '{name}' not found.")
 
 	def load_plugin(self, name: str) -> OPSICLIPlugin:
 		plugin_dir = self.get_plugin_dir(name)
@@ -158,9 +180,11 @@ def replace_data(string: str, replacements: dict[str, str]) -> str:
 def prepare_plugin(path: Path, tmpdir: Path) -> str:
 	"""Creates the plugin and libs in tmp"""
 	logger.info("Inspecting plugin source '%s'", path)
-	plugin_id = path.stem
+	plugin_id = verify_plugin_id(path.stem.replace("_", "-"))
+	plugin_tmp_path = tmpdir / plugin_id.replace("-", "_")
+	logger.info("Preparing plugin '%s' in '%s'", plugin_id, plugin_tmp_path)
 	if (path / "python" / "__init__.py").exists():
-		shutil.copytree(path, tmpdir / plugin_id)
+		shutil.copytree(path, plugin_tmp_path)
 	elif path.suffix == f".{PLUGIN_EXTENSION}":
 		with zipfile.ZipFile(path, "r") as zfile:
 			zfile.extractall(tmpdir)
@@ -168,27 +192,29 @@ def prepare_plugin(path: Path, tmpdir: Path) -> str:
 		raise ValueError(f"Invalid path given '{path}'")
 
 	logger.info("Retrieving libraries for new plugin")
-	install_dependencies(tmpdir / plugin_id, tmpdir / "lib")
+	install_dependencies(plugin_tmp_path, tmpdir / "lib")
 	return plugin_id
 
 
-def install_plugin(source_dir: Path, name: str, system: bool = False) -> Path:
+def install_plugin(source_dir: Path, plugin_id: str, system: bool = False) -> Path:
 	"""Copy the prepared plugin from tmp to LIB_DIR"""
 	plugin_dir = config.plugin_system_dir if system else config.plugin_user_dir
 	if not plugin_dir.is_dir():
 		raise FileNotFoundError(f"Plugin dir '{plugin_dir}' does not exist")
 
-	if not name:
+	if not plugin_id:
 		raise ValueError("Attempting to install empty plugin.")
-	logger.info("Installing libraries from '%s'", source_dir / "lib")
-	shutil.rmtree(config.python_lib_dir / name, ignore_errors=True)
-	shutil.copytree(source_dir / "lib", config.python_lib_dir / name)
 
-	destination = plugin_dir / name
-	logger.info("Installing plugin from '%s' to '%s'", source_dir / name, destination)
+	plugin_path_name = plugin_id.replace("-", "_")
+	logger.info("Installing libraries from '%s'", source_dir / "lib")
+	shutil.rmtree(config.python_lib_dir / plugin_path_name, ignore_errors=True)
+	shutil.copytree(source_dir / "lib", config.python_lib_dir / plugin_path_name)
+
+	destination = plugin_dir / plugin_path_name
+	logger.info("Installing plugin from '%s' to '%s'", source_dir / plugin_path_name, destination)
 	if destination.exists():
 		shutil.rmtree(destination)
-	shutil.copytree(source_dir / name, destination)
+	shutil.copytree(source_dir / plugin_path_name, destination)
 	return destination
 
 
@@ -233,17 +259,17 @@ def install_dependencies(path: Path, target_dir: Path) -> None:
 	# Import is slow (python requests/urllib3)
 
 	from pip._vendor.distlib import resources
-	from pipreqs import pipreqs  # type: ignore[import]
+	from pipreqs import pipreqs
 
 	logger.debug("Finder registry: %s", resources._finder_registry)
 
 	try:
-		import _frozen_importlib_external  # type: ignore[import-not-found]
+		import _frozen_importlib_external
 
 		try:
 			import pyimod02_importers  # type: ignore[import-not-found]
 		except ImportError:
-			from PyInstaller.loader import pyimod02_importers  # type: ignore
+			from PyInstaller.loader import pyimod02_importers
 
 		resources._finder_registry[pyimod02_importers.PyiFrozenLoader] = resources._finder_registry[
 			_frozen_importlib_external.SourceFileLoader

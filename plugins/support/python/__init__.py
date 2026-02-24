@@ -13,13 +13,13 @@ import rich_click as click
 from opsicommon.logging import get_logger
 
 from opsicli.cli_helpers import OPSICLIGroup
-from opsicli.decorators import dry_run_handling, handle_list_attributes
+from opsicli.decorators import dry_run_capable
 from opsicli.io import console_print, write_output
 from opsicli.messagebus import JSONRPCMessagebusConnection
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
-from plugins.support.data.metadata import command_metadata
 
+from .metadata import command_metadata
 from .worker import category_health_check, default_health_check
 
 __version__ = "0.1.2"
@@ -32,8 +32,7 @@ logger = get_logger("opsicli")
 @click.group(cls=OPSICLIGroup, name="support", short_help="Custom plugin support")
 @click.version_option(__version__, message="opsi-cli plugin support, version %(version)s")
 @click.pass_context
-@handle_list_attributes
-@dry_run_handling()
+@dry_run_capable
 def cli(ctx: click.Context) -> None:
 	""" """
 	logger.trace("support command")

@@ -10,13 +10,16 @@ template for opsi-cli plugins
 import rich_click as click
 from opsicommon.logging import get_logger
 from opsicommon.objects import BoolConfig, Config, ConfigState, UnicodeConfig
-from purecrypt import Crypt, Method  # type: ignore[import-untyped]
+from purecrypt import Crypt, Method
 
 from opsicli.cli_helpers import OPSICLIGroup
-from opsicli.decorators import dry_run_handling
-from opsicli.io import Attribute, Metadata, OutputType, console_print, write_output
+from opsicli.decorators import dry_run_capable
+from opsicli.io import OutputType, console_print, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
+from opsicli.types import OutputFormat
+
+from .metadata import command_metadata
 
 __version__ = "0.3.0"
 __description__ = "Plugin to edit bootimage configs"
@@ -84,7 +87,7 @@ def set_linux_bootimage_cmdline_param(name: str, values: list[str], host_id: str
 @click.version_option(__version__, message="opsi-cli plugin bootimage, version %(version)s")
 @click.option("--host", "--client", help="set value specific for this client", type=str)
 @click.pass_context
-@dry_run_handling()
+@dry_run_capable
 def cli(ctx: click.Context, host: str | None) -> None:
 	"""
 	Custom plugin to edit bootimage append configs
@@ -137,15 +140,11 @@ def set_boot_password(ctx: click.Context, password: str) -> None:
 	set_linux_bootimage_cmdline_param(name="pwh", values=[password_hash], host_id=ctx.obj["host"])
 
 	console_print("Password hash generated and applied successfully.", output_type=OutputType.MESSAGE)
-	metadata = Metadata(
-		attributes=[
-			Attribute(id="password_hash", description="The password hash.", data_type="str"),
-		]
-	)
+
 	write_output(
 		data={"password_hash": password_hash},
-		metadata=metadata,
-		default_output_format="pretty-json",
+		metadata=command_metadata.get("bootimage_set-boot-password"),
+		default_output_format=OutputFormat.PRETTY_JSON,
 	)
 
 

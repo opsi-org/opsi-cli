@@ -15,7 +15,7 @@ import rich_click as click
 from opsicommon.logging import get_logger
 
 from opsicli.cli_helpers import OPSICLIGroup
-from opsicli.decorators import dry_run_handling
+from opsicli.decorators import dry_run_capable
 from opsicli.io import deprecation_warning
 from opsicli.plugin import OPSICLIPlugin
 
@@ -24,7 +24,7 @@ from .execute_worker import ExecuteWorker
 from .host_control_worker import HostControlWorker
 from .set_action_request_worker import SetActionRequestArgs, SetActionRequestWorker
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 __description__ = "This command can be used to manage opsi client actions."
 
 logger = get_logger("opsicli")
@@ -53,7 +53,7 @@ logger = get_logger("opsicli")
 	"--exclude-ip-addresses",
 	help="Comma-separated list of IP addresses or networks to exclude.",
 )
-@dry_run_handling()
+@dry_run_capable
 def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 	"""
 	Manage opsi client actions.
@@ -85,6 +85,12 @@ def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 @click.option(
 	"--where-unknown",
 	help="Set this to add actionRequests where the selected products are unknown.",
+	is_flag=True,
+	default=False,
+)
+@click.option(
+	"--where-not-installed",
+	help="Set this to add actionRequests where the selected products are uninstalled, unknown or blank.",
 	is_flag=True,
 	default=False,
 )
@@ -163,7 +169,7 @@ def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 	help="The visibility of action processing on the client. Client default, if not specified.",
 	default=None,
 )
-@dry_run_handling(dry_run_capable=True)
+@dry_run_capable
 def set_action_request(ctx: click.Context, **kwargs: str | bool) -> None:
 	"""
 	opsi-cli client-action set-action-request command
@@ -198,7 +204,7 @@ def set_action_request(ctx: click.Context, **kwargs: str | bool) -> None:
 	type=float,
 	default=60.0,
 )
-@dry_run_handling(dry_run_capable=True)
+@dry_run_capable
 def trigger_event(ctx: click.Context, event: str, wakeup: bool, wakeup_timeout: float) -> None:
 	"""
 	opsi-cli client-action trigger-event command
@@ -245,7 +251,7 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool, wakeup_timeout: 
 	help="Specify the log level to filter (1 to 8). Only available with --opsi-script",
 	show_default=True,
 )
-@dry_run_handling(dry_run_capable=True)
+@dry_run_capable
 def execute(
 	ctx: click.Context,
 	command: tuple[str],
@@ -289,7 +295,7 @@ def execute(
 	context_settings={"ignore_unknown_options": True, "allow_interspersed_args": False},
 )
 @click.pass_context
-@dry_run_handling(dry_run_capable=True)
+@dry_run_capable
 def shutdown(ctx: click.Context) -> None:
 	"""
 	opsi-cli client-action shutdown clients
@@ -303,7 +309,7 @@ def shutdown(ctx: click.Context) -> None:
 	context_settings={"ignore_unknown_options": True, "allow_interspersed_args": False},
 )
 @click.pass_context
-@dry_run_handling(dry_run_capable=True)
+@dry_run_capable
 def reboot(ctx: click.Context) -> None:
 	"""
 	opsi-cli client-action reboot clients
@@ -323,7 +329,7 @@ def reboot(ctx: click.Context) -> None:
 	type=float,
 	default=0.0,
 )
-@dry_run_handling(dry_run_capable=True)
+@dry_run_capable
 def wakeup(ctx: click.Context, wakeup_timeout: float) -> None:
 	"""
 	opsi-cli client-action wake up clients
@@ -343,7 +349,7 @@ def wakeup(ctx: click.Context, wakeup_timeout: float) -> None:
 	help="The visibility of action processing on the client. Client default, if not specified.",
 	default=None,
 )
-@dry_run_handling(dry_run_capable=True)
+@dry_run_capable
 def process_actions(ctx: click.Context, **kwargs: str | bool | None) -> None:
 	"""
 	Process action requests for selected clients.

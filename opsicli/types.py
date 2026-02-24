@@ -13,21 +13,27 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 from typing import Any, Type
 from urllib.parse import urlparse
 
 from opsicli.config import COMPLETION_MODE, DEFAULT_SESSION_LIFETIME
 
-if not COMPLETION_MODE:  # type: ignore[has-type]
+if not COMPLETION_MODE:
 	import rich_click as click
 else:
 	# Loads faster
-	import click  # type: ignore[no-redef]
+	import click
 
 from opsicommon.logging import LEVEL_TO_OPSI_LEVEL, NAME_TO_LEVEL
 
 from opsicli.utils import decrypt, encrypt
+
+
+class classproperty(property):
+	def __get__(self, obj: object, objtype: type | None = None) -> Any:
+		return super().__get__(objtype)
 
 
 class LogLevel(int):
@@ -36,12 +42,12 @@ class LogLevel(int):
 		[f"[metavar]{name}[/metavar]/[metavar]{LEVEL_TO_OPSI_LEVEL[NAME_TO_LEVEL[name.upper()]]}[/metavar]" for name in possible_values]
 	)
 
-	def __new__(cls, value: Any) -> LogLevel:
+	def __new__(cls, value: str | int) -> LogLevel:
 		try:
 			value = min(9, max(0, int(value)))
 		except ValueError:
 			try:
-				value = LEVEL_TO_OPSI_LEVEL[NAME_TO_LEVEL[value.upper()]]
+				value = LEVEL_TO_OPSI_LEVEL[NAME_TO_LEVEL[str(value).upper()]]
 			except KeyError:
 				raise ValueError(f"{value!r} is not a valid log level, choose one of: {cls.possible_values_for_description}") from None
 		return super().__new__(cls, value)
@@ -50,18 +56,25 @@ class LogLevel(int):
 		return int(self)
 
 
-class OutputFormat(str):
-	possible_values = ["auto", "json", "pretty-json", "msgpack", "table", "csv"]
-	possible_values_for_description = ", ".join([f"[metavar]{v}[/metavar]" for v in possible_values])
+class OutputFormat(StrEnum):
+	TABLE = "table"
+	CSV = "csv"
+	JSON = "json"
+	PRETTY_JSON = "pretty-json"
+	MSGPACK = "msgpack"
+	KEY_VALUE = "key-value"
+	AUTO = "auto"
 
-	def __new__(cls: Type[OutputFormat], value: Any) -> OutputFormat:
-		value = str(value)
-		if value not in cls.possible_values:
-			raise ValueError(f"{value!r} is not a valid output format, choose one of: {cls.possible_values_for_description}") from None
-		return super().__new__(cls, value)
+	@classproperty
+	def possible_values(cls) -> list[str]:
+		return [v.value for v in OutputFormat]
+
+	@classproperty
+	def possible_values_for_description(self) -> str:
+		return ", ".join([f"[metavar]{v.value}[/metavar]" for v in OutputFormat])
 
 	def to_yaml(self) -> str:
-		return str(self)
+		return self.value
 
 
 class Attributes(list):
@@ -74,7 +87,7 @@ class Attributes(list):
 class Bool:
 	click_type = bool
 
-	def __new__(cls: Type[Bool], value: Any) -> bool:  # type: ignore[misc]
+	def __new__(cls: Type[Bool], value: Any) -> bool:
 		if isinstance(value, str):
 			value = value.lower() in ("1", "true", "yes")
 		return bool(value)
@@ -94,14 +107,14 @@ class OPSIServiceUrl(str):
 
 
 class OPSIServiceUrlOrServiceName(str):
-	def __new__(cls: Type[OPSIServiceUrlOrServiceName], value: str) -> OPSIServiceUrl | str:  # type: ignore[misc]
+	def __new__(cls: Type[OPSIServiceUrlOrServiceName], value: str) -> OPSIServiceUrl | str:
 		if value.startswith("http://") or value.startswith("https://"):
 			return OPSIServiceUrl(value)
 		return value
 
 
 class Password(str):
-	def __new__(cls: Type[Password], value: str | None) -> Password:  # type: ignore[misc]
+	def __new__(cls: Type[Password], value: str | None) -> Password:
 		return super().__new__(cls, value or "")
 
 	def __repr__(self) -> str:
@@ -117,14 +130,14 @@ class Password(str):
 		return cls(decrypt(value))
 
 
-class File(Path):  # type: ignore[misc]
+class File(Path):
 	click_type = click.Path(dir_okay=False)
 
 	@classmethod
-	def cwd(cls) -> Path:  # type: ignore[override]
+	def cwd(cls) -> Path:
 		return Path(os.getcwd())
 
-	def __new__(cls: Type[File], *args: Any, **kwargs: Any) -> Type[Path]:  # type: ignore[misc]
+	def __new__(cls: Type[File], *args: Any, **kwargs: Any) -> Type[Path]:
 		path = Path(*args, **kwargs)
 		if str(path) != "-":
 			path = path.expanduser().absolute()
@@ -136,10 +149,10 @@ class File(Path):  # type: ignore[misc]
 		return str(self)
 
 
-class Directory(Path):  # type: ignore[misc]
+class Directory(Path):
 	click_type = click.Path(file_okay=False)
 
-	def __new__(cls: Type[Directory], *args: Any, **kwargs: Any) -> Type[Path]:  # type: ignore[misc]
+	def __new__(cls: Type[Directory], *args: Any, **kwargs: Any) -> Type[Path]:
 		path = Path(*args, **kwargs).expanduser().absolute()
 		if path.exists() and not path.is_dir():
 			raise ValueError(f"Not a directory: {path!r}")

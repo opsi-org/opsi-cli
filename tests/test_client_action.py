@@ -10,7 +10,6 @@ test_client_action
 import contextlib
 import json
 import re
-import sys
 from pathlib import Path
 from typing import Any, Literal
 from unittest.mock import patch
@@ -19,10 +18,9 @@ import pytest
 from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.objects import NetbootProduct, ProductOnClient
 
-from .utils import run_cli, tmp_client, tmp_host_group, tmp_product, tmp_product_group
+from plugins.client_action.python.client_action_worker import ClientActionArgs
 
-sys.path.append(str(Path("./plugins/client-action").resolve()))
-from python.client_action_worker import ClientActionArgs  # type: ignore[import-not-found]
+from .utils import run_cli, tmp_client, tmp_host_group, tmp_product, tmp_product_group
 
 CLIENT1 = "pytest-client1.test.tld"
 CLIENT2 = "pytest-client2.test.tld"
@@ -200,9 +198,11 @@ def test_set_action_request_group(admin_service_client: ServiceClient) -> None:
 		("failed", False, False),
 		("outdated", False, False),
 		("installed", False, False),
+		("not-installed", False, False),
 		("failed", True, False),
 		("outdated", True, False),
 		("installed", True, True),
+		("not-installed", True, False),
 	),
 )
 @pytest.mark.parametrize(
@@ -215,7 +215,7 @@ def test_set_action_request_group(admin_service_client: ServiceClient) -> None:
 )
 def test_set_action_request_where(
 	admin_service_client: ServiceClient,
-	selection: Literal["failed", "outdated", "installed"],
+	selection: Literal["failed", "outdated", "installed", "not-installed"],
 	process: bool,
 	dry_run: bool,
 	set_action_request: str | None,
@@ -407,6 +407,11 @@ def test_set_action_request_where(
 			expected_actions[CLIENT2][PRODUCT1] = "setup"  # installed => setup
 			expected_actions[CLIENT2][PRODUCT2] = "setup"  # installed => setup
 			expected_actions[CLIENT2][PRODUCT3] = "setup"  # setup-on-action
+		elif selection == "not-installed":
+			expected_actions[CLIENT1][PRODUCT1] = "setup"  # unknown => setup
+			expected_actions[CLIENT1][PRODUCT2] = "none"  # installed => none
+			expected_actions[CLIENT1][PRODUCT3] = "setup"  # setup-on-action
+			expected_actions[CLIENT2][PRODUCT3] = "setup"  # not_installed => setup
 
 		assert pocs[0].actionRequest == ("none" if dry_run else expected_actions[CLIENT1][PRODUCT1])
 		assert pocs[1].actionRequest == ("none" if dry_run else expected_actions[CLIENT1][PRODUCT2])

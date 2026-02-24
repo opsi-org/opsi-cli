@@ -19,11 +19,13 @@ from opsicommon.logging import get_logger
 from opsicli.cache import cache
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.config import config
-from opsicli.decorators import dry_run_handling, handle_list_attributes
+from opsicli.decorators import dry_run_capable
 from opsicli.io import deprecation_warning, output_file_is_stdout, read_input, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
-from plugins.jsonrpc.data.metadata import command_metadata
+from opsicli.types import OutputFormat
+
+from .metadata import command_metadata
 
 __version__ = "0.2.0"
 
@@ -40,8 +42,7 @@ def cache_interface(interface: list[dict[str, Any]]) -> None:
 @click.group(cls=OPSICLIGroup, name="jsonrpc", short_help="opsi JSONRPC client")
 @click.version_option(__version__, message="jsonrpc plugin, version %(version)s")
 @click.pass_context
-@handle_list_attributes
-@dry_run_handling()
+@dry_run_capable
 def cli(ctx: click.Context) -> None:
 	"""
 	opsi-cli jsonrpc command.
@@ -65,7 +66,7 @@ def methods(include_deprecated: bool) -> None:
 	write_output(
 		[m for m in cache.get("jsonrpc-interface-raw") if (not m["deprecated"]) or include_deprecated],
 		metadata=metadata,
-		default_output_format="table",
+		default_output_format=OutputFormat.TABLE,
 	)
 
 
@@ -124,7 +125,7 @@ def execute(method: str, params: list[str] | None = None, timeout: float | None 
 		# TODO: Handle params depending on method parameters
 		params.append(inp_param)
 
-	default_output_format = "pretty-json" if output_file_is_stdout() else "json"
+	default_output_format = OutputFormat.PRETTY_JSON if output_file_is_stdout() else OutputFormat.JSON
 
 	client = get_service_connection()
 	method_interface = client.get_jsonrpc_method(method)

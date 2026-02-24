@@ -13,7 +13,7 @@ import rich_click as click
 from opsicommon.logging import get_logger
 
 from opsicli.cli_helpers import OPSICLIGroup
-from opsicli.decorators import dry_run_handling
+from opsicli.decorators import dry_run_capable
 from opsicli.plugin import OPSICLIPlugin
 
 from .depot_execute_worker import DepotExecuteWorker
@@ -29,7 +29,7 @@ logger = get_logger("opsicli")
 @click.version_option(__version__, message="opsi-cli plugin depot, version %(version)s")
 @click.option("--depots", help="comma separated list of depots, or 'all'")
 @click.pass_context
-@dry_run_handling()
+@dry_run_capable
 def cli(ctx: click.Context, depots: str | None) -> None:  # The docstring is used in opsi-cli depot --help
 	"""
 	plugin for controlling opsi depots
@@ -55,7 +55,7 @@ def cli(ctx: click.Context, depots: str | None) -> None:  # The docstring is use
 @click.option("--timeout", help="Number of seconds until command should be interrupted (0 = no timeout)", type=int, default=0)
 @click.option("--concurrent", help="Maximum number of concurrent executions", type=int, default=100)
 @click.pass_context
-@dry_run_handling(dry_run_capable=True)
+@dry_run_capable
 def execute(ctx: click.Context, command: tuple[str], shell: bool, host_names: bool, encoding: str, timeout: int, concurrent: int) -> None:
 	"""
 	opsi-cli depot execute command
