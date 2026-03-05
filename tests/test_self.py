@@ -13,6 +13,7 @@ from unittest.mock import patch
 import pytest
 from opsicommon.system.info import is_windows
 
+from opsicli import __version__ as opsicli_version
 from opsicli.config import config
 from opsicli.plugin import plugin_manager
 from plugins.self.python import get_binary_path, get_binary_paths
@@ -86,6 +87,12 @@ def test_self_uninstall() -> None:
 		assert exit_code == 0
 		assert not binary_path.exists()
 		assert not config.config_file_user.exists()
+
+
+def test_version() -> None:
+	exit_code, stdout, _stderr = run_cli(["self", "version"])
+	assert exit_code == 0
+	assert stdout.strip() == opsicli_version
 
 
 def test_setup_shell_completion(tmp_path: Path) -> None:

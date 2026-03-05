@@ -191,6 +191,14 @@ def get_running_shell() -> str:
 	raise ValueError("No supported running shell could be determined")
 
 
+@cli.command(short_help="Show opsi-cli version")
+def version() -> None:
+	"""
+	Show opsi-cli version and exit.
+	"""
+	print(opsi_cli_version)
+
+
 @cli.command(short_help="Setup shell completion")
 @click.option(
 	"--shell",
