@@ -268,7 +268,7 @@ CONFIG_ITEMS = [
 		default="none",
 		description=f"The log level for the console (stderr). Possible values are:\n\n{LogLevel.possible_values_for_description}.",
 	),
-	ConfigItem(name="color", type=Bool, group="General", default=True, description="Enable or disable colorized output."),
+	ConfigItem(name="color", type=Bool, group="IO", default=True, description="Enable or disable colorized output."),
 	ConfigItem(
 		name="output_format",
 		type=OutputFormat,
@@ -312,18 +312,18 @@ CONFIG_ITEMS = [
 	ConfigItem(name="metadata", type=Bool, group="IO", default=False, description="Enable or disable output of metadata."),
 	ConfigItem(name="header", type=Bool, group="IO", default=True, description="Enable or disable header for data input and output."),
 	ConfigItem(
+		name="list_attributes",
+		type=Bool,
+		group="IO",
+		default=False,
+		description="List attributes of the command.",
+	),
+	ConfigItem(
 		name="attributes",
 		type=Attributes,
 		group="IO",
 		default=None,
 		description="Select data attributes ([metavar]all[/metavar] selects all available attributes).",
-	),
-	ConfigItem(
-		name="list_attributes",
-		type=Bool,
-		group="General",
-		default=False,
-		description="List attributes of the command.",
 	),
 	ConfigItem(
 		name="sort_by",
