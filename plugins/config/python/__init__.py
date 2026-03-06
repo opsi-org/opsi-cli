@@ -9,12 +9,16 @@ opsi-cli basic command line interface for opsi
 config plugin
 """
 
+import os
+import shutil
+import subprocess
 from urllib.parse import urlparse
 
 import rich_click as click
 from click.shell_completion import CompletionItem
 from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.logging import get_logger
+from opsicommon.system.info import is_windows
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.config import DEFAULT_SESSION_LIFETIME, ConfigValueSource, config
@@ -110,6 +114,21 @@ def config_unset(key: str, system: bool) -> None:
 	source = ConfigValueSource.CONFIG_FILE_SYSTEM if system else ConfigValueSource.CONFIG_FILE_USER
 	config.get_config_item(key).set_value(config.get_config_item(key).get_default())
 	config.write_config_files(sources=[source], skip_keys=[key])
+
+
+@cli.command(name="edit", short_help="Edit config file in editor")
+@click.option("--system", is_flag=True, default=False, help="If this is set, edit the system-wide configuration.")
+def config_edit(system: bool) -> None:
+	config_file = config.config_file_system if system else config.config_file_user
+	config_file.parent.mkdir(parents=True, exist_ok=True)
+	config_file.touch(exist_ok=True)
+	if is_windows():
+		cmd = ["notepad"]
+	else:
+		cmd = [os.environ.get("VISUAL") or os.environ.get("EDITOR") or shutil.which("editor") or "vi"]
+	cmd.append(str(config_file))
+	logger.notice("Opening config file '%s' with command: %s", config_file, cmd)
+	subprocess.run(cmd)
 
 
 @cli.group(short_help="Configuration of opsi services")

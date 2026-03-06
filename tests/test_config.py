@@ -10,6 +10,7 @@ test_config
 import sys
 from pathlib import Path
 from typing import Type
+from unittest.mock import patch
 
 import pytest
 from ruamel.yaml import YAML
@@ -127,6 +128,24 @@ def test_read_write_config() -> None:
 		config.read_config_files()
 		assert config.get_values().get("output_format") == "auto"
 		assert config.output_format == "auto"
+
+
+def test_edit_config() -> None:
+	config = Config()
+	with temp_context() as tmp_path:
+		config_file_user = tmp_path / "opsi-cli-user.yaml"
+		config_file_system = tmp_path / "opsi-cli-system.yaml"
+		config.config_file_user = config_file_user
+		config.config_file_system = config_file_system
+		for system in True, False:
+			config_file = config_file_system if system else config_file_user
+			with patch("subprocess.run") as mock_run:
+				exit_code, stdout, _stderr = run_cli(["config", "edit"] + (["--system"] if system else []))
+				assert exit_code == 0
+				assert config_file.exists()
+				mock_run.assert_called_once()
+				called_args = mock_run.call_args[0][0]
+				assert str(config_file) in called_args
 
 
 def test_service_config() -> None:

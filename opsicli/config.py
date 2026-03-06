@@ -98,7 +98,6 @@ class ConfigValueSource(Enum):
 
 
 logging_config(stderr_level=LOG_ESSENTIAL, file_level=LOG_NONE)
-# logging_config(stderr_level=9)
 
 
 @dataclass
@@ -475,7 +474,7 @@ class Config(metaclass=Singleton):
 			if not config_file or not config_file.exists():
 				continue
 			source = ConfigValueSource.CONFIG_FILE_SYSTEM if file_type == "config_file_system" else ConfigValueSource.CONFIG_FILE_USER
-			data = YAML().load(config_file.read_text(encoding="utf-8"))
+			data = YAML().load(config_file.read_text(encoding="utf-8")) or {}
 			for key, value in data.items():
 				config_item = self._config.get(key)
 				if not config_item:
