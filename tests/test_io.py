@@ -352,10 +352,18 @@ def test_input_output_file_cli() -> None:
 
 def test_list_attributes() -> None:
 	with patch("opsicli.io.write_output") as mock_write_output:
-		data = Metadata(attributes=[Attribute(id="id", data_type="type", selected=True)])
-		expected_output = [{"id": "id", "type": "type"}]
+		data = Metadata(
+			attributes=[
+				Attribute(id="id", data_type="str", description="Attribute ID", identifier=True, selected=True),
+				Attribute(id="type", data_type="str", description="Data type", selected=False),
+			]
+		)
 		list_attributes(data)
-		mock_write_output.assert_called_once_with(expected_output, None, "table")
+		mock_write_output.assert_called_once()
+		assert mock_write_output.call_args[0][0] == [
+			{"id": "id", "type": "str", "description": "Attribute ID", "identifier": True, "selected": True},
+			{"id": "type", "type": "str", "description": "Data type", "identifier": False, "selected": False},
+		]
 
 
 def test_write_output_table() -> None:
