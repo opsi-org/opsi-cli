@@ -634,8 +634,24 @@ def read_input() -> Any:
 			return read_input_csv(data)
 
 
-def list_attributes(data: Metadata) -> None:
-	attributes_list = [
-		{"id": attribute.id, "type": attribute.data_type} for attribute in data.attributes if attribute.selected is not False
+def list_attributes(metadata: Metadata) -> None:
+	attributes_metadata = Metadata(
+		attributes=[
+			Attribute(id="id", description="Attribute ID", identifier=True, data_type="str"),
+			Attribute(id="description", description="Description of the attribute", data_type="str"),
+			Attribute(id="type", description="Data type", data_type="str"),
+			Attribute(id="identifier", description="If the attribute is an identifier", data_type="bool"),
+			Attribute(id="selected", description="If the attribute is selected by default", data_type="bool"),
+		]
+	)
+	attributes_data = [
+		{
+			"id": attribute.id,
+			"type": attribute.data_type,
+			"description": attribute.description,
+			"identifier": attribute.identifier,
+			"selected": attribute.selected,
+		}
+		for attribute in metadata.attributes
 	]
-	write_output(attributes_list, None, OutputFormat.TABLE)
+	write_output(attributes_data, metadata=attributes_metadata, default_output_format=OutputFormat.TABLE)
