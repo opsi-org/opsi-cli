@@ -9,14 +9,17 @@ opsi-cli basic command line interface for opsi
 config-states subcommand
 """
 
+from dataclasses import dataclass
+from typing import cast
+
 import rich_click as click
 from opsicommon.exceptions import BackendMissingDataError
 from opsicommon.logging import get_logger
-from opsicommon.objects import BoolConfig, ConfigState, UnicodeConfig
-from opsicommon.types import forceBool
+from opsicommon.objects import BoolConfig, ConfigState, ProductOnClient, UnicodeConfig
+from opsicommon.types import forceActionRequest, forceBool, forceInstallationStatus
 
 from opsicli.cli_helpers import OPSICLIGroup
-from opsicli.io import OutputType, console_print, write_output
+from opsicli.io import OutputType, console_print, read_input, write_output
 from opsicli.opsiservice import ServiceClient, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 
@@ -33,21 +36,32 @@ logger = get_logger("opsicli")
 def get_object_ids(
 	service_connection: ServiceClient,
 	object_ids: str,
+	type: str = "OpsiClient",
 ) -> list[str]:
 	if object_ids == "all":
-		host_objects = service_connection.host_getObjects(id=[], type="OpsiClient")  # type: ignore[attr-defined]
+		host_objects = service_connection.host_getObjects(id=[], type=type)  # type: ignore[attr-defined]
 		return [obj.id for obj in host_objects]
 	else:
 		object_id_list = [item.strip() for item in object_ids.split(",")]
 		return service_connection.host_getIdents(id=object_id_list)  # type: ignore[attr-defined]
 
 
-def create_client_depot_mapping(service_connection: ServiceClient, object_ids: list[str]) -> dict[str, str]:
-	client_to_depot_objects = service_connection.configState_getClientToDepotserver(clientIds=object_ids)  # type: ignore[attr-defined]
+def create_client_depot_mapping(service_connection: ServiceClient, object_ids: list[str] | None = None) -> dict[str, str]:
+	client_to_depot_objects = service_connection.configState_getClientToDepotserver(clientIds=object_ids or [])  # type: ignore[attr-defined]
 	# getClientToDepotserver returns [] for a depot_id
-	if not client_to_depot_objects:
-		client_to_depot_objects = service_connection.configState_getClientToDepotserver()  # type: ignore[attr-defined]
 	return {item["clientId"]: item["depotId"] for item in client_to_depot_objects}
+
+
+def get_depot_to_clients(service_connection: ServiceClient, client_ids: list[str] | None = None) -> dict[str, list[str]]:
+	client_to_depot_objects = service_connection.configState_getClientToDepotserver(clientIds=client_ids or [])  # type: ignore[attr-defined]
+	depot_to_clients: dict[str, list[str]] = {}
+	for item in client_to_depot_objects:
+		depot_id = item["depotId"]
+		client_id = item["clientId"]
+		if depot_id not in depot_to_clients:
+			depot_to_clients[depot_id] = []
+		depot_to_clients[depot_id].append(client_id)
+	return depot_to_clients
 
 
 # =============================================DATASTORE====================================================
@@ -448,6 +462,157 @@ def product_purge(product_ids: str | None = None) -> None:
 	product_id_list = [p.strip() for p in (product_ids or "").split(",") if p.strip()]
 	get_service_connection().product_purge(id=product_id_list)  # type: ignore[attr-defined]
 	console_print("Product metadata purged successfully.", output_type=OutputType.MESSAGE)
+
+
+@cli.group(name="product-client-state", short_help="Product states on clients.")
+def product_client_state() -> None:
+	"""
+	View and change product states on clients.
+	"""
+	pass
+
+
+@dataclass
+class ProductClientState:
+	productType: str
+	productId: str
+	clientId: str
+	installationStatus: str = "not_installed"
+	actionRequest: str = "none"
+	productVersion: str | None = None
+	packageVersion: str | None = None
+
+
+PRODUCT_CLIENT_STATE_VALUE_STYLES = {
+	"installed": "green",
+	"unknown": "yellow",
+	"setup": "yellow",
+	"uninstall": "yellow",
+	"update": "yellow",
+	"always": "yellow",
+	"once": "yellow",
+	"custom": "yellow",
+}
+
+
+@product_client_state.command(name="list", short_help="List client product states.")
+@click.option(
+	"--client-ids",
+	type=str,
+	required=True,
+	help="Filter by client ID(s). Use commas as separators and 'all' to include all IDs. Wildcards (*) are supported.",
+)
+@click.option(
+	"--product-ids",
+	type=str,
+	required=True,
+	help="Filter by product ID(s). Use commas as separators and 'all' to include all IDs. Wildcards (*) are supported.",
+)
+@click.option(
+	"--installation-statuses",
+	type=str,
+	default="all",
+	help="Filter by installation statuses. Use commas as separators and 'all' to include all statuses.",
+)
+@click.option(
+	"--action-requests",
+	type=str,
+	default="all",
+	help="Filter by action requests. Use commas as separators and 'all' to include all action requests.",
+)
+def list_product_client_state(client_ids: str, product_ids: str, installation_statuses: str, action_requests: str) -> None:
+	"""
+	View product states on clients.
+	"""
+	service_connection = get_service_connection()
+	filter_client_ids = get_object_ids(service_connection, client_ids)
+	filter_product_ids = None if product_ids == "all" else [item.strip() for item in product_ids.split(",")]
+
+	tmp_list = [item.strip() for item in installation_statuses.split(",")]
+	filter_installation_statuses = (
+		["installed", "not_installed", "unknown"] if "all" in tmp_list else [forceInstallationStatus(item) for item in tmp_list]
+	)
+
+	tmp_list = [item.strip() for item in action_requests.split(",")]
+	filter_action_requests = (
+		["setup", "uninstall", "update", "always", "once", "custom", "none"]
+		if "all" in tmp_list
+		else [forceActionRequest(item) for item in tmp_list]
+	)
+
+	product_states: dict[str, ProductClientState] = {}
+	if "not_installed" in filter_installation_statuses:
+		depot_to_clients = get_depot_to_clients(service_connection, filter_client_ids)
+		depot_ids = list(depot_to_clients)
+		for pod in service_connection.productOnDepot_getIdents(returnType="dict", productId=product_ids, depotId=depot_ids):  # type: ignore[attr-defined]
+			for client_id in depot_to_clients.get(pod["depotId"], []):
+				product_states[f"{client_id};{pod['productId']}"] = ProductClientState(
+					productType=pod["productType"],
+					productId=pod["productId"],
+					clientId=client_id,
+					installationStatus="not_installed",
+					actionRequest="none",
+				)
+
+	for poc in service_connection.productOnClient_getObjects(  # type: ignore[attr-defined]
+		clientId=filter_client_ids,
+		productId=filter_product_ids or [],
+		installationStatus=filter_installation_statuses,
+		actionRequest=filter_action_requests,
+	):
+		poc = cast(ProductOnClient, poc)
+		product_states[f"{poc.clientId};{poc.productId}"] = ProductClientState(
+			productType=poc.productType,
+			productId=poc.productId,
+			clientId=poc.clientId,
+			installationStatus=poc.installationStatus or "not_installed",
+			actionRequest=poc.actionRequest or "none",
+			productVersion=poc.productVersion,
+			packageVersion=poc.packageVersion,
+		)
+
+	write_output(
+		data=list(product_states.values()),
+		metadata=command_metadata.get("datastore_product-client-state_list"),
+		value_styles=PRODUCT_CLIENT_STATE_VALUE_STYLES,
+	)
+
+
+@product_client_state.command(name="update", short_help="Update client product states.")
+def update_product_client_state() -> None:
+	"""
+	Update product states on clients.
+	"""
+	data = read_input()
+	if not data:
+		raise ValueError("No input data provided for updating product client states.")
+
+	pcs = []
+	for product_state in data:
+		pcs.append(
+			ProductClientState(
+				clientId=product_state["clientId"],
+				productId=product_state["productId"],
+				productType=product_state.get("productType"),
+				productVersion=product_state.get("productVersion") or None,
+				packageVersion=product_state.get("packageVersion") or None,
+				installationStatus=forceInstallationStatus(product_state.get("installationStatus") or "not_installed"),
+				actionRequest=forceActionRequest(product_state.get("actionRequest") or "none") or "none",
+			)
+		)
+	service_connection = get_service_connection()
+	service_connection.productOnClient_updateObjects(pcs)  # type: ignore[attr-defined]
+
+	console_print(
+		"Product client states updated successfully. Here are the updated states:\n",
+		style="green",
+		output_type=OutputType.MESSAGE,
+	)
+	write_output(
+		data=pcs,
+		metadata=command_metadata["datastore_product-client-state_list"],
+		value_styles=PRODUCT_CLIENT_STATE_VALUE_STYLES,
+	)
 
 
 class DatastorePlugin(OPSICLIPlugin):

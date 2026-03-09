@@ -476,7 +476,7 @@ class Config(metaclass=Singleton):
 			source = ConfigValueSource.CONFIG_FILE_SYSTEM if file_type == "config_file_system" else ConfigValueSource.CONFIG_FILE_USER
 			data = YAML().load(config_file.read_text(encoding="utf-8")) or {}
 			for key, value in data.items():
-				config_item = self._config.get(key)
+				config_item: ConfigItem | None = self._config.get(key)
 				if not config_item:
 					continue
 
@@ -486,7 +486,7 @@ class Config(metaclass=Singleton):
 
 				if config_item.key:
 					new_value = []
-					for akey, adict in value.items():
+					for akey, adict in (value or {}).items():
 						adict[config_item.key] = akey
 						new_value.append(adict)
 					value = new_value
@@ -518,7 +518,7 @@ class Config(metaclass=Singleton):
 
 			data = {}
 			if config_file.exists():
-				data = YAML().load(config_file.read_text(encoding="utf-8"))
+				data = YAML().load(config_file.read_text(encoding="utf-8")) or {}
 
 			for config_item in self._config.values():
 				values = [val for val in config_item.get_values(value_only=False) if val and val.source == source]

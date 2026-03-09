@@ -1,3 +1,4 @@
+import json
 import time
 from contextlib import ExitStack
 from pathlib import Path
@@ -792,3 +793,174 @@ def test_product_property_list_stress_test(admin_service_client: ServiceClient) 
 	diff = time.perf_counter() - start
 
 	print(diff)
+
+
+# ===================================(PRODUCT-CLIENT-STATE LIST || TESTS)============================================
+@pytest.mark.opsi_service
+def test_list_product_client_state(admin_service_client: ServiceClient) -> None:
+	with (
+		tmp_client(admin_service_client, CLIENT_ID_1),
+		tmp_client(admin_service_client, CLIENT_ID_2),
+		tmp_product(admin_service_client, PRODUCT_ID_1) as product_1,
+		tmp_product(admin_service_client, PRODUCT_ID_2) as product_2,
+	):
+		admin_service_client.jsonrpc(
+			"productOnClient_createObjects",
+			params=[
+				[
+					{
+						"clientId": CLIENT_ID_1,
+						"productId": PRODUCT_ID_1,
+						"productType": product_1.getType(),
+						"productVersion": product_1.productVersion,
+						"packageVersion": product_1.packageVersion,
+						"installationStatus": "installed",
+						"actionRequest": "none",
+					},
+					{
+						"clientId": CLIENT_ID_2,
+						"productId": PRODUCT_ID_2,
+						"productType": product_2.getType(),
+						"installationStatus": "unknown",
+						"actionRequest": "setup",
+					},
+				]
+			],
+		)
+
+		# all clients, all products, all statuses / action-requests
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"datastore",
+				"product-client-state",
+				"list",
+				"--client-ids",
+				"all",
+				"--product-ids",
+				"pytest*",
+			]
+		)
+		assert exit_code == 0
+
+		rows = stdout_into_list(_stdout)[1:]
+		assert len(rows) == 4
+
+		state_map = {(row[0], row[1]): row for row in rows}
+		assert state_map[(CLIENT_ID_1, PRODUCT_ID_1)][5:] == ["installed", "none"]
+		assert state_map[(CLIENT_ID_2, PRODUCT_ID_2)][5:] == ["unknown", "setup"]
+		assert state_map[(CLIENT_ID_1, PRODUCT_ID_2)][5:] == ["not_installed", "none"]
+		assert state_map[(CLIENT_ID_2, PRODUCT_ID_1)][5:] == ["not_installed", "none"]
+
+		# filter by installed + none -> only client1 / product1
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"datastore",
+				"product-client-state",
+				"list",
+				"--client-ids",
+				"all",
+				"--product-ids",
+				"pytest*",
+				"--installation-statuses",
+				"installed",
+				"--action-requests",
+				"none",
+			]
+		)
+		assert exit_code == 0
+		filtered_rows = stdout_into_list(_stdout)
+		assert len(filtered_rows) - 1 == 1
+		assert filtered_rows[1][0] == CLIENT_ID_1
+		assert filtered_rows[1][1] == PRODUCT_ID_1
+		assert filtered_rows[1][5] == "installed"
+		assert filtered_rows[1][6] == "none"
+
+		# filter by unknown + setup -> only client2 / product2
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"datastore",
+				"product-client-state",
+				"list",
+				"--client-ids",
+				"all",
+				"--product-ids",
+				"pytest*",
+				"--installation-statuses",
+				"unknown",
+				"--action-requests",
+				"setup",
+			]
+		)
+		assert exit_code == 0
+		filtered_rows = stdout_into_list(_stdout)
+		assert len(filtered_rows) - 1 == 1
+		assert filtered_rows[1][0] == CLIENT_ID_2
+		assert filtered_rows[1][1] == PRODUCT_ID_2
+		assert filtered_rows[1][5] == "unknown"
+		assert filtered_rows[1][6] == "setup"
+
+
+@pytest.mark.opsi_service
+def test_update_product_client_state(admin_service_client: ServiceClient) -> None:
+	with (
+		tmp_client(admin_service_client, CLIENT_ID_1),
+		tmp_client(admin_service_client, CLIENT_ID_2),
+		tmp_product(admin_service_client, PRODUCT_ID_1) as product_1,
+		tmp_product(admin_service_client, PRODUCT_ID_2) as product_2,
+	):
+		update_data = [
+			{
+				"clientId": CLIENT_ID_1,
+				"productId": PRODUCT_ID_1,
+				"productType": product_1.getType(),
+				"productVersion": product_1.productVersion,
+				"packageVersion": product_1.packageVersion,
+				"installationStatus": "installed",
+				"actionRequest": "setup",
+			},
+			{
+				"clientId": CLIENT_ID_2,
+				"productId": PRODUCT_ID_2,
+				"productType": product_2.getType(),
+				"productVersion": product_2.productVersion,
+				"packageVersion": product_2.packageVersion,
+				"installationStatus": "unknown",
+				"actionRequest": "none",
+			},
+		]
+
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"datastore",
+				"product-client-state",
+				"update",
+			],
+			stdin=[json.dumps(update_data)],
+		)
+		assert exit_code == 0
+
+		pocs = admin_service_client.productOnClient_getObjects(  # type: ignore[attr-defined]
+			clientId=[CLIENT_ID_1, CLIENT_ID_2],
+			productId=[PRODUCT_ID_1, PRODUCT_ID_2],
+		)
+		assert len(pocs) == 2
+
+		state_map = {(poc.clientId, poc.productId): poc for poc in pocs}
+
+		assert state_map[(CLIENT_ID_1, PRODUCT_ID_1)].installationStatus == "installed"
+		assert state_map[(CLIENT_ID_1, PRODUCT_ID_1)].actionRequest == "setup"
+		assert state_map[(CLIENT_ID_1, PRODUCT_ID_1)].productVersion == product_1.productVersion
+		assert state_map[(CLIENT_ID_1, PRODUCT_ID_1)].packageVersion == product_1.packageVersion
+
+		assert state_map[(CLIENT_ID_2, PRODUCT_ID_2)].installationStatus == "unknown"
+		assert state_map[(CLIENT_ID_2, PRODUCT_ID_2)].actionRequest == "none"
+		assert state_map[(CLIENT_ID_2, PRODUCT_ID_2)].productVersion == product_2.productVersion
+		assert state_map[(CLIENT_ID_2, PRODUCT_ID_2)].packageVersion == product_2.packageVersion

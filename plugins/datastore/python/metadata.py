@@ -81,4 +81,23 @@ command_metadata = {
 			),
 		]
 	),
+	"datastore_product-client-state_list": Metadata(
+		attributes=[
+			Attribute(id="clientId", description="The ID of the client.", identifier=True, data_type="str", selected=True),
+			Attribute(id="productId", description="The ID of the product.", identifier=True, data_type="str", selected=True),
+			Attribute(id="productType", description="The type of the product.", identifier=True, data_type="str", selected=True),
+			Attribute(id="productVersion", description="The installed product version.", identifier=False, data_type="str", selected=True),
+			Attribute(id="packageVersion", description="The installed package version.", identifier=False, data_type="str", selected=True),
+			Attribute(
+				id="installationStatus",
+				description="The installation status of the product.",
+				identifier=False,
+				data_type="str",
+				selected=True,
+			),
+			Attribute(
+				id="actionRequest", description="The action request of the product.", identifier=False, data_type="str", selected=True
+			),
+		]
+	),
 }

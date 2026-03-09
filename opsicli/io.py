@@ -14,7 +14,7 @@ import inspect
 import io
 import sys
 from contextlib import contextmanager
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, is_dataclass
 from enum import StrEnum
 from io import BytesIO, StringIO
 from typing import IO, Any, Generator, Iterator, Literal, Type
@@ -323,6 +323,9 @@ def write_output_table(data: Any, metadata: Metadata, value_styles: dict[str, st
 	if data:
 		row_type = type(data[0])
 		for row in data:
+			if is_dataclass(row):
+				row = asdict(row)
+				row_type = dict
 			if issubclass(row_type, dict):
 				table.add_row(*[to_string(row.get(rid), value_styles=value_styles) for rid in row_ids])
 			elif issubclass(row_type, list):
@@ -343,6 +346,8 @@ def write_output_key_value(data: Any, metadata: Metadata, value_styles: dict[str
 
 	lines: list[str] = []
 	for ridx, row in enumerate(data):
+		if is_dataclass(row):
+			row = asdict(row)
 		if isinstance(row, dict):
 			for rid in row_ids:
 				lines.append(f"[bold]{rid}[/bold]: {to_string(row.get(rid), value_styles=value_styles)}")
@@ -377,6 +382,8 @@ def write_output_csv(data: Any, metadata: Metadata) -> None:
 		if config.header:
 			writer.writerow(header)
 		for row in data:
+			if is_dataclass(row):
+				row = asdict(row)
 			if isinstance(row, dict):
 				writer.writerow(
 					[to_string(row.get(rid), null_format="<null>", bool_format="1_0", list_format="comma_separated") for rid in row_ids]
