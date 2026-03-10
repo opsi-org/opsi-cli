@@ -14,6 +14,7 @@ import inspect
 import io
 import sys
 from contextlib import contextmanager
+from copy import deepcopy
 from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import datetime
 from enum import StrEnum
@@ -404,12 +405,16 @@ def write_output_json(data: Any, metadata: Metadata | None = None, pretty: bool 
 			return value.__name__
 		return str(value)
 
-	option = 0
-	if pretty and not output_file_is_a_tty():
-		option |= orjson.OPT_APPEND_NEWLINE | orjson.OPT_INDENT_2
+	if metadata and metadata.attributes and config.attributes and config.attributes != ["all"]:
+		metadata = deepcopy(metadata)
+		metadata.attributes = [attr for attr in metadata.attributes if attr.id in config.attributes]
+		attributes = {attr.id for attr in metadata.attributes}
+		data = [{attr: value for attr, value in row.items() if attr in attributes} for row in data]
 
 	json = orjson.dumps(
-		{"metadata": metadata.as_dict(), "data": data} if config.metadata and metadata else data, default=to_string, option=option
+		{"metadata": metadata.as_dict(), "data": data} if config.metadata and metadata else data,
+		default=to_string,
+		option=orjson.OPT_APPEND_NEWLINE | orjson.OPT_INDENT_2 if pretty and not output_file_is_a_tty() else 0,
 	)
 
 	if pretty and output_file_is_a_tty():
