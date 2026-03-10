@@ -15,6 +15,7 @@ import io
 import sys
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field, is_dataclass
+from datetime import datetime
 from enum import StrEnum
 from io import BytesIO, StringIO
 from typing import IO, Any, Generator, Iterator, Literal, Type
@@ -289,6 +290,9 @@ def to_string(
 		if bool_format == "true_false":
 			return "true" if value else "false"
 		return "1" if value else "0"
+	if isinstance(value, datetime):
+		# Return converted to local timezone as ISO formatted datetime string
+		return value.astimezone().isoformat()
 	if isinstance(value, (list, tuple)):
 		sep = "," if list_format == "comma_separated" else ", "
 		val = sep.join(

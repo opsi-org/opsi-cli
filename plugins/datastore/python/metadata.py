@@ -98,6 +98,13 @@ command_metadata = {
 			Attribute(
 				id="actionRequest", description="The action request of the product.", identifier=False, data_type="str", selected=True
 			),
+			Attribute(
+				id="modificationTime",
+				description="The last modification time of the product state.",
+				identifier=False,
+				data_type="datetime",
+				selected=True,
+			),
 		]
 	),
 }

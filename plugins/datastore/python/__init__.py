@@ -10,6 +10,7 @@ config-states subcommand
 """
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import cast
 
 import rich_click as click
@@ -17,6 +18,7 @@ from opsicommon.exceptions import BackendMissingDataError
 from opsicommon.logging import get_logger
 from opsicommon.objects import BoolConfig, ConfigState, ProductOnClient, UnicodeConfig
 from opsicommon.types import forceActionRequest, forceBool, forceInstallationStatus
+from opsicommon.utils import timestamp
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.io import OutputType, console_print, read_input, write_output
@@ -481,6 +483,7 @@ class ProductClientState:
 	actionRequest: str = "none"
 	productVersion: str | None = None
 	packageVersion: str | None = None
+	modificationTime: datetime | None = None
 
 
 PRODUCT_CLIENT_STATE_VALUE_STYLES = {
@@ -512,13 +515,19 @@ PRODUCT_CLIENT_STATE_VALUE_STYLES = {
 	"--installation-statuses",
 	type=str,
 	default="all",
-	help="Filter by installation statuses. Use commas as separators and 'all' to include all statuses.",
+	help=(
+		"Filter by installation statuses. Use commas as separators and 'all' to include all statuses. "
+		"Possible values are: 'installed', 'not_installed', 'unknown', 'all'."
+	),
 )
 @click.option(
 	"--action-requests",
 	type=str,
 	default="all",
-	help="Filter by action requests. Use commas as separators and 'all' to include all action requests.",
+	help=(
+		"Filter by action requests. Use commas as separators and 'all' to include all action requests. "
+		"Possible values are: 'setup', 'uninstall', 'update', 'always', 'once', 'custom', 'none', 'all'."
+	),
 )
 def list_product_client_state(client_ids: str, product_ids: str, installation_statuses: str, action_requests: str) -> None:
 	"""
@@ -569,6 +578,7 @@ def list_product_client_state(client_ids: str, product_ids: str, installation_st
 			actionRequest=poc.actionRequest or "none",
 			productVersion=poc.productVersion,
 			packageVersion=poc.packageVersion,
+			modificationTime=datetime.fromisoformat(f"{poc.modificationTime}Z") if poc.modificationTime else None,
 		)
 
 	write_output(
@@ -588,6 +598,7 @@ def update_product_client_state() -> None:
 		raise ValueError("No input data provided for updating product client states.")
 
 	pcs = []
+	modification_time = datetime.now(tz=timezone.utc).replace(microsecond=0)
 	for product_state in data:
 		pcs.append(
 			ProductClientState(
@@ -598,6 +609,7 @@ def update_product_client_state() -> None:
 				packageVersion=product_state.get("packageVersion") or None,
 				installationStatus=forceInstallationStatus(product_state.get("installationStatus") or "not_installed"),
 				actionRequest=forceActionRequest(product_state.get("actionRequest") or "none") or "none",
+				modificationTime=modification_time,
 			)
 		)
 	service_connection = get_service_connection()
