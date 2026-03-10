@@ -107,4 +107,27 @@ command_metadata = {
 			),
 		]
 	),
+	"datastore_client_list": Metadata(
+		attributes=[
+			Attribute(id="id", description="The ID of the client.", identifier=True, data_type="str", selected=True),
+			Attribute(id="opsiHostKey", description="The OPSI host key of the client.", identifier=False, data_type="str", selected=False),
+			Attribute(id="description", description="The description of the client.", identifier=False, data_type="str", selected=True),
+			Attribute(id="notes", description="The notes of the client.", identifier=False, data_type="str", selected=False),
+			Attribute(
+				id="hardwareAddress", description="The hardware address of the client.", identifier=False, data_type="str", selected=False
+			),
+			Attribute(id="ipAddress", description="The IP address of the client.", identifier=False, data_type="str", selected=False),
+			Attribute(
+				id="inventoryNumber", description="The inventory number of the client.", identifier=False, data_type="str", selected=True
+			),
+			Attribute(
+				id="oneTimePassword", description="The one time password of the client.", identifier=False, data_type="str", selected=False
+			),
+			Attribute(id="created", description="The creation time of the client.", identifier=False, data_type="datetime", selected=False),
+			Attribute(
+				id="lastSeen", description="The last seen time of the client.", identifier=False, data_type="datetime", selected=True
+			),
+			Attribute(id="systemUUID", description="The system UUID of the client.", identifier=False, data_type="str", selected=False),
+		]
+	),
 }

@@ -964,3 +964,123 @@ def test_update_product_client_state(admin_service_client: ServiceClient) -> Non
 		assert state_map[(CLIENT_ID_2, PRODUCT_ID_2)].actionRequest == "none"
 		assert state_map[(CLIENT_ID_2, PRODUCT_ID_2)].productVersion == product_2.productVersion
 		assert state_map[(CLIENT_ID_2, PRODUCT_ID_2)].packageVersion == product_2.packageVersion
+
+
+@pytest.mark.opsi_service
+def test_list_clients(admin_service_client: ServiceClient) -> None:
+	with (
+		tmp_client(admin_service_client, CLIENT_ID_1),
+		tmp_client(admin_service_client, CLIENT_ID_2),
+		tmp_client(admin_service_client, CLIENT_ID_3),
+		tmp_client(admin_service_client, CLIENT_ID_4),
+	):
+		# all clients
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"--sort-by",
+				"id",
+				"datastore",
+				"client",
+				"list",
+				"--client-ids",
+				"all",
+			]
+		)
+		assert exit_code == 0
+		rows = stdout_into_list(_stdout)[1:]
+		returned_ids = [row[0] for row in rows]
+		assert CLIENT_ID_1 in returned_ids
+		assert CLIENT_ID_2 in returned_ids
+		assert CLIENT_ID_3 in returned_ids
+		assert CLIENT_ID_4 in returned_ids
+
+		# wildcard filter
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"--sort-by",
+				"id",
+				"datastore",
+				"client",
+				"list",
+				"--client-ids",
+				"py*",
+			]
+		)
+		assert exit_code == 0
+		rows = stdout_into_list(_stdout)[1:]
+		assert len(rows) == 2
+		assert rows[0][0] == CLIENT_ID_1
+		assert rows[1][0] == CLIENT_ID_2
+
+		# comma separated ids
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"--sort-by",
+				"id",
+				"datastore",
+				"client",
+				"list",
+				"--client-ids",
+				f"{CLIENT_ID_3},{CLIENT_ID_4}",
+			]
+		)
+		assert exit_code == 0
+		rows = stdout_into_list(_stdout)[1:]
+		assert len(rows) == 2
+		assert rows[0][0] == CLIENT_ID_3
+		assert rows[1][0] == CLIENT_ID_4
+
+
+@pytest.mark.opsi_service
+@pytest.mark.parametrize("dry_run", (True, False))
+def test_update_clients(admin_service_client: ServiceClient, dry_run: bool) -> None:
+	with (
+		tmp_client(admin_service_client, CLIENT_ID_1),
+		tmp_client(admin_service_client, CLIENT_ID_2),
+	):
+		update_data = [
+			{
+				"id": CLIENT_ID_1,
+				"description": "pytest description 1",
+				"inventoryNumber": "inv-001",
+			},
+			{
+				"id": CLIENT_ID_2,
+				"description": "pytest description 2",
+				"inventoryNumber": "inv-002",
+			},
+		]
+
+		exit_code, _stdout, _stderr = run_cli(
+			(["--dry-run"] if dry_run else [])
+			+ [
+				"--output-format",
+				"csv",
+				"datastore",
+				"client",
+				"update",
+			],
+			stdin=[json.dumps(update_data)],
+		)
+		assert exit_code == 0
+
+		hosts = admin_service_client.host_getObjects(id=[CLIENT_ID_1, CLIENT_ID_2], type="OpsiClient")  # type: ignore[attr-defined]
+		assert len(hosts) == 2
+		host_map = {host.id: host for host in hosts}
+
+		if dry_run:
+			assert host_map[CLIENT_ID_1].description == ""
+			assert host_map[CLIENT_ID_2].description == ""
+			assert host_map[CLIENT_ID_1].inventoryNumber == ""
+			assert host_map[CLIENT_ID_2].inventoryNumber == ""
+		else:
+			assert host_map[CLIENT_ID_1].description == "pytest description 1"
+			assert host_map[CLIENT_ID_2].description == "pytest description 2"
+			assert host_map[CLIENT_ID_1].inventoryNumber == "inv-001"
+			assert host_map[CLIENT_ID_2].inventoryNumber == "inv-002"

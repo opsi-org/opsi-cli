@@ -41,12 +41,11 @@ def get_object_ids(
 	object_ids: str,
 	type: str = "OpsiClient",
 ) -> list[str]:
-	if object_ids == "all":
+	object_id_list = [item.strip() for item in object_ids.split(",")]
+	if "all" in object_id_list:
 		host_objects = service_connection.host_getObjects(id=[], type=type)  # type: ignore[attr-defined]
 		return [obj.id for obj in host_objects]
-	else:
-		object_id_list = [item.strip() for item in object_ids.split(",")]
-		return service_connection.host_getIdents(id=object_id_list)  # type: ignore[attr-defined]
+	return service_connection.host_getIdents(id=object_id_list)  # type: ignore[attr-defined]
 
 
 def create_client_depot_mapping(service_connection: ServiceClient, object_ids: list[str] | None = None) -> dict[str, str]:
@@ -622,16 +621,75 @@ def update_product_client_state() -> None:
 		service_connection.productOnClient_updateObjects(pcs)  # type: ignore[attr-defined]
 		msg = "Product client states updated successfully. Here are the updated states:\n"
 
-	console_print(
-		msg,
-		style="green",
-		output_type=OutputType.MESSAGE,
-	)
+	console_print(msg, style="green", output_type=OutputType.MESSAGE)
 	write_output(
 		data=pcs,
 		metadata=command_metadata["datastore_product-client-state_list"],
 		value_styles=PRODUCT_CLIENT_STATE_VALUE_STYLES,
 	)
+
+
+@cli.group(name="client", short_help="OPSI client related commands.")
+def client() -> None:
+	"""
+	View and change clients
+	"""
+	pass
+
+
+@client.command(name="list", short_help="List clients.")
+@click.option(
+	"--client-ids",
+	type=str,
+	default="all",
+	help="Filter by client ID(s). Use commas as separators and 'all' to include all IDs. Wildcards (*) are supported.",
+)
+def list_clients(client_ids: str) -> None:
+	"""
+	View clients.
+	"""
+	service_connection = get_service_connection()
+	filter_client_ids = [item.strip() for item in client_ids.split(",")]
+	if "all" in filter_client_ids:
+		filter_client_ids = []
+	else:
+		filter_client_ids = [item.strip() for item in filter_client_ids]
+
+	clients = []
+	for client in service_connection.host_getObjects(type="OpsiClient", id=filter_client_ids):  # type: ignore[attr-defined]
+		client_hash = client.to_hash()
+		client_hash["created"] = datetime.fromisoformat(f"{client.created}Z") if client.created else None
+		client_hash["lastSeen"] = datetime.fromisoformat(f"{client.lastSeen}Z") if client.lastSeen else None
+		clients.append(client_hash)
+
+	write_output(data=clients, metadata=command_metadata.get("datastore_client_list"))
+
+
+@client.command(name="update", short_help="Update clients.")
+@dry_run_capable
+def update_clients() -> None:
+	"""
+	Update clients.
+	"""
+	data = read_input()
+	if not data:
+		raise ValueError("No input data provided for updating clients.")
+
+	for client in data:
+		client["type"] = "OpsiClient"
+		for time_field in ["created", "lastSeen"]:
+			if value := client.get(time_field):
+				client[time_field] = datetime.fromisoformat(value).astimezone(timezone.utc).replace(microsecond=0)
+
+	if config.dry_run:
+		msg = "Update skipped due to dry run. Here are the clients that would have been updated:\n"
+	else:
+		service_connection = get_service_connection()
+		service_connection.host_updateObjects(data)  # type: ignore[attr-defined]
+		msg = "Clients updated successfully. Here are the updated clients:\n"
+
+	console_print(msg, style="green", output_type=OutputType.MESSAGE)
+	write_output(data=data, metadata=command_metadata.get("datastore_client_list"))
 
 
 class DatastorePlugin(OPSICLIPlugin):

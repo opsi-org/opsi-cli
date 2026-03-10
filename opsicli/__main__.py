@@ -136,6 +136,8 @@ class OpsiCLI(click.MultiCommand):  # type: ignore
 
 	def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command:
 		logger.debug("get_command %r", cmd_name)
+		if not cmd_name:
+			raise RuntimeError("No command name provided")
 		try:
 			plugin = plugin_manager.load_plugin(cmd_name)
 		except ModuleNotFoundError as err:
