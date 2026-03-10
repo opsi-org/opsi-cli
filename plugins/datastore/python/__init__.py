@@ -18,9 +18,10 @@ from opsicommon.exceptions import BackendMissingDataError
 from opsicommon.logging import get_logger
 from opsicommon.objects import BoolConfig, ConfigState, ProductOnClient, UnicodeConfig
 from opsicommon.types import forceActionRequest, forceBool, forceInstallationStatus
-from opsicommon.utils import timestamp
 
 from opsicli.cli_helpers import OPSICLIGroup
+from opsicli.config import config
+from opsicli.decorators import dry_run_capable
 from opsicli.io import OutputType, console_print, read_input, write_output
 from opsicli.opsiservice import ServiceClient, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
@@ -589,6 +590,7 @@ def list_product_client_state(client_ids: str, product_ids: str, installation_st
 
 
 @product_client_state.command(name="update", short_help="Update client product states.")
+@dry_run_capable
 def update_product_client_state() -> None:
 	"""
 	Update product states on clients.
@@ -612,11 +614,16 @@ def update_product_client_state() -> None:
 				modificationTime=modification_time,
 			)
 		)
-	service_connection = get_service_connection()
-	service_connection.productOnClient_updateObjects(pcs)  # type: ignore[attr-defined]
+
+	if config.dry_run:
+		msg = "Update skipped due to dry run. Here are the product client states that would have been updated:\n"
+	else:
+		service_connection = get_service_connection()
+		service_connection.productOnClient_updateObjects(pcs)  # type: ignore[attr-defined]
+		msg = "Product client states updated successfully. Here are the updated states:\n"
 
 	console_print(
-		"Product client states updated successfully. Here are the updated states:\n",
+		msg,
 		style="green",
 		output_type=OutputType.MESSAGE,
 	)
