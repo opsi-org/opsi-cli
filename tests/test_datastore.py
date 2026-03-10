@@ -848,10 +848,10 @@ def test_list_product_client_state(admin_service_client: ServiceClient) -> None:
 		assert len(rows) == 4
 
 		state_map = {(row[0], row[1]): row for row in rows}
-		assert state_map[(CLIENT_ID_1, PRODUCT_ID_1)][5:] == ["installed", "none"]
-		assert state_map[(CLIENT_ID_2, PRODUCT_ID_2)][5:] == ["unknown", "setup"]
-		assert state_map[(CLIENT_ID_1, PRODUCT_ID_2)][5:] == ["not_installed", "none"]
-		assert state_map[(CLIENT_ID_2, PRODUCT_ID_1)][5:] == ["not_installed", "none"]
+		assert state_map[(CLIENT_ID_1, PRODUCT_ID_1)][5:7] == ["installed", "none"]
+		assert state_map[(CLIENT_ID_2, PRODUCT_ID_2)][5:7] == ["unknown", "setup"]
+		assert state_map[(CLIENT_ID_1, PRODUCT_ID_2)][5:7] == ["not_installed", "none"]
+		assert state_map[(CLIENT_ID_2, PRODUCT_ID_1)][5:7] == ["not_installed", "none"]
 
 		# filter by installed + none -> only client1 / product1
 		exit_code, _stdout, _stderr = run_cli(
