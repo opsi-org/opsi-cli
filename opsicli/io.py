@@ -370,7 +370,7 @@ def write_output_key_value(data: Any, metadata: Metadata, value_styles: dict[str
 
 	with output_file_str() as file:
 		console = get_console(output_type=OutputType.DATA, file=file)
-		console.print(output)
+		console.print(output, highlight=False)
 
 
 def write_output_csv(data: Any, metadata: Metadata) -> None:
