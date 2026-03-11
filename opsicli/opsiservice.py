@@ -12,6 +12,7 @@ opsi service
 from urllib.parse import urlparse
 
 from opsicommon.client.opsiservice import OpsiServiceVerificationError, ServiceClient, ServiceConnectionListener, get_service_client
+from opsicommon.exceptions import OpsiServiceAuthenticationError
 from opsicommon.logging import get_logger
 from opsicommon.objects import OpsiDepotserver
 from opsicommon.utils import unix_timestamp
@@ -72,62 +73,70 @@ def get_depot_connection(depot: OpsiDepotserver) -> ServiceClient:
 
 def get_service_connection(verify: str | None = None) -> ServiceClient:
 	global service_client
-	if not service_client:
-		address: str | None = None
-		username: str | None = None
-		password: str | None = None
+	if service_client:
+		return service_client
 
-		if config.service:
-			service_conf = config.get_service_by_name(config.service)
-			if service_conf:
-				address = service_conf.url
-				username = service_conf.username
-				password = service_conf.password
-			else:
-				address = config.service
+	address: str | None = None
+	username: str | None = None
+	password: str | None = None
 
-		totp: str | None = None
-		if not config.sso:
-			if config.username:
-				username = config.username
-			if config.password:
-				password = config.password
+	if config.service:
+		service_conf = config.get_service_by_name(config.service)
+		if service_conf:
+			address = service_conf.url
+			username = service_conf.username
+			password = service_conf.password
+		else:
+			address = config.service
 
-			if username and not password and config.interactive:
-				password = str(prompt(f"Please enter the password for {username}@{address}", password=True))
+	totp: str | None = None
+	session_cookie = cache.get("opsiconfd-session")  # None if previous session expired
+	if session_cookie:
+		logger.info("Reusing session cookie from cache")
+	elif not config.sso:
+		if config.username:
+			username = config.username
+		if config.password:
+			password = config.password
 
-			if config.totp:
-				totp = str(prompt("Enter the TOTP", password=True))
+		if username and not password and config.interactive:
+			password = str(prompt(f"Please enter the password for {username}@{address}", password=True))
 
-		session_cookie = cache.get("opsiconfd-session")  # None if previous session expired
-		if session_cookie:
-			logger.info("Reusing session cookie from cache")
+		if config.totp:
+			totp = str(prompt("Enter the TOTP", password=True))
 
-		service_client = get_service_client(
-			address=address,
-			username=username,
-			password=password,
-			totp=totp,
-			sso=config.sso,
-			user_agent=f"opsi-cli/{__version__}",
-			session_lifetime=config.session_lifetime,
-			session_cookie=session_cookie,
-			jsonrpc_create_methods=True,
-			jsonrpc_create_objects=True,
-			auto_connect=False,
-			verify=verify,
-		)
+	new_service_client = get_service_client(
+		address=address,
+		username=username,
+		password=password,
+		totp=totp,
+		sso=config.sso,
+		user_agent=f"opsi-cli/{__version__}",
+		session_lifetime=config.session_lifetime,
+		session_cookie=session_cookie,
+		jsonrpc_create_methods=True,
+		jsonrpc_create_objects=True,
+		auto_connect=False,
+		verify=verify,
+	)
 
-		service_client.register_connection_listener(OpsiCliConnectionListener())
-		try:
-			service_client.connect()
-		except OpsiServiceVerificationError as err:
-			if service_client.ca_cert_file and service_client.ca_cert_file.exists():
-				raise OpsiServiceVerificationError(
-					f"{err}. Please check or remove the certificate file '{service_client.ca_cert_file}'"
-				) from err
+	new_service_client.register_connection_listener(OpsiCliConnectionListener())
+	try:
+		new_service_client.connect()
+	except OpsiServiceAuthenticationError:
+		if not session_cookie:
 			raise
+		logger.warning("Authentication failed with session cookie, trying again without it")
+		cache.delete("opsiconfd-session", store=True)
+		return get_service_connection(verify=verify)
+	except OpsiServiceVerificationError as err:
+		if new_service_client.ca_cert_file and new_service_client.ca_cert_file.exists():
+			raise OpsiServiceVerificationError(
+				f"{err}. Please check or remove the certificate file '{new_service_client.ca_cert_file}'"
+			) from err
+		raise
 
+	service_client = new_service_client
 	return service_client
 
 

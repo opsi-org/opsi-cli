@@ -68,13 +68,22 @@ class Cache(metaclass=Singleton):
 		if name not in self._data:
 			return default
 		if self.ttl_exceeded(name):
-			del self._data[name]
+			self.delete(name)
 			return default
 		return self._data[name]["value"]
 
 	def set(self, name: str, value: Any, ttl: int = 0, store: bool = False) -> None:
 		self._ensure_loaded()
 		self._data[name] = {"date": datetime.now(tz=timezone.utc).isoformat(), "ttl": max(int(ttl), 0), "value": value}
+		self._modified = True
+		if store:
+			self.store()
+
+	def delete(self, name: str, store: bool = False) -> None:
+		self._ensure_loaded()
+		if name not in self._data:
+			return
+		del self._data[name]
 		self._modified = True
 		if store:
 			self.store()
