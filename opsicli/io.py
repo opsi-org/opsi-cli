@@ -55,6 +55,13 @@ COLORS = [
 	if "white" not in c and "black" not in c and "red" not in c and "grey" not in c and "gray" not in c and "bright" not in c
 ]
 
+DEFAULT_VALUE_STYLES = {
+	"true": "bright_green",
+	"✓ true": "bright_green",
+	"false": "bright_black",
+	"✗ false": "bright_black",
+}
+
 
 class OutputType(StrEnum):
 	MESSAGE = "message"
@@ -285,16 +292,18 @@ def to_string(
 	list_format: Literal["comma_space_separated", "comma_separated", "square_brackets"] = "comma_space_separated",
 	value_styles: dict[str, str] | None = None,
 ) -> str:
+	value_styles = DEFAULT_VALUE_STYLES | (value_styles or {})
 	if value is None:
-		return "" if null_format == "empty_string" else "<null>"
-	if isinstance(value, bool):
+		value = "" if null_format == "empty_string" else "<null>"
+	elif isinstance(value, bool):
 		if bool_format == "true_false":
-			return "true" if value else "false"
-		return "1" if value else "0"
-	if isinstance(value, datetime):
+			value = "✓ true" if value else "✗ false"
+		else:
+			value = "1" if value else "0"
+	elif isinstance(value, datetime):
 		# Return converted to local timezone as ISO formatted datetime string
-		return value.astimezone().isoformat()
-	if isinstance(value, (list, tuple)):
+		value = value.astimezone().isoformat()
+	elif isinstance(value, (list, tuple)):
 		sep = "," if list_format == "comma_separated" else ", "
 		val = sep.join(
 			[
@@ -305,9 +314,9 @@ def to_string(
 		if list_format == "square_brackets":
 			return f"[{val}]"
 		return val
-
-	if inspect.isclass(value):
+	elif inspect.isclass(value):
 		value = value.__name__
+
 	if value_styles:
 		if style := value_styles.get(value):
 			return f"[{style}]{value}[/{style}]"
