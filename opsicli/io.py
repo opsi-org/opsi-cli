@@ -292,7 +292,6 @@ def to_string(
 	list_format: Literal["comma_space_separated", "comma_separated", "square_brackets"] = "comma_space_separated",
 	value_styles: dict[str, str] | None = None,
 ) -> str:
-	value_styles = DEFAULT_VALUE_STYLES | (value_styles or {})
 	if value is None:
 		value = "" if null_format == "empty_string" else "<null>"
 	elif isinstance(value, bool):
@@ -317,10 +316,11 @@ def to_string(
 	elif inspect.isclass(value):
 		value = value.__name__
 
-	if value_styles:
-		if style := value_styles.get(value):
-			return f"[{style}]{value}[/{style}]"
-	return str(value)
+	value = str(value)
+	value_styles = DEFAULT_VALUE_STYLES | (value_styles or {})
+	if style := value_styles.get(value):
+		value = f"[{style}]{value}[/{style}]"
+	return value
 
 
 def write_output_table(data: Any, metadata: Metadata, value_styles: dict[str, str] | None = None) -> None:
