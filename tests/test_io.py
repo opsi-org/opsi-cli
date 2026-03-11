@@ -116,7 +116,7 @@ def test_deprecation_warning(capsys: CaptureFixture[str]) -> None:
 		assert captured.err == "\x1b[33mThis is a deprecation warning\x1b[0m\n"
 
 
-input_output_testdata = (
+input_output_testdata = [
 	(
 		"json",
 		'{"somekey":"foo","someotherkey":"bar","somethirdkey":"baz"}',
@@ -148,7 +148,21 @@ input_output_testdata = (
 			{"key1": [3, 4], "key2": [False], "key3": {"k": "v"}},
 		],
 	),
-)
+]
+input_testdata = input_output_testdata + [
+	(
+		"table",
+		(
+			"╭─────────┬─────────┬────────╮\n"
+			"│ key1    │ key2    │ key3   │\n"
+			"├─────────┼─────────┼────────┤\n"
+			"│ first1  │ ✗ false │ ✓ true │\n"
+			"│ second1 │ second2 │        │\n"
+			"╰─────────┴─────────┴────────╯\n"
+		),
+		[{"key1": "first1", "key2": False, "key3": True}, {"key1": "second1", "key2": "second2", "key3": None}],
+	)
+]
 
 
 @pytest.mark.parametrize(("output_format", "string", "data"), input_output_testdata)

@@ -288,7 +288,7 @@ def to_string(
 	value: Any,
 	*,
 	null_format: Literal["empty_string", "<null>"] = "empty_string",
-	bool_format: Literal["true_false", "1_0"] = "true_false",
+	bool_format: Literal["true_false", "true_false_symbols", "1_0"] = "true_false",
 	list_format: Literal["comma_space_separated", "comma_separated", "square_brackets"] = "comma_space_separated",
 	value_styles: dict[str, str] | None = None,
 ) -> str:
@@ -296,6 +296,8 @@ def to_string(
 		value = "" if null_format == "empty_string" else "<null>"
 	elif isinstance(value, bool):
 		if bool_format == "true_false":
+			value = "true" if value else "false"
+		elif bool_format == "true_false_symbols":
 			value = "✓ true" if value else "✗ false"
 		else:
 			value = "1" if value else "0"
@@ -317,8 +319,7 @@ def to_string(
 		value = value.__name__
 
 	value = str(value)
-	value_styles = DEFAULT_VALUE_STYLES | (value_styles or {})
-	if style := value_styles.get(value):
+	if style := (DEFAULT_VALUE_STYLES | (value_styles or {})).get(value):
 		value = f"[{style}]{value}[/{style}]"
 	return value
 
@@ -341,11 +342,11 @@ def write_output_table(data: Any, metadata: Metadata, value_styles: dict[str, st
 				row = asdict(row)
 				row_type = dict
 			if issubclass(row_type, dict):
-				table.add_row(*[to_string(row.get(rid), value_styles=value_styles) for rid in row_ids])
+				table.add_row(*[to_string(row.get(rid), bool_format="true_false_symbols", value_styles=value_styles) for rid in row_ids])
 			elif issubclass(row_type, list):
-				table.add_row(*[to_string(el, value_styles=value_styles) for el in row])
+				table.add_row(*[to_string(el, bool_format="true_false_symbols", value_styles=value_styles) for el in row])
 			else:
-				table.add_row(*[to_string(row, value_styles=value_styles)])
+				table.add_row(*[to_string(row, bool_format="true_false_symbols", value_styles=value_styles)])
 	with output_file_str() as file:
 		console = get_console(output_type=OutputType.DATA, file=file)
 		console.print(table)
