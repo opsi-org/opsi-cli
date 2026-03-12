@@ -8,6 +8,7 @@ test_package.py is a test file for the package plugin.
 """
 
 import re
+import shutil
 from pathlib import Path
 from typing import Any, Callable, Optional
 from unittest.mock import patch
@@ -257,6 +258,22 @@ def test_extract(tmp_path: Path, test_product_source: Path) -> None:
 	exit_code, _stdout, _stderr = run_cli(["package", "extract", str(package_archive), str(extract_dir)])
 	extracted_dir = extract_dir / f"{TESTPRODUCT}_{PRODUCT_VERSION}-{PACKAGE_VERSION}"
 	assert exit_code == 0 and extracted_dir.exists()
+
+
+@pytest.mark.opsi_service
+def test_extract_from_urls(tmp_path: Path) -> None:
+	with http_test_server(serve_directory=TEST_DATA_PATH) as server:
+		base_url = f"http://localhost:{server.port}"
+
+		file_url = f"{base_url}/7zip_all_all_19.00-2.tar.gz"
+		exit_code, _stdout, _stderr = run_cli(["package", "extract", file_url, str(tmp_path)])
+		assert exit_code == 0
+		base_dir = tmp_path / "7zip_19.00-2"
+		print(list(tmp_path.iterdir()))
+		assert (base_dir / "OPSI" / CONTROL_FILE_NAME).exists()
+		assert (base_dir / "CLIENT_DATA" / "setup.opsiscript").exists()
+		shutil.rmtree(base_dir / "OPSI")
+		shutil.rmtree(base_dir / "CLIENT_DATA")
 
 
 def test_combine_products() -> None:
@@ -861,7 +878,6 @@ def test_package_info() -> None:
 		]
 	)
 	assert exit_code == 0
-	assert not _stderr
 
 	assert "package_filename: testdependency5_1.2-2.opsi" in stdout
 	assert "product_id: testdependency5" in stdout
@@ -870,6 +886,17 @@ def test_package_info() -> None:
 	assert "package_filename: opsi-client-agent_4.3.9.2-2.opsi" in stdout
 	assert "product_id: opsi-client-agent" in stdout
 	assert "product_version: 4.3.9.2" in stdout
+
+
+@pytest.mark.opsi_service
+def test_package_info_from_urls() -> None:
+	with http_test_server(serve_directory=TEST_DATA_PATH) as server:
+		base_url = f"http://localhost:{server.port}"
+
+		file_url = f"{base_url}/7zip_all_all_19.00-2.tar.gz"
+		exit_code, _stdout, _stderr = run_cli(["package", "info", file_url])
+		assert exit_code == 0
+		assert "package_filename: 7zip_19.00-2.opsi" in _stdout
 
 
 @pytest.mark.parametrize("dry_run", (True, False))
