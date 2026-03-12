@@ -57,6 +57,18 @@ argument_source_dir = click.argument(
 )
 
 
+def complete_package_path(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
+	"""
+	Completes the package archive file paths from the current directory or a user-specified directory.
+	"""
+	base_dir = Path(incomplete).parent if "/" in incomplete else Path(".")
+	base_dir = base_dir.resolve()
+	archive_extensions = [".opsi", ".tar.gz", ".zip", ".tgz", ".tar.bz2", ".tbz", ".tar.xz", ".txz"]
+	if base_dir.is_dir():
+		return [CompletionItem(str(file)) for ext in archive_extensions for file in base_dir.glob(f"*{Path(incomplete).name}*{ext}")]
+	return []
+
+
 @click.group(cls=OPSICLIGroup, name="package", short_help="Manage opsi packages")
 @click.version_option(__version__, message="opsi-cli plugin package, version %(version)s")
 @click.pass_context
@@ -228,26 +240,29 @@ def control_to_toml(source_dir: Path) -> None:
 
 
 @cli.command(short_help="Show package information.")
-@click.argument("package_file", type=click.Path(exists=True, file_okay=True, dir_okay=False, path_type=Path), nargs=-1, required=True)
-def info(package_file: list[Path]) -> None:
+@click.argument("packages", nargs=-1, required=True, type=str, shell_complete=complete_package_path)
+def info(packages: list[str]) -> None:
 	"""
 	Show information about opsi packages.
 	"""
 	data = []
-	for package in package_file:
-		op = OpsiPackage(package)
-		data.append(
-			{
-				"package_path": str(package.resolve()),
-				"package_filename": package.name,
-				"product_id": op.product.id,
-				"product_version": op.product.productVersion,
-				"package_version": op.product.packageVersion,
-				"product_name": op.product.name,
-				"product_description": op.product.description,
-				"product_advice": op.product.advice,
-			}
-		)
+	with make_temp_dir() as temp_dir:
+		local_packages = process_local_packages(packages, temp_dir)
+		# path_to_opsipackage maps package paths to OpsiPackage objects (metadata)
+		path_to_opsipackage = map_and_sort_packages(local_packages)
+		for package, op in path_to_opsipackage.items():
+			data.append(
+				{
+					"package_path": str(package.resolve()),
+					"package_filename": package.name,
+					"product_id": op.product.id,
+					"product_version": op.product.productVersion,
+					"package_version": op.product.packageVersion,
+					"product_name": op.product.name,
+					"product_description": op.product.description,
+					"product_advice": op.product.advice,
+				}
+			)
 
 	write_output(
 		data=data,
@@ -257,7 +272,7 @@ def info(package_file: list[Path]) -> None:
 
 
 @cli.command(short_help="Extract an opsi package.")
-@click.argument("package_archive", type=click.Path(exists=True, file_okay=True, dir_okay=False, path_type=Path))
+@click.argument("package_archive", required=True, type=str, shell_complete=complete_package_path)
 @click.argument("destination_dir", type=click.Path(file_okay=False, dir_okay=True, path_type=Path), default=Path("."))
 @click.option(
 	"--new-product-id",
@@ -266,33 +281,35 @@ def info(package_file: list[Path]) -> None:
 	help="A new product ID to replace the existing one in the control file.",
 )
 @click.option("-o", "--overwrite", is_flag=True, default=False, help="Overwrite destination directory if it exists.")
-def extract(package_archive: Path, destination_dir: Path, new_product_id: str, overwrite: bool) -> None:
+def extract(package_archive: str, destination_dir: Path, new_product_id: str, overwrite: bool) -> None:
 	"""
 	opsi-cli package extract subcommand.
 	This subcommand is used to extract an opsi package.
 	"""
 	logger.trace("extract package")
 
-	package_name = package_archive.stem
-	destination_dir = destination_dir / package_name
-	if not overwrite and destination_dir.exists():
-		raise FileExistsError(f"Destination directory '{destination_dir}' already exists.")
-	destination_dir.mkdir(parents=True, exist_ok=True)
+	with make_temp_dir() as temp_dir:
+		local_package = Path(process_local_packages([package_archive], temp_dir)[0])
 
-	with get_progress() as progress:
-		logger.info("Extracting package archive for '%s'", destination_dir)
-		opsi_package = OpsiPackage()
-		try:
-			opsi_package.extract_package_archive(
-				Path(package_archive),
-				destination=destination_dir,
-				new_product_id=new_product_id,
-				progress_listener=PackageProgressListener(progress, "[cyan]Extracting opsi package..."),
-				custom_separated=True,
-			)
-		except Exception as err:
-			logger.error(err, exc_info=True)
-			raise err
+		destination_dir = destination_dir / local_package.stem
+		if not overwrite and destination_dir.exists():
+			raise FileExistsError(f"Destination directory '{destination_dir}' already exists.")
+		destination_dir.mkdir(parents=True, exist_ok=True)
+
+		with get_progress() as progress:
+			logger.info("Extracting package archive for '%s'", destination_dir)
+			opsi_package = OpsiPackage()
+			try:
+				opsi_package.extract_package_archive(
+					local_package,
+					destination=destination_dir,
+					new_product_id=new_product_id,
+					progress_listener=PackageProgressListener(progress, "[cyan]Extracting opsi package..."),
+					custom_separated=True,
+				)
+			except Exception as err:
+				logger.error(err, exc_info=True)
+				raise err
 
 	console_print(f"Package archive has been successfully extracted at {destination_dir}", output_type=OutputType.MESSAGE)
 
@@ -443,18 +460,6 @@ def meta_edit_remove_product_dependency(
 	opsi_package.product_dependencies = product_dependencies
 	opsi_package.generate_control_file(control_file)
 	console_print("Product dependency has been successfully removed from the control file.", output_type=OutputType.MESSAGE)
-
-
-def complete_package_path(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
-	"""
-	Completes the package archive file paths from the current directory or a user-specified directory.
-	"""
-	base_dir = Path(incomplete).parent if "/" in incomplete else Path(".")
-	base_dir = base_dir.resolve()
-	archive_extensions = [".opsi", ".tar.gz", ".zip", ".tgz", ".tar.bz2", ".tbz", ".tar.xz", ".txz"]
-	if base_dir.is_dir():
-		return [CompletionItem(str(file)) for ext in archive_extensions for file in base_dir.glob(f"*{Path(incomplete).name}*{ext}")]
-	return []
 
 
 @cli.command(short_help="Install opsi packages.")
