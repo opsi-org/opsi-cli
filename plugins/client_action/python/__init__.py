@@ -172,7 +172,7 @@ def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 @dry_run_capable
 def set_action_request(ctx: click.Context, **kwargs: str | bool) -> None:
 	"""
-	opsi-cli client-action set-action-request command
+	Set action requests for OPSI clients with dependencies.
 	"""
 	worker = SetActionRequestWorker(ctx.obj)
 

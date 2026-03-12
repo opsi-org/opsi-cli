@@ -9,8 +9,6 @@ opsi-cli basic command line interface for opsi
 config plugin
 """
 
-import os
-import shutil
 import subprocess
 from urllib.parse import urlparse
 
@@ -18,12 +16,11 @@ import rich_click as click
 from click.shell_completion import CompletionItem
 from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.logging import get_logger
-from opsicommon.system.info import is_windows
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.config import DEFAULT_SESSION_LIFETIME, ConfigValueSource, config
 from opsicli.decorators import dry_run_capable
-from opsicli.io import OutputType, console_print, prompt, write_output
+from opsicli.io import OutputType, console_print, get_editor, prompt, write_output
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.types import OPSIService, Password
 
@@ -122,11 +119,7 @@ def config_edit(system: bool) -> None:
 	config_file = config.config_file_system if system else config.config_file_user
 	config_file.parent.mkdir(parents=True, exist_ok=True)
 	config_file.touch(exist_ok=True)
-	if is_windows():
-		cmd = ["notepad"]
-	else:
-		cmd = [os.environ.get("VISUAL") or os.environ.get("EDITOR") or shutil.which("editor") or "vi"]
-	cmd.append(str(config_file))
+	cmd = get_editor() + [str(config_file)]
 	logger.notice("Opening config file '%s' with command: %s", config_file, cmd)
 	subprocess.run(cmd)
 

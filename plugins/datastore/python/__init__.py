@@ -9,8 +9,10 @@ opsi-cli basic command line interface for opsi
 config-states subcommand
 """
 
+import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from tempfile import NamedTemporaryFile
 from typing import cast
 
 import rich_click as click
@@ -22,9 +24,10 @@ from opsicommon.types import forceActionRequest, forceBool, forceInstallationSta
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.config import config
 from opsicli.decorators import dry_run_capable
-from opsicli.io import OutputType, console_print, read_input, write_output
+from opsicli.io import OutputType, console_print, get_editor, get_selected_attributes, read_input, write_output
 from opsicli.opsiservice import ServiceClient, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
+from opsicli.types import EditFormat, OutputFormat
 
 from .metadata import command_metadata
 
@@ -629,6 +632,55 @@ def update_product_client_state() -> None:
 	)
 
 
+def _get_clients_from_input() -> list[dict[str, str | datetime | None]]:
+	data = read_input()
+	if not data:
+		return []
+
+	clients = []
+	for client in data:
+		client["type"] = "OpsiClient"
+		for time_field in ["created", "lastSeen"]:
+			if value := client.get(time_field):
+				client[time_field] = datetime.fromisoformat(value).astimezone(timezone.utc).replace(microsecond=0)
+		clients.append(client)
+	return clients
+
+
+def _update_clients(clients: list[dict[str, str | datetime | None]]) -> None:
+	if config.dry_run:
+		msg = "Update skipped due to dry run. Here are the clients that would have been updated:\n"
+	else:
+		service_connection = get_service_connection()
+		service_connection.host_updateObjects(clients)  # type: ignore[attr-defined]
+		msg = "Clients updated successfully. Here are the updated clients:\n"
+
+	console_print(msg, style="green", output_type=OutputType.MESSAGE)
+	write_output(data=clients, metadata=command_metadata.get("datastore_client_list"))
+
+
+def _get_clients_from_service(client_ids: str) -> list[dict[str, str | datetime | None]]:
+	selected_attributes = get_selected_attributes(metadata=command_metadata.get("datastore_client_list"))
+	if "id" not in selected_attributes:
+		selected_attributes.insert(0, "id")
+
+	filter_client_ids = [item.strip() for item in client_ids.split(",")]
+	if "all" in filter_client_ids:
+		filter_client_ids = []
+	else:
+		filter_client_ids = [item.strip() for item in filter_client_ids]
+
+	service_connection = get_service_connection()
+	clients = []
+	for client in service_connection.host_getObjects(attributes=selected_attributes, type="OpsiClient", id=filter_client_ids):  # type: ignore[attr-defined]
+		client_hash = {attr: val for attr, val in client.to_hash().items() if attr == "type" or attr in selected_attributes}
+		for time_field in ["created", "lastSeen"]:
+			if val := client_hash.get(time_field):
+				client_hash[time_field] = datetime.fromisoformat(f"{val}Z")
+		clients.append(client_hash)
+	return clients
+
+
 @cli.group(name="client", short_help="OPSI client related commands.")
 def client() -> None:
 	"""
@@ -648,21 +700,7 @@ def list_clients(client_ids: str) -> None:
 	"""
 	View clients.
 	"""
-	service_connection = get_service_connection()
-	filter_client_ids = [item.strip() for item in client_ids.split(",")]
-	if "all" in filter_client_ids:
-		filter_client_ids = []
-	else:
-		filter_client_ids = [item.strip() for item in filter_client_ids]
-
-	clients = []
-	for client in service_connection.host_getObjects(type="OpsiClient", id=filter_client_ids):  # type: ignore[attr-defined]
-		client_hash = client.to_hash()
-		client_hash["created"] = datetime.fromisoformat(f"{client.created}Z") if client.created else None
-		client_hash["lastSeen"] = datetime.fromisoformat(f"{client.lastSeen}Z") if client.lastSeen else None
-		clients.append(client_hash)
-
-	write_output(data=clients, metadata=command_metadata.get("datastore_client_list"))
+	write_output(data=_get_clients_from_service(client_ids), metadata=command_metadata.get("datastore_client_list"))
 
 
 @client.command(name="update", short_help="Update clients.")
@@ -671,25 +709,50 @@ def update_clients() -> None:
 	"""
 	Update clients.
 	"""
-	data = read_input()
-	if not data:
-		raise ValueError("No input data provided for updating clients.")
+	clients = _get_clients_from_input()
+	if not clients:
+		raise ValueError("No input data provided for updating clients. Please set --input-file.")
 
-	for client in data:
-		client["type"] = "OpsiClient"
-		for time_field in ["created", "lastSeen"]:
-			if value := client.get(time_field):
-				client[time_field] = datetime.fromisoformat(value).astimezone(timezone.utc).replace(microsecond=0)
+	_update_clients(clients)
 
-	if config.dry_run:
-		msg = "Update skipped due to dry run. Here are the clients that would have been updated:\n"
-	else:
-		service_connection = get_service_connection()
-		service_connection.host_updateObjects(data)  # type: ignore[attr-defined]
-		msg = "Clients updated successfully. Here are the updated clients:\n"
 
-	console_print(msg, style="green", output_type=OutputType.MESSAGE)
-	write_output(data=data, metadata=command_metadata.get("datastore_client_list"))
+@client.command(name="edit", short_help="Edit clients.")
+@click.option(
+	"--client-ids",
+	type=str,
+	default="all",
+	help="Filter by client ID(s). Use commas as separators and 'all' to include all IDs. Wildcards (*) are supported.",
+)
+@dry_run_capable
+def edit_clients(client_ids: str) -> None:
+	"""
+	Edit clients.
+	"""
+	if not config.interactive:
+		raise ValueError("Editing is not possible in non-interactive mode.")
+
+	clients = _get_clients_from_service(client_ids)
+	edit_format = EditFormat.PRETTY_JSON if config.edit_format == EditFormat.AUTO else config.edit_format
+
+	with NamedTemporaryFile(mode="w", encoding="utf-8", suffix=f".{edit_format.file_extension}") as edit_file:
+		orig_output_file = config.output_file
+		config.input_file = config.output_file = edit_file.name
+
+		write_output(data=clients, metadata=command_metadata.get("datastore_client_list"), default_output_format=OutputFormat(edit_format))
+
+		cmd = get_editor() + [str(edit_file.name)]
+		logger.notice("Opening file '%s' with command: %s", edit_file.name, cmd)
+		subprocess.run(cmd)
+
+		edited_clients = _get_clients_from_input()
+		changed_clients = [client for client in edited_clients if client not in clients]
+		logger.notice("Detected %d changed clients.", len(changed_clients))
+		if not changed_clients:
+			console_print("No changes detected, no clients were updated.", output_type=OutputType.MESSAGE)
+			return
+
+		config.output_file = orig_output_file
+		_update_clients(changed_clients)
 
 
 class DatastorePlugin(OPSICLIPlugin):

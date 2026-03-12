@@ -182,6 +182,8 @@ def quiet_print(*args: Any, **kwargs: Any) -> None:
 @config.get_click_option("output_format")
 @config.get_click_option("output_file")
 @config.get_click_option("input_file")
+@config.get_click_option("edit_format")
+@config.get_click_option("editor")
 @config.get_click_option("metadata", long_option="--metadata/--no-metadata")
 @config.get_click_option("header", long_option="--header/--no-header")
 @config.get_click_option("attributes", show_default=False, help=f"{config.get_description('attributes')}. Comma separated list.")
