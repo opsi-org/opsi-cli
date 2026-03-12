@@ -12,6 +12,9 @@ input output
 import csv
 import inspect
 import io
+import os
+import shlex
+import shutil
 import sys
 from contextlib import contextmanager
 from copy import deepcopy
@@ -24,6 +27,7 @@ from typing import IO, Any, Generator, Iterator, Literal, Type
 import msgpack
 import orjson
 from opsicommon.logging import get_logger
+from opsicommon.system.info import is_windows
 from rich import print_json
 from rich.color import ANSI_COLOR_NAMES
 from rich.console import Console
@@ -324,6 +328,17 @@ def to_string(
 	return value
 
 
+def get_selected_attributes(metadata: Metadata | None = None) -> list[str]:
+	if not metadata:
+		return config.attributes or []
+
+	if not config.attributes or "all" in config.attributes:
+		return [attr.id for attr in metadata.attributes if attr.selected]
+
+	available_attributes = [attr.id for attr in metadata.attributes]
+	return [attr for attr in config.attributes if attr in available_attributes]
+
+
 def write_output_table(data: Any, metadata: Metadata, value_styles: dict[str, str] | None = None) -> None:
 	attributes = config.attributes or []
 	table = Table(box=box.ROUNDED, show_header=config.header, show_lines=False)
@@ -604,6 +619,24 @@ def read_input_csv(data: bytes) -> list[dict | list[str]]:
 	return rows
 
 
+def read_input_key_value(data: bytes) -> list[dict[str, str]]:
+	rows: list[dict[str, str]] = []
+	current_row: dict[str, str] = {}
+	for line in data.decode("utf-8").split("\n"):
+		if not line.strip():
+			if current_row:
+				rows.append(current_row)
+				current_row = {}
+			continue
+		if ":" not in line:
+			continue
+		key, value = line.split(":", 1)
+		current_row[key.strip()] = value.strip()
+	if current_row:
+		rows.append(current_row)
+	return rows
+
+
 def stdin_readable(timeout: float) -> bool:
 	if sys.platform == "win32":
 		import pywintypes
@@ -656,8 +689,12 @@ def read_input() -> Any:
 			logger.debug("Trying json")
 			return read_input_json(data)
 		except orjson.JSONDecodeError:
-			logger.debug("Trying csv")
-			return read_input_csv(data)
+			if data.count(b";") > data.count(b":"):
+				logger.debug("Trying csv")
+				return read_input_csv(data)
+			else:
+				logger.debug("Trying key-value")
+				return read_input_key_value(data)
 
 
 def list_attributes(metadata: Metadata) -> None:
@@ -681,3 +718,11 @@ def list_attributes(metadata: Metadata) -> None:
 		for attribute in metadata.attributes
 	]
 	write_output(attributes_data, metadata=attributes_metadata, default_output_format=OutputFormat.TABLE)
+
+
+def get_editor() -> list[str]:
+	if config.editor:
+		return shlex.split(config.editor)
+	if is_windows():
+		return ["notepad"]
+	return shlex.split(os.environ.get("VISUAL") or os.environ.get("EDITOR") or shutil.which("editor") or "vi")

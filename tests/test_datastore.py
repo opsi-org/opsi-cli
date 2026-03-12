@@ -2,6 +2,7 @@ import json
 import time
 from contextlib import ExitStack
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from opsicommon.client.opsiservice import ServiceClient
@@ -1084,3 +1085,52 @@ def test_update_clients(admin_service_client: ServiceClient, dry_run: bool) -> N
 			assert host_map[CLIENT_ID_2].description == "pytest description 2"
 			assert host_map[CLIENT_ID_1].inventoryNumber == "inv-001"
 			assert host_map[CLIENT_ID_2].inventoryNumber == "inv-002"
+
+
+@pytest.mark.opsi_service
+def test_edit_clients_non_interactive(admin_service_client: ServiceClient) -> None:
+	with tmp_client(admin_service_client, CLIENT_ID_1):
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"datastore",
+				"client",
+				"edit",
+				"--client-ids",
+				CLIENT_ID_1,
+			]
+		)
+		assert exit_code != 0
+		assert "Editing is not possible in non-interactive mode." in _stderr
+
+
+@pytest.mark.opsi_service
+def test_edit_clients(admin_service_client: ServiceClient) -> None:
+	with tmp_client(admin_service_client, CLIENT_ID_1):
+		admin_service_client.jsonrpc(
+			"host_updateObjects",
+			[[{"id": CLIENT_ID_1, "type": "OpsiClient", "description": "before edit", "inventoryNumber": "before-001"}]],
+		)
+
+		def fake_editor(cmd: list[str]) -> None:
+			edit_file = Path(cmd[-1])
+			clients = json.loads(edit_file.read_text(encoding="utf-8"))
+			clients[0]["description"] = "after edit"
+			clients[0]["inventoryNumber"] = "after-001"
+			edit_file.write_text(json.dumps(clients, indent=2), encoding="utf-8")
+
+		with patch("subprocess.run", side_effect=fake_editor):
+			exit_code, _stdout, _stderr = run_cli(
+				[
+					"--interactive",
+					"datastore",
+					"client",
+					"edit",
+					"--client-ids",
+					CLIENT_ID_1,
+				]
+			)
+
+		assert exit_code == 0
+		host = admin_service_client.host_getObjects(id=[CLIENT_ID_1], type="OpsiClient")[0]  # type: ignore[attr-defined]
+		assert host.description == "after edit"
+		assert host.inventoryNumber == "after-001"

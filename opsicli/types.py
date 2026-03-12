@@ -56,15 +56,7 @@ class LogLevel(int):
 		return int(self)
 
 
-class OutputFormat(StrEnum):
-	TABLE = "table"
-	CSV = "csv"
-	JSON = "json"
-	PRETTY_JSON = "pretty-json"
-	MSGPACK = "msgpack"
-	KEY_VALUE = "key-value"
-	AUTO = "auto"
-
+class ConfigStrEnum(StrEnum):
 	@classproperty
 	def possible_values(cls) -> list[str]:
 		return [v.value for v in OutputFormat]
@@ -75,6 +67,33 @@ class OutputFormat(StrEnum):
 
 	def to_yaml(self) -> str:
 		return self.value
+
+
+class OutputFormat(ConfigStrEnum):
+	TABLE = "table"
+	CSV = "csv"
+	JSON = "json"
+	PRETTY_JSON = "pretty-json"
+	MSGPACK = "msgpack"
+	KEY_VALUE = "key-value"
+	AUTO = "auto"
+
+
+class EditFormat(ConfigStrEnum):
+	CSV = "csv"
+	JSON = "json"
+	PRETTY_JSON = "pretty-json"
+	KEY_VALUE = "key-value"
+	AUTO = "auto"
+
+	@property
+	def file_extension(self) -> str:
+		return {
+			self.CSV: "csv",
+			self.JSON: "json",
+			self.PRETTY_JSON: "json",
+			self.KEY_VALUE: "txt",
+		}[self]
 
 
 class Attributes(list):

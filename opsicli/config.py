@@ -48,6 +48,7 @@ from opsicli.types import (  # noqa: E402
 	Attributes,
 	Bool,
 	Directory,
+	EditFormat,
 	File,
 	LogLevel,
 	OPSIService,
@@ -276,6 +277,13 @@ CONFIG_ITEMS = [
 		description=f"Set output format. Possible values are: {str(OutputFormat.possible_values_for_description)}.",
 	),
 	ConfigItem(
+		name="edit_format",
+		type=EditFormat,
+		group="IO",
+		default=EditFormat.AUTO.value,
+		description=f"Set edit format. Possible values are: {str(EditFormat.possible_values_for_description)}.",
+	),
+	ConfigItem(
 		name="output_file",
 		type=File,
 		group="IO",
@@ -291,6 +299,16 @@ CONFIG_ITEMS = [
 			"Read data from the given file. "
 			"If set to '-', input is read from stdin (blocking). "
 			"If not set, ops-cli checks whether stdin is readable and only reads if data is available within one second."
+		),
+	),
+	ConfigItem(
+		name="editor",
+		type=str,
+		group="IO",
+		default=None,
+		description=(
+			"Use the specified editor for editing data. "
+			"By default, the editor is automatically selected based on the operating system and environment variables."
 		),
 	),
 	ConfigItem(name="interactive", type=Bool, group="IO", default=sys.stdin.isatty(), description="Enable or disable interactive mode."),
