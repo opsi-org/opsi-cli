@@ -463,8 +463,8 @@ def meta_edit_remove_product_dependency(
 
 
 @meta_edit.command(name="set-product-version", short_help="Set the version of a product in the control file of an opsi package.")
-@argument_source_dir
 @click.argument("version", type=str, required=True)
+@argument_source_dir
 @click.pass_context
 @dry_run_capable
 def meta_edit_set_product_version(ctx: click.Context, source_dir: Path, version: str) -> None:
@@ -489,8 +489,8 @@ def meta_edit_set_product_version(ctx: click.Context, source_dir: Path, version:
 
 
 @meta_edit.command(name="set-package-version", short_help="Set the version of a package in the control file of an opsi package.")
-@argument_source_dir
 @click.argument("version", type=str, required=True)
+@argument_source_dir
 @click.pass_context
 @dry_run_capable
 def meta_edit_set_package_version(ctx: click.Context, source_dir: Path, version: str) -> None:

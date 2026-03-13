@@ -1068,8 +1068,8 @@ def test_meta_edit_set_product_version(tmp_path: Path, test_product_source: Path
 			"package",
 			"meta-edit",
 			"set-product-version",
-			str(source_dir),
 			NEW_PRODUCT_VERSION,
+			str(source_dir),
 		]
 	)
 	assert exit_code == 0
@@ -1096,8 +1096,8 @@ def test_meta_edit_set_package_version(tmp_path: Path, test_product_source: Path
 			"package",
 			"meta-edit",
 			"set-package-version",
-			str(source_dir),
 			NEW_PACKAGE_VERSION,
+			str(source_dir),
 		]
 	)
 	assert exit_code == 0
