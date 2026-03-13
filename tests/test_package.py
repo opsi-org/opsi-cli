@@ -1074,7 +1074,7 @@ def test_meta_edit_set_product_version(tmp_path: Path, test_product_source: Path
 	)
 	assert exit_code == 0
 	if dry_run:
-		assert f"Product version would be set to {NEW_PRODUCT_VERSION}." in stderr
+		assert f"The product version would be set to {NEW_PRODUCT_VERSION}." in stderr
 	else:
 		assert f"Product version has been successfully set to {NEW_PRODUCT_VERSION}." in stderr
 
@@ -1102,7 +1102,7 @@ def test_meta_edit_set_package_version(tmp_path: Path, test_product_source: Path
 	)
 	assert exit_code == 0
 	if dry_run:
-		assert f"Package version would be set to {NEW_PACKAGE_VERSION}." in stderr
+		assert f"The package version would be set to {NEW_PACKAGE_VERSION}." in stderr
 	else:
 		assert f"Package version has been successfully set to {NEW_PACKAGE_VERSION}." in stderr
 
