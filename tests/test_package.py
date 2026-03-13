@@ -1082,9 +1082,9 @@ def test_meta_edit_set_product_version(tmp_path: Path, test_product_source: Path
 	package.parse_control_file(source_dir / "OPSI" / "control.toml")
 
 	if dry_run:
-		assert package.product.version == PRODUCT_VERSION
+		assert package.product.productVersion == PRODUCT_VERSION
 	else:
-		assert package.product.version == NEW_PRODUCT_VERSION
+		assert package.product.productVersion == NEW_PRODUCT_VERSION
 
 
 @pytest.mark.parametrize("dry_run", (True, False))
