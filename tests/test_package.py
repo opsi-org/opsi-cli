@@ -40,6 +40,7 @@ CONTROL_TOML_FILE_NAME = "control.toml"
 
 TESTPRODUCT = "testproduct"
 PACKAGE_VERSION = "1"
+NEW_PACKAGE_VERSION = "2"
 PRODUCT_VERSION = "1.0"
 NEW_PRODUCT_VERSION = "1.1"
 
@@ -1056,3 +1057,59 @@ def test_meta_edit_remove_product_dependency(tmp_path: Path, test_product_source
 		else:
 			assert "No product dependency found for action 'setup' and required product ID 'dep1'." in stderr
 		assert len(dependencies) == 0
+
+
+@pytest.mark.parametrize("dry_run", (True, False))
+def test_meta_edit_set_product_version(tmp_path: Path, test_product_source: Path, dry_run: bool) -> None:
+	source_dir = test_product_source
+	exit_code, _stdout, stderr = run_cli(
+		(["--dry-run"] if dry_run else [])
+		+ [
+			"package",
+			"meta-edit",
+			"set-product-version",
+			str(source_dir),
+			NEW_PRODUCT_VERSION,
+		]
+	)
+	assert exit_code == 0
+	if dry_run:
+		assert f"Product version would be set to {NEW_PRODUCT_VERSION}." in stderr
+	else:
+		assert f"Product version has been successfully set to {NEW_PRODUCT_VERSION}." in stderr
+
+	package = OpsiPackage()
+	package.parse_control_file(source_dir / "OPSI" / "control.toml")
+
+	if dry_run:
+		assert package.product.version == PRODUCT_VERSION
+	else:
+		assert package.product.version == NEW_PRODUCT_VERSION
+
+
+@pytest.mark.parametrize("dry_run", (True, False))
+def test_meta_edit_set_package_version(tmp_path: Path, test_product_source: Path, dry_run: bool) -> None:
+	source_dir = test_product_source
+	exit_code, _stdout, stderr = run_cli(
+		(["--dry-run"] if dry_run else [])
+		+ [
+			"package",
+			"meta-edit",
+			"set-package-version",
+			str(source_dir),
+			NEW_PACKAGE_VERSION,
+		]
+	)
+	assert exit_code == 0
+	if dry_run:
+		assert f"Package version would be set to {NEW_PACKAGE_VERSION}." in stderr
+	else:
+		assert f"Package version has been successfully set to {NEW_PACKAGE_VERSION}." in stderr
+
+	package = OpsiPackage()
+	package.parse_control_file(source_dir / "OPSI" / "control.toml")
+
+	if dry_run:
+		assert package.product.packageVersion == PACKAGE_VERSION
+	else:
+		assert package.product.packageVersion == NEW_PACKAGE_VERSION

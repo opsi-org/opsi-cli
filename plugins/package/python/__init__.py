@@ -462,6 +462,58 @@ def meta_edit_remove_product_dependency(
 	console_print("Product dependency has been successfully removed from the control file.", output_type=OutputType.MESSAGE)
 
 
+@meta_edit.command(name="set-product-version", short_help="Set the version of a product in the control file of an opsi package.")
+@argument_source_dir
+@click.argument("version", type=str, required=True)
+@click.pass_context
+@dry_run_capable
+def meta_edit_set_product_version(ctx: click.Context, source_dir: Path, version: str) -> None:
+	"""
+	opsi-cli package meta-edit set-product-version subcommand.
+	This subcommand is used to set the version of a product in the control file of an opsi package.
+	"""
+	logger.trace("meta-edit set-product-version")
+
+	opsi_package = OpsiPackage()
+	control_file = opsi_package.find_and_parse_control_file(source_dir)
+	if config.dry_run:
+		console_print(
+			f"The product version would be set to '{version}' in the control file.",
+			output_type=OutputType.WARNING_MESSAGE,
+		)
+		return
+	logger.notice(f"Setting product version to '{version}' in the control file.")
+	opsi_package.product.productVersion = version
+	opsi_package.generate_control_file(control_file)
+	console_print(f"Product version has been successfully set to '{version}' in the control file.", output_type=OutputType.MESSAGE)
+
+
+@meta_edit.command(name="set-package-version", short_help="Set the version of a package in the control file of an opsi package.")
+@argument_source_dir
+@click.argument("version", type=str, required=True)
+@click.pass_context
+@dry_run_capable
+def meta_edit_set_package_version(ctx: click.Context, source_dir: Path, version: str) -> None:
+	"""
+	opsi-cli package meta-edit set-package-version subcommand.
+	This subcommand is used to set the version of a package in the control file of an opsi package.
+	"""
+	logger.trace("meta-edit set-package-version")
+
+	opsi_package = OpsiPackage()
+	control_file = opsi_package.find_and_parse_control_file(source_dir)
+	if config.dry_run:
+		console_print(
+			f"The package version would be set to '{version}' in the control file.",
+			output_type=OutputType.WARNING_MESSAGE,
+		)
+		return
+	logger.notice(f"Setting package version to '{version}' in the control file.")
+	opsi_package.product.packageVersion = version
+	opsi_package.generate_control_file(control_file)
+	console_print(f"Package version has been successfully set to '{version}' in the control file.", output_type=OutputType.MESSAGE)
+
+
 @cli.command(short_help="Install opsi packages.")
 @click.argument("packages", nargs=-1, required=True, type=str, shell_complete=complete_package_path)
 @click.option("--depots", help="Depot IDs (comma-separated) or 'all'. Default is configserver.")
