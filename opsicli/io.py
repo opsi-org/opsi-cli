@@ -728,6 +728,8 @@ def get_editor() -> list[str]:
 	return shlex.split(os.environ.get("VISUAL") or os.environ.get("EDITOR") or shutil.which("editor") or "vi")
 
 
-def get_separated_entries(value: str) -> list[str]:
+def get_separated_entries(value: str | None) -> list[str]:
+	if value is None:
+		return []
 	separator = config.input_separator
 	return [entry.strip() for entry in value.split(separator) if entry.strip()]

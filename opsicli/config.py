@@ -319,7 +319,6 @@ CONFIG_ITEMS = [
 		description=(
 			"Separator for multiple input values. "
 			"This is used when multiple values are provided as a single string, for example in environment variables or config files. "
-			"The default separator is a comma."
 		),
 	),
 	ConfigItem(name="interactive", type=Bool, group="IO", default=sys.stdin.isatty(), description="Enable or disable interactive mode."),
