@@ -21,7 +21,7 @@ from opsicommon.utils import make_temp_dir
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.config import config
 from opsicli.decorators import dry_run_capable
-from opsicli.io import OutputType, console_print, get_progress, write_output
+from opsicli.io import OutputType, console_print, get_progress, get_separated_entries, write_output
 from opsicli.opsiservice import get_depot_connection, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.types import OutputFormat
@@ -193,7 +193,7 @@ def package_list(depots: str, product_type: str, product_ids: list[str]) -> None
 	"""
 	logger.trace("list packages")
 	depots = depots.strip() or "all"
-	depot_list = [depot.strip() for depot in depots.split(",") if depot.strip() != "all"]
+	depot_list = [entry for entry in get_separated_entries(depots) if entry != "all"]
 
 	if product_type:
 		product_type = {"localboot": "LocalbootProduct", "netboot": "NetbootProduct"}.get(product_type.lower(), product_type)
@@ -646,7 +646,7 @@ def complete_installed_products(ctx: click.Context, param: click.Parameter, inco
 
 @cli.command(short_help="Uninstall opsi products.")
 @click.argument("product_ids", type=str, nargs=-1, required=True, shell_complete=complete_installed_products)
-@click.option("--depots", help="Depot IDs (comma-separated) or 'all'. Default is configserver.")
+@click.option("--depots", help="Depot IDs (separated by a separator) or 'all'. Default is configserver.")
 @click.option("--force", is_flag=True, help="Force uninstallation.", default=False)
 @click.option("--keep-files", is_flag=True, help="Keep files on uninstallation.", default=False)
 @click.option(

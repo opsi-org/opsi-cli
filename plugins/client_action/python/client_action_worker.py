@@ -20,7 +20,7 @@ from opsicommon.objects import ObjectToGroup, OpsiClient
 from opsicommon.types import forceActionRequest, forceGroupId, forceHostId, forceNetworkAddress
 from opsicommon.utils import ip_address_in_network
 
-from opsicli.io import deprecation_warning
+from opsicli.io import deprecation_warning, get_separated_entries
 from opsicli.opsiservice import get_service_connection
 from opsicli.types import OpsiCliRuntimeError
 
@@ -47,24 +47,18 @@ class ClientActionArgs:
 		only_online: bool = False,
 	) -> None:
 		self.clients: set[str] = {
-			"all" if client.strip().lower() == "all" else forceHostId(client.strip())
-			for client in (clients or "").split(",")
-			if client.strip()
+			"all" if client.lower() == "all" else forceHostId(client) for client in get_separated_entries(clients or "") if client
 		}
-		self.client_groups: set[str] = {forceGroupId(group.strip()) for group in (client_groups or "").split(",") if group.strip()}
-		self.clients_from_depots: set[str] = {
-			forceHostId(depot.strip()) for depot in (clients_from_depots or "").split(",") if depot.strip()
-		}
-		self.ip_addresses: set[str] = {forceNetworkAddress(ip.strip()) for ip in (ip_addresses or "").split(",") if ip.strip()}
-		self.exclude_clients: set[str] = {forceHostId(client.strip()) for client in (exclude_clients or "").split(",") if client.strip()}
+		self.client_groups: set[str] = {forceGroupId(group) for group in get_separated_entries(client_groups or "") if group}
+		self.clients_from_depots: set[str] = {forceHostId(depot) for depot in get_separated_entries(clients_from_depots or "") if depot}
+		self.ip_addresses: set[str] = {forceNetworkAddress(ip) for ip in get_separated_entries(ip_addresses or "") if ip}
+		self.exclude_clients: set[str] = {forceHostId(client) for client in get_separated_entries(exclude_clients or "") if client}
 		self.exclude_client_groups: set[str] = {
-			forceGroupId(group.strip()) for group in (exclude_client_groups or "").split(",") if group.strip()
+			forceGroupId(group) for group in get_separated_entries(exclude_client_groups or "") if group
 		}
-		self.exclude_ip_addresses: set[str] = {
-			forceNetworkAddress(ip.strip()) for ip in (exclude_ip_addresses or "").split(",") if ip.strip()
-		}
+		self.exclude_ip_addresses: set[str] = {forceNetworkAddress(ip) for ip in get_separated_entries(exclude_ip_addresses or "") if ip}
 		self.where_action_request: set[str] = {
-			forceActionRequest(request.strip()) for request in (where_action_request or "").split(",") if request.strip()
+			forceActionRequest(request) or "none" for request in get_separated_entries(where_action_request or "") if request
 		}
 		self.only_online: bool = only_online
 

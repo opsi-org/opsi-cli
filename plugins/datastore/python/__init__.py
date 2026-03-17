@@ -24,7 +24,7 @@ from opsicommon.types import forceActionRequest, forceBool, forceInstallationSta
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.config import config
 from opsicli.decorators import dry_run_capable
-from opsicli.io import OutputType, console_print, get_editor, get_selected_attributes, read_input, write_output
+from opsicli.io import OutputType, console_print, get_editor, get_selected_attributes, get_separated_entries, read_input, write_output
 from opsicli.opsiservice import ServiceClient, get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.types import EditFormat, OutputFormat
@@ -44,7 +44,7 @@ def get_object_ids(
 	object_ids: str,
 	type: str = "OpsiClient",
 ) -> list[str]:
-	object_id_list = [item.strip() for item in object_ids.split(",")]
+	object_id_list = get_separated_entries(object_ids)
 	if "all" in object_id_list:
 		host_objects = service_connection.host_getObjects(id=[], type=type)  # type: ignore[attr-defined]
 		return [obj.id for obj in host_objects]
@@ -162,7 +162,7 @@ def list_config_state(object_ids: str, config_ids: str) -> None:
 	service_connection = get_service_connection()
 	# Handle different input formats (e.g. plain IDs, IDs with '*', or comma-separated strings)
 	final_object_ids = get_object_ids(service_connection, object_ids)
-	final_config_ids = None if config_ids == "all" else [item.strip() for item in config_ids.split(",")]
+	final_config_ids = None if config_ids == "all" else get_separated_entries(config_ids)
 
 	# get depot_ids from map
 	client_depot_map = create_client_depot_mapping(service_connection, final_object_ids)
@@ -390,8 +390,8 @@ def list_product_property_state(object_ids: str, product_ids: str, property_ids:
 	service_connection = get_service_connection()
 	# Handle different object_id input formats (e.g. plain IDs, IDs with '*', or comma-separated strings)
 	final_object_ids = get_object_ids(service_connection, object_ids)
-	final_product_ids = None if product_ids == "all" else [item.strip() for item in product_ids.split(",")]
-	final_property_ids = None if property_ids == "all" else [item.strip() for item in property_ids.split(",")]
+	final_product_ids = None if product_ids == "all" else get_separated_entries(product_ids)
+	final_property_ids = None if property_ids == "all" else get_separated_entries(property_ids)
 
 	# get depot_ids from map
 	client_depot_map = create_client_depot_mapping(service_connection, final_object_ids)
@@ -447,8 +447,8 @@ def product_unlock(product_ids: str | None = None, depot_ids: str | None = None)
 		service_connection.productOnDepot_updateObjects(product_on_depots)  # type: ignore[attr-defined]
 
 	service_connection = get_service_connection()
-	product_ids_list = [p.strip() for p in (product_ids or "").split(",") if p.strip()]
-	depot_ids_list = [d.strip() for d in (depot_ids or "").split(",") if d.strip()]
+	product_ids_list = get_separated_entries(product_ids)
+	depot_ids_list = get_separated_entries(depot_ids)
 	unlock_and_update(product_ids_list, depot_ids_list)
 
 
@@ -464,7 +464,7 @@ def product_purge(product_ids: str | None = None) -> None:
 	Remove metadata associated with uninstalled products, such as installation status and product property states.
 
 	"""
-	product_id_list = [p.strip() for p in (product_ids or "").split(",") if p.strip()]
+	product_id_list = get_separated_entries(product_ids)
 	get_service_connection().product_purge(id=product_id_list)  # type: ignore[attr-defined]
 	console_print("Product metadata purged successfully.", output_type=OutputType.MESSAGE)
 
@@ -538,14 +538,14 @@ def list_product_client_state(client_ids: str, product_ids: str, installation_st
 	"""
 	service_connection = get_service_connection()
 	filter_client_ids = get_object_ids(service_connection, client_ids)
-	filter_product_ids = None if product_ids == "all" else [item.strip() for item in product_ids.split(",")]
+	filter_product_ids = None if product_ids == "all" else get_separated_entries(product_ids)
 
-	tmp_list = [item.strip() for item in installation_statuses.split(",")]
+	tmp_list = get_separated_entries(installation_statuses)
 	filter_installation_statuses = (
 		["installed", "not_installed", "unknown"] if "all" in tmp_list else [forceInstallationStatus(item) for item in tmp_list]
 	)
 
-	tmp_list = [item.strip() for item in action_requests.split(",")]
+	tmp_list = get_separated_entries(action_requests)
 	filter_action_requests = (
 		["setup", "uninstall", "update", "always", "once", "custom", "none"]
 		if "all" in tmp_list
@@ -664,11 +664,11 @@ def _get_clients_from_service(client_ids: str) -> list[dict[str, str | datetime 
 	if "id" not in selected_attributes:
 		selected_attributes.insert(0, "id")
 
-	filter_client_ids = [item.strip() for item in client_ids.split(",")]
+	filter_client_ids = get_separated_entries(client_ids)
 	if "all" in filter_client_ids:
 		filter_client_ids = []
 	else:
-		filter_client_ids = [item.strip() for item in filter_client_ids]
+		filter_client_ids = get_separated_entries(",".join(filter_client_ids))
 
 	service_connection = get_service_connection()
 	clients = []
