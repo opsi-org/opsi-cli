@@ -191,7 +191,6 @@ def list_config_state(object_ids: str, config_ids: str) -> None:
 @click.argument("object-id", type=str)
 @click.argument("config-id", type=str)
 @click.option("--values", type=str, required=True, help="New value(s), separated by commas.")
-@click.option("--sep", type=str, required=False, default=",", help="Choose your custom delimiter.")
 def set_config_state_value(config_id: str, object_id: str, values: str, sep=str) -> None:
 	"""
 	This command updates an existing config-state or creates a new one if it doesn't exist.
@@ -284,7 +283,7 @@ def set_config_state_value(config_id: str, object_id: str, values: str, sep=str)
 	possible_values = config.possibleValues
 
 	object_ids = get_object_ids(service_connection, object_id)
-	value_list = [value.strip() for value in values.split(f"{sep}")]
+	value_list = [value.strip() for value in values.split(",")]
 
 	# set BoolConfig
 	if isinstance(config, BoolConfig):
