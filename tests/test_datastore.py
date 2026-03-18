@@ -447,25 +447,33 @@ def test_config_state_set_errors(admin_service_client: ServiceClient) -> None:
 		tmp_client(admin_service_client, CLIENT_ID_2),
 	):
 		# - bool config and wrong value
-		exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set"] + [BOOL_CONFIG] + [CLIENT_ID_1] + ["test"])
+		exit_code, _stdout, _stderr = run_cli(
+			["datastore", "config-state", "set"] + [CLIENT_ID_1] + [BOOL_CONFIG] + ["--values"] + ["test"]
+		)
 		assert exit_code != 0
 		assert f"'test' is not valid for {BOOL_CONFIG}." in _stderr
 		assert "Possible values are: [" in _stderr  # depending on monitor resolution output may contain line breaks
 
-		# - bool config and multiple values
-		exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set"] + [BOOL_CONFIG] + [CLIENT_ID_1] + ["test", "testing"])
+		# - bool config and multiple value
+		exit_code, _stdout, _stderr = run_cli(
+			["datastore", "config-state", "set"] + [CLIENT_ID_1] + [BOOL_CONFIG] + ["--values"] + ["test, testing"]
+		)
 		assert exit_code != 0
 		assert f"Multivalues are not valid for {BOOL_CONFIG}" in _stderr
 		assert "Possible values are: [" in _stderr  # depending on monitor resolution output may contain line breaks
 
 		# - unicode config and multiple values
-		exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set"] + [UNICODE_CONFIG_ONE] + [CLIENT_ID_1] + ["g:", "h:"])
+		exit_code, _stdout, _stderr = run_cli(
+			["datastore", "config-state", "set"] + [CLIENT_ID_1] + [UNICODE_CONFIG_ONE] + ["--values"] + ["g:, h:"]
+		)
 		assert exit_code != 0
 		assert f"Value is not valid for {UNICODE_CONFIG_ONE}." in _stderr
 		assert "Multivalues are not allowed." in _stderr
 
 		# - unicode config and wrong value
-		exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set"] + [UNICODE_CONFIG_ONE] + [CLIENT_ID_1] + ["test"])
+		exit_code, _stdout, _stderr = run_cli(
+			["datastore", "config-state", "set"] + [CLIENT_ID_1] + [UNICODE_CONFIG_ONE] + ["--values"] + ["test"]
+		)
 		assert exit_code != 0
 		assert f"Value is not valid for {UNICODE_CONFIG_ONE}." in _stderr
 		assert "Possible values are:" in _stderr
