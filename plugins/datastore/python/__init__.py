@@ -284,19 +284,19 @@ def set_config_state_value(config_id: str, object_id: str, values: str, sep=str)
 	possible_values = config.possibleValues
 
 	object_ids = get_object_ids(service_connection, object_id)
-	values = [value.strip() for value in values.split(f"{sep}")]
+	value_list = [value.strip() for value in values.split(f"{sep}")]
 
 	# set BoolConfig
 	if isinstance(config, BoolConfig):
 		if len(values) == 1:
-			set_bool_config(object_ids, config_id, values[0])
+			set_bool_config(object_ids, config_id, value_list[0])
 		else:
 			raise ValueError(
 				f"Multivalues are not valid for [yellow]{config_id}[/yellow] \nPossible values are: [green]{possible_values}[/green]"
 			)
 	# set UnicodeConfig
 	if isinstance(config, UnicodeConfig):
-		set_unicode_config(object_ids, config_id, list(values))
+		set_unicode_config(object_ids, config_id, value_list)
 
 
 # ================================================PRODUCT-PROPERTY-STATE=====================================================
