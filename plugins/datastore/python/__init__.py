@@ -288,7 +288,7 @@ def set_config_state_value(config_id: str, object_id: str, values: str, sep=str)
 
 	# set BoolConfig
 	if isinstance(config, BoolConfig):
-		if len(values) == 1:
+		if len(value_list) == 1:
 			set_bool_config(object_ids, config_id, value_list[0])
 		else:
 			raise ValueError(
