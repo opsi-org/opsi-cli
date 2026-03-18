@@ -1134,3 +1134,38 @@ def test_edit_clients(admin_service_client: ServiceClient) -> None:
 		host = admin_service_client.host_getObjects(id=[CLIENT_ID_1], type="OpsiClient")[0]  # type: ignore[attr-defined]
 		assert host.description == "after edit"
 		assert host.inventoryNumber == "after-001"
+
+
+@pytest.mark.opsi_service
+def test_set_clients(admin_service_client: ServiceClient) -> None:
+	with tmp_client(admin_service_client, CLIENT_ID_1):
+		admin_service_client.jsonrpc(
+			"host_updateObjects",
+			[[{"id": CLIENT_ID_1, "type": "OpsiClient", "description": "before edit", "inventoryNumber": "before-001"}]],
+		)
+
+		def fake_editor(cmd: list[str]) -> None:
+			edit_file = Path(cmd[-1])
+			clients = json.loads(edit_file.read_text(encoding="utf-8"))
+			clients[0]["description"] = "after edit"
+			clients[0]["inventoryNumber"] = "after-001"
+			edit_file.write_text(json.dumps(clients, indent=2), encoding="utf-8")
+
+		with patch("subprocess.run", side_effect=fake_editor):
+			exit_code, _stdout, _stderr = run_cli(
+				[
+					"datastore",
+					"client",
+					"set",
+					CLIENT_ID_1,
+					"--description",
+					"after edit",
+					"--inventoryNumber",
+					"after-001",
+				]
+			)
+
+		assert exit_code == 0
+		host = admin_service_client.host_getObjects(id=[CLIENT_ID_1], type="OpsiClient")[0]  # type: ignore[attr-defined]
+		assert host.description == "after edit"
+		assert host.inventoryNumber == "after-001"

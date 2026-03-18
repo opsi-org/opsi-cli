@@ -19,7 +19,16 @@ import rich_click as click
 from opsicommon.exceptions import BackendMissingDataError
 from opsicommon.logging import get_logger
 from opsicommon.objects import BoolConfig, ConfigState, ProductOnClient, UnicodeConfig
-from opsicommon.types import forceActionRequest, forceBool, forceInstallationStatus
+from opsicommon.types import (
+	forceActionRequest,
+	forceBool,
+	forceHardwareAddress,
+	forceInstallationStatus,
+	forceIpAddress,
+	forceOpsiHostKey,
+	forceOpsiTimestamp,
+	forceUUIDString,
+)
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.config import config
@@ -753,6 +762,94 @@ def edit_clients(client_ids: str) -> None:
 
 		config.output_file = orig_output_file
 		_update_clients(changed_clients)
+
+
+@client.command(name="set", short_help="Set client attributes.")
+@click.argument("client-ids", type=str)
+@click.option("--opsiHostKey", type=str, help="Set opsiHostKey to new value.")
+@click.option("--description", type=str, help="Set description to new value.")
+@click.option("--notes", type=str, help="Set notes to new value.")
+@click.option("--hardwareAddress", type=str, help="Set hardwareAddress to new value.")
+@click.option("--ipAddress", type=str, help="Set ipAddress to new value.")
+@click.option("--inventoryNumber", type=str, help="Set inventoryNumber to new value.")
+@click.option("--oneTimePassword", type=str, help="Set oneTimePassword to new value.")
+@click.option("--created", type=str, help="Set created to new value. Use ISO format: YYYY-MM-DDTHH:MM:SSZ")
+@click.option("--lastSeen", type=str, help="Set lastSeen to new value. Use ISO format: YYYY-MM-DDTHH:MM:SSZ")
+@click.option("--systemUUID", type=str, help="Set systemUUID to new value.")
+@dry_run_capable
+def set_clients(
+	client_ids: str,
+	opsihostkey: str | None = None,
+	description: str | None = None,
+	notes: str | None = None,
+	hardwareaddress: str | None = None,
+	ipaddress: str | None = None,
+	inventorynumber: str | None = None,
+	onetimepassword: str | None = None,
+	created: str | None = None,
+	lastseen: str | None = None,
+	systemuuid: str | None = None,
+) -> None:
+	"""
+	Set attributes for clients.
+	Only the attributes specified as options will be updated, all other attributes will remain unchanged.
+	Use --client-ids to specify the target clients by their IDs.
+	You can provide multiple client IDs as a comma-separated list or use 'all' to target all clients.
+	Wildcards (*) are supported.
+	"""
+
+	attributes = []
+	if opsihostkey is not None:
+		attributes.append("opsiHostKey")
+	if description is not None:
+		attributes.append("description")
+	if notes is not None:
+		attributes.append("notes")
+	if hardwareaddress is not None:
+		attributes.append("hardwareAddress")
+	if ipaddress is not None:
+		attributes.append("ipAddress")
+	if inventorynumber is not None:
+		attributes.append("inventoryNumber")
+	if onetimepassword is not None:
+		attributes.append("oneTimePassword")
+	if created is not None:
+		attributes.append("created")
+	if lastseen is not None:
+		attributes.append("lastSeen")
+	if systemuuid is not None:
+		attributes.append("systemUUID")
+
+	if not attributes:
+		raise ValueError("No attributes specified for update. Please provide at least one attribute to set.")
+
+	if not config.attributes:
+		config.attributes = ["id"] + attributes
+
+	clients = _get_clients_from_service(client_ids)
+	for client in clients:
+		if opsihostkey is not None:
+			client["opsiHostKey"] = forceOpsiHostKey(opsihostkey)
+		if description is not None:
+			client["description"] = description
+		if notes is not None:
+			client["notes"] = notes
+		if hardwareaddress is not None:
+			client["hardwareAddress"] = forceHardwareAddress(hardwareaddress)
+		if ipaddress is not None:
+			client["ipAddress"] = forceIpAddress(ipaddress)
+		if inventorynumber is not None:
+			client["inventoryNumber"] = inventorynumber
+		if onetimepassword is not None:
+			client["oneTimePassword"] = onetimepassword
+		if created is not None:
+			client["created"] = forceOpsiTimestamp(datetime.fromisoformat(created).astimezone(timezone.utc).replace(microsecond=0))
+		if lastseen is not None:
+			client["lastSeen"] = forceOpsiTimestamp(datetime.fromisoformat(lastseen).astimezone(timezone.utc).replace(microsecond=0))
+		if systemuuid is not None:
+			client["systemUUID"] = forceUUIDString(systemuuid)
+
+	_update_clients(clients)
 
 
 class DatastorePlugin(OPSICLIPlugin):
