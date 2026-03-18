@@ -188,10 +188,11 @@ def list_config_state(object_ids: str, config_ids: str) -> None:
 	name="set",
 	short_help="Update an existing config state or create a new one if it doesn't exist. Using 'all' as the object ID will apply the value to all objects.",
 )
-@click.argument("config-id", type=str)
 @click.argument("object-id", type=str)
-@click.argument("values", type=str, nargs=-1)
-def set_config_state_value(config_id: str, object_id: str, values: tuple[str]) -> None:
+@click.argument("config-id", type=str)
+@click.option("--values", type=str, required=True)
+@click.option("--sep", type=str, required=False, default=",")
+def set_config_state_value(config_id: str, object_id: str, values: str, sep=str) -> None:
 	"""
 	Change values of config states.
 	"""
@@ -281,6 +282,7 @@ def set_config_state_value(config_id: str, object_id: str, values: tuple[str]) -
 	possible_values = config.possibleValues
 
 	object_ids = get_object_ids(service_connection, object_id)
+	values = [value.strip() for value in values.split(f"{sep}")]
 
 	# set BoolConfig
 	if isinstance(config, BoolConfig):

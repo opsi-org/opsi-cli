@@ -398,13 +398,12 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		(UNICODE_CONFIG_ONE, CLIENT_ID_2, ["c:"], ["c:"]),
 		(UNICODE_CONFIG_ONE, "all", ["f:"], ["f:"]),  # set Unicode -> objectId='all'
 		(UNICODE_CONFIG_ONE, "all", ["g:"], ["g:"]),
-		(UNICODE_CONFIG_MULTI, CLIENT_ID_1, ["a", "b", "c"], ["a", "b", "c"]),  # set Unicode MultiValue-> create configState
-		(UNICODE_CONFIG_MULTI, CLIENT_ID_1, [], []),  # empty list for MultiValue-> create configState
-		(UNICODE_CONFIG_MULTI, CLIENT_ID_2, ["a", "b", "d"], ["a", "b", "d"]),
-		(UNICODE_CONFIG_MULTI, CLIENT_ID_1, ["d", "e", "f"], ["d", "e", "f"]),  # set Unicode MultiValue-> update configState
-		(UNICODE_CONFIG_MULTI, CLIENT_ID_2, ["d", "e", "f"], ["d", "e", "f"]),
-		(UNICODE_CONFIG_MULTI, "all", ["1", "2", "3"], ["1", "2", "3"]),  # set Unicode MultiValue-> objectId='all'
-		(UNICODE_CONFIG_MULTI, "all", ["3", "4", "5"], ["3", "4", "5"]),
+		(UNICODE_CONFIG_MULTI, CLIENT_ID_1, ["a, b, c"], ["a", "b", "c"]),  # set Unicode MultiValue-> create configState
+		(UNICODE_CONFIG_MULTI, CLIENT_ID_2, ["a, b, d"], ["a", "b", "d"]),
+		(UNICODE_CONFIG_MULTI, CLIENT_ID_1, ["d, e, f"], ["d", "e", "f"]),  # set Unicode MultiValue-> update configState
+		(UNICODE_CONFIG_MULTI, CLIENT_ID_2, ["d, e, f"], ["d", "e", "f"]),
+		(UNICODE_CONFIG_MULTI, "all", ["1, 2, 3"], ["1", "2", "3"]),  # set Unicode MultiValue-> objectId='all'
+		(UNICODE_CONFIG_MULTI, "all", ["3, 4, 5"], ["3", "4", "5"]),
 	],
 )
 @pytest.mark.opsi_service
@@ -419,7 +418,9 @@ def test_config_state_set(
 			host_objects = admin_service_client.host_getObjects(id=[], type="OpsiClient")  # type: ignore[attr-defined]
 			object_ids = [obj.id for obj in host_objects]
 			for object_id in object_ids:
-				exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set"] + [config] + [object_id] + value_in)
+				exit_code, _stdout, _stderr = run_cli(
+					["datastore", "config-state", "set"] + [object_id] + [config] + ["--values"] + value_in
+				)
 				assert exit_code == 0
 				assert admin_service_client.configState_getValues(config, [object_id])[object_id][config] == value_out  # type: ignore[attr-defined]
 		else:
@@ -429,8 +430,9 @@ def test_config_state_set(
 					"config-state",
 					"set",
 				]
-				+ [config]
 				+ [object_id]
+				+ [config]
+				+ ["--values"]
 				+ value_in
 			)
 			assert exit_code == 0
