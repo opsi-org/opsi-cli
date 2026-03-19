@@ -175,7 +175,7 @@ def combine_products(product_dict: dict, product_on_depot_dict: dict) -> list:
 
 
 @cli.command(name="list", short_help="List opsi packages")
-@click.option("--depots", help="Depot IDs (comma-separated) or 'all'", default="all")
+@click.option("--depots", help="Depot ID(s) (see --input-separator) or 'all'", default="all")
 @click.option(
 	"--product-type",
 	type=click.Choice(["localboot", "netboot"], case_sensitive=False),
@@ -516,7 +516,7 @@ def meta_edit_set_package_version(ctx: click.Context, source_dir: Path, version:
 
 @cli.command(short_help="Install opsi packages.")
 @click.argument("packages", nargs=-1, required=True, type=str, shell_complete=complete_package_path)
-@click.option("--depots", help="Depot IDs (comma-separated) or 'all'. Default is configserver.")
+@click.option("--depots", help="Depot ID(s) (see --input-separator) or 'all'. Default is configserver.")
 @click.option(
 	"--update-properties",
 	is_flag=True,

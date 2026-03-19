@@ -33,14 +33,14 @@ logger = get_logger("opsicli")
 @click.group(cls=OPSICLIGroup, name="client-action", short_help="Manage client actions")
 @click.version_option(__version__, message="opsi-cli plugin client-action, version %(version)s")
 @click.pass_context
-@click.option("--clients", help="Comma-separated list of client IDs or 'all' for all clients.")
-@click.option("--client-groups", help="Comma-separated list of client groups.")
-@click.option("--clients-from-depots", help="Select clients from specified depots (comma-separated list).")
-@click.option("--exclude-clients", help="Comma-separated list of client IDs to exclude.")
-@click.option("--exclude-client-groups", help="Comma-separated list of client groups to exclude.")
+@click.option("--clients", help="list of client IDs (see --input-separator) or 'all' for all clients.")
+@click.option("--client-groups", help="list of client groups (see --input-separator).")
+@click.option("--clients-from-depots", help="Select clients from specified depots (see --input-separator).")
+@click.option("--exclude-clients", help="list of client IDs to exclude (see --input-separator).")
+@click.option("--exclude-client-groups", help="list of client groups to exclude (see --input-separator).")
 @click.option(
 	"--where-action-request",
-	help="Limit to clients with specified actionRequests set for any product (comma-separated list).",
+	help="Limit to clients with specified actionRequests set for any product (see --input-separator).",
 )
 @click.option(
 	"--only-online",
@@ -48,10 +48,10 @@ logger = get_logger("opsicli")
 	is_flag=True,
 	default=False,
 )
-@click.option("--ip-addresses", help="Comma-separated list of IP addresses or networks.")
+@click.option("--ip-addresses", help="list of IP addresses or networks (see --input-separator).")
 @click.option(
 	"--exclude-ip-addresses",
-	help="Comma-separated list of IP addresses or networks to exclude.",
+	help="list of IP addresses or networks to exclude (see --input-separator).",
 )
 @dry_run_capable
 def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
@@ -102,19 +102,19 @@ def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 )
 @click.option(
 	"--exclude-products",
-	help="Do not set actionRequests for these products (comma-separated list).",
+	help="Do not set actionRequests for these products (see --input-separator).",
 )
 @click.option(
 	"--products",
-	help="Set actionRequests for these products (comma-separated list).",
+	help="Set actionRequests for these products (see --input-separator).",
 )
 @click.option(
 	"--product-groups",
-	help="Set actionRequests for the products of these product groups (comma-separated list).",
+	help="Set actionRequests for the products of these product groups (see --input-separator).",
 )
 @click.option(
 	"--exclude-product-groups",
-	help="Do not set actionRequests for these product groups (comma-separated list).",
+	help="Do not set actionRequests for these product groups (see --input-separator).",
 )
 @click.option(
 	"--include-netboot",
@@ -155,7 +155,7 @@ def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 )
 @click.option(
 	"--setup-on-action",
-	help="If an actionRequest has been set for a client, also set these products to setup (comma-separated list).",
+	help="If an actionRequest has been set for a client, also set these products to setup (see --input-separator).",
 )
 @click.option(
 	"--process",
@@ -339,10 +339,10 @@ def wakeup(ctx: click.Context, wakeup_timeout: float) -> None:
 
 @cli.command(name="process-actions", short_help="Process action requests for selected clients")
 @click.pass_context
-@click.option("--products", help="Product IDs to process (comma-separated).")
-@click.option("--exclude-products", help="Exclude these products (comma-separated).")
-@click.option("--product-groups", help="Product groups to process (comma-separated).")
-@click.option("--exclude-product-groups", help="Exclude these product groups (comma-separated).")
+@click.option("--products", help="Product IDs to process (see --input-separator).")
+@click.option("--exclude-products", help="Exclude these products (see --input-separator).")
+@click.option("--product-groups", help="Product groups to process (see --input-separator).")
+@click.option("--exclude-product-groups", help="Exclude these product groups (see --input-separator).")
 @click.option(
 	"--process-visibility",
 	type=click.Choice(["visible", "hidden"], case_sensitive=False),

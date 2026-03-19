@@ -435,13 +435,13 @@ def product() -> None:
 	"--product-ids",
 	type=str,
 	default=None,
-	help="Specify the product ID(s) to unlock, using a comma-separated list for multiple entries.",
+	help="Specify the product ID(s) to unlock (see --input-separator).",
 )
 @click.option(
 	"--depot-ids",
 	type=str,
 	default=None,
-	help="Specify the target depot ID(s) for product unlocking, using a comma-separated list for multiple entries.",
+	help="Specify the target depot ID(s) for product unlocking (see --input-separator).",
 )
 def product_unlock(product_ids: str | None = None, depot_ids: str | None = None) -> None:
 	"""
@@ -469,7 +469,7 @@ def product_unlock(product_ids: str | None = None, depot_ids: str | None = None)
 	"--product-ids",
 	type=str,
 	default=None,
-	help="Specify the product ID(s) to unlock, using a comma-separated list for multiple entries.",
+	help="Specify the product ID(s) to unlock (see --input-separator).",
 )
 def product_purge(product_ids: str | None = None) -> None:
 	"""
@@ -797,7 +797,7 @@ def set_clients(
 	Set attributes for clients.
 	Only the attributes specified as options will be updated, all other attributes will remain unchanged.
 	Use --client-ids to specify the target clients by their IDs.
-	You can provide multiple client IDs as a comma-separated list or use 'all' to target all clients.
+	You can provide multiple client IDs as a list (see --input-separator) or use 'all' to target all clients.
 	Wildcards (*) are supported.
 	"""
 
