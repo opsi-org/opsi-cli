@@ -195,14 +195,16 @@ def list_config_state(object_ids: str, config_ids: str) -> None:
 # ========================================================CONFIG-STATE SET========================================================
 @config_state.command(
 	name="set",
-	short_help="Update an existing config state or create a new one if it doesn't exist. Using 'all' as the object ID will apply the value to all objects.",
+	short_help="Change the value(s) of a config-state for one or multiple clients.",
 )
-@click.argument("config-id", type=str)
 @click.argument("object-id", type=str)
-@click.argument("values", type=str, nargs=-1)
-def set_config_state_value(config_id: str, object_id: str, values: tuple[str]) -> None:
+@click.argument("config-id", type=str)
+@click.option("--values", type=str, required=True, help="New value(s), separated by commas.")
+def set_config_state_value(config_id: str, object_id: str, values: str, sep=str) -> None:
 	"""
-	Change values of config states.
+	This command updates an existing config-state or creates a new one if it doesn't exist.
+	For object ID use commas as separators and 'all' to include all IDs. Wildcards (*) are supported."
+
 	"""
 
 	def set_bool_config(object_ids: list[str], config_id: str, value: str) -> None:
@@ -290,18 +292,19 @@ def set_config_state_value(config_id: str, object_id: str, values: tuple[str]) -
 	possible_values = config.possibleValues
 
 	object_ids = get_object_ids(service_connection, object_id)
+	value_list = [value.strip() for value in values.split(",")]
 
 	# set BoolConfig
 	if isinstance(config, BoolConfig):
-		if len(values) == 1:
-			set_bool_config(object_ids, config_id, values[0])
+		if len(value_list) == 1:
+			set_bool_config(object_ids, config_id, value_list[0])
 		else:
 			raise ValueError(
 				f"Multivalues are not valid for [yellow]{config_id}[/yellow] \nPossible values are: [green]{possible_values}[/green]"
 			)
 	# set UnicodeConfig
 	if isinstance(config, UnicodeConfig):
-		set_unicode_config(object_ids, config_id, list(values))
+		set_unicode_config(object_ids, config_id, value_list)
 
 
 # ================================================PRODUCT-PROPERTY-STATE=====================================================
