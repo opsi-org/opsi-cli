@@ -99,7 +99,9 @@ class EditFormat(ConfigStrEnum):
 class Attributes(list):
 	def __init__(self, value: list | str) -> None:
 		if isinstance(value, str):
-			value = [v.strip() for v in value.split(",") if v.strip()]
+			from opsicli.io import get_separated_entries  # Avoid circular import
+
+			value = get_separated_entries(value)
 		super().__init__(value)
 
 

@@ -20,7 +20,7 @@ from opsicommon.utils import timestamp
 from rich.text import Text
 
 from opsicli.config import config
-from opsicli.io import COLORS, OutputType, console_print, write_output
+from opsicli.io import COLORS, OutputType, console_print, get_separated_entries, write_output
 
 from .client_action_worker import ClientActionArgs, ClientActionWorker
 from .metadata import command_metadata
@@ -140,24 +140,24 @@ class SetActionRequestWorker(ClientActionWorker):
 
 		products: list[str] = []
 		if products_string:
-			products = [entry.strip() for entry in products_string.split(",")]
+			products = get_separated_entries(products_string)
 			for product in products:
 				if product in exclude_products:
 					logger.debug("Removing default excluded product %r from exclude list", product)
 					exclude_products.remove(product)
 
 		if product_groups_string:
-			for group in [entry.strip() for entry in product_groups_string.split(",")]:
+			for group in get_separated_entries(product_groups_string):
 				products.extend(self.product_ids_from_group(group))
 
 		if products_string or product_groups_string:
 			logger.info("Limiting handled products to %s", products)
 
 		if exclude_products_string:
-			exclude_products.extend([entry.strip() for entry in exclude_products_string.split(",")])
+			exclude_products.extend(get_separated_entries(exclude_products_string))
 
 		if exclude_product_groups_string:
-			for group in [entry.strip() for entry in exclude_product_groups_string.split(",")]:
+			for group in get_separated_entries(exclude_product_groups_string):
 				exclude_products.extend(self.product_ids_from_group(group))
 
 		logger.info("List of excluded products: %s", exclude_products)
@@ -346,7 +346,7 @@ class SetActionRequestWorker(ClientActionWorker):
 
 			modified_clients = list(new_pocs)
 			if args.setup_on_action and modified_clients:
-				setup_on_action_products = [entry.strip() for entry in args.setup_on_action.split(",")]
+				setup_on_action_products = get_separated_entries(args.setup_on_action)
 				logger.notice("Setting setup for all modified clients and products: %s", setup_on_action_products)
 				for add_poc in self.set_action_requests_for_all(
 					modified_clients, setup_on_action_products, action_request="setup", force=True

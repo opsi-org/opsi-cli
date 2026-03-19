@@ -26,6 +26,7 @@ from opsicli.io import (
 	console_print,
 	deprecation_warning,
 	get_console,
+	get_separated_entries,
 	input_file_bin,
 	input_file_str,
 	list_attributes,
@@ -405,3 +406,27 @@ def test_write_output_table() -> None:
 			assert lines[-2].startswith("╰")
 	diff = time.perf_counter() - start
 	print(diff / 10)
+
+
+def test_get_separated_entries() -> None:
+	assert get_separated_entries("1, 2, 3") == ["1", "2", "3"]
+	assert get_separated_entries("    1,2   ,     3    ") == ["1", "2", "3"]
+	old_separator = config.get_values().get("input_separator")
+	try:
+		config.set_values({"input_separator": ";"})
+		assert get_separated_entries("1; 2; 3") == ["1", "2", "3"]
+	finally:
+		config.set_values({"input_separator": old_separator})
+
+
+@pytest.mark.opsi_service
+@pytest.mark.parametrize("input_separator", (None, " ", ",", ";", "|", ":", "#", "/"))
+def test_input_separator(input_separator: str) -> None:
+	effective_input_separator = input_separator if input_separator is not None else config.get_values().get("input_separator")
+	client_list = f"client1.test.local{effective_input_separator}client2.test.local{effective_input_separator}client3.test.local"
+	args = ["--dry-run", "client-action", "--clients", client_list, "set-action-request"]
+	if input_separator is not None:
+		args = ["--input-separator", input_separator] + args
+	_, stdout, stderr = run_cli(args)
+	for client in ("client1.test.local", "client2.test.local", "client3.test.local"):
+		assert f"'{client}'" in stderr
