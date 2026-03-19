@@ -419,6 +419,7 @@ def test_get_separated_entries() -> None:
 		config.set_values({"input_separator": old_separator})
 
 
+@pytest.mark.opsi_service
 @pytest.mark.parametrize("input_separator", (None, " ", ",", ";", "|", ":", "#", "/"))
 def test_input_separator(input_separator: str) -> None:
 	effective_input_separator = input_separator if input_separator is not None else config.get_values().get("input_separator")
