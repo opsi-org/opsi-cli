@@ -398,13 +398,12 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		(UNICODE_CONFIG_ONE, CLIENT_ID_2, ["c:"], ["c:"]),
 		(UNICODE_CONFIG_ONE, "all", ["f:"], ["f:"]),  # set Unicode -> objectId='all'
 		(UNICODE_CONFIG_ONE, "all", ["g:"], ["g:"]),
-		(UNICODE_CONFIG_MULTI, CLIENT_ID_1, ["a", "b", "c"], ["a", "b", "c"]),  # set Unicode MultiValue-> create configState
-		(UNICODE_CONFIG_MULTI, CLIENT_ID_1, [], []),  # empty list for MultiValue-> create configState
-		(UNICODE_CONFIG_MULTI, CLIENT_ID_2, ["a", "b", "d"], ["a", "b", "d"]),
-		(UNICODE_CONFIG_MULTI, CLIENT_ID_1, ["d", "e", "f"], ["d", "e", "f"]),  # set Unicode MultiValue-> update configState
-		(UNICODE_CONFIG_MULTI, CLIENT_ID_2, ["d", "e", "f"], ["d", "e", "f"]),
-		(UNICODE_CONFIG_MULTI, "all", ["1", "2", "3"], ["1", "2", "3"]),  # set Unicode MultiValue-> objectId='all'
-		(UNICODE_CONFIG_MULTI, "all", ["3", "4", "5"], ["3", "4", "5"]),
+		(UNICODE_CONFIG_MULTI, CLIENT_ID_1, ["a, b, c"], ["a", "b", "c"]),  # set Unicode MultiValue-> create configState
+		(UNICODE_CONFIG_MULTI, CLIENT_ID_2, ["a, b, d"], ["a", "b", "d"]),
+		(UNICODE_CONFIG_MULTI, CLIENT_ID_1, ["d, e, f"], ["d", "e", "f"]),  # set Unicode MultiValue-> update configState
+		(UNICODE_CONFIG_MULTI, CLIENT_ID_2, ["d, e, f"], ["d", "e", "f"]),
+		(UNICODE_CONFIG_MULTI, "all", ["1, 2, 3"], ["1", "2", "3"]),  # set Unicode MultiValue-> objectId='all'
+		(UNICODE_CONFIG_MULTI, "all", ["3, 4, 5"], ["3", "4", "5"]),
 	],
 )
 @pytest.mark.opsi_service
@@ -419,7 +418,9 @@ def test_config_state_set(
 			host_objects = admin_service_client.host_getObjects(id=[], type="OpsiClient")  # type: ignore[attr-defined]
 			object_ids = [obj.id for obj in host_objects]
 			for object_id in object_ids:
-				exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set"] + [config] + [object_id] + value_in)
+				exit_code, _stdout, _stderr = run_cli(
+					["datastore", "config-state", "set"] + [object_id] + [config] + ["--values"] + value_in
+				)
 				assert exit_code == 0
 				assert admin_service_client.configState_getValues(config, [object_id])[object_id][config] == value_out  # type: ignore[attr-defined]
 		else:
@@ -429,8 +430,9 @@ def test_config_state_set(
 					"config-state",
 					"set",
 				]
-				+ [config]
 				+ [object_id]
+				+ [config]
+				+ ["--values"]
 				+ value_in
 			)
 			assert exit_code == 0
@@ -445,25 +447,33 @@ def test_config_state_set_errors(admin_service_client: ServiceClient) -> None:
 		tmp_client(admin_service_client, CLIENT_ID_2),
 	):
 		# - bool config and wrong value
-		exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set"] + [BOOL_CONFIG] + [CLIENT_ID_1] + ["test"])
+		exit_code, _stdout, _stderr = run_cli(
+			["datastore", "config-state", "set"] + [CLIENT_ID_1] + [BOOL_CONFIG] + ["--values"] + ["test"]
+		)
 		assert exit_code != 0
 		assert f"'test' is not valid for {BOOL_CONFIG}." in _stderr
 		assert "Possible values are: [" in _stderr  # depending on monitor resolution output may contain line breaks
 
-		# - bool config and multiple values
-		exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set"] + [BOOL_CONFIG] + [CLIENT_ID_1] + ["test", "testing"])
+		# - bool config and multiple value
+		exit_code, _stdout, _stderr = run_cli(
+			["datastore", "config-state", "set"] + [CLIENT_ID_1] + [BOOL_CONFIG] + ["--values"] + ["test, testing"]
+		)
 		assert exit_code != 0
 		assert f"Multivalues are not valid for {BOOL_CONFIG}" in _stderr
 		assert "Possible values are: [" in _stderr  # depending on monitor resolution output may contain line breaks
 
 		# - unicode config and multiple values
-		exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set"] + [UNICODE_CONFIG_ONE] + [CLIENT_ID_1] + ["g:", "h:"])
+		exit_code, _stdout, _stderr = run_cli(
+			["datastore", "config-state", "set"] + [CLIENT_ID_1] + [UNICODE_CONFIG_ONE] + ["--values"] + ["g:, h:"]
+		)
 		assert exit_code != 0
 		assert f"Value is not valid for {UNICODE_CONFIG_ONE}." in _stderr
 		assert "Multivalues are not allowed." in _stderr
 
 		# - unicode config and wrong value
-		exit_code, _stdout, _stderr = run_cli(["datastore", "config-state", "set"] + [UNICODE_CONFIG_ONE] + [CLIENT_ID_1] + ["test"])
+		exit_code, _stdout, _stderr = run_cli(
+			["datastore", "config-state", "set"] + [CLIENT_ID_1] + [UNICODE_CONFIG_ONE] + ["--values"] + ["test"]
+		)
 		assert exit_code != 0
 		assert f"Value is not valid for {UNICODE_CONFIG_ONE}." in _stderr
 		assert "Possible values are:" in _stderr
@@ -1127,6 +1137,41 @@ def test_edit_clients(admin_service_client: ServiceClient) -> None:
 					"edit",
 					"--client-ids",
 					CLIENT_ID_1,
+				]
+			)
+
+		assert exit_code == 0
+		host = admin_service_client.host_getObjects(id=[CLIENT_ID_1], type="OpsiClient")[0]  # type: ignore[attr-defined]
+		assert host.description == "after edit"
+		assert host.inventoryNumber == "after-001"
+
+
+@pytest.mark.opsi_service
+def test_set_clients(admin_service_client: ServiceClient) -> None:
+	with tmp_client(admin_service_client, CLIENT_ID_1):
+		admin_service_client.jsonrpc(
+			"host_updateObjects",
+			[[{"id": CLIENT_ID_1, "type": "OpsiClient", "description": "before edit", "inventoryNumber": "before-001"}]],
+		)
+
+		def fake_editor(cmd: list[str]) -> None:
+			edit_file = Path(cmd[-1])
+			clients = json.loads(edit_file.read_text(encoding="utf-8"))
+			clients[0]["description"] = "after edit"
+			clients[0]["inventoryNumber"] = "after-001"
+			edit_file.write_text(json.dumps(clients, indent=2), encoding="utf-8")
+
+		with patch("subprocess.run", side_effect=fake_editor):
+			exit_code, _stdout, _stderr = run_cli(
+				[
+					"datastore",
+					"client",
+					"set",
+					CLIENT_ID_1,
+					"--description",
+					"after edit",
+					"--inventoryNumber",
+					"after-001",
 				]
 			)
 

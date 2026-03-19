@@ -19,7 +19,16 @@ import rich_click as click
 from opsicommon.exceptions import BackendMissingDataError
 from opsicommon.logging import get_logger
 from opsicommon.objects import BoolConfig, ConfigState, ProductOnClient, UnicodeConfig
-from opsicommon.types import forceActionRequest, forceBool, forceInstallationStatus
+from opsicommon.types import (
+	forceActionRequest,
+	forceBool,
+	forceHardwareAddress,
+	forceInstallationStatus,
+	forceIpAddress,
+	forceOpsiHostKey,
+	forceOpsiTimestamp,
+	forceUUIDString,
+)
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.config import config
@@ -186,14 +195,16 @@ def list_config_state(object_ids: str, config_ids: str) -> None:
 # ========================================================CONFIG-STATE SET========================================================
 @config_state.command(
 	name="set",
-	short_help="Update an existing config state or create a new one if it doesn't exist. Using 'all' as the object ID will apply the value to all objects.",
+	short_help="Change the value(s) of a config-state for one or multiple clients.",
 )
-@click.argument("config-id", type=str)
 @click.argument("object-id", type=str)
-@click.argument("values", type=str, nargs=-1)
-def set_config_state_value(config_id: str, object_id: str, values: tuple[str]) -> None:
+@click.argument("config-id", type=str)
+@click.option("--values", type=str, required=True, help="New value(s), separated by commas.")
+def set_config_state_value(config_id: str, object_id: str, values: str, sep=str) -> None:
 	"""
-	Change values of config states.
+	This command updates an existing config-state or creates a new one if it doesn't exist.
+	For object ID use commas as separators and 'all' to include all IDs. Wildcards (*) are supported."
+
 	"""
 
 	def set_bool_config(object_ids: list[str], config_id: str, value: str) -> None:
@@ -281,18 +292,19 @@ def set_config_state_value(config_id: str, object_id: str, values: tuple[str]) -
 	possible_values = config.possibleValues
 
 	object_ids = get_object_ids(service_connection, object_id)
+	value_list = [value.strip() for value in values.split(",")]
 
 	# set BoolConfig
 	if isinstance(config, BoolConfig):
-		if len(values) == 1:
-			set_bool_config(object_ids, config_id, values[0])
+		if len(value_list) == 1:
+			set_bool_config(object_ids, config_id, value_list[0])
 		else:
 			raise ValueError(
 				f"Multivalues are not valid for [yellow]{config_id}[/yellow] \nPossible values are: [green]{possible_values}[/green]"
 			)
 	# set UnicodeConfig
 	if isinstance(config, UnicodeConfig):
-		set_unicode_config(object_ids, config_id, list(values))
+		set_unicode_config(object_ids, config_id, value_list)
 
 
 # ================================================PRODUCT-PROPERTY-STATE=====================================================
@@ -753,6 +765,94 @@ def edit_clients(client_ids: str) -> None:
 
 		config.output_file = orig_output_file
 		_update_clients(changed_clients)
+
+
+@client.command(name="set", short_help="Set client attributes.")
+@click.argument("client-ids", type=str)
+@click.option("--opsiHostKey", type=str, help="Set opsiHostKey to new value.")
+@click.option("--description", type=str, help="Set description to new value.")
+@click.option("--notes", type=str, help="Set notes to new value.")
+@click.option("--hardwareAddress", type=str, help="Set hardwareAddress to new value.")
+@click.option("--ipAddress", type=str, help="Set ipAddress to new value.")
+@click.option("--inventoryNumber", type=str, help="Set inventoryNumber to new value.")
+@click.option("--oneTimePassword", type=str, help="Set oneTimePassword to new value.")
+@click.option("--created", type=str, help="Set created to new value. Use ISO format: YYYY-MM-DDTHH:MM:SSZ")
+@click.option("--lastSeen", type=str, help="Set lastSeen to new value. Use ISO format: YYYY-MM-DDTHH:MM:SSZ")
+@click.option("--systemUUID", type=str, help="Set systemUUID to new value.")
+@dry_run_capable
+def set_clients(
+	client_ids: str,
+	opsihostkey: str | None = None,
+	description: str | None = None,
+	notes: str | None = None,
+	hardwareaddress: str | None = None,
+	ipaddress: str | None = None,
+	inventorynumber: str | None = None,
+	onetimepassword: str | None = None,
+	created: str | None = None,
+	lastseen: str | None = None,
+	systemuuid: str | None = None,
+) -> None:
+	"""
+	Set attributes for clients.
+	Only the attributes specified as options will be updated, all other attributes will remain unchanged.
+	Use --client-ids to specify the target clients by their IDs.
+	You can provide multiple client IDs as a comma-separated list or use 'all' to target all clients.
+	Wildcards (*) are supported.
+	"""
+
+	attributes = []
+	if opsihostkey is not None:
+		attributes.append("opsiHostKey")
+	if description is not None:
+		attributes.append("description")
+	if notes is not None:
+		attributes.append("notes")
+	if hardwareaddress is not None:
+		attributes.append("hardwareAddress")
+	if ipaddress is not None:
+		attributes.append("ipAddress")
+	if inventorynumber is not None:
+		attributes.append("inventoryNumber")
+	if onetimepassword is not None:
+		attributes.append("oneTimePassword")
+	if created is not None:
+		attributes.append("created")
+	if lastseen is not None:
+		attributes.append("lastSeen")
+	if systemuuid is not None:
+		attributes.append("systemUUID")
+
+	if not attributes:
+		raise ValueError("No attributes specified for update. Please provide at least one attribute to set.")
+
+	if not config.attributes:
+		config.attributes = ["id"] + attributes
+
+	clients = _get_clients_from_service(client_ids)
+	for client in clients:
+		if opsihostkey is not None:
+			client["opsiHostKey"] = forceOpsiHostKey(opsihostkey)
+		if description is not None:
+			client["description"] = description
+		if notes is not None:
+			client["notes"] = notes
+		if hardwareaddress is not None:
+			client["hardwareAddress"] = forceHardwareAddress(hardwareaddress)
+		if ipaddress is not None:
+			client["ipAddress"] = forceIpAddress(ipaddress)
+		if inventorynumber is not None:
+			client["inventoryNumber"] = inventorynumber
+		if onetimepassword is not None:
+			client["oneTimePassword"] = onetimepassword
+		if created is not None:
+			client["created"] = forceOpsiTimestamp(datetime.fromisoformat(created).astimezone(timezone.utc).replace(microsecond=0))
+		if lastseen is not None:
+			client["lastSeen"] = forceOpsiTimestamp(datetime.fromisoformat(lastseen).astimezone(timezone.utc).replace(microsecond=0))
+		if systemuuid is not None:
+			client["systemUUID"] = forceUUIDString(systemuuid)
+
+	_update_clients(clients)
 
 
 class DatastorePlugin(OPSICLIPlugin):
