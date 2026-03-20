@@ -351,7 +351,9 @@ def test_edit_clients(admin_service_client: ServiceClient, dry_run: bool) -> Non
 			edit_file.write_text(json.dumps(clients, indent=2), encoding="utf-8")
 
 		with patch("subprocess.run", side_effect=fake_editor):
-			exit_code, _stdout, _stderr = run_cli((["--dry-run"] if dry_run else []) + ["datastore", "client", "edit", "--where", "all"])
+			exit_code, _stdout, _stderr = run_cli(
+				(["--dry-run"] if dry_run else []) + ["--interactive", "datastore", "client", "edit", "--where", "all"]
+			)
 
 		assert exit_code == 0
 		hosts = admin_service_client.host_getObjects(id=[c.id for c in TEST_CLIENTS], type="OpsiClient")  # type: ignore[attr-defined]
