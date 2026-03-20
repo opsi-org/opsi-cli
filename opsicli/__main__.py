@@ -1,5 +1,5 @@
 # opsi-cli is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -186,6 +186,7 @@ def quiet_print(*args: Any, **kwargs: Any) -> None:
 @config.get_click_option("editor")
 @config.get_click_option("metadata", long_option="--metadata/--no-metadata")
 @config.get_click_option("header", long_option="--header/--no-header")
+@config.get_click_option("timezone", help=f"{config.get_description('timezone')}")
 @config.get_click_option("attributes", show_default=False, help=f"{config.get_description('attributes')}. Comma separated list.")
 @config.get_click_option(
 	"list_attributes",

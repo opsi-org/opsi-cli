@@ -1,5 +1,5 @@
 # opsi-cli is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -80,7 +80,10 @@ class PluginImporter(BuiltinImporter):
 	def find_spec(cls, fullname: str, path: None = None, target: None = None) -> ModuleSpec | None:  # type: ignore[override]
 		if not fullname.startswith("opsicli.addon"):
 			return None
-		plugin_path = bytes.fromhex(fullname.split("_", 1)[1]).decode("utf-8")
+		encoded = fullname.split("_", 1)[1]
+		if "." in encoded:
+			return None
+		plugin_path = bytes.fromhex(encoded).decode("utf-8")
 		init_path = os.path.join(plugin_path, "python", "__init__.py")
 		logger.debug("Searching spec for %s", init_path)
 		if not os.path.exists(init_path):
@@ -129,16 +132,6 @@ class PluginManager(metaclass=Singleton):
 			sys.path.insert(0, str(config.python_lib_dir / plugin_dir.name))
 		logger.debug("Extracting plugin object from '%s'", plugin_dir)
 		logger.debug("sys.path = %s", sys.path)
-		module_name = self.module_name(plugin_dir)
-		if module_name in sys.modules:
-			reload = []
-			for sys_module in list(sys.modules):
-				if sys_module.startswith(module_name):
-					reload.append(sys_module)
-			reload.sort(reverse=True)
-			for sys_module in reload:
-				importlib.reload(sys.modules[sys_module])
-			return sys.modules[module_name]
 		return importlib.import_module(self.module_name(plugin_dir))
 
 	def get_plugin_dir(self, name: str) -> Path:

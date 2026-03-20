@@ -1,5 +1,5 @@
 # opsi-cli is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -24,7 +24,7 @@ from opsicli.io import OutputType, console_print, get_editor, prompt, write_outp
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.types import OPSIService, Password
 
-from .metadata import command_metadata
+from .metadata import COMMAND_METADATA
 
 __version__ = "0.1.0"
 
@@ -48,7 +48,7 @@ def config_list() -> None:
 	"""
 	opsi-cli config list subcommand.
 	"""
-	metadata = command_metadata.get("config_list")
+	metadata = COMMAND_METADATA.get("config_list")
 
 	data = []
 	for item in sorted(config.get_config_items(), key=lambda x: x.name):
@@ -71,7 +71,7 @@ def config_show(name: str) -> None:
 	"""
 	opsi-cli config show subcommand.
 	"""
-	metadata = command_metadata.get("config_show")
+	metadata = COMMAND_METADATA.get("config_show")
 
 	data = []
 	item = config.get_config_item(name).as_dict()
@@ -137,7 +137,7 @@ def service_list() -> None:
 	"""
 	opsi-cli config service list subcommand.
 	"""
-	metadata = command_metadata.get("config_service_list")
+	metadata = COMMAND_METADATA.get("config_service_list")
 	default_service = config.get_config_item("service").get_value()
 
 	data = []

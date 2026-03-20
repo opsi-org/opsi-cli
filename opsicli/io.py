@@ -1,5 +1,5 @@
 # opsi-cli is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -13,16 +13,18 @@ import csv
 import inspect
 import io
 import os
+import re
 import shlex
 import shutil
 import sys
+import zoneinfo
 from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import asdict, dataclass, field, is_dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone, tzinfo
 from enum import StrEnum
 from io import BytesIO, StringIO
-from typing import IO, Any, Generator, Iterator, Literal, Type
+from typing import IO, Any, Callable, Generator, Iterable, Iterator, Literal, Type
 
 import msgpack
 import orjson
@@ -85,6 +87,7 @@ class Attribute:
 	data_type: str | None = None
 	column_style: str | None = None
 	value_style: dict[str, str] | None = None
+	validator: Callable[[Any], Any] | None = None
 
 	def as_dict(self) -> dict[str, str | bool]:
 		return asdict(self)
@@ -96,6 +99,27 @@ class Metadata:
 
 	def as_dict(self) -> dict[str, Any]:
 		return asdict(self)
+
+
+def get_selected_timezone() -> tzinfo | None:
+	if not config.timezone:
+		return None
+	try:
+		return zoneinfo.ZoneInfo(config.timezone)
+	except Exception as exc:
+		match = re.match(r"^([+-])(\d{2}):(\d{2})$", config.timezone)
+		if not match:
+			raise ValueError(f"Invalid timezone: '{config.timezone}'") from exc
+
+		hours = int(match.group(2))
+		minutes = int(match.group(3))
+		if hours > 23 or minutes > 59:
+			raise ValueError(f"Invalid timezone: '{config.timezone}'") from exc
+
+		offset = timedelta(hours=hours, minutes=minutes)
+		if match.group(1) == "-":
+			offset = -offset
+		return timezone(offset, name=config.timezone)
 
 
 def get_attributes(data: list[dict[str, Any]], all_elements: bool = True) -> list[str]:
@@ -307,7 +331,7 @@ def to_string(
 			value = "1" if value else "0"
 	elif isinstance(value, datetime):
 		# Return converted to local timezone as ISO formatted datetime string
-		value = value.astimezone().isoformat()
+		value = value.astimezone(tz=get_selected_timezone()).isoformat()
 	elif isinstance(value, (list, tuple)):
 		sep = "," if list_format == "comma_separated" else ", "
 		val = sep.join(
@@ -328,15 +352,58 @@ def to_string(
 	return value
 
 
-def get_selected_attributes(metadata: Metadata | None = None) -> list[str]:
-	if not metadata:
-		return config.attributes or []
+def get_selected_attributes(
+	*,
+	attributes: list[Attribute] | None = None,
+	fallback_attributes: Iterable[str] | None = None,
+	add_identifier: bool = False,
+	add_attributes: Iterable[str] | None = None,
+	update_selected: bool = False,
+) -> list[str]:
+	"""
+	Get the selected attributes based on the config and metadata.
+	:param attributes: The list of available attributes from metadata.
+	:param fallback_attributes: The list of attributes to use if no attributes are selected in the config.
+	:param add_identifier: If True, add the identifier attributes to the selected attributes.
+	:param add_attributes: The list of attributes to add to the selected attributes.
+	:param update_selected: If True, update the selected state of the attributes in the config.
+	"""
+	selected_attributes: list[str] = []
+	available_attributes = [attr.id for attr in attributes] if attributes else []
+	available_attributes_set = set(available_attributes)
 
-	if not config.attributes or "all" in config.attributes:
-		return [attr.id for attr in metadata.attributes if attr.selected]
+	def add_attribute(attribute: str) -> None:
+		if attribute not in selected_attributes:
+			selected_attributes.append(attribute)
 
-	available_attributes = [attr.id for attr in metadata.attributes]
-	return [attr for attr in config.attributes if attr in available_attributes]
+	if config.attributes:
+		for attr in config.attributes:
+			if attr == "all":
+				for available_attribute in available_attributes:
+					add_attribute(available_attribute)
+			else:
+				if not available_attributes_set or attr in available_attributes_set:
+					add_attribute(attr)
+	elif fallback_attributes:
+		for attr in fallback_attributes:
+			if not available_attributes_set or attr in available_attributes_set:
+				add_attribute(attr)
+	elif attributes:
+		selected_attributes = [attribute.id for attribute in attributes if attribute.selected]
+
+	if add_identifier and attributes:
+		for attr in attributes:
+			if attr.identifier:
+				add_attribute(attr.id)
+
+	for attr in add_attributes or []:
+		if not available_attributes_set or attr in available_attributes_set:
+			add_attribute(attr)
+
+	if update_selected:
+		config.attributes = selected_attributes
+
+	return selected_attributes
 
 
 def write_output_table(data: Any, metadata: Metadata, value_styles: dict[str, str] | None = None) -> None:

@@ -1,5 +1,5 @@
 # opsi-cli is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Generator, Sequence
 
 from click.testing import CliRunner
-from opsicommon.objects import LocalbootProduct, Product, ProductOnDepot
+from opsicommon.objects import LocalbootProduct, OpsiClient, Product, ProductOnDepot
 
 from opsicli.__main__ import main
 from opsicli.config import config
@@ -51,6 +51,15 @@ def tmp_client(service: ServiceClient, name: str, key: str = "") -> Generator[No
 		yield
 	finally:
 		service.jsonrpc("host_delete", params=[name])
+
+
+@contextmanager
+def tmp_clients(service: ServiceClient, clients: list[OpsiClient]) -> Generator[None, None, None]:
+	try:
+		service.jsonrpc("host_createObjects", params=[clients])
+		yield
+	finally:
+		service.jsonrpc("host_deleteObjects", params=[clients])
 
 
 @contextmanager

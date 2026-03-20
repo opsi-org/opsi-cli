@@ -1,5 +1,5 @@
 # opsi-cli is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -27,7 +27,7 @@ from opsicli.plugin import OPSICLIPlugin
 from opsicli.types import OutputFormat
 from opsicli.utils import ProgressCallbackAdapter, create_nested_dict
 
-from .metadata import command_metadata
+from .metadata import COMMAND_METADATA
 from .package_helpers import (
 	check_locked_products,
 	cleanup_packages_from_repo,
@@ -212,7 +212,7 @@ def package_list(depots: str, product_type: str, product_ids: list[str]) -> None
 	product_on_depot_dict = create_nested_dict(product_on_depot_list, ["depotId", "productId"])
 
 	combined_products = combine_products(product_dict, product_on_depot_dict)
-	metadata = command_metadata.get("package_list")
+	metadata = COMMAND_METADATA.get("package_list")
 	write_output(combined_products, metadata=metadata, default_output_format=OutputFormat.TABLE)
 
 
@@ -266,7 +266,7 @@ def info(packages: list[str]) -> None:
 
 	write_output(
 		data=data,
-		metadata=command_metadata.get("info"),
+		metadata=COMMAND_METADATA.get("info"),
 		default_output_format=OutputFormat.KEY_VALUE,
 	)
 

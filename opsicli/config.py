@@ -1,5 +1,5 @@
 # opsi-cli is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -348,6 +348,13 @@ CONFIG_ITEMS = [
 		group="IO",
 		default=None,
 		description="Sort the output data by the specified attribute(s).",
+	),
+	ConfigItem(
+		name="timezone",
+		type=str,
+		group="IO",
+		default=None,
+		description="Set the timezone for date and time output. If not set, the local timezone is used.",
 	),
 	ConfigItem(
 		name="service",

@@ -1,5 +1,5 @@
 # opsi-cli is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -23,7 +23,7 @@ from opsicli.config import config
 from opsicli.io import COLORS, OutputType, console_print, write_output
 
 from .client_action_worker import ClientActionArgs, ClientActionWorker
-from .metadata import command_metadata
+from .metadata import COMMAND_METADATA
 
 STATIC_EXCLUDE_PRODUCTS = [
 	"opsi-winst",
@@ -420,7 +420,7 @@ class SetActionRequestWorker(ClientActionWorker):
 				}
 				for poc in update_pocs
 			],
-			metadata=command_metadata["client-action_set-action-request"],
+			metadata=COMMAND_METADATA["client-action_set-action-request"],
 		)
 
 	def process_actions(self, args: SetActionRequestArgs) -> None:

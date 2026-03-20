@@ -1,5 +1,5 @@
 # opsi-cli is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -11,7 +11,7 @@ This module contains the metadata for the package plugin. The metadata includes 
 
 from opsicli.io import Attribute, Metadata
 
-command_metadata = {
+COMMAND_METADATA = {
 	"package_list": Metadata(
 		attributes=[
 			Attribute(id="depot_id", description="Depot ID", data_type="str"),

@@ -1,5 +1,5 @@
 # opsi-cli is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -9,6 +9,7 @@ test_config
 
 import sys
 import time
+from datetime import datetime, timedelta, timezone
 from io import BufferedReader, BytesIO, StringIO, TextIOWrapper
 from pathlib import Path
 from typing import Any
@@ -26,6 +27,8 @@ from opsicli.io import (
 	console_print,
 	deprecation_warning,
 	get_console,
+	get_selected_attributes,
+	get_selected_timezone,
 	input_file_bin,
 	input_file_str,
 	list_attributes,
@@ -35,6 +38,7 @@ from opsicli.io import (
 	read_input,
 	read_input_raw_bin,
 	read_input_raw_str,
+	to_string,
 	write_output,
 	write_output_raw,
 	write_output_table,
@@ -368,8 +372,10 @@ def test_list_attributes() -> None:
 	with patch("opsicli.io.write_output") as mock_write_output:
 		data = Metadata(
 			attributes=[
-				Attribute(id="id", data_type="str", description="Attribute ID", identifier=True, selected=True),
-				Attribute(id="type", data_type="str", description="Data type", selected=False),
+				Attribute(
+					id="id", data_type="str", description="Attribute ID", identifier=True, selected=True, validator=lambda val: str(val)
+				),
+				Attribute(id="type", data_type="str", description="Data type", selected=False, validator=lambda val: str(val)),
 			]
 		)
 		list_attributes(data)
@@ -405,3 +411,233 @@ def test_write_output_table() -> None:
 			assert lines[-2].startswith("╰")
 	diff = time.perf_counter() - start
 	print(diff / 10)
+
+
+@pytest.mark.parametrize(
+	(
+		"config_attributes",
+		"metadata_attributes",
+		"fallback_attributes",
+		"add_identifier",
+		"add_attributes",
+		"update_selected",
+		"expected",
+		"expected_config_attributes",
+	),
+	(
+		(
+			None,
+			[
+				Attribute(id="id", identifier=True, selected=True),
+				Attribute(id="name", selected=True),
+				Attribute(id="description", selected=False),
+			],
+			None,
+			False,
+			None,
+			False,
+			["id", "name"],
+			None,
+		),
+		(
+			["all"],
+			[
+				Attribute(id="id", identifier=True, selected=False),
+				Attribute(id="name", selected=False),
+				Attribute(id="description", selected=False),
+			],
+			None,
+			False,
+			None,
+			False,
+			["id", "name", "description"],
+			["all"],
+		),
+		(
+			["name", "missing"],
+			[
+				Attribute(id="id", identifier=True, selected=False),
+				Attribute(id="name", selected=False),
+			],
+			None,
+			True,
+			["extra", "id"],
+			False,
+			["name", "id"],
+			["name", "missing"],
+		),
+		(
+			None,
+			[
+				Attribute(id="id", identifier=True, selected=False),
+				Attribute(id="name", selected=False),
+			],
+			None,
+			False,
+			["name", "other"],
+			True,
+			["name"],
+			["name"],
+		),
+		(
+			["custom", "other"],
+			[],
+			None,
+			False,
+			["added"],
+			True,
+			["custom", "other", "added"],
+			["custom", "other", "added"],
+		),
+		(
+			None,
+			[
+				Attribute(id="id", identifier=True, selected=False),
+				Attribute(id="name", selected=False),
+			],
+			["name", "missing"],
+			False,
+			None,
+			False,
+			["name"],
+			None,
+		),
+		(
+			None,
+			[],
+			["name", "missing"],
+			False,
+			None,
+			True,
+			["name", "missing"],
+			["name", "missing"],
+		),
+	),
+)
+def test_get_selected_attributes(
+	config_attributes: list[str] | None,
+	metadata_attributes: list[Attribute],
+	fallback_attributes: list[str] | None,
+	add_identifier: bool,
+	add_attributes: list[str] | None,
+	update_selected: bool,
+	expected: list[str],
+	expected_config_attributes: list[str] | None,
+) -> None:
+	old_config_values = config.get_values()
+	try:
+		config.set_values({"attributes": config_attributes})
+
+		result = get_selected_attributes(
+			attributes=metadata_attributes,
+			fallback_attributes=fallback_attributes,
+			add_identifier=add_identifier,
+			add_attributes=add_attributes,
+			update_selected=update_selected,
+		)
+
+		assert result == expected
+		assert config.attributes == expected_config_attributes
+	finally:
+		config.set_values(old_config_values)
+
+
+@pytest.mark.parametrize(
+	"configured_timezone, expected_key, expected_offset_seconds, expected_error",
+	(
+		(None, None, None, None),
+		("", None, None, None),
+		("UTC", "UTC", 0, None),
+		("+00:00", None, 0, None),
+		("+01:00", None, 3600, None),
+		("-05:30", None, -19800, None),
+		("Europe/Berlin", "Europe/Berlin", None, None),
+		("Invalid/Timezone", None, None, "Invalid timezone: 'Invalid/Timezone'"),
+		("+24:00", None, None, "Invalid timezone: '\\+24:00'"),
+	),
+)
+def test_get_selected_timezone(
+	configured_timezone: str | None,
+	expected_key: str | None,
+	expected_offset_seconds: int | None,
+	expected_error: str | None,
+) -> None:
+	old_config_values = config.get_values()
+	try:
+		config.set_values({"timezone": configured_timezone})
+
+		if expected_error:
+			with pytest.raises(ValueError, match=expected_error):
+				get_selected_timezone()
+		else:
+			result = get_selected_timezone()
+			if expected_key is None:
+				if configured_timezone in (None, ""):
+					assert result is None
+				else:
+					assert result is not None
+			else:
+				assert result is not None
+				assert getattr(result, "key", None) == expected_key
+
+			if expected_offset_seconds is not None:
+				assert result is not None
+				assert result.utcoffset(datetime.now()) == timedelta(seconds=expected_offset_seconds)
+	finally:
+		config.set_values(old_config_values)
+
+
+@pytest.mark.parametrize(
+	"value, kwargs, configured_timezone, expected, expected_error",
+	(
+		(None, {}, None, "", None),
+		(None, {"null_format": "<null>"}, None, "<null>", None),
+		(True, {}, None, "[bright_green]true[/bright_green]", None),
+		(False, {"bool_format": "true_false_symbols"}, None, "[bright_black]✗ false[/bright_black]", None),
+		(True, {"bool_format": "1_0"}, None, "1", None),
+		([1, None, "abc"], {}, None, "1, , abc", None),
+		([1, 2, 3], {"list_format": "comma_separated"}, None, "1,2,3", None),
+		([1, 2], {"list_format": "square_brackets"}, None, "[1, 2]", None),
+		(str, {}, None, "str", None),
+		("custom", {"value_styles": {"custom": "blue"}}, None, "[blue]custom[/blue]", None),
+		(
+			datetime(2025, 1, 15, 12, 30, tzinfo=timezone.utc),
+			{},
+			"Europe/Berlin",
+			"2025-01-15T13:30:00+01:00",
+			None,
+		),
+		(
+			datetime(2025, 1, 15, 12, 30, tzinfo=timezone.utc),
+			{},
+			"+01:00",
+			"2025-01-15T13:30:00+01:00",
+			None,
+		),
+		(
+			datetime(2025, 1, 15, 12, 30, tzinfo=timezone.utc),
+			{},
+			"Invalid/Timezone",
+			None,
+			"Invalid timezone: 'Invalid/Timezone'",
+		),
+	),
+)
+def test_to_string(
+	value: Any,
+	kwargs: dict[str, Any],
+	configured_timezone: str | None,
+	expected: str | None,
+	expected_error: str | None,
+) -> None:
+	old_config_values = config.get_values()
+	try:
+		config.set_values({"timezone": configured_timezone})
+
+		if expected_error:
+			with pytest.raises(ValueError, match=expected_error):
+				to_string(value, **kwargs)
+		else:
+			assert to_string(value, **kwargs) == expected
+	finally:
+		config.set_values(old_config_values)

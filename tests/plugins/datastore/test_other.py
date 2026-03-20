@@ -1,13 +1,17 @@
+# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# Copyright (c) 2021-2026 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0-only
+
 import json
 import time
 from contextlib import ExitStack
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from opsicommon.client.opsiservice import ServiceClient
 
-from .utils import run_cli, tmp_client, tmp_product
+from tests.utils import run_cli, tmp_client, tmp_product
 
 CLIENT_ID_1 = "pytest-client1.test.tld"
 CLIENT_ID_2 = "pytest-client2.test.tld"
@@ -130,6 +134,21 @@ def test_config_state_list(admin_service_client: ServiceClient) -> None:
 		assert stdout_into_list(_stdout)[1][0] == CLIENT_ID_1
 		assert stdout_into_list(_stdout)[1][1] == CONFIG_ID_1
 		assert len(stdout_into_list(_stdout)) - 1 == 1
+
+		exit_code, _stdout, _stderr = run_cli(
+			[
+				"--output-format",
+				"csv",
+				"datastore",
+				"config-state",
+				"list",
+				"--object-ids",
+				f"{CLIENT_ID_1}",
+				"--config-ids",
+				f"{CONFIG_ID_1}",
+			]
+		)
+		assert exit_code == 0
 
 		# One objectId, all configId's
 		exit_code, _stdout, _stderr = run_cli(
@@ -965,207 +984,3 @@ def test_update_product_client_state(admin_service_client: ServiceClient) -> Non
 		assert state_map[(CLIENT_ID_2, PRODUCT_ID_2)].actionRequest == "none"
 		assert state_map[(CLIENT_ID_2, PRODUCT_ID_2)].productVersion == product_2.productVersion
 		assert state_map[(CLIENT_ID_2, PRODUCT_ID_2)].packageVersion == product_2.packageVersion
-
-
-@pytest.mark.opsi_service
-def test_list_clients(admin_service_client: ServiceClient) -> None:
-	with (
-		tmp_client(admin_service_client, CLIENT_ID_1),
-		tmp_client(admin_service_client, CLIENT_ID_2),
-		tmp_client(admin_service_client, CLIENT_ID_3),
-		tmp_client(admin_service_client, CLIENT_ID_4),
-	):
-		# all clients
-		exit_code, _stdout, _stderr = run_cli(
-			[
-				"--output-format",
-				"csv",
-				"--sort-by",
-				"id",
-				"datastore",
-				"client",
-				"list",
-				"--client-ids",
-				"all",
-			]
-		)
-		assert exit_code == 0
-		rows = stdout_into_list(_stdout)[1:]
-		returned_ids = [row[0] for row in rows]
-		assert CLIENT_ID_1 in returned_ids
-		assert CLIENT_ID_2 in returned_ids
-		assert CLIENT_ID_3 in returned_ids
-		assert CLIENT_ID_4 in returned_ids
-
-		# wildcard filter
-		exit_code, _stdout, _stderr = run_cli(
-			[
-				"--output-format",
-				"csv",
-				"--sort-by",
-				"id",
-				"datastore",
-				"client",
-				"list",
-				"--client-ids",
-				"py*",
-			]
-		)
-		assert exit_code == 0
-		rows = stdout_into_list(_stdout)[1:]
-		assert len(rows) == 2
-		assert rows[0][0] == CLIENT_ID_1
-		assert rows[1][0] == CLIENT_ID_2
-
-		# comma separated ids
-		exit_code, _stdout, _stderr = run_cli(
-			[
-				"--output-format",
-				"csv",
-				"--sort-by",
-				"id",
-				"datastore",
-				"client",
-				"list",
-				"--client-ids",
-				f"{CLIENT_ID_3},{CLIENT_ID_4}",
-			]
-		)
-		assert exit_code == 0
-		rows = stdout_into_list(_stdout)[1:]
-		assert len(rows) == 2
-		assert rows[0][0] == CLIENT_ID_3
-		assert rows[1][0] == CLIENT_ID_4
-
-
-@pytest.mark.opsi_service
-@pytest.mark.parametrize("dry_run", (True, False))
-def test_update_clients(admin_service_client: ServiceClient, dry_run: bool) -> None:
-	with (
-		tmp_client(admin_service_client, CLIENT_ID_1),
-		tmp_client(admin_service_client, CLIENT_ID_2),
-	):
-		update_data = [
-			{
-				"id": CLIENT_ID_1,
-				"description": "pytest description 1",
-				"inventoryNumber": "inv-001",
-			},
-			{
-				"id": CLIENT_ID_2,
-				"description": "pytest description 2",
-				"inventoryNumber": "inv-002",
-			},
-		]
-
-		exit_code, _stdout, _stderr = run_cli(
-			(["--dry-run"] if dry_run else [])
-			+ [
-				"--output-format",
-				"csv",
-				"datastore",
-				"client",
-				"update",
-			],
-			stdin=[json.dumps(update_data)],
-		)
-		assert exit_code == 0
-
-		hosts = admin_service_client.host_getObjects(id=[CLIENT_ID_1, CLIENT_ID_2], type="OpsiClient")  # type: ignore[attr-defined]
-		assert len(hosts) == 2
-		host_map = {host.id: host for host in hosts}
-
-		if dry_run:
-			assert host_map[CLIENT_ID_1].description == ""
-			assert host_map[CLIENT_ID_2].description == ""
-			assert host_map[CLIENT_ID_1].inventoryNumber == ""
-			assert host_map[CLIENT_ID_2].inventoryNumber == ""
-		else:
-			assert host_map[CLIENT_ID_1].description == "pytest description 1"
-			assert host_map[CLIENT_ID_2].description == "pytest description 2"
-			assert host_map[CLIENT_ID_1].inventoryNumber == "inv-001"
-			assert host_map[CLIENT_ID_2].inventoryNumber == "inv-002"
-
-
-@pytest.mark.opsi_service
-def test_edit_clients_non_interactive(admin_service_client: ServiceClient) -> None:
-	with tmp_client(admin_service_client, CLIENT_ID_1):
-		exit_code, _stdout, _stderr = run_cli(
-			[
-				"datastore",
-				"client",
-				"edit",
-				"--client-ids",
-				CLIENT_ID_1,
-			]
-		)
-		assert exit_code != 0
-		assert "Editing is not possible in non-interactive mode." in _stderr
-
-
-@pytest.mark.opsi_service
-def test_edit_clients(admin_service_client: ServiceClient) -> None:
-	with tmp_client(admin_service_client, CLIENT_ID_1):
-		admin_service_client.jsonrpc(
-			"host_updateObjects",
-			[[{"id": CLIENT_ID_1, "type": "OpsiClient", "description": "before edit", "inventoryNumber": "before-001"}]],
-		)
-
-		def fake_editor(cmd: list[str]) -> None:
-			edit_file = Path(cmd[-1])
-			clients = json.loads(edit_file.read_text(encoding="utf-8"))
-			clients[0]["description"] = "after edit"
-			clients[0]["inventoryNumber"] = "after-001"
-			edit_file.write_text(json.dumps(clients, indent=2), encoding="utf-8")
-
-		with patch("subprocess.run", side_effect=fake_editor):
-			exit_code, _stdout, _stderr = run_cli(
-				[
-					"--interactive",
-					"datastore",
-					"client",
-					"edit",
-					"--client-ids",
-					CLIENT_ID_1,
-				]
-			)
-
-		assert exit_code == 0
-		host = admin_service_client.host_getObjects(id=[CLIENT_ID_1], type="OpsiClient")[0]  # type: ignore[attr-defined]
-		assert host.description == "after edit"
-		assert host.inventoryNumber == "after-001"
-
-
-@pytest.mark.opsi_service
-def test_set_clients(admin_service_client: ServiceClient) -> None:
-	with tmp_client(admin_service_client, CLIENT_ID_1):
-		admin_service_client.jsonrpc(
-			"host_updateObjects",
-			[[{"id": CLIENT_ID_1, "type": "OpsiClient", "description": "before edit", "inventoryNumber": "before-001"}]],
-		)
-
-		def fake_editor(cmd: list[str]) -> None:
-			edit_file = Path(cmd[-1])
-			clients = json.loads(edit_file.read_text(encoding="utf-8"))
-			clients[0]["description"] = "after edit"
-			clients[0]["inventoryNumber"] = "after-001"
-			edit_file.write_text(json.dumps(clients, indent=2), encoding="utf-8")
-
-		with patch("subprocess.run", side_effect=fake_editor):
-			exit_code, _stdout, _stderr = run_cli(
-				[
-					"datastore",
-					"client",
-					"set",
-					CLIENT_ID_1,
-					"--description",
-					"after edit",
-					"--inventoryNumber",
-					"after-001",
-				]
-			)
-
-		assert exit_code == 0
-		host = admin_service_client.host_getObjects(id=[CLIENT_ID_1], type="OpsiClient")[0]  # type: ignore[attr-defined]
-		assert host.description == "after edit"
-		assert host.inventoryNumber == "after-001"

@@ -1,3 +1,8 @@
+# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# Copyright (c) 2021-2026 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0-only
+
 import importlib.util
 from pathlib import Path
 
@@ -92,8 +97,8 @@ def test_metadata_naming() -> None:
 		spec.loader.exec_module(module)
 
 		# get metadata names
-		if hasattr(module, "command_metadata"):
-			data = getattr(module, "command_metadata")
+		if hasattr(module, "COMMAND_METADATA"):
+			data = getattr(module, "COMMAND_METADATA")
 			metadata_keys = data.keys()
 			functions_keys = functions.keys()
 

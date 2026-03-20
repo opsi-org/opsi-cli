@@ -1,5 +1,5 @@
 # opsi-cli is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -19,7 +19,7 @@ from opsicli.messagebus import JSONRPCMessagebusConnection
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 
-from .metadata import command_metadata
+from .metadata import COMMAND_METADATA
 from .worker import category_health_check, default_health_check
 
 __version__ = "0.1.2"
@@ -45,7 +45,7 @@ def health_check(category: str | None = None, detailed: bool = False) -> None:
 	"""
 	This command triggers health checks on the server and prints output.
 	"""
-	metadata = command_metadata.get("support_health-check")
+	metadata = COMMAND_METADATA.get("support_health-check")
 	if category:
 		data = category_health_check(category)
 	else:

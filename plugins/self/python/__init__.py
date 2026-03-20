@@ -1,5 +1,5 @@
 # opsi-cli is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -43,7 +43,7 @@ from opsicli.utils import (
 	user_is_admin,
 )
 
-from .metadata import command_metadata
+from .metadata import COMMAND_METADATA
 
 __version__ = "0.3.0"
 
@@ -146,7 +146,7 @@ def print_installed_versions() -> None:
 				"writable": os.access(binary, os.W_OK),
 			}
 		)
-	write_output(data, metadata=command_metadata.get("installed_versions_metadata"))
+	write_output(data, metadata=COMMAND_METADATA.get("installed_versions_metadata"))
 
 
 @click.group(cls=OPSICLIGroup, name="self", short_help="Manage opsi-cli")

@@ -1,5 +1,5 @@
 # opsi-cli is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -34,7 +34,7 @@ from opsicli.io import OutputType, console_print, get_progress, prompt, write_ou
 from opsicli.opsiservice import get_depot_connection
 from opsicli.utils import ProgressCallbackAdapter, download
 
-from .metadata import command_metadata
+from .metadata import COMMAND_METADATA
 from .package_progress import PackageProgressListener
 
 DEPOT_REPOSITORY_PATH = "/var/lib/opsi/repository"
@@ -195,7 +195,7 @@ def check_locked_products(
 		"productOnDepot_getObjects", [["productId", "depotId"], {"productId": product_list, "depotId": depot_id_list, "locked": True}]
 	)
 	if locked_products:
-		metadata = command_metadata["package_install"]
+		metadata = COMMAND_METADATA["package_install"]
 		logger.error("Locked products found: %s", locked_products)
 		console_print("Locked products:", output_type=OutputType.ERROR_MESSAGE)
 		write_output(data=[{"productId": p.productId, "depotId": p.depotId} for p in locked_products], metadata=metadata)

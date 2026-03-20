@@ -1,5 +1,5 @@
 # opsi-cli is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -19,7 +19,7 @@ from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.types import OutputFormat
 
-from .metadata import command_metadata
+from .metadata import COMMAND_METADATA
 
 __version__ = "0.3.0"
 __description__ = "Plugin to edit bootimage configs"
@@ -143,7 +143,7 @@ def set_boot_password(ctx: click.Context, password: str) -> None:
 
 	write_output(
 		data={"password_hash": password_hash},
-		metadata=command_metadata.get("bootimage_set-boot-password"),
+		metadata=COMMAND_METADATA.get("bootimage_set-boot-password"),
 		default_output_format=OutputFormat.PRETTY_JSON,
 	)
 

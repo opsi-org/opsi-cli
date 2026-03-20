@@ -1,3 +1,8 @@
+# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# Copyright (c) 2021-2026 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0-only
+
 import importlib.util
 import inspect
 import sys
@@ -33,12 +38,12 @@ def test_list_attributes_flag(capsys) -> None:
 		spec.loader.exec_module(plugin_metadata_module)
 
 		# sequences used as key for metadata  	e.g. ['datastore_config-state_list', 'jsonrpc_methods']
-		metadata_keys = list(plugin_metadata_module.command_metadata.keys())
+		metadata_keys = list(plugin_metadata_module.COMMAND_METADATA.keys())
 		# sequences used for cli 				e.g. [['datastore', 'config-state', 'list'], ['jsonrpc', 'methods']]
 		command_sequences_cli = [cs.replace("_", " ").split(" ") for cs in metadata_keys]
 
 		for metadata_key, sequence_cli in zip(metadata_keys, command_sequences_cli):
-			plugin_metadata = plugin_metadata_module.command_metadata[metadata_key]
+			plugin_metadata = plugin_metadata_module.COMMAND_METADATA[metadata_key]
 
 			# expected output
 			list_attributes(plugin_metadata)

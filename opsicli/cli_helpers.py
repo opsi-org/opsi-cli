@@ -1,3 +1,8 @@
+# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# Copyright (c) 2021-2026 uib GmbH <info@uib.de>
+# All rights reserved.
+# License: AGPL-3.0-only
+
 import importlib
 import os
 import re
@@ -168,8 +173,8 @@ def _handle_list_attributes_flag(ctx: click.Context):
 	plugin_name = raw_arg_sequence[0].replace("-", "_")
 	command_sequence = "_".join(raw_arg_sequence)
 	module = importlib.import_module(f"plugins.{plugin_name}.python.metadata")
-	command_metadata = getattr(module, "command_metadata")
-	metadata = command_metadata.get(command_sequence)
+	COMMAND_METADATA = getattr(module, "COMMAND_METADATA")
+	metadata = COMMAND_METADATA.get(command_sequence)
 	if not metadata:
 		raise click.UsageError(f"ERROR: The command 'opsi-cli {' '.join(raw_arg_sequence)}' does not support --list-attributes. Aborting")
 

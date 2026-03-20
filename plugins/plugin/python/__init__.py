@@ -1,5 +1,5 @@
 # opsi-cli is part of the device management solution opsi http://www.opsi.org
-# Copyright (c) 2021-2025 uib GmbH <info@uib.de>
+# Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
@@ -35,7 +35,7 @@ from opsicli.plugin import (
 	verify_plugin_name,
 )
 
-from .metadata import command_metadata
+from .metadata import COMMAND_METADATA
 
 __version__ = "0.1.2"
 
@@ -179,7 +179,7 @@ def list_() -> None:
 	opsi-cli plugin list subcommand.
 	This subcommand lists all installed opsi-cli plugins.
 	"""
-	metadata = command_metadata.get("plugin_list")
+	metadata = COMMAND_METADATA.get("plugin_list")
 	data = []
 	for plugin_id in sorted(plugin_manager.plugins):
 		plugin = plugin_manager.load_plugin(plugin_id)
