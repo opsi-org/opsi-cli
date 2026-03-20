@@ -132,6 +132,10 @@ class PluginManager(metaclass=Singleton):
 			sys.path.insert(0, str(config.python_lib_dir / plugin_dir.name))
 		logger.debug("Extracting plugin object from '%s'", plugin_dir)
 		logger.debug("sys.path = %s", sys.path)
+		module_name = self.module_name(plugin_dir)
+		for sys_module in list(sys.modules):
+			if sys_module.startswith(module_name):
+				del sys.modules[sys_module]
 		return importlib.import_module(self.module_name(plugin_dir))
 
 	def get_plugin_dir(self, name: str) -> Path:
