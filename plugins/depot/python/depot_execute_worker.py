@@ -13,7 +13,7 @@ from opsicommon.logging import get_logger
 from opsicommon.types import forceHostId
 
 from opsicli.config import config
-from opsicli.io import OutputType, console_print
+from opsicli.io import OutputType, console_print, get_separated_entries
 from opsicli.messagebus import ProcessMessagebusConnection
 from opsicli.opsiservice import get_service_connection
 from opsicli.types import OpsiCliRuntimeError
@@ -37,7 +37,7 @@ class DepotExecuteWorker:
 		if "all" in depots:
 			result = {entry.id for entry in self.service.jsonrpc("host_getObjects", [[], {"type": "OpsiDepotserver"}])}
 		elif depots:
-			result.update(forceHostId(entry.strip()) for entry in depots.split(","))
+			result.update(forceHostId(entry.strip()) for entry in get_separated_entries(depots))
 
 		if not result:
 			raise NoDepotsSelected("No depots selected")

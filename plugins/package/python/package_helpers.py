@@ -30,7 +30,7 @@ from opsicommon.package.associated_files import create_package_md5_file, create_
 from opsicommon.types import forceHostIdList
 from opsicommon.utils import timestamp
 
-from opsicli.io import OutputType, console_print, get_progress, prompt, write_output
+from opsicli.io import OutputType, console_print, get_progress, get_separated_entries, prompt, write_output
 from opsicli.opsiservice import get_depot_connection
 from opsicli.utils import ProgressCallbackAdapter, download
 
@@ -51,7 +51,7 @@ def get_depot_objects(service_client: ServiceClient, depots: str) -> list[OpsiDe
 	depot_filter: dict[str, str | list[str]] = (
 		{"type": "OpsiDepotserver"}
 		if depots == "all"
-		else {"id": forceHostIdList([depot.strip().lower() for depot in depots.split(",")])}
+		else {"id": forceHostIdList([depot.lower() for depot in get_separated_entries(depots)])}
 		if depots
 		else {"type": "OpsiConfigserver"}
 	)
