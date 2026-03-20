@@ -3,10 +3,12 @@
 # All rights reserved.
 # License: AGPL-3.0-only
 
+from __future__ import annotations
+
 import importlib
 import os
 import re
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from rich.panel import Panel
 from rich.text import Text
@@ -28,6 +30,8 @@ else:
 	rich_click.STYLE_OPTIONS_PANEL_BORDER = "bold"
 	rich_click.OPTIONS_PANEL_TITLE = "[bold cyan]OPTIONS[/bold cyan]"
 
+if TYPE_CHECKING:
+	from rich import Console
 
 _METAVAR_RE = re.compile(r"\[metavar\](.*?)\[/metavar\]")
 _config_loaded = False
@@ -50,7 +54,7 @@ def _get_current_options(ctx: click.Context) -> tuple[str, list[click.Option]]:
 	return cmd.name or cmd.__class__.__name__, [p for p in getattr(cmd, "params", []) if isinstance(p, click.Option)]
 
 
-def _render_option_sections(ctx: click.Context, formatter: click.HelpFormatter, use_rich: bool, console: Any) -> None:
+def _render_option_sections(ctx: click.Context, formatter: click.HelpFormatter, console: Console) -> None:
 	option_sections = _get_all_parent_options(ctx)
 	current_cmd_name, current_opts = _get_current_options(ctx)
 	if current_opts:
@@ -60,41 +64,31 @@ def _render_option_sections(ctx: click.Context, formatter: click.HelpFormatter, 
 		if not opts:
 			continue
 		display_cmd_name = "Global" if cmd_name.lower() == "main" else cmd_name.capitalize()
-		col_width = 44 if use_rich else max(20, *(len(opt) + 5 for p in opts for opt in p.opts))
-		lines = _format_option_lines(opts, col_width, use_rich, console)
-		if use_rich:
-			console_print(
-				Panel(
-					"\n".join(lines),
-					title=f"[bold cyan]{display_cmd_name.upper()} OPTIONS[/bold cyan]",
-					title_align="left",
-					border_style="grey50",
-					padding=(0, 1),
-				),
-				output_type=OutputType.DATA,
-			)
-		else:
-			formatter.write(f"\n{display_cmd_name.upper()} OPTIONS:\n")
-			for line in lines:
-				formatter.write(f"  {line}\n")
+		col_width = 45
+		lines = _format_option_lines(opts, col_width, console)
+		console_print(
+			Panel(
+				"\n".join(lines),
+				title=f"[bold cyan]{display_cmd_name.upper()} OPTIONS[/bold cyan]",
+				title_align="left",
+				border_style="grey50",
+				padding=(0, 1),
+			),
+			output_type=OutputType.DATA,
+		)
 
 
-def _format_option_lines(opts: list[click.Option], col_width: int, use_rich: bool, console: Any) -> list[str]:
+def _format_option_lines(opts: list[click.Option], col_width: int, console: Console) -> list[str]:
 	lines = []
 	console_width = getattr(console, "width", 100)
 	wrap_width = max(20, console_width - col_width)
 	for p in opts:
-		opts_str = f"[cyan]{', '.join(p.opts)}[/cyan]".ljust(col_width) if use_rich else ", ".join(p.opts).ljust(col_width)
+		opts_str = f"[cyan]{', '.join(p.opts)}[/cyan]".ljust(col_width)
 		help_str = p.help or ""
-		if not use_rich:
-			help_str = _METAVAR_RE.sub(r"\1", help_str)
 		help_text = Text.from_markup(help_str)
 		wrapped_lines = Text.wrap(help_text, console, width=wrap_width)
 		for i, line in enumerate(wrapped_lines):
-			if use_rich:
-				lines.append(f"{opts_str if i == 0 else ' ' * (col_width - 13)}[grey50]{line}[/grey50]")
-			else:
-				lines.append(f"{opts_str if i == 0 else ' ' * col_width}{line}")
+			lines.append(f"{opts_str if i == 0 else ' ' * (col_width - 13)}[grey50]{line}[/grey50]")
 	return lines
 
 
@@ -104,66 +98,50 @@ def _format_help(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -
 		config.read_config_files()
 		_config_loaded = True
 
-	use_rich = config.color and "rich_format_help" in globals()
 	console = get_console(output_type=OutputType.DATA)
-	_render_option_sections(ctx, formatter, use_rich, console)
+	_render_option_sections(ctx, formatter, console)
 
 	custom_usage = obj.get_usage(ctx)
 
-	if use_rich:
+	def _custom_get_rich_usage(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+		formatter = rich_click._get_rich_formatter(formatter)
+		config = formatter.config
+		console = formatter.console
 
-		def _custom_get_rich_usage(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -> None:
-			formatter = rich_click._get_rich_formatter(formatter)
-			config = formatter.config
-			console = formatter.console
+		class UsageHighlighter(rich_click.RegexHighlighter):
+			highlights = [
+				r"(?P<argument>\[.*?\])",
+			]
 
-			class UsageHighlighter(rich_click.RegexHighlighter):
-				highlights = [
-					r"(?P<argument>\[.*?\])",
-				]
+		usage_highlighter = UsageHighlighter()
 
-			usage_highlighter = UsageHighlighter()
+		usage_str = custom_usage
+		if usage_str.lower().startswith("usage:"):
+			usage_str = usage_str[len("usage:") :].strip()
 
-			usage_str = custom_usage
-			if usage_str.lower().startswith("usage:"):
-				usage_str = usage_str[len("usage:") :].strip()
-
-			console.print(
-				rich_click.Padding(
-					rich_click.Columns(
-						(
-							rich_click.Text("Usage:", style=config.style_usage),
-							usage_highlighter(usage_str),
-						)
-					),
-					1,
+		console.print(
+			rich_click.Padding(
+				rich_click.Columns(
+					(
+						rich_click.Text("Usage:", style=config.style_usage),
+						usage_highlighter(usage_str),
+					)
 				),
-			)
+				1,
+			),
+		)
 
-		rich_click.get_rich_usage = _custom_get_rich_usage  # type: ignore[invalid-assignment]
-		orig_get_params = obj.get_params
+	rich_click.get_rich_usage = _custom_get_rich_usage  # type: ignore[invalid-assignment]
+	orig_get_params = obj.get_params
 
-		def _get_non_option_params(current_ctx: click.Context) -> list[click.Parameter]:
-			return [param for param in orig_get_params(current_ctx) if not isinstance(param, click.Option)]
+	def _get_non_option_params(current_ctx: click.Context) -> list[click.Parameter]:
+		return [param for param in orig_get_params(current_ctx) if not isinstance(param, click.Option)]
 
-		obj.get_params = _get_non_option_params
-		try:
-			rich_format_help(obj, ctx, formatter)
-		finally:
-			obj.get_params = orig_get_params
-
-	else:
-		formatter.write("\n" + "-" * 100 + "\n\n")
-		formatter.write(f"\n{custom_usage}\n")
-		orig_format_usage = type(obj).format_usage
-		orig_format_options = type(obj).format_options
-		type(obj).format_usage = lambda self, ctx, formatter: None
-		type(obj).format_options = lambda self, ctx, formatter: None
-		try:
-			super(type(obj), obj).format_help(ctx, formatter)
-		finally:
-			type(obj).format_usage = orig_format_usage
-			type(obj).format_options = orig_format_options
+	obj.get_params = _get_non_option_params
+	try:
+		rich_format_help(obj, ctx, formatter)
+	finally:
+		obj.get_params = orig_get_params
 
 
 def _get_usage(ctx: click.Context) -> str:

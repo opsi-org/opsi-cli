@@ -7,11 +7,14 @@
 test_cli_helpers
 """
 
+import pytest
+
 from .utils import run_cli
 
 
-def test_help_shows_parent_options() -> None:
-	exit_code, stdout, _ = run_cli(["client-action", "set-action-request", "--help"])
+@pytest.mark.parametrize("color", (True, False))
+def test_help_shows_parent_options(color: bool) -> None:
+	exit_code, stdout, _ = run_cli((["--color"] if color else ["--no-color"]) + ["client-action", "set-action-request", "--help"])
 	assert exit_code == 0
 
 	expected_order = [
