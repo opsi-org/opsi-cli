@@ -45,6 +45,40 @@ def _get_all_parent_options(ctx: click.Context) -> list[tuple[str, list[click.Op
 	return result
 
 
+def _get_current_options(ctx: click.Context) -> tuple[str, list[click.Option]]:
+	cmd = ctx.command
+	return cmd.name or cmd.__class__.__name__, [p for p in getattr(cmd, "params", []) if isinstance(p, click.Option)]
+
+
+def _render_option_sections(ctx: click.Context, formatter: click.HelpFormatter, use_rich: bool, console: Any) -> None:
+	option_sections = _get_all_parent_options(ctx)
+	current_cmd_name, current_opts = _get_current_options(ctx)
+	if current_opts:
+		option_sections.append((current_cmd_name, current_opts))
+
+	for cmd_name, opts in option_sections:
+		if not opts:
+			continue
+		display_cmd_name = "Global" if cmd_name.lower() == "main" else cmd_name.capitalize()
+		col_width = 44 if use_rich else max(20, *(len(opt) + 5 for p in opts for opt in p.opts))
+		lines = _format_option_lines(opts, col_width, use_rich, console)
+		if use_rich:
+			console_print(
+				Panel(
+					"\n".join(lines),
+					title=f"[bold cyan]{display_cmd_name.upper()} OPTIONS[/bold cyan]",
+					title_align="left",
+					border_style="grey50",
+					padding=(0, 1),
+				),
+				output_type=OutputType.DATA,
+			)
+		else:
+			formatter.write(f"\n{display_cmd_name.upper()} OPTIONS:\n")
+			for line in lines:
+				formatter.write(f"  {line}\n")
+
+
 def _format_option_lines(opts: list[click.Option], col_width: int, use_rich: bool, console: Any) -> list[str]:
 	lines = []
 	console_width = getattr(console, "width", 100)
@@ -69,31 +103,10 @@ def _format_help(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -
 	if not _config_loaded:
 		config.read_config_files()
 		_config_loaded = True
-	parent_opts_by_cmd = _get_all_parent_options(ctx)
+
 	use_rich = config.color and "rich_format_help" in globals()
 	console = get_console(output_type=OutputType.DATA)
-
-	for cmd_name, opts in parent_opts_by_cmd:
-		if not opts:
-			continue
-		display_cmd_name = "Global" if cmd_name.lower() == "main" else cmd_name.capitalize()
-		col_width = 44 if use_rich else max(20, *(len(opt) + 5 for p in opts for opt in p.opts))
-		lines = _format_option_lines(opts, col_width, use_rich, console)
-		if use_rich:
-			console_print(
-				Panel(
-					"\n".join(lines),
-					title=f"[bold cyan]{display_cmd_name.upper()} OPTIONS[/bold cyan]",
-					title_align="left",
-					border_style="grey50",
-					padding=(0, 1),
-				),
-				output_type=OutputType.DATA,
-			)
-		else:
-			formatter.write(f"\n{display_cmd_name.upper()} OPTIONS:\n")
-			for line in lines:
-				formatter.write(f"  {line}\n")
+	_render_option_sections(ctx, formatter, use_rich, console)
 
 	custom_usage = obj.get_usage(ctx)
 
@@ -128,13 +141,29 @@ def _format_help(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -
 			)
 
 		rich_click.get_rich_usage = _custom_get_rich_usage  # type: ignore[invalid-assignment]
-		rich_format_help(obj, ctx, formatter)
+		orig_get_params = obj.get_params
+
+		def _get_non_option_params(current_ctx: click.Context) -> list[click.Parameter]:
+			return [param for param in orig_get_params(current_ctx) if not isinstance(param, click.Option)]
+
+		obj.get_params = _get_non_option_params
+		try:
+			rich_format_help(obj, ctx, formatter)
+		finally:
+			obj.get_params = orig_get_params
 
 	else:
 		formatter.write("\n" + "-" * 100 + "\n\n")
 		formatter.write(f"\n{custom_usage}\n")
+		orig_format_usage = type(obj).format_usage
+		orig_format_options = type(obj).format_options
 		type(obj).format_usage = lambda self, ctx, formatter: None
-		super(type(obj), obj).format_help(ctx, formatter)
+		type(obj).format_options = lambda self, ctx, formatter: None
+		try:
+			super(type(obj), obj).format_help(ctx, formatter)
+		finally:
+			type(obj).format_usage = orig_format_usage
+			type(obj).format_options = orig_format_options
 
 
 def _get_usage(ctx: click.Context) -> str:

@@ -21,6 +21,9 @@ def test_help_shows_parent_options() -> None:
 		"CLIENT-ACTION OPTIONS",
 		"--clients",
 		"--client-groups",
+		"SET-ACTION-REQUEST OPTIONS",
+		"--where-failed",
+		"--process",
 		"Usage:",
 	]
 
