@@ -66,15 +66,14 @@ def _render_option_sections(ctx: click.Context, formatter: click.HelpFormatter, 
 		display_cmd_name = "Global" if cmd_name.lower() == "main" else cmd_name.capitalize()
 		col_width = 45
 		lines = _format_option_lines(opts, col_width, console)
-		console_print(
+		console.print(
 			Panel(
 				"\n".join(lines),
 				title=f"[bold cyan]{display_cmd_name.upper()} OPTIONS[/bold cyan]",
 				title_align="left",
 				border_style="grey50",
 				padding=(0, 1),
-			),
-			output_type=OutputType.DATA,
+			)
 		)
 
 
@@ -92,7 +91,7 @@ def _format_option_lines(opts: list[click.Option], col_width: int, console: Cons
 	return lines
 
 
-def _format_help(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+def _format_help(command: click.Command, ctx: click.Context, formatter: click.HelpFormatter) -> None:
 	global _config_loaded
 	if not _config_loaded:
 		config.read_config_files()
@@ -101,12 +100,11 @@ def _format_help(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -
 	console = get_console(output_type=OutputType.DATA)
 	_render_option_sections(ctx, formatter, console)
 
-	custom_usage = obj.get_usage(ctx)
+	custom_usage = command.get_usage(ctx)
 
 	def _custom_get_rich_usage(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -> None:
 		formatter = rich_click._get_rich_formatter(formatter)
 		config = formatter.config
-		console = formatter.console
 
 		class UsageHighlighter(rich_click.RegexHighlighter):
 			highlights = [
@@ -132,16 +130,16 @@ def _format_help(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -
 		)
 
 	rich_click.get_rich_usage = _custom_get_rich_usage  # type: ignore[invalid-assignment]
-	orig_get_params = obj.get_params
+	orig_get_params = command.get_params
 
 	def _get_non_option_params(current_ctx: click.Context) -> list[click.Parameter]:
 		return [param for param in orig_get_params(current_ctx) if not isinstance(param, click.Option)]
 
-	obj.get_params = _get_non_option_params
+	command.get_params = _get_non_option_params  # type: ignore[invalid-assignment]
 	try:
-		rich_format_help(obj, ctx, formatter)
+		rich_format_help(command, ctx, formatter)
 	finally:
-		obj.get_params = orig_get_params
+		command.get_params = orig_get_params  # type: ignore[invalid-assignment]
 
 
 def _get_usage(ctx: click.Context) -> str:

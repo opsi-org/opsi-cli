@@ -29,7 +29,7 @@ def test_help_shows_parent_options(color: bool) -> None:
 		"--process",
 		"Usage:",
 	]
-	print(stdout)
+
 	positions = [stdout.find(text) for text in expected_order]
 
 	assert all(pos != -1 for pos in positions)

@@ -13,5 +13,4 @@ from .utils import run_cli
 def test_decorators() -> None:
 	# Test that the help output includes the dry-run support note for a dry-run capable command
 	exit_code, stdout, _stderr = run_cli(["--no-color", "self", "install", "--help"])
-	print(stdout)
 	assert "This command supports --dry-run: actions will be simulated" in stdout.replace("\n", " ").replace("  ", " ")

@@ -7,6 +7,8 @@
 This file is part of opsi - https://www.opsi.org
 """
 
+from __future__ import annotations
+
 import builtins
 import os
 import platform
@@ -40,8 +42,7 @@ LogCaptureHandler.emit = emit  # type: ignore[assignment]
 
 @pytest.fixture(autouse=True)
 def reset_config() -> None:
-	for item in config.get_config_items():
-		item.set_value(item.default)
+	config.reset()
 
 
 @pytest.fixture(autouse=True)
@@ -94,6 +95,12 @@ def pytest_runtest_setup(item: Item) -> None:
 		if marker.name == "not_windows" and PLATFORM == "windows":
 			pytest.skip("Not running test on Windows")
 			return
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+	# test_decorators.py, test_cli_helpers.py will fail if run after plugins/datastore/test_client.py
+	# TODO: Need to investigate and fix the underlying issue, currently we just ensure that these tests are run first
+	items.sort(key=lambda item: 1 if item.path.parts[-1] in ("test_decorators.py", "test_cli_helpers.py") else 2)
 
 
 @lru_cache

@@ -88,6 +88,7 @@ Register-ArgumentCompleter -Native -CommandName %(prog_name)s -ScriptBlock $scri
 
 
 logger = get_logger("opsicli")
+config: Config
 
 
 class ConfigValueSource(Enum):
@@ -252,227 +253,235 @@ class ConfigItem:
 		return f"<ConfigItem name={self.name!r}, default={self.default}, value={repr(self.value)}>"
 
 
-CONFIG_ITEMS = [
-	ConfigItem(name="log_file", type=File, group="General", description="Log to the specified file."),
-	ConfigItem(
-		name="log_level_file",
-		type=LogLevel,
-		group="General",
-		default="none",
-		description=f"The log level for the log file. Possible values are:\n\n{LogLevel.possible_values_for_description}.",
-	),
-	ConfigItem(
-		name="log_level_stderr",
-		type=LogLevel,
-		group="General",
-		default="none",
-		description=f"The log level for the console (stderr). Possible values are:\n\n{LogLevel.possible_values_for_description}.",
-	),
-	ConfigItem(name="color", type=Bool, group="IO", default=True, description="Enable or disable colorized output."),
-	ConfigItem(
-		name="output_format",
-		type=OutputFormat,
-		group="IO",
-		default=OutputFormat.AUTO.value,
-		description=f"Set output format. Possible values are: {str(OutputFormat.possible_values_for_description)}.",
-	),
-	ConfigItem(
-		name="edit_format",
-		type=EditFormat,
-		group="IO",
-		default=EditFormat.AUTO.value,
-		description=f"Set edit format. Possible values are: {str(EditFormat.possible_values_for_description)}.",
-	),
-	ConfigItem(
-		name="output_file",
-		type=File,
-		group="IO",
-		default=None,
-		description="Write data to the given file. If not set or set to '-', output is written to stdout.",
-	),
-	ConfigItem(
-		name="input_file",
-		type=File,
-		group="IO",
-		default=None,
-		description=(
-			"Read data from the given file. "
-			"If set to '-', input is read from stdin (blocking). "
-			"If not set, ops-cli checks whether stdin is readable and only reads if data is available within one second."
-		),
-	),
-	ConfigItem(
-		name="editor",
-		type=str,
-		group="IO",
-		default=None,
-		description=(
-			"Use the specified editor for editing data. "
-			"By default, the editor is automatically selected based on the operating system and environment variables."
-		),
-	),
-	ConfigItem(
-		name="input_separator",
-		type=str,
-		group="IO",
-		default=",",
-		description=(
-			"Separator for multiple input values. "
-			"This is used when multiple values are provided as a single string, for example in environment variables or config files. "
-		),
-	),
-	ConfigItem(name="interactive", type=Bool, group="IO", default=sys.stdin.isatty(), description="Enable or disable interactive mode."),
-	ConfigItem(
-		name="quiet",
-		type=Bool,
-		group="IO",
-		default=False,
-		description="Enables quiet mode, suppressing messages and stderr logs. Use --log-level-stderr for stderr logs and --hide-errors to hide errors.",
-	),
-	ConfigItem(
-		name="hide_errors",
-		type=Bool,
-		group="IO",
-		default=False,
-		description="Suppress error messages. Effective only when --quiet is enabled.",
-	),
-	ConfigItem(name="metadata", type=Bool, group="IO", default=False, description="Enable or disable output of metadata."),
-	ConfigItem(name="header", type=Bool, group="IO", default=True, description="Enable or disable header for data input and output."),
-	ConfigItem(
-		name="list_attributes",
-		type=Bool,
-		group="IO",
-		default=False,
-		description="List attributes of the command.",
-	),
-	ConfigItem(
-		name="attributes",
-		type=Attributes,
-		group="IO",
-		default=None,
-		description="Select data attributes ([metavar]all[/metavar] selects all available attributes).",
-	),
-	ConfigItem(
-		name="sort_by",
-		type=str,
-		group="IO",
-		default=None,
-		description="Sort the output data by the specified attribute(s).",
-	),
-	ConfigItem(
-		name="timezone",
-		type=str,
-		group="IO",
-		default=None,
-		description="Set the timezone for date and time output. If not set, the local timezone is used.",
-	),
-	ConfigItem(
-		name="service",
-		type=OPSIServiceUrlOrServiceName,
-		group="opsi service",
-		description="URL or name of a configured service to connect.",
-	),
-	ConfigItem(name="username", type=str, group="opsi service", description="Username for opsi service connection."),
-	ConfigItem(
-		name="password",
-		type=Password,
-		group="opsi service",
-		description="Password for opsi service connection. For 2FA, append TOTP to the password",
-	),
-	ConfigItem(
-		name="session_lifetime",
-		type=int,
-		group="opsi service",
-		default=DEFAULT_SESSION_LIFETIME,
-		description="Session lifetime in seconds for the opsi service connection.",
-	),
-	ConfigItem(
-		name="totp",
-		type=Bool,
-		group="opsi service",
-		default=False,
-		description="This flag triggers an interactive prompt to enter TOTP, assuming the password is stored in the configuration.",
-	),
-	ConfigItem(
-		name="sso",
-		type=Bool,
-		group="opsi service",
-		default=False,
-		description="This flag triggers a Single Sign On (SSO) authentication.",
-	),
-	ConfigItem(name="services", type=OPSIService, description="Configured opsi services.", multiple=True, key="name"),
-	ConfigItem(
-		name="dry_run",
-		type=Bool,
-		group="General",
-		default=False,
-		description="Simulation only. Does not perform actions.",
-	),
-]
-
-if platform.system().lower() == "windows":
-	_user_lib_dir = Path(os.getenv("APPDATA") or ".") / "opsi-cli" / "Local" / "Lib"
-else:
-	_user_lib_dir = Path.home() / ".local" / "lib" / "opsi-cli"
-
-CONFIG_ITEMS.extend(
-	[
-		ConfigItem(name="user_lib_dir", type=Directory, group="General", default=_user_lib_dir),
-		ConfigItem(name="python_lib_dir", type=Directory, group="General", default=_user_lib_dir / "lib"),
-	]
-)
-
-if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-	_plugin_bundle_dir = Path(sys._MEIPASS) / "plugins"
-else:
-	_plugin_bundle_dir = Path("plugins").resolve()
-
-_plugin_system_dir = None
-if platform.system().lower() == "linux":
-	_plugin_system_dir = Path("/var/lib/opsi-cli/plugins")
-
-CONFIG_ITEMS.extend(
-	[
-		ConfigItem(name="plugin_bundle_dir", type=Directory, group="General", default=_plugin_bundle_dir),
-		ConfigItem(name="plugin_system_dir", type=Directory, group="General", default=_plugin_system_dir),
-		ConfigItem(name="plugin_user_dir", type=Directory, group="General", default=_user_lib_dir / "plugins"),
-	]
-)
-
-_config_file_system = None
-_config_file_user = None
-if platform.system().lower() == "windows":
-	# APPDATA points to ...\AppData\Roaming
-	_config_file_user = Path(os.getenv("APPDATA") or ".") / "opsi-cli" / "opsi-cli.yaml"
-else:
-	_config_file_system = Path("/etc/opsi/opsi-cli.yaml")
-	_config_file_user = Path("~/.config/opsi-cli/opsi-cli.yaml")
-
-CONFIG_ITEMS.extend(
-	[
+def get_config_items() -> list[ConfigItem]:
+	config_items = [
+		ConfigItem(name="log_file", type=File, group="General", description="Log to the specified file."),
 		ConfigItem(
-			name="config_file_system",
-			type=File,
+			name="log_level_file",
+			type=LogLevel,
 			group="General",
-			default=_config_file_system,
-			description="System wide config file location",
+			default="none",
+			description=f"The log level for the log file. Possible values are:\n\n{LogLevel.possible_values_for_description}.",
 		),
 		ConfigItem(
-			name="config_file_user",
-			type=File,
+			name="log_level_stderr",
+			type=LogLevel,
 			group="General",
-			default=_config_file_user,
-			description="User specific config file",
+			default="none",
+			description=f"The log level for the console (stderr). Possible values are:\n\n{LogLevel.possible_values_for_description}.",
+		),
+		ConfigItem(name="color", type=Bool, group="IO", default=True, description="Enable or disable colorized output."),
+		ConfigItem(
+			name="output_format",
+			type=OutputFormat,
+			group="IO",
+			default=OutputFormat.AUTO.value,
+			description=f"Set output format. Possible values are: {str(OutputFormat.possible_values_for_description)}.",
+		),
+		ConfigItem(
+			name="edit_format",
+			type=EditFormat,
+			group="IO",
+			default=EditFormat.AUTO.value,
+			description=f"Set edit format. Possible values are: {str(EditFormat.possible_values_for_description)}.",
+		),
+		ConfigItem(
+			name="output_file",
+			type=File,
+			group="IO",
+			default=None,
+			description="Write data to the given file. If not set or set to '-', output is written to stdout.",
+		),
+		ConfigItem(
+			name="input_file",
+			type=File,
+			group="IO",
+			default=None,
+			description=(
+				"Read data from the given file. "
+				"If set to '-', input is read from stdin (blocking). "
+				"If not set, ops-cli checks whether stdin is readable and only reads if data is available within one second."
+			),
+		),
+		ConfigItem(
+			name="editor",
+			type=str,
+			group="IO",
+			default=None,
+			description=(
+				"Use the specified editor for editing data. "
+				"By default, the editor is automatically selected based on the operating system and environment variables."
+			),
+		),
+		ConfigItem(
+			name="input_separator",
+			type=str,
+			group="IO",
+			default=",",
+			description=(
+				"Separator for multiple input values. "
+				"This is used when multiple values are provided as a single string, for example in environment variables or config files. "
+			),
+		),
+		ConfigItem(
+			name="interactive", type=Bool, group="IO", default=sys.stdin.isatty(), description="Enable or disable interactive mode."
+		),
+		ConfigItem(
+			name="quiet",
+			type=Bool,
+			group="IO",
+			default=False,
+			description="Enables quiet mode, suppressing messages and stderr logs. Use --log-level-stderr for stderr logs and --hide-errors to hide errors.",
+		),
+		ConfigItem(
+			name="hide_errors",
+			type=Bool,
+			group="IO",
+			default=False,
+			description="Suppress error messages. Effective only when --quiet is enabled.",
+		),
+		ConfigItem(name="metadata", type=Bool, group="IO", default=False, description="Enable or disable output of metadata."),
+		ConfigItem(name="header", type=Bool, group="IO", default=True, description="Enable or disable header for data input and output."),
+		ConfigItem(
+			name="list_attributes",
+			type=Bool,
+			group="IO",
+			default=False,
+			description="List attributes of the command.",
+		),
+		ConfigItem(
+			name="attributes",
+			type=Attributes,
+			group="IO",
+			default=None,
+			description="Select data attributes ([metavar]all[/metavar] selects all available attributes).",
+		),
+		ConfigItem(
+			name="sort_by",
+			type=str,
+			group="IO",
+			default=None,
+			description="Sort the output data by the specified attribute(s).",
+		),
+		ConfigItem(
+			name="timezone",
+			type=str,
+			group="IO",
+			default=None,
+			description="Set the timezone for date and time output. If not set, the local timezone is used.",
+		),
+		ConfigItem(
+			name="service",
+			type=OPSIServiceUrlOrServiceName,
+			group="opsi service",
+			description="URL or name of a configured service to connect.",
+		),
+		ConfigItem(name="username", type=str, group="opsi service", description="Username for opsi service connection."),
+		ConfigItem(
+			name="password",
+			type=Password,
+			group="opsi service",
+			description="Password for opsi service connection. For 2FA, append TOTP to the password",
+		),
+		ConfigItem(
+			name="session_lifetime",
+			type=int,
+			group="opsi service",
+			default=DEFAULT_SESSION_LIFETIME,
+			description="Session lifetime in seconds for the opsi service connection.",
+		),
+		ConfigItem(
+			name="totp",
+			type=Bool,
+			group="opsi service",
+			default=False,
+			description="This flag triggers an interactive prompt to enter TOTP, assuming the password is stored in the configuration.",
+		),
+		ConfigItem(
+			name="sso",
+			type=Bool,
+			group="opsi service",
+			default=False,
+			description="This flag triggers a Single Sign On (SSO) authentication.",
+		),
+		ConfigItem(name="services", type=OPSIService, description="Configured opsi services.", multiple=True, key="name"),
+		ConfigItem(
+			name="dry_run",
+			type=Bool,
+			group="General",
+			default=False,
+			description="Simulation only. Does not perform actions.",
 		),
 	]
-)
+
+	if platform.system().lower() == "windows":
+		_user_lib_dir = Path(os.getenv("APPDATA") or ".") / "opsi-cli" / "Local" / "Lib"
+	else:
+		_user_lib_dir = Path.home() / ".local" / "lib" / "opsi-cli"
+
+	config_items.extend(
+		[
+			ConfigItem(name="user_lib_dir", type=Directory, group="General", default=_user_lib_dir),
+			ConfigItem(name="python_lib_dir", type=Directory, group="General", default=_user_lib_dir / "lib"),
+		]
+	)
+
+	if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+		_plugin_bundle_dir = Path(sys._MEIPASS) / "plugins"
+	else:
+		_plugin_bundle_dir = Path("plugins").resolve()
+
+	_plugin_system_dir = None
+	if platform.system().lower() == "linux":
+		_plugin_system_dir = Path("/var/lib/opsi-cli/plugins")
+
+	config_items.extend(
+		[
+			ConfigItem(name="plugin_bundle_dir", type=Directory, group="General", default=_plugin_bundle_dir),
+			ConfigItem(name="plugin_system_dir", type=Directory, group="General", default=_plugin_system_dir),
+			ConfigItem(name="plugin_user_dir", type=Directory, group="General", default=_user_lib_dir / "plugins"),
+		]
+	)
+
+	_config_file_system = None
+	_config_file_user = None
+	if platform.system().lower() == "windows":
+		# APPDATA points to ...\AppData\Roaming
+		_config_file_user = Path(os.getenv("APPDATA") or ".") / "opsi-cli" / "opsi-cli.yaml"
+	else:
+		_config_file_system = Path("/etc/opsi/opsi-cli.yaml")
+		_config_file_user = Path("~/.config/opsi-cli/opsi-cli.yaml")
+
+	config_items.extend(
+		[
+			ConfigItem(
+				name="config_file_system",
+				type=File,
+				group="General",
+				default=_config_file_system,
+				description="System wide config file location",
+			),
+			ConfigItem(
+				name="config_file_user",
+				type=File,
+				group="General",
+				default=_config_file_user,
+				description="User specific config file",
+			),
+		]
+	)
+
+	return config_items
 
 
 class Config(metaclass=Singleton):
 	def __init__(self) -> None:
+		self.reset()
+
+	def reset(self) -> None:
 		self._options_processed: set[str] = set()
 		self._config: dict[str, ConfigItem] = {}
-		for item in CONFIG_ITEMS:
+		for item in get_config_items():
 			self.add_config_item(item)
 
 	def add_config_item(self, config_item: ConfigItem) -> None:
