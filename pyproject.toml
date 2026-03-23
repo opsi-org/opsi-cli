@@ -11,6 +11,7 @@ dependencies = [
 	"click>=8.1,<8.2",
 	"msgpack>=1.0",
 	"orjson>=3.6",
+	"packaging>=24.1,<25.0",  # TODO: LegacyVersion no longer working with packaging >= 25.0
 	"pip>=25.0.1",
 	"pipreqs>=0.5",
 	"prompt-toolkit>=3.0",
