@@ -571,6 +571,9 @@ def write_output(
 	if config.sort_by:
 		data = sort_data(data)
 
+	if config.limit is not None and isinstance(data, list):
+		data = data[: config.limit]
+
 	if output_format == OutputFormat.TABLE:
 		assert metadata
 		write_output_table(data, metadata, value_styles)

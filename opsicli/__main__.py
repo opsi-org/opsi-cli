@@ -198,6 +198,7 @@ def quiet_print(*args: Any, **kwargs: Any) -> None:
 	help=f"{config.get_description('list_attributes')}",
 )
 @config.get_click_option("sort_by", help=f"{config.get_description('sort_by')}. Comma separated list.")
+@config.get_click_option("limit")
 @config.get_click_option("service")
 @config.get_click_option("username", short_option="-u")
 @config.get_click_option("password", short_option="-p")

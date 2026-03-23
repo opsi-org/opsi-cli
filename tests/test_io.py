@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
+import orjson
 import pytest
 from _pytest.capture import CaptureFixture
 from opsicommon.logging import use_logging_config
@@ -212,6 +213,53 @@ def test_output_sort(capsys: CaptureFixture[str], data: Any, expected: Any, sort
 		config.set_values(old_config_values)
 
 
+@pytest.mark.parametrize(
+	"data,sort_by,limit,expected",
+	[
+		(
+			[
+				{"a": "test_1", "b": "dummy", "c": "string"},
+				{"a": "test_2", "b": "aaaa", "c": "boolean"},
+				{"a": "test_3", "b": "zzzz", "c": "number"},
+			],
+			"b",
+			2,
+			'[{"a":"test_2","b":"aaaa","c":"boolean"},{"a":"test_1","b":"dummy","c":"string"}]',
+		),
+		(
+			[["test_1", "dummy", "string"], ["test_2", "aaaa", "boolean"], ["test_3", "zzzz", "number"]],
+			"value1",
+			1,
+			'[["test_2","aaaa","boolean"]]',
+		),
+		(
+			["test_1", "test_2", "test_3"],
+			"value0",
+			0,
+			"[]",
+		),
+	],
+)
+def test_output_limit(capsys: CaptureFixture[str], data: Any, sort_by: str, limit: int, expected: str) -> None:
+	old_config_values = config.get_values()
+	try:
+		config.set_values({"sort_by": sort_by, "limit": limit, "output_format": "json"})
+		write_output(data)
+		captured = capsys.readouterr()
+		assert captured.out.strip() == expected
+	finally:
+		config.set_values(old_config_values)
+
+
+def test_limit_config_rejects_negative_values() -> None:
+	old_config_values = config.get_values()
+	try:
+		with pytest.raises(ValueError, match="limit must be greater than or equal to 0"):
+			config.set_values({"limit": -1})
+	finally:
+		config.set_values(old_config_values)
+
+
 def test_output_sort_unsupported_data_type() -> None:
 	old_config_values = config.get_values()
 	try:
@@ -257,6 +305,12 @@ def test_output_config(output_format: str, startstrings: list[str]) -> None:
 	assert any(stdout.startswith(startstring) for startstring in startstrings)
 	print("\n\n")
 	config.set_values({"output_format": "auto"})  # To not affect following tests
+
+
+def test_output_config_limit() -> None:
+	exit_code, stdout, _stderr = run_cli(["--output-format", "json", "--limit", "2", "config", "list"])
+	assert exit_code == 0
+	assert len(orjson.loads(stdout)) == 2
 
 
 @pytest.mark.parametrize(("input_format", "string", "data"), input_output_testdata[:-1])

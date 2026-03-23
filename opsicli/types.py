@@ -56,6 +56,19 @@ class LogLevel(int):
 		return int(self)
 
 
+class Limit(int):
+	click_type = click.IntRange(min=0)
+
+	def __new__(cls, value: str | int) -> Limit:
+		value = int(value)
+		if value < 0:
+			raise ValueError("limit must be greater than or equal to 0")
+		return super().__new__(cls, value)
+
+	def to_yaml(self) -> int:
+		return int(self)
+
+
 class ConfigStrEnum(StrEnum):
 	@classproperty
 	def possible_values(cls) -> list[str]:

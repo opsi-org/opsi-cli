@@ -50,6 +50,7 @@ from opsicli.types import (  # noqa: E402
 	Directory,
 	EditFormat,
 	File,
+	Limit,
 	LogLevel,
 	OPSIService,
 	OPSIServiceUrlOrServiceName,
@@ -362,6 +363,13 @@ def get_config_items() -> list[ConfigItem]:
 			group="IO",
 			default=None,
 			description="Sort the output data by the specified attribute(s).",
+		),
+		ConfigItem(
+			name="limit",
+			type=Limit,
+			group="IO",
+			default=None,
+			description="Limit the output to the specified number of records.",
 		),
 		ConfigItem(
 			name="timezone",
