@@ -203,14 +203,10 @@ def test_output(output_format: str, string: str, data: Any, capsys: CaptureFixtu
 	],
 )
 def test_output_sort(capsys: CaptureFixture[str], data: Any, expected: Any, sort_by: str) -> None:
-	old_config_values = config.get_values()
-	try:
-		config.set_values({"sort_by": sort_by, "output_format": "json"})
-		write_output(data)
-		captured = capsys.readouterr()
-		assert captured.out.strip() == expected
-	finally:
-		config.set_values(old_config_values)
+	config.set_values({"sort_by": sort_by, "output_format": "json"})
+	write_output(data)
+	captured = capsys.readouterr()
+	assert captured.out.strip() == expected
 
 
 @pytest.mark.parametrize(
@@ -241,34 +237,22 @@ def test_output_sort(capsys: CaptureFixture[str], data: Any, expected: Any, sort
 	],
 )
 def test_output_limit(capsys: CaptureFixture[str], data: Any, sort_by: str, limit: int, expected: str) -> None:
-	old_config_values = config.get_values()
-	try:
-		config.set_values({"sort_by": sort_by, "limit": limit, "output_format": "json"})
-		write_output(data)
-		captured = capsys.readouterr()
-		assert captured.out.strip() == expected
-	finally:
-		config.set_values(old_config_values)
+	config.set_values({"sort_by": sort_by, "limit": limit, "output_format": "json"})
+	write_output(data)
+	captured = capsys.readouterr()
+	assert captured.out.strip() == expected
 
 
 def test_limit_config_rejects_negative_values() -> None:
-	old_config_values = config.get_values()
-	try:
-		with pytest.raises(ValueError, match="limit must be greater than or equal to 0"):
-			config.set_values({"limit": -1})
-	finally:
-		config.set_values(old_config_values)
+	with pytest.raises(ValueError, match="limit must be greater than or equal to 0"):
+		config.set_values({"limit": -1})
 
 
 def test_output_sort_unsupported_data_type() -> None:
-	old_config_values = config.get_values()
-	try:
-		data = {"a": "test_1", "b": "dummy", "c": "string"}
-		config.set_values({"sort_by": "b", "output_format": "json"})
-		with pytest.raises(RuntimeError):
-			write_output(data)
-	finally:
-		config.set_values(old_config_values)
+	data = {"a": "test_1", "b": "dummy", "c": "string"}
+	config.set_values({"sort_by": "b", "output_format": "json"})
+	with pytest.raises(RuntimeError):
+		write_output(data)
 
 
 @pytest.mark.parametrize(
@@ -579,22 +563,18 @@ def test_get_selected_attributes(
 	expected: list[str],
 	expected_config_attributes: list[str] | None,
 ) -> None:
-	old_config_values = config.get_values()
-	try:
-		config.set_values({"attributes": config_attributes})
+	config.set_values({"attributes": config_attributes})
 
-		result = get_selected_attributes(
-			attributes=metadata_attributes,
-			fallback_attributes=fallback_attributes,
-			add_identifier=add_identifier,
-			add_attributes=add_attributes,
-			update_selected=update_selected,
-		)
+	result = get_selected_attributes(
+		attributes=metadata_attributes,
+		fallback_attributes=fallback_attributes,
+		add_identifier=add_identifier,
+		add_attributes=add_attributes,
+		update_selected=update_selected,
+	)
 
-		assert result == expected
-		assert config.attributes == expected_config_attributes
-	finally:
-		config.set_values(old_config_values)
+	assert result == expected
+	assert config.attributes == expected_config_attributes
 
 
 @pytest.mark.parametrize(
@@ -617,29 +597,25 @@ def test_get_selected_timezone(
 	expected_offset_seconds: int | None,
 	expected_error: str | None,
 ) -> None:
-	old_config_values = config.get_values()
-	try:
-		config.set_values({"timezone": configured_timezone})
+	config.set_values({"timezone": configured_timezone})
 
-		if expected_error:
-			with pytest.raises(ValueError, match=expected_error):
-				get_selected_timezone()
-		else:
-			result = get_selected_timezone()
-			if expected_key is None:
-				if configured_timezone in (None, ""):
-					assert result is None
-				else:
-					assert result is not None
+	if expected_error:
+		with pytest.raises(ValueError, match=expected_error):
+			get_selected_timezone()
+	else:
+		result = get_selected_timezone()
+		if expected_key is None:
+			if configured_timezone in (None, ""):
+				assert result is None
 			else:
 				assert result is not None
-				assert getattr(result, "key", None) == expected_key
+		else:
+			assert result is not None
+			assert getattr(result, "key", None) == expected_key
 
-			if expected_offset_seconds is not None:
-				assert result is not None
-				assert result.utcoffset(datetime.now()) == timedelta(seconds=expected_offset_seconds)
-	finally:
-		config.set_values(old_config_values)
+		if expected_offset_seconds is not None:
+			assert result is not None
+			assert result.utcoffset(datetime.now()) == timedelta(seconds=expected_offset_seconds)
 
 
 @pytest.mark.parametrize(
@@ -685,17 +661,12 @@ def test_to_string(
 	expected: str | None,
 	expected_error: str | None,
 ) -> None:
-	old_config_values = config.get_values()
-	try:
-		config.set_values({"timezone": configured_timezone})
-
-		if expected_error:
-			with pytest.raises(ValueError, match=expected_error):
-				to_string(value, **kwargs)
-		else:
-			assert to_string(value, **kwargs) == expected
-	finally:
-		config.set_values(old_config_values)
+	config.set_values({"timezone": configured_timezone})
+	if expected_error:
+		with pytest.raises(ValueError, match=expected_error):
+			to_string(value, **kwargs)
+	else:
+		assert to_string(value, **kwargs) == expected
 
 
 def test_get_separated_entries() -> None:

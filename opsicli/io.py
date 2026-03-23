@@ -89,16 +89,22 @@ class Attribute:
 	value_style: dict[str, str] | None = None
 	validator: Callable[[Any], Any] | None = None
 
-	def as_dict(self) -> dict[str, str | bool]:
-		return asdict(self)
+	def as_dict(self, *, exclude_fields: Iterable[str] | None = None) -> dict[str, str | bool]:
+		_dict = asdict(self)
+		for attr in exclude_fields or []:
+			if attr in _dict:
+				del _dict[attr]
+		return _dict
 
 
 @dataclass
 class Metadata:
 	attributes: list[Attribute] = field(default_factory=list)
 
-	def as_dict(self) -> dict[str, Any]:
-		return asdict(self)
+	def as_dict(self, *, exclude_attribute_fields: Iterable[str] | None = None) -> dict[str, Any]:
+		return {
+			"attributes": [attr.as_dict(exclude_fields=exclude_attribute_fields) for attr in self.attributes],
+		}
 
 
 def get_selected_timezone() -> tzinfo | None:
@@ -504,7 +510,9 @@ def write_output_json(data: Any, metadata: Metadata | None = None, pretty: bool 
 		data = [{attr: value for attr, value in row.items() if attr in attributes} for row in data]
 
 	json = orjson.dumps(
-		{"metadata": metadata.as_dict(), "data": data} if config.metadata and metadata else data,
+		{"metadata": metadata.as_dict(exclude_attribute_fields=("column_style", "value_style", "validator")), "data": data}
+		if config.metadata and metadata
+		else data,
 		default=to_string,
 		option=orjson.OPT_APPEND_NEWLINE | orjson.OPT_INDENT_2 if pretty and not output_file_is_a_tty() else 0,
 	)
@@ -526,7 +534,12 @@ def write_output_msgpack(data: Any, metadata: Metadata | None = None) -> None:
 
 	with output_file_bin() as file:
 		file.write(
-			msgpack.dumps({"metadata": metadata.as_dict(), "data": data} if config.metadata and metadata else data, default=to_string)
+			msgpack.dumps(
+				{"metadata": metadata.as_dict(exclude_attribute_fields=("column_style", "value_style", "validator")), "data": data}
+				if config.metadata and metadata
+				else data,
+				default=to_string,
+			)
 		)
 
 
