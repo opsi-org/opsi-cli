@@ -60,7 +60,7 @@ def product_unlock(product_ids: str | None = None, depot_ids: str | None = None)
 	service_connection = get_service_connection()
 	product_ids_list = [p.strip() for p in (product_ids or "").split(",") if p.strip()]
 	depot_ids_list = [d.strip() for d in (depot_ids or "").split(",") if d.strip()]
-	unlock_and_update(product_ids_list, depot_ids_list)
+	unlock_and_update(product_ids_list, depot_ids_list)  # type: ignore[invalid-argument-type]
 
 
 @product.command(name="purge", short_help="Purge metadata related to uninstalled products.")

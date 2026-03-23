@@ -13,7 +13,7 @@ from opsicommon.logging import get_logger
 
 from opsicli.config import config
 
-__version__ = "4.3.30.5"
+__version__ = "4.3.41.11"
 logger = get_logger("opsi-cli")
 
 

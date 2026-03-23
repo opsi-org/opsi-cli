@@ -693,7 +693,7 @@ def read_input_csv(data: bytes) -> list[dict | list[str]]:
 			continue
 		for cidx, val in enumerate(row):
 			if val == "<null>":
-				row[cidx] = None
+				row[cidx] = None  # type: ignore[invalid-assignment]
 		if row:
 			if header:
 				rows.append({header[i]: row[i] for i in range(len(header))})

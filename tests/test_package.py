@@ -399,6 +399,7 @@ def test_package_install_and_uninstall(admin_service_client: ServiceClient) -> N
 				create_objects: bool | None = None,
 				assert_connected: bool = True,
 			) -> Any:
+				assert not isinstance(params, dict)
 				logger.info("Mock JSON-RPC call: %s %s", method, params)
 				if method == "depot_getDiskSpaceUsage":
 					return {"available": 1_000_000_000, "usage": 0.5}

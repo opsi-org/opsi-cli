@@ -786,13 +786,13 @@ def test_product_property_list_stress_test(admin_service_client: ServiceClient) 
 			while j < num_products:
 				k = 0
 				while k < num_properties:
-					admin_service_client.productProperty_create(
+					admin_service_client.productProperty_create(  # type: ignore[unresolved-attribute]
 						productId=f"pytest-product{j}",
 						productVersion="1",
 						packageVersion="1",
 						propertyId=f"property{k}",
 					)
-					admin_service_client.productPropertyState_create(
+					admin_service_client.productPropertyState_create(  # type: ignore[unresolved-attribute]
 						productId=f"pytest-product{j}",
 						propertyId=f"property{k}",
 						objectId=f"pytest-client{i}.test.tld",

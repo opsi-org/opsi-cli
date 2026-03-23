@@ -268,7 +268,7 @@ def install_dependencies(path: Path, target_dir: Path) -> None:
 		except ImportError:
 			from PyInstaller.loader import pyimod02_importers
 
-		resources._finder_registry[pyimod02_importers.PyiFrozenLoader] = resources._finder_registry[
+		resources._finder_registry[pyimod02_importers.PyiFrozenLoader] = resources._finder_registry[  # type: ignore
 			_frozen_importlib_external.SourceFileLoader
 		]
 		logger.debug("Finder registry: %s", resources._finder_registry)

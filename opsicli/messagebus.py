@@ -246,7 +246,7 @@ class MessagebusProcess:
 						process_id=self.process_id,
 						sender=CONNECTION_USER_CHANNEL,
 						channel=self.start_request.channel,
-						stdin=self.stdin_data[pos : pos + chunk_size],
+						stdin=bytes(self.stdin_data[pos : pos + chunk_size]),
 					)
 				)
 				pos += chunk_size
