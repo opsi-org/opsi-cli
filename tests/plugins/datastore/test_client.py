@@ -30,12 +30,17 @@ TEST_CLIENTS = [
 ]
 
 
+def assert_error_contains(stderr: str, expected_parts: tuple[str, ...]) -> None:
+	for part in expected_parts:
+		assert part in stderr, f"Expected {part!r} in stderr, got: {stderr}"
+
+
 @pytest.mark.opsi_service
 @pytest.mark.parametrize(
 	"command, expected_output, expected_error",
 	(
 		(
-			["--sort-by", "id", "datastore", "client", "list", "--where", "all"],
+			["--sort-by", "id", "datastore", "client", "list", "--where", "id=*"],
 			[
 				{
 					"description": "desc 10",
@@ -73,21 +78,34 @@ TEST_CLIENTS = [
 			None,
 		),
 		(
+			["--attributes", "id", "datastore", "client", "list"],
+			None,
+			("At least one filter condition is required", "If you intentionally do not want", "Available attributes are:"),
+		),
+		(
 			["--attributes", "id", "datastore", "client", "list", "--where", "unknown=pytest-client1*"],
 			None,
-			"Invalid attribute in filter condition: 'unknown'. Available attributes are:",
+			("Invalid attribute in filter condition:", "unknown=pytest-client1*", "Available attributes are:"),
+		),
+		(
+			["--attributes", "id", "datastore", "client", "list", "--where", "invalidfilter"],
+			None,
+			("Invalid filter condition:", "invalidfilter", "Available attributes are:"),
 		),
 	),
 )
 def test_list_clients(
-	admin_service_client: ServiceClient, command: list[str], expected_output: list[str] | None, expected_error: str | None
+	admin_service_client: ServiceClient,
+	command: list[str],
+	expected_output: list[dict[str, str]] | None,
+	expected_error: tuple[str, ...] | None,
 ) -> None:
 	command = ["--timezone", "UTC", "--output-format", "csv"] + command
 	with tmp_clients(admin_service_client, TEST_CLIENTS):
 		exit_code, stdout, stderr = run_cli(command)
 		if expected_error:
 			assert exit_code != 0
-			assert expected_error in stderr.replace("\n", " ").replace("  ", " ")
+			assert_error_contains(stderr, expected_error)
 		else:
 			assert exit_code == 0
 			data = read_input_csv(stdout.encode("utf-8"))
@@ -106,7 +124,7 @@ def test_list_clients(
 				"client",
 				"update",
 				"--where",
-				"all",
+				"id=*",
 				"--set",
 				"description=updated",
 				"--set",
@@ -170,6 +188,8 @@ def test_list_clients(
 				"client",
 				"update",
 				"--where",
+				"id=pytest-client11.test.tld",
+				"--where",
 				"inventoryNumber=inv-001*",
 				"--where",
 				"description=desc 11",
@@ -219,6 +239,8 @@ def test_list_clients(
 				"client",
 				"update",
 				"--where",
+				"id=pytest-client11.test.tld",
+				"--where",
 				"inventoryNumber=inv-001*",
 				"--where",
 				"description=desc 11",
@@ -261,11 +283,55 @@ def test_list_clients(
 		),
 		(
 			[
+				"--dry-run",
+				"--attributes",
+				"inventoryNumber,description",
 				"datastore",
 				"client",
 				"update",
 				"--where",
-				"all",
+				"inventoryNumber=inv-001*",
+				"--where",
+				"description=desc 11",
+				"--set",
+				"description=updated",
+			],
+			None,
+			[
+				{
+					"description": "desc 10",
+					"id": "pytest-client10.test.tld",
+					"inventoryNumber": "inv-0010",
+					"lastSeen": "2025-09-01 00:00:00",
+				},
+				{
+					"description": "desc 11",
+					"id": "pytest-client11.test.tld",
+					"inventoryNumber": "inv-0011",
+					"lastSeen": "2025-08-01 00:00:00",
+				},
+				{
+					"description": "desc 20",
+					"id": "pytest-client20.test.tld",
+					"inventoryNumber": "inv-0020",
+					"lastSeen": "2025-07-01 00:00:00",
+				},
+				{
+					"description": "desc 21",
+					"id": "pytest-client21.test.tld",
+					"inventoryNumber": "inv-0021",
+					"lastSeen": "2025-06-01 00:00:00",
+				},
+			],
+			("Incomplete filter for update operation.", "Missing required attributes: id"),
+		),
+		(
+			[
+				"datastore",
+				"client",
+				"update",
+				"--where",
+				"id=*",
 				"--set",
 				"invalid=updated",
 			],
@@ -296,31 +362,69 @@ def test_list_clients(
 					"lastSeen": "2025-06-01 00:00:00",
 				},
 			],
-			"Invalid attribute in set command: 'invalid'. Available attributes are",
+			("Invalid attribute in set statement:", "invalid=updated", "Available attributes are:"),
+		),
+		(
+			[
+				"datastore",
+				"client",
+				"update",
+				"--where",
+				"id=*",
+				"--set",
+				"opsiHostKey=invalid-value",
+			],
+			None,
+			[
+				{
+					"description": "desc 10",
+					"id": "pytest-client10.test.tld",
+					"inventoryNumber": "inv-0010",
+					"lastSeen": "2025-09-01 00:00:00",
+				},
+				{
+					"description": "desc 11",
+					"id": "pytest-client11.test.tld",
+					"inventoryNumber": "inv-0011",
+					"lastSeen": "2025-08-01 00:00:00",
+				},
+				{
+					"description": "desc 20",
+					"id": "pytest-client20.test.tld",
+					"inventoryNumber": "inv-0020",
+					"lastSeen": "2025-07-01 00:00:00",
+				},
+				{
+					"description": "desc 21",
+					"id": "pytest-client21.test.tld",
+					"inventoryNumber": "inv-0021",
+					"lastSeen": "2025-06-01 00:00:00",
+				},
+			],
+			("Invalid value in set statement:", "opsiHostKey=invalid-value", "Available attributes are:"),
 		),
 	),
 )
 def test_update_clients(
 	admin_service_client: ServiceClient,
 	command: list[str],
-	expected_output: list[str],
+	expected_output: list[dict[str, str]] | None,
 	expected_values: list[dict[str, str | None]],
-	expected_error: str | None,
+	expected_error: tuple[str, ...] | None,
 ) -> None:
 	command = ["--timezone", "UTC", "--output-format", "csv"] + command
 	with tmp_clients(admin_service_client, TEST_CLIENTS):
 		exit_code, stdout, stderr = run_cli(command)
 		if expected_error:
 			assert exit_code != 0
-			assert expected_error in stderr
+			assert_error_contains(stderr, expected_error)
 		else:
 			assert exit_code == 0
 			data = read_input_csv(stdout.encode("utf-8"))
 			assert data == expected_output
 
 		hosts = admin_service_client.host_getObjects(id=[c.id for c in TEST_CLIENTS], type="OpsiClient")  # type: ignore[attr-defined]
-		for host in sorted(hosts, key=lambda h: h.id):
-			expected_host = expected_values.pop(0)
+		for host, expected_host in zip(sorted(hosts, key=lambda h: h.id), expected_values, strict=True):
 			for key, expected_val in expected_host.items():
 				actual_val = getattr(host, key)
 				if isinstance(expected_val, str) and expected_val.endswith("Z"):
@@ -331,7 +435,7 @@ def test_update_clients(
 @pytest.mark.opsi_service
 def test_edit_clients_non_interactive(admin_service_client: ServiceClient) -> None:
 	with tmp_clients(admin_service_client, TEST_CLIENTS):
-		exit_code, _stdout, _stderr = run_cli(["--non-interactive", "datastore", "client", "edit", "--where", "all"])
+		exit_code, _stdout, _stderr = run_cli(["--non-interactive", "datastore", "client", "edit", "--where", "id=*"])
 		assert exit_code != 0
 		assert "Editing is not possible in non-interactive mode." in _stderr
 
@@ -352,7 +456,7 @@ def test_edit_clients(admin_service_client: ServiceClient, dry_run: bool) -> Non
 
 		with patch("subprocess.run", side_effect=fake_editor):
 			exit_code, _stdout, _stderr = run_cli(
-				(["--dry-run"] if dry_run else []) + ["--interactive", "datastore", "client", "edit", "--where", "all"]
+				(["--dry-run"] if dry_run else []) + ["--interactive", "datastore", "client", "edit", "--where", "id=*"]
 			)
 
 		assert exit_code == 0

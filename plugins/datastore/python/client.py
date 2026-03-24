@@ -73,10 +73,10 @@ def client() -> None:
 @click.option(
 	"--where",
 	type=str,
-	required=True,
 	multiple=True,
 	help="Filter clients.",
 )
+@dry_run_capable
 def list_clients(where: tuple[str, ...]) -> None:
 	"""
 	View clients.
@@ -106,7 +106,6 @@ def apply_clients() -> None:
 @click.option(
 	"--where",
 	type=str,
-	required=True,
 	multiple=True,
 	help="Filter clients.",
 )
@@ -149,14 +148,12 @@ def edit_clients(where: tuple[str, ...]) -> None:
 @click.option(
 	"--where",
 	type=str,
-	required=True,
 	multiple=True,
 	help="Filter clients.",
 )
 @click.option(
 	"--set",
 	type=str,
-	required=True,
 	multiple=True,
 	help="Set client attributes.",
 )
@@ -165,15 +162,8 @@ def update_clients(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	"""
 	Update attributes of clients.
 	"""
-	_where = [v.strip() for v in where if v.strip()]
-	_set = [v.strip() for v in set if v.strip()]
-	if not _where:
-		raise ValueError("At least one filter condition must be provided with --where. Use 'all' to select all clients.")
-	if not _set:
-		raise ValueError("At least one attribute must be set with --set.")
-
-	filter = process_where(where, attributes=CLIENT_METADATA.attributes)
-	updates = process_set(set, attributes=CLIENT_METADATA.attributes, exclude_attributes=["id"])
+	filter = process_where(where, attributes=CLIENT_METADATA.attributes, operation="update")
+	updates = process_set(set, attributes=CLIENT_METADATA.attributes)
 
 	selected_attributes = get_selected_attributes(
 		attributes=CLIENT_METADATA.attributes,
