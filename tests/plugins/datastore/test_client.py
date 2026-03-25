@@ -477,13 +477,11 @@ def test_apply_clients(admin_service_client: ServiceClient, dry_run: bool) -> No
 		apply_data = [
 			{
 				"id": "pytest-client10.test.tld",
-				"description": "applied description 10",
 				"inventoryNumber": "applied-0010",
 				"lastSeen": "2025-09-10T00:00:00+00:00",
 			},
 			{
 				"id": "pytest-client21.test.tld",
-				"description": "applied description 21",
 				"inventoryNumber": "applied-0021",
 				"lastSeen": "2025-06-10T00:00:00+00:00",
 			},
@@ -497,13 +495,11 @@ def test_apply_clients(admin_service_client: ServiceClient, dry_run: bool) -> No
 		assert exit_code == 0
 		assert read_input_csv(stdout.encode("utf-8")) == [
 			{
-				"description": "applied description 10",
 				"id": "pytest-client10.test.tld",
 				"inventoryNumber": "applied-0010",
 				"lastSeen": "2025-09-10T00:00:00+00:00",
 			},
 			{
-				"description": "applied description 21",
 				"id": "pytest-client21.test.tld",
 				"inventoryNumber": "applied-0021",
 				"lastSeen": "2025-06-10T00:00:00+00:00",
@@ -514,23 +510,17 @@ def test_apply_clients(admin_service_client: ServiceClient, dry_run: bool) -> No
 		hosts_by_id = {host.id: host for host in hosts}
 
 		if dry_run:
-			assert hosts_by_id["pytest-client10.test.tld"].description == "desc 10"
 			assert hosts_by_id["pytest-client10.test.tld"].inventoryNumber == "inv-0010"
 			assert hosts_by_id["pytest-client10.test.tld"].lastSeen == "2025-09-01 00:00:00"
-			assert hosts_by_id["pytest-client21.test.tld"].description == "desc 21"
 			assert hosts_by_id["pytest-client21.test.tld"].inventoryNumber == "inv-0021"
 			assert hosts_by_id["pytest-client21.test.tld"].lastSeen == "2025-06-01 00:00:00"
 		else:
-			assert hosts_by_id["pytest-client10.test.tld"].description == "applied description 10"
 			assert hosts_by_id["pytest-client10.test.tld"].inventoryNumber == "applied-0010"
 			assert hosts_by_id["pytest-client10.test.tld"].lastSeen == "2025-09-10 00:00:00"
-			assert hosts_by_id["pytest-client21.test.tld"].description == "applied description 21"
 			assert hosts_by_id["pytest-client21.test.tld"].inventoryNumber == "applied-0021"
 			assert hosts_by_id["pytest-client21.test.tld"].lastSeen == "2025-06-10 00:00:00"
 
-		assert hosts_by_id["pytest-client11.test.tld"].description == "desc 11"
 		assert hosts_by_id["pytest-client11.test.tld"].inventoryNumber == "inv-0011"
 		assert hosts_by_id["pytest-client11.test.tld"].lastSeen == "2025-08-01 00:00:00"
-		assert hosts_by_id["pytest-client20.test.tld"].description == "desc 20"
 		assert hosts_by_id["pytest-client20.test.tld"].inventoryNumber == "inv-0020"
 		assert hosts_by_id["pytest-client20.test.tld"].lastSeen == "2025-07-01 00:00:00"

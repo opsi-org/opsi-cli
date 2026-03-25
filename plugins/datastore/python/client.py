@@ -99,6 +99,7 @@ def apply_clients() -> None:
 	if not clients:
 		raise ValueError("No input data provided for updating clients. Please set --input-file.")
 
+	get_selected_attributes(attributes=CLIENT_METADATA.attributes, fallback_attributes=list(clients[0]), update_selected=True)
 	_update_clients(clients)
 
 
