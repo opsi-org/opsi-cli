@@ -139,6 +139,33 @@ COMMAND_METADATA = {
 			Attribute(id="origin", description="Location where the change was made.", identifier=False, data_type="str", selected=True),
 		]
 	),
+	"datastore_config-state_update": Metadata(
+		attributes=[
+			Attribute(id="objectId", description="The ID of the object (host).", identifier=False, data_type="str", selected=True),
+			Attribute(id="configId", description="The ID of the config.", identifier=False, data_type="str", selected=True),
+			Attribute(
+				id="possible",
+				description="Possible values of given Config.",
+				identifier=False,
+				data_type="str | bool",
+				selected=True,
+			),
+			Attribute(
+				id="old",
+				description="Old values.",
+				identifier=False,
+				data_type="str | bool",
+				selected=True,
+			),
+			Attribute(
+				id="new",
+				description="Updated values.",
+				identifier=False,
+				data_type="str | bool",
+				selected=True,
+			),
+		]
+	),
 	"datastore_product-property-state_list": Metadata(
 		attributes=[
 			Attribute(id="objectId", description="The ID of the object.", identifier=False, data_type="str", selected=True),
