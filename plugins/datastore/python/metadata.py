@@ -5,9 +5,19 @@
 
 from datetime import datetime, timezone
 
-from opsicommon.types import forceHardwareAddress, forceHostId, forceIpAddress, forceOpsiHostKey, forceOpsiTimestamp, forceUUIDString
+from opsicommon.types import (
+	forceConfigId,
+	forceHardwareAddress,
+	forceHostId,
+	forceIpAddress,
+	forceOpsiHostKey,
+	forceOpsiTimestamp,
+	forceUUIDString,
+)
 
 from opsicli.io import Attribute, Metadata
+
+from .common import validate_values
 
 CLIENT_METADATA = Metadata(
 	attributes=[
@@ -98,6 +108,40 @@ CLIENT_METADATA = Metadata(
 			data_type="str",
 			selected=False,
 			validator=lambda val: forceUUIDString(val),
+		),
+	]
+)
+
+CONFIG_STATE_WHERE_METADATA = Metadata(
+	attributes=[
+		Attribute(
+			id="objectId",
+			description="The ID of the client.",
+			identifier=True,
+			data_type="str",
+			selected=True,
+			validator=lambda val: forceHostId(val),
+		),
+		Attribute(
+			id="configId",
+			description="The ID of the config-state.",
+			identifier=True,
+			data_type="str",
+			selected=True,
+			validator=lambda val: forceConfigId(val),
+		),
+	]
+)
+
+CONFIG_STATE_SET_METADATA = Metadata(
+	attributes=[
+		Attribute(
+			id="values",
+			description="The value(s) of the config-state.",
+			identifier=False,
+			data_type="Any",
+			selected=True,
+			validator=validate_values,
 		),
 	]
 )

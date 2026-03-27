@@ -163,7 +163,7 @@ def update_clients(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	Update attributes of clients.
 	"""
 	filter = process_where(where, attributes=CLIENT_METADATA.attributes, operation="update")
-	updates = process_set(set, attributes=CLIENT_METADATA.attributes)
+	updates: dict[str, str] = process_set(set, attributes=CLIENT_METADATA.attributes)
 
 	selected_attributes = get_selected_attributes(
 		attributes=CLIENT_METADATA.attributes,
@@ -172,6 +172,7 @@ def update_clients(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	)
 
 	clients = _get_clients_from_service(filter=filter, attributes=selected_attributes)
+
 	for client in clients:
 		client.update(updates)
 

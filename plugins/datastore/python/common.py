@@ -2,12 +2,13 @@
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
-
 import re
-from typing import Literal
+from typing import Any, Literal, overload
 
 import rich_click as click
 from opsicommon.logging import get_logger
+from opsicommon.objects import BoolConfig, Config, ProductProperty, UnicodeConfig
+from opsicommon.types import forceBoolList
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.io import Attribute
@@ -136,16 +137,26 @@ def general_help_for_set(available_attributes: list[Attribute]) -> str:
 	return general_help
 
 
-def process_set(set: tuple[str, ...], *, attributes: list[Attribute]) -> dict[str, str]:
+@overload
+def process_set(set: tuple[str, ...], *, obj: None = None, attributes: list[Attribute]) -> dict[str, str]: ...
+
+
+@overload
+def process_set(
+	set: tuple[str, ...], *, obj: Config | ProductProperty, attributes: list[Attribute]
+) -> dict[str, list[str] | list[bool]]: ...
+
+
+def process_set(set: tuple[str, ...], *, obj: Config | None = None, attributes: list[Attribute]):
 	set = set or tuple()
-	set_pattern: re.Pattern[str] = re.compile(r"^([a-zA-Z]+)\s*=\s*(.*)$")
+	set_pattern: re.Pattern[str] = re.compile(r"^([a-zA -Z]+)\s*=\s*(.*)$")
 	attributes_by_id = {attr.id: attr for attr in attributes if not attr.identifier}
 	general_help = general_help_for_set(available_attributes=list(attributes_by_id.values()))
 
 	if not set:
 		raise ValueError(f"No attributes specified to update.\n\n{general_help}")
 
-	updates: dict[str, str] = {}
+	updates = {}
 	for assignment in set:
 		assignment = assignment.strip()
 		match = set_pattern.match(assignment)
@@ -157,14 +168,53 @@ def process_set(set: tuple[str, ...], *, attributes: list[Attribute]) -> dict[st
 		attribute = attributes_by_id.get(attr)
 		if not attribute:
 			raise ValueError(f"Invalid attribute in set statement: `[bold][red]{attr}[/red]={value}[/]`.\n\n{general_help}")
+		args = {"object": obj, "values": value} if attribute.validator == validate_values and obj else value
+
 		if attribute.validator:
 			try:
-				updates[attr] = attribute.validator(value)
-			except Exception:
-				raise ValueError(f"Invalid value in set statement: `[bold]{attr}=[red]{value}[/]`.\n\n{general_help}")
-		else:
-			updates[attr] = value
+				updates[attr] = attribute.validator(args)
+			except Exception as e:
+				error_msg = f"Invalid value in set statement: `[bold]{attr}=[red]{value}[/]`."
+
+				if attribute.validator == validate_values:
+					error_msg += f"\n\n{e}"
+
+				raise ValueError(f"{error_msg}\n\n{general_help}")
+
 	return updates
+
+
+def validate_values(args: dict[str, Any]) -> list[str] | list[bool]:
+	obj = args["object"]
+	values = args["values"].split(",")
+	possible_values: list[str] = obj.possibleValues if obj else []
+	formatted_possible = "\n".join([f"{val}" for val in possible_values]) if possible_values else "Any"
+
+	if isinstance(obj, BoolConfig):
+		if len(values) > 1:
+			raise ValueError(
+				f"Only one value is allowed for: `[bold][blue]{obj.id}[/][/]`. \n[bold]Possible values are:[/] \n\n[green]{formatted_possible}[/green]"
+			)
+		if values[0].lower() not in ["false", "true", "0", "1"]:
+			raise ValueError(f"Possible values for: `[bold][blue]{obj.id}[/][/]` \n\n[green]{formatted_possible}[/green]")
+		return forceBoolList(values)
+
+	if isinstance(obj, UnicodeConfig):
+		if not obj.editable:
+			raise AttributeError(f"`[bold]{obj.id}[/]` is not ediable.")
+
+		if obj.multiValue:
+			if not set(values) <= set(possible_values):
+				raise ValueError(f"Possible values for: `[bold][blue]{obj.id}[/][/]` \n\n[green]{formatted_possible}[/green]")
+		else:
+			if len(values) > 1:
+				raise ValueError(
+					f"MultiValues are not allowed for: `[bold][blue]{obj.id}[/][/]` \n[bold]Possible values are[/]: \n\n[green]{formatted_possible}[/green]"
+				)
+			elif values[0] not in possible_values and possible_values != []:
+				raise ValueError(f"Possible values for: `[bold][blue]{obj.id}[/][/]` \n\n[green]{formatted_possible}[/green]")
+		return values
+	return []
 
 
 @click.group(cls=OPSICLIGroup, name="datastore", short_help="Manage objects and data")

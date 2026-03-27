@@ -5,14 +5,14 @@
 
 import rich_click as click
 from opsicommon.logging import get_logger
-from opsicommon.objects import BoolConfig, ConfigState, UnicodeConfig
-from opsicommon.types import forceBool
+from opsicommon.objects import Config, ConfigState
 
+from opsicli.decorators import dry_run_capable
 from opsicli.io import OutputType, console_print, write_output
-from opsicli.opsiservice import get_service_connection
+from opsicli.opsiservice import config, get_service_connection
 
-from .common import cli, create_client_depot_mapping, get_object_ids
-from .metadata import COMMAND_METADATA
+from .common import cli, create_client_depot_mapping, get_object_ids, process_set, process_where
+from .metadata import COMMAND_METADATA, CONFIG_STATE_SET_METADATA, CONFIG_STATE_WHERE_METADATA
 
 logger = get_logger("opsicli")
 
@@ -44,11 +44,11 @@ def list_config_state(object_ids: str, config_ids: str) -> None:
 	"""
 
 	def get_default_config_states(object_ids: list[str], config_ids: list[str] | None) -> dict[str, dict[str, str]]:
-		default_config_objects = service_connection.config_getObjects(id=config_ids or [])  # type: ignore[attr-defined]
+		default_config_obj_listects = service_connection.config_getObjects(id=config_ids or [])  # type: ignore[attr-defined]
 		default_states = {}
 
 		for object_id in object_ids:
-			for entry in default_config_objects:
+			for entry in default_config_obj_listects:
 				default_states[object_id + entry.id] = {
 					"final_values": entry.defaultValues,
 					"default_values": entry.defaultValues,
@@ -114,7 +114,6 @@ def list_config_state(object_ids: str, config_ids: str) -> None:
 	depot_states = update_default_states(final_depot_ids, final_object_ids, final_config_ids, default_states)
 	client_states = update_depot_states(final_object_ids, final_config_ids, depot_states)
 
-	print(list(client_states.values()))
 	write_output(
 		data=list(client_states.values()),
 		metadata=COMMAND_METADATA.get("datastore_config-state_list"),
@@ -126,127 +125,82 @@ def list_config_state(object_ids: str, config_ids: str) -> None:
 	name="update",
 	short_help="Update an existing config state or create a new one if it doesn't exist. Using 'all' as the object ID will apply the value to all objects.",
 )
-@click.argument("config-id", type=str)
-@click.argument("object-id", type=str)
-@click.argument("values", type=str, nargs=-1)
-def update_config_state(config_id: str, object_id: str, values: tuple[str]) -> None:
+@click.option(
+	"--where",
+	type=str,
+	multiple=True,
+	help="Filter config-states with objectId(s) and configId.",
+)
+@click.option(
+	"--set",
+	type=str,
+	multiple=True,
+	help="Set value(s) of the config-state.",
+)
+@dry_run_capable
+def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	"""
 	Change values of config states.
 	"""
 
-	def set_bool_config(object_ids: list[str], config_id: str, value: str) -> list[dict[str, str]]:
+	def create_output_data(
+		config_obj: Config, modified_config_states: list[ConfigState], current_values: dict[str, dict[str, str]]
+	) -> list[dict[str, str]]:
 		updated_data = []
-		possible_values = config.possibleValues
-		object_value_dict = service_connection.configState_getValues(config_id, object_ids)  # type: ignore[attr-defined]
-
-		# set new value for every given object
-		for obj_id in object_ids:
-			current_values = object_value_dict[obj_id][config_id]
-			# create configState Objects with new value
-			if value in ["true", "True"]:
-				config_state = ConfigState(configId=config_id, objectId=obj_id, values=[forceBool(value)])
-			elif value in ["false", "False"]:
-				config_state = ConfigState(configId=config_id, objectId=obj_id, values=[forceBool(value)])
-			else:
-				raise ValueError(f"'{value}' is not valid for {config_id}. Possible values are: {possible_values}")
-
-			# update current configState Objects
-			if config_state_exists:
-				service_connection.configState_updateObjects(config_state)  # type: ignore[attr-defined]
-			else:
-				service_connection.configState_createObjects(config_state)  # type: ignore[attr-defined]
-
+		for state in modified_config_states:
 			updated_data.append(
 				{
-					"objectId": obj_id,
-					"configId": config_id,
-					"possible": config.possibleValues,
-					"old": current_values,
-					"new": forceBool(value),
+					"objectId": state.objectId,
+					"configId": state.configId,
+					"possible": config_obj.possibleValues,
+					"old": current_values[state.objectId][state.configId],
+					"new": state.values,
 				}
 			)
 		return updated_data
 
-	def set_unicode_config(object_ids: list[str], config_id: str, s: list[str]) -> list[dict[str, str]]:
-		updated_data = []
-		possible_values = config.possibleValues
-		object_value_dict = service_connection.configState_getValues(config_id, object_ids)  # type: ignore[attr-defined]
-		# set new value for every given object
+	def update_database(data: list[dict[str, str]], config_states: list[ConfigState], current_values: dict[str, dict[str, str]]) -> None:
+		service_connection = get_service_connection()
+		update = []
+		create = []
+		if config.dry_run:
+			msg = "Update skipped due to dry run. Here are the clients that would have been updated:\n"
+		else:
+			msg = "Config-state updated successfully. Here are the updated clients."
+			for state in config_states:
+				if current_values.get(state.objectId, {}).get(state.configId):
+					update.append(state)
+				else:
+					create.append(state)
+			service_connection.configState_updateObjects(update)  # type: ignore[attr-defined]
+			service_connection.configState_createObjects(create)  # type: ignore[attr-defined]
+
+		console_print(msg, style="green", output_type=OutputType.MESSAGE)
+		write_output(data=data, metadata=COMMAND_METADATA.get("datastore_config-state_update"))
+
+	def create_config_states(object_ids: list[str], config_id: str, values: list[str] | list[bool]) -> list[ConfigState]:
+		config_states = []
+
 		for obj_id in object_ids:
-			current_values = object_value_dict[obj_id][config_id]
+			config_state = ConfigState(configId=config_id, objectId=obj_id, values=values)
+			config_states.append(config_state)
+		return config_states
 
-			# [one value]
-			if len(values) == 1:
-				# check for possible values if config is not multiValue
-				if values[0] not in possible_values and config.multiValue is False:
-					raise ValueError(
-						f"Value is not valid for [yellow]{config_id}[/yellow]. \nPossible values are: [green]{possible_values}[/green]"
-					)
-				# craete configState
-				config_state = ConfigState(configId=config_id, objectId=obj_id, values=values)
-
-				# update configState
-				if config_state_exists:
-					service_connection.configState_updateObjects(config_state)  # type: ignore[attr-defined]
-				else:
-					service_connection.configState_createObjects(config_state)  # type: ignore[attr-defined]
-
-			# [multiple values or no value]
-			else:
-				if not config.multiValue:
-					raise ValueError(f"Value is not valid for [yellow]{config_id}[/yellow]. \nMultivalues are not allowed.")
-				# create configState
-				config_state = ConfigState(configId=config_id, objectId=obj_id, values=value)
-
-				# update configState
-				if config_state_exists:
-					service_connection.configState_updateObjects(config_state)  # type: ignore[attr-defined]
-				else:
-					service_connection.configState_createObjects(config_state)  # type: ignore[attr-defined]
-
-			updated_data.append(
-				{
-					"objectId": obj_id,
-					"configId": config_id,
-					"possible": config.possibleValues,
-					"old": current_values,
-					"new": values,
-				}
-			)
-
-		return updated_data
-
-	# get server connection and the config object with given config_id
 	service_connection = get_service_connection()
-	config_list = service_connection.config_getObjects(id=config_id)  # type: ignore[attr-defined]
-	config_state_list = service_connection.configState_getObjects(configId=config_id)  # type: ignore[attr-defined]
+	filter = process_where(where, attributes=CONFIG_STATE_WHERE_METADATA.attributes, operation="update")
+	object_ids = get_object_ids(service_connection, filter["objectId"])
+	config_id = filter["configId"]
+	config_obj: list[Config] = service_connection.config_getObjects(id=config_id)  # type: ignore[attr-defined]
 
-	# test if config-id is valid
-	if not config_list:
-		raise AttributeError(f"There is no such configId: '{config_id}'")
-	if len(config_list) > 1:
+	if not config_obj:
+		raise AttributeError(f"There is no such configId: `{config_id}`")
+	if len(config_obj) > 1:
 		raise AttributeError("Only one configId without wildcard is allowed.")
 
-	# get config from list
-	config = config_list[0]
-	config_state_exists = False if config_state_list == [] else True
+	updates = process_set(set, obj=config_obj[0], attributes=CONFIG_STATE_SET_METADATA.attributes)
+	values = updates["values"]
+	current_values = service_connection.configState_getValues(config_id, object_ids)  # type: ignore[attr-defined]
 
-	possible_values = config.possibleValues
-
-	object_ids = get_object_ids(service_connection, object_id)
-
-	# set BoolConfig
-	if isinstance(config, BoolConfig):
-		if len(values) == 1:
-			updated_data = set_bool_config(object_ids, config_id, values[0])
-		else:
-			raise ValueError(
-				f"Multivalues are not valid for [yellow]{config_id}[/yellow] \nPossible values are: [green]{possible_values}[/green]"
-			)
-	# set UnicodeConfig
-	if isinstance(config, UnicodeConfig):
-		updated_data = set_unicode_config(object_ids, config_id, list(values))
-
-	msg = "Config-state updated successfully. Here are the updated clients."
-	console_print(msg, style="green", output_type=OutputType.MESSAGE)
-	write_output(data=updated_data, metadata=COMMAND_METADATA.get("datastore_config-state_update"))
+	new_config_states = create_config_states(object_ids, config_id, values)
+	output_data = create_output_data(config_obj[0], new_config_states, current_values)
+	update_database(output_data, new_config_states, current_values)
