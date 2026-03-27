@@ -11,7 +11,7 @@ from opsicommon.objects import BoolConfig, Config, ProductProperty, UnicodeConfi
 from opsicommon.types import forceBoolList
 
 from opsicli.cli_helpers import OPSICLIGroup
-from opsicli.io import Attribute
+from opsicli.io import Attribute, get_separated_entries
 from opsicli.opsiservice import ServiceClient
 
 logger = get_logger("opsicli")
@@ -186,9 +186,9 @@ def process_set(set: tuple[str, ...], *, obj: Config | None = None, attributes: 
 
 def validate_values(args: dict[str, Any]) -> list[str] | list[bool]:
 	obj = args["object"]
-	values = args["values"].split(",")
+	values = get_separated_entries(args["values"])
 	possible_values: list[str] = obj.possibleValues if obj else []
-	formatted_possible = "\n".join([f"{val}" for val in possible_values]) if possible_values else "Any"
+	formatted_possible = "\n".join([f"'{val}'" for val in possible_values]) if possible_values else "Any"
 
 	if isinstance(obj, BoolConfig):
 		if len(values) > 1:
