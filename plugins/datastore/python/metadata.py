@@ -16,8 +16,7 @@ from opsicommon.types import (
 )
 
 from opsicli.io import Attribute, Metadata
-
-from .common import validate_values
+from plugins.datastore.python.common import validate_values
 
 CLIENT_METADATA = Metadata(
 	attributes=[
