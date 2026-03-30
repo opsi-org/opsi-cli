@@ -152,11 +152,10 @@ def process_set(set: tuple[str, ...], *, obj: Config | None = None, attributes: 
 	set_pattern: re.Pattern[str] = re.compile(r"^([a-zA -Z]+)\s*=\s*(.*)$")
 	attributes_by_id = {attr.id: attr for attr in attributes if not attr.identifier}
 	general_help = general_help_for_set(available_attributes=list(attributes_by_id.values()))
-
 	if not set:
 		raise ValueError(f"No attributes specified to update.\n\n{general_help}")
 
-	updates = {}
+	updates: dict[str, str] = {}
 	for assignment in set:
 		assignment = assignment.strip()
 		match = set_pattern.match(assignment)
@@ -164,7 +163,7 @@ def process_set(set: tuple[str, ...], *, obj: Config | None = None, attributes: 
 			raise ValueError(
 				f"Invalid set statement: `[bold red]{assignment}[/]`.\nExpected format: `[bold]<attribute>=<value>[/]`.\n\n{general_help}"
 			)
-		attr, value = match.groups()
+		attr, value = map(str.strip, match.groups())
 		attribute = attributes_by_id.get(attr)
 		if not attribute:
 			raise ValueError(f"Invalid attribute in set statement: `[bold][red]{attr}[/red]={value}[/]`.\n\n{general_help}")
@@ -174,13 +173,14 @@ def process_set(set: tuple[str, ...], *, obj: Config | None = None, attributes: 
 			try:
 				updates[attr] = attribute.validator(args)
 			except Exception as e:
-				error_msg = f"Invalid value in set statement: `[bold]{attr}=[red]{value}[/]`."
+				msg = f"Invalid value in set statement: `[bold]{attr}=[red]{value}[/]`."
 
 				if attribute.validator == validate_values:
-					error_msg += f"\n\n{e}"
+					msg += f"\n\n{e}"
 
-				raise ValueError(f"{error_msg}\n\n{general_help}")
-
+				raise ValueError(f"{msg}\n\n{general_help}")
+		else:
+			updates[attr] = value
 	return updates
 
 
@@ -206,7 +206,7 @@ def validate_values(args: dict[str, Any]) -> list[str] | list[bool]:
 		if obj.multiValue:
 			if not set(values) <= set(possible_values):
 				raise ValueError(f"Possible values for: `[bold][blue]{obj.id}[/][/]` \n\n[green]{formatted_possible}[/green]")
-		else:
+		if not obj.multiValue:
 			if len(values) > 1:
 				raise ValueError(
 					f"MultiValues are not allowed for: `[bold][blue]{obj.id}[/][/]` \n[bold]Possible values are[/]: \n\n[green]{formatted_possible}[/green]"
