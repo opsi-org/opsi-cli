@@ -27,7 +27,7 @@ def get_object_ids(
 	type: str = "OpsiClient",
 ) -> list[str]:
 	object_id_list = [item.strip() for item in object_ids.split(",")]
-	if "all" in object_id_list:
+	if "*" in object_id_list:
 		host_objects = service_connection.host_getObjects(id=[], type=type)  # type: ignore[attr-defined]
 		return [obj.id for obj in host_objects]
 	return service_connection.host_getIdents(id=object_id_list)  # type: ignore[attr-defined]
@@ -97,7 +97,8 @@ def process_where(where: tuple[str, ...], *, attributes: list[Attribute], operat
 		attr, operator, value = match.groups()
 		if attr not in available_attributes:
 			raise ValueError(f"Invalid attribute in filter condition: `[bold][red]{attr}[/red]={value}[/]`.\n\n{general_help}")
-		filter[attr] = value
+
+		filter[attr] = f"{filter[attr]}, {value}" if attr in filter else value
 
 	id_attributes = [attr for attr in attributes if attr.identifier]
 	missing_attributes = []
@@ -155,7 +156,7 @@ def process_set(set: tuple[str, ...], *, obj: Config | None = None, attributes: 
 	if not set:
 		raise ValueError(f"No attributes specified to update.\n\n{general_help}")
 
-	updates: dict[str, str] = {}
+	updates: dict[str, str] | dict[str, list[str]] | dict[str, list[bool]] = {}
 	for assignment in set:
 		assignment = assignment.strip()
 		match = set_pattern.match(assignment)
@@ -167,7 +168,8 @@ def process_set(set: tuple[str, ...], *, obj: Config | None = None, attributes: 
 		attribute = attributes_by_id.get(attr)
 		if not attribute:
 			raise ValueError(f"Invalid attribute in set statement: `[bold][red]{attr}[/red]={value}[/]`.\n\n{general_help}")
-		args = {"object": obj, "values": value} if attribute.validator == validate_values and obj else value
+
+		args = {"object": obj, "values": value} if obj else value
 
 		if attribute.validator:
 			try:
@@ -175,9 +177,8 @@ def process_set(set: tuple[str, ...], *, obj: Config | None = None, attributes: 
 			except Exception as e:
 				msg = f"Invalid value in set statement: `[bold]{attr}=[red]{value}[/]`."
 
-				if attribute.validator == validate_values:
+				if obj:
 					msg += f"\n\n{e}"
-
 				raise ValueError(f"{msg}\n\n{general_help}")
 		else:
 			updates[attr] = value
@@ -200,9 +201,6 @@ def validate_values(args: dict[str, Any]) -> list[str] | list[bool]:
 		return forceBoolList(values)
 
 	if isinstance(obj, UnicodeConfig):
-		if not obj.editable:
-			raise AttributeError(f"`[bold]{obj.id}[/]` is not ediable.")
-
 		if obj.multiValue:
 			if not set(values) <= set(possible_values):
 				raise ValueError(f"Possible values for: `[bold][blue]{obj.id}[/][/]` \n\n[green]{formatted_possible}[/green]")

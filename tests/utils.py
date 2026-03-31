@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Generator, Sequence
 
 from click.testing import CliRunner
-from opsicommon.objects import LocalbootProduct, OpsiClient, Product, ProductOnDepot
+from opsicommon.objects import BoolConfig, ConfigState, LocalbootProduct, OpsiClient, Product, ProductOnDepot, UnicodeConfig
 
 from opsicli.__main__ import main
 from opsicli.config import config
@@ -25,6 +25,11 @@ from opsicli.opsiservice import ServiceClient
 from .conftest import admin_service_connection_params
 
 runner = CliRunner(mix_stderr=False)
+
+
+def assert_error_contains(stderr: str, expected_parts: tuple[str, ...]) -> None:
+	for part in expected_parts:
+		assert part in stderr, f"Expected {part!r} in stderr, got: {stderr}"
 
 
 def run_cli(args: Sequence[str], service_config: bool = True, stdin: list[str] | None = None) -> tuple[int, str, str]:
@@ -60,6 +65,24 @@ def tmp_clients(service: ServiceClient, clients: list[OpsiClient]) -> Generator[
 		yield
 	finally:
 		service.jsonrpc("host_deleteObjects", params=[clients])
+
+
+@contextmanager
+def tmp_configs(service: ServiceClient, configs: list[BoolConfig | UnicodeConfig]) -> Generator[None, None, None]:
+	try:
+		service.jsonrpc("config_createObjects", params=[configs])
+		yield
+	finally:
+		service.jsonrpc("config_deleteObjects", params=[configs])
+
+
+@contextmanager
+def tmp_config_states(service: ServiceClient, config_states: list[ConfigState]) -> Generator[None, None, None]:
+	try:
+		service.jsonrpc("configState_createObjects", params=[config_states])
+		yield
+	finally:
+		service.jsonrpc("configState_deleteObjects", params=[config_states])
 
 
 @contextmanager

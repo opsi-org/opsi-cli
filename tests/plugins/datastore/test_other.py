@@ -467,7 +467,7 @@ def test_config_state_set_errors(admin_service_client: ServiceClient) -> None:
 		tmp_client(admin_service_client, CLIENT_ID_1),
 		tmp_client(admin_service_client, CLIENT_ID_2),
 	):
-		# - bool config and wrong value
+		# - bool config and wrong value********
 		exit_code, _stdout, _stderr = run_cli(
 			["datastore", "config-state", "set"] + [CLIENT_ID_1] + [BOOL_CONFIG] + ["--values"] + ["test"]
 		)

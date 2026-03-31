@@ -157,7 +157,7 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 					"new": state.values,
 				}
 			)
-		return updated_data
+		return sorted(updated_data, key=lambda x: x["objectId"])
 
 	def update_database(data: list[dict[str, str]], config_states: list[ConfigState], current_values: dict[str, dict[str, str]]) -> None:
 		service_connection = get_service_connection()
