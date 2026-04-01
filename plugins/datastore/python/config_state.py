@@ -2,6 +2,7 @@
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
+from typing import Any
 
 import rich_click as click
 from opsicommon.logging import get_logger
@@ -11,7 +12,7 @@ from opsicli.decorators import dry_run_capable
 from opsicli.io import OutputType, console_print, write_output
 from opsicli.opsiservice import config, get_service_connection
 
-from .common import cli, create_client_depot_mapping, get_object_ids, process_set, process_where
+from .common import cli, create_client_depot_mapping, filter_by_attributes, get_object_ids, process_set, process_where
 from .metadata import COMMAND_METADATA, CONFIG_STATE_SET_METADATA, CONFIG_STATE_WHERE_METADATA
 
 logger = get_logger("opsicli")
@@ -27,30 +28,24 @@ def config_state() -> None:
 
 @config_state.command(name="list", short_help="List all config states or apply filters to narrow the results.")
 @click.option(
-	"--object-ids",
+	"--where",
 	type=str,
-	required=True,
-	help="Filter by object ID(s). Use commas as separators and 'all' to include all IDs. Wildcards (*) are supported.",
+	multiple=True,
+	help="Filter the output. ObjectId and ConfigId are required",
 )
-@click.option(
-	"--config-ids",
-	type=str,
-	required=True,
-	help="Filter by config ID(s). Use commas as separators and 'all' to include all IDs. Wildcards (*) are supported.",
-)
-def list_config_state(object_ids: str, config_ids: str) -> None:
+def list_config_state(where: tuple[str, ...]) -> None:
 	"""
 	View all configuration states or apply filters to narrow your search.
 	"""
 
-	def get_default_config_states(object_ids: list[str], config_ids: list[str] | None) -> dict[str, dict[str, str]]:
-		default_config_obj_listects = service_connection.config_getObjects(id=config_ids or [])  # type: ignore[attr-defined]
+	def _get_default_config_states(object_ids: list[str], config_ids: list[str] | None) -> dict[str, dict[str, dict[str, Any]]]:
+		default_config_objects = service_connection.config_getObjects(id=config_ids or [])  # type: ignore[attr-defined]
 		default_states = {}
-
 		for object_id in object_ids:
-			for entry in default_config_obj_listects:
-				default_states[object_id + entry.id] = {
-					"final_values": entry.defaultValues,
+			default_states[object_id] = {}
+			for entry in default_config_objects:
+				default_states[object_id][entry.id] = {
+					"values": entry.defaultValues,
 					"default_values": entry.defaultValues,
 					"depot_values": "",
 					"client_values": "",
@@ -60,62 +55,66 @@ def list_config_state(object_ids: str, config_ids: str) -> None:
 				}
 		return default_states
 
-	def update_default_states(
+	def _update_default_states(
 		depot_ids: list[str],
-		object_ids: list[str],
 		config_ids: list[str] | None,
-		default_states: dict[str, dict[str, str]],
-	) -> dict[str, dict[str, str]]:
+		default_states: dict[str, dict[str, dict[str, Any]]],
+	) -> dict[str, dict[str, dict[str, Any]]]:
 		depot_config_state_objects = service_connection.configState_getObjects(  # type: ignore[attr-defined]
 			objectId=depot_ids, configId=config_ids or []
 		)
-		for object_id in object_ids:
-			for entry in depot_config_state_objects:
-				key = object_id + entry.configId
-				default_states[key]["depot_values"] = entry.values
-				default_states[key]["origin"] = "depot"
-				if default_states[key]["default_values"] != entry.values:
-					default_states[key]["final_values"] = entry.values
+		for state in depot_config_state_objects:
+			if state.objectId in default_states and state.configId in default_states[state.objectId]:
+				target = default_states[state.object_id][state.configId]
+				target["depot_values"] = state.values
+				target["origin"] = "depot"
+				if target["default_values"] != state.values:
+					target["values"] = state.values
 
 		return default_states
 
-	def update_depot_states(
+	def _update_depot_states(
 		object_ids: list[str],
 		config_ids: list[str] | None,
-		depot_states: dict[str, dict[str, str]],
-	) -> dict[str, dict[str, str]]:
+		depot_states: dict[str, dict[str, dict[str, Any]]],
+	) -> dict[str, dict[str, dict[str, Any]]]:
 		client_config_state_objects = service_connection.configState_getObjects(  # type: ignore[attr-defined]
 			objectId=object_ids, configId=config_ids or []
 		)
 
-		for entry in client_config_state_objects:
-			key = entry.objectId + entry.configId
-			depot_states[key]["client_values"] = entry.values
-			depot_states[key]["origin"] = "client"
-			if key in depot_states:
-				depot_states[key]["final_values"] = entry.values
+		for state in client_config_state_objects:
+			if state.objectId in depot_states and state.configId in depot_states[state.objectId]:
+				target = depot_states[state.objectId][state.configId]
+				target["client_values"] = state.values
+				target["origin"] = "client"
+				if target["default_values"] != state:
+					target["values"] = state.values
 
 		return depot_states
 
 	service_connection = get_service_connection()
-	# Handle different input formats (e.g. plain IDs, IDs with '*', or comma-separated strings)
-	final_object_ids = get_object_ids(service_connection, object_ids)
-	final_config_ids = None if config_ids == "all" else [item.strip() for item in config_ids.split(",")]
+	filter = process_where(where, attributes=COMMAND_METADATA["datastore_config-state_list"].attributes, operation="update")
 
+	# Handle different input formats (e.g. plain IDs, IDs with '*', or comma-separated strings)
+	final_object_ids = get_object_ids(service_connection, filter["objectId"])
+	final_config_ids = [] if filter["configId"] == "*" else [item.strip() for item in filter["configId"].split(",")]
 	# get depot_ids from map
 	client_depot_map = create_client_depot_mapping(service_connection, final_object_ids)
 	final_depot_ids = list({depot for depot in client_depot_map.values()})
 
 	# remove depot_ids from final_object_ids if no object_ids were given (e.g. object_ids contains all object_ids and depot_ids)
-	if object_ids == "all":
+	if filter["objectId"] == "*":
 		final_object_ids = [id for id in final_object_ids if id not in final_depot_ids]
 
-	default_states = get_default_config_states(final_object_ids, final_config_ids)
-	depot_states = update_default_states(final_depot_ids, final_object_ids, final_config_ids, default_states)
-	client_states = update_depot_states(final_object_ids, final_config_ids, depot_states)
+	default_states = _get_default_config_states(final_object_ids, final_config_ids)
+	depot_states = _update_default_states(final_depot_ids, final_object_ids, default_states)
+	client_states = _update_depot_states(final_object_ids, final_config_ids, depot_states)
+
+	flattened_result = [state_dict for client_configs in client_states.values() for state_dict in client_configs.values()]
+	filtered_data = filter_by_attributes(data=flattened_result, filter=filter)
 
 	write_output(
-		data=list(client_states.values()),
+		data=filtered_data,
 		metadata=COMMAND_METADATA.get("datastore_config-state_list"),
 		value_styles={"depot": "yellow", "client": "blue"},
 	)
@@ -143,11 +142,11 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	Change values of config states.
 	"""
 
-	def create_output_data(
-		config_obj: Config, modified_config_states: list[ConfigState], current_values: dict[str, dict[str, str]]
+	def _create_output_data(
+		config_obj: Config, config_states: list[ConfigState], current_values: dict[str, dict[str, str]]
 	) -> list[dict[str, str]]:
 		updated_data = []
-		for state in modified_config_states:
+		for state in config_states:
 			updated_data.append(
 				{
 					"objectId": state.objectId,
@@ -159,7 +158,7 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 			)
 		return sorted(updated_data, key=lambda x: x["objectId"])
 
-	def update_database(data: list[dict[str, str]], config_states: list[ConfigState], current_values: dict[str, dict[str, str]]) -> None:
+	def _update_database(data: list[dict[str, str]], config_states: list[ConfigState], current_values: dict[str, dict[str, str]]) -> None:
 		service_connection = get_service_connection()
 		update = []
 		create = []
@@ -178,7 +177,7 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 		console_print(msg, style="green", output_type=OutputType.MESSAGE)
 		write_output(data=data, metadata=COMMAND_METADATA.get("datastore_config-state_update"))
 
-	def create_config_states(object_ids: list[str], config_id: str, values: list[str] | list[bool]) -> list[ConfigState]:
+	def _create_config_states(object_ids: list[str], config_id: str, values: list[str] | list[bool]) -> list[ConfigState]:
 		config_states = []
 
 		for obj_id in object_ids:
@@ -201,6 +200,6 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	values = updates["values"]
 	current_values = service_connection.configState_getValues(config_id, object_ids)  # type: ignore[attr-defined]
 
-	new_config_states = create_config_states(object_ids, config_id, values)
-	output_data = create_output_data(config_obj[0], new_config_states, current_values)
-	update_database(output_data, new_config_states, current_values)
+	new_config_states = _create_config_states(object_ids, config_id, values)
+	output_data = _create_output_data(config_obj[0], new_config_states, current_values)
+	_update_database(output_data, new_config_states, current_values)

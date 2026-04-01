@@ -328,9 +328,7 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 			],
 			None,
 		),
-		# ======================================================================
 		# ERRORS
-		# ======================================================================
 		# BoolConfig // wrong value
 		(
 			[
@@ -490,7 +488,7 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 		),
 	),
 )
-def test_update_config_states(
+def test_config_state_update(
 	admin_service_client: ServiceClient,
 	command: list[str],
 	expected_output: list[dict[str, str]] | None,
@@ -504,7 +502,6 @@ def test_update_config_states(
 		tmp_config_states(admin_service_client, TEST_CONFIG_STATES),
 	):
 		exit_code, stdout, stderr = run_cli(command)
-		print(stdout)
 		if expected_error:
 			assert exit_code != 0
 			assert_error_contains(stderr, expected_error)

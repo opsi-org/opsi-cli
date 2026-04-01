@@ -8,7 +8,7 @@ from typing import Any, Literal, overload
 import rich_click as click
 from opsicommon.logging import get_logger
 from opsicommon.objects import BoolConfig, Config, ProductProperty, UnicodeConfig
-from opsicommon.types import forceBoolList
+from opsicommon.types import forceBoolList, forceObjectId
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.io import Attribute, get_separated_entries
@@ -98,6 +98,7 @@ def process_where(where: tuple[str, ...], *, attributes: list[Attribute], operat
 		if attr not in available_attributes:
 			raise ValueError(f"Invalid attribute in filter condition: `[bold][red]{attr}[/red]={value}[/]`.\n\n{general_help}")
 
+		# combine values if the attribute name is equal // "objectId=jenkins1" "objectId=jenkins2" => {"objectId": "jenkin1, jenkin2"})
 		filter[attr] = f"{filter[attr]}, {value}" if attr in filter else value
 
 	id_attributes = [attr for attr in attributes if attr.identifier]
@@ -213,6 +214,29 @@ def validate_values(args: dict[str, Any]) -> list[str] | list[bool]:
 				raise ValueError(f"Possible values for: `[bold][blue]{obj.id}[/][/]` \n\n[green]{formatted_possible}[/green]")
 		return values
 	return []
+
+
+def validate_object_ids(object_ids: str) -> list[str]:
+	ids = [id.strip() for id in object_ids.split(",")]
+	for id in ids:
+		try:
+			forceObjectId(id)
+		except Exception:
+			raise ValueError(f"{id} is not a valid objedtId.")
+	return ids
+
+
+def filter_by_attributes(data: list[dict[str, Any]], filter: dict[str, str]) -> list[dict[str, Any]]:
+	for attr in filter:
+		if attr not in ("objectId", "configId"):
+			if filter[attr].lower() in ("false", "true"):
+				value: list[bool] = forceBoolList(filter[attr])
+			else:
+				value: str = filter[attr]
+
+			data = [item for item in data if item.get(attr) == value]
+
+	return data
 
 
 @click.group(cls=OPSICLIGroup, name="datastore", short_help="Manage objects and data")
