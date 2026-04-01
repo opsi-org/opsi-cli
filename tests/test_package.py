@@ -440,12 +440,9 @@ def test_package_install_and_uninstall(admin_service_client: ServiceClient) -> N
 		exit_code, _, _stderr = run_cli(["package", "install", str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi")])
 		assert exit_code != 0
 		_stderr = re.sub(r"\s+", " ", re.sub(r"[\n│]", "", _stderr))
-		assert (
-			"Failed to analyze package 'tests/test_data/plugins/package/testdependency4_1.0-5.opsi': "
-			"Dependency 'testdependency5' for package 'testdependency4' is not specified." in _stderr
-		)
+		assert "Backend unaccomplishable error: Dependent package 'testdependency5' not installed" in _stderr
 
-		# Test with unfulfilled package dependency, this will lock the product 'testdependency4'
+		# Test with unfullfilled package dependency, this will lock the product 'testdependency4'.
 		exit_code, _stdout, _stderr = run_cli(
 			[
 				"package",
@@ -455,7 +452,8 @@ def test_package_install_and_uninstall(admin_service_client: ServiceClient) -> N
 			]
 		)
 		assert exit_code != 0
-		assert "Opsi rpc error:" in _stderr
+		print(_stderr)
+		assert "Locked products found" in _stderr
 
 		if Path("/var/lib/opsi/repository").exists():  # we are probably running on the opsi-server itself (not just on same docker host)
 			# Verify files exist after failed install

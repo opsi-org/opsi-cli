@@ -168,7 +168,12 @@ def map_and_sort_packages(packages: list[str]) -> dict[Path, OpsiPackage]:
 		for dep in opsi_package.package_dependencies or []:
 			dep_path = product_id_to_path.get(dep.package)
 			if dep_path is None:
-				raise ValueError(f"Dependency '{dep.package}' for package '{opsi_package.product.id}' is not specified.")
+				logger.warning(
+					"Dependency '%s' for package '%s' is not specified locally. Assuming it is already installed on the server.",
+					dep.package,
+					opsi_package.product.id,
+				)
+				continue
 			visit(dep_path)
 		result[path] = opsi_package
 
