@@ -16,7 +16,7 @@ from opsicommon.types import (
 )
 
 from opsicli.io import Attribute, Metadata
-from plugins.datastore.python.common import validate_object_ids, validate_values
+from plugins.datastore.python.common import validate_ids, validate_values
 
 CLIENT_METADATA = Metadata(
 	attributes=[
@@ -119,7 +119,7 @@ CONFIG_STATE_WHERE_METADATA = Metadata(
 			identifier=True,
 			data_type="str",
 			selected=True,
-			validator=lambda val: validate_object_ids(val),
+			validator=lambda val: validate_ids(val, "objectId"),
 		),
 		Attribute(
 			id="configId",
@@ -154,9 +154,16 @@ COMMAND_METADATA = {
 				identifier=True,
 				data_type="str",
 				selected=True,
-				validator=lambda val: validate_object_ids(val),
+				validator=lambda val: validate_ids(val, "objectId"),
 			),
-			Attribute(id="configId", description="The ID of the config.", identifier=True, data_type="str", selected=True),
+			Attribute(
+				id="configId",
+				description="The ID of the config.",
+				identifier=True,
+				data_type="str",
+				selected=True,
+				validator=lambda val: validate_ids(val, "configId"),
+			),
 			Attribute(
 				id="default_values",
 				description="Values of given Config.",

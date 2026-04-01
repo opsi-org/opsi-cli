@@ -8,7 +8,7 @@ from typing import Any, Literal, overload
 import rich_click as click
 from opsicommon.logging import get_logger
 from opsicommon.objects import BoolConfig, Config, ProductProperty, UnicodeConfig
-from opsicommon.types import forceBoolList, forceObjectId
+from opsicommon.types import forceBoolList, forceConfigId, forceObjectId
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.io import Attribute, get_separated_entries
@@ -216,13 +216,19 @@ def validate_values(args: dict[str, Any]) -> list[str] | list[bool]:
 	return []
 
 
-def validate_object_ids(object_ids: str) -> list[str]:
-	ids = [id.strip() for id in object_ids.split(",")]
+def validate_ids(ids: str, id_type: Literal["objectId", "configId"]) -> list[str]:
+	ids = [id.strip() for id in ids.split(",")]
 	for id in ids:
-		try:
-			forceObjectId(id)
-		except Exception:
-			raise ValueError(f"{id} is not a valid objedtId.")
+		if id_type == "objectId":
+			try:
+				forceObjectId(id)
+			except Exception:
+				raise ValueError(f"{id} is not a valid objedtId.")
+		if id_type == "oconfigId":
+			try:
+				forceConfigId(id)
+			except Exception:
+				raise ValueError(f"{id} is not a valid configId.")
 	return ids
 
 
