@@ -219,7 +219,12 @@ def validate_values_by_obj(val: str, obj: Any) -> list[str] | list[bool]:
 
 def filter_by_attributes(data: list[dict[str, Any]], filter: dict[str, str | list[str]]) -> list[dict[str, Any]]:
 	for attr in filter:
-		value = filter[attr]
+		if isinstance(filter[attr], str):
+			val = str(filter[attr])
+			if val.lower() in ("false", "true"):
+				value: list[bool] = forceBoolList(val)
+			else:
+				value: str = val
 		data = [item for item in data if item.get(attr) == value]
 	return data
 
