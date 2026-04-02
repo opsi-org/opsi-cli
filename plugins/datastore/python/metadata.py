@@ -6,7 +6,6 @@
 from datetime import datetime, timezone
 
 from opsicommon.types import (
-	forceConfigId,
 	forceHardwareAddress,
 	forceHostId,
 	forceIpAddress,
@@ -16,7 +15,6 @@ from opsicommon.types import (
 )
 
 from opsicli.io import Attribute, Metadata
-from plugins.datastore.python.common import validate_ids, validate_values
 
 CLIENT_METADATA = Metadata(
 	attributes=[
@@ -119,7 +117,6 @@ CONFIG_STATE_WHERE_METADATA = Metadata(
 			identifier=True,
 			data_type="str",
 			selected=True,
-			validator=lambda val: validate_ids(val, "objectId"),
 		),
 		Attribute(
 			id="configId",
@@ -127,7 +124,6 @@ CONFIG_STATE_WHERE_METADATA = Metadata(
 			identifier=True,
 			data_type="str",
 			selected=True,
-			validator=lambda val: forceConfigId(val),
 		),
 	]
 )
@@ -140,7 +136,6 @@ CONFIG_STATE_SET_METADATA = Metadata(
 			identifier=False,
 			data_type="Any",
 			selected=True,
-			validator=lambda val: validate_values(val),
 		),
 	]
 )
@@ -154,7 +149,6 @@ COMMAND_METADATA = {
 				identifier=True,
 				data_type="str",
 				selected=True,
-				validator=lambda val: validate_ids(val, "objectId"),
 			),
 			Attribute(
 				id="configId",
@@ -162,7 +156,6 @@ COMMAND_METADATA = {
 				identifier=True,
 				data_type="str",
 				selected=True,
-				validator=lambda val: validate_ids(val, "configId"),
 			),
 			Attribute(
 				id="default_values",

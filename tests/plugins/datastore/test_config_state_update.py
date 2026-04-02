@@ -346,7 +346,7 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 			],
 			None,
 			None,
-			("Invalid value in set statement:", "Possible values for:"),
+			("Possible values for:"),
 		),
 		# BoolConfig // multiple values
 		(
@@ -365,7 +365,7 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 			],
 			None,
 			None,
-			("Invalid value in set statement:", "Only one value is allowed for:", "Possible values are:"),
+			("Only one value is allowed for:", "Possible values are:"),
 		),
 		# UnicodeConfig // wrong value
 		(
@@ -384,7 +384,7 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 			],
 			None,
 			None,
-			("Invalid value in set statement:", "Possible values for:"),
+			("Possible values for:"),
 		),
 		# UnicodeConfig // not multiValue
 		(

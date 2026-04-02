@@ -12,7 +12,15 @@ from opsicli.decorators import dry_run_capable
 from opsicli.io import OutputType, console_print, write_output
 from opsicli.opsiservice import config, get_service_connection
 
-from .common import cli, create_client_depot_mapping, filter_by_attributes, get_object_ids, process_set, process_where
+from .common import (
+	cli,
+	create_client_depot_mapping,
+	filter_by_attributes,
+	get_object_ids,
+	process_set,
+	process_where,
+	validate_values_by_obj,
+)
 from .metadata import COMMAND_METADATA, CONFIG_STATE_SET_METADATA, CONFIG_STATE_WHERE_METADATA
 
 logger = get_logger("opsicli")
@@ -94,10 +102,11 @@ def list_config_state(where: tuple[str, ...]) -> None:
 
 	service_connection = get_service_connection()
 	filter = process_where(where, attributes=COMMAND_METADATA["datastore_config-state_list"].attributes, operation="update")
-
+	config_ids = filter["configId"]
+	object_ids = filter["objectId"]
 	# Handle different input formats (e.g. plain IDs, IDs with '*', or comma-separated strings)
-	final_object_ids = get_object_ids(service_connection, filter["objectId"])
-	final_config_ids = [] if filter["configId"] == "*" else [item.strip() for item in filter["configId"].split(",")]
+	final_object_ids = get_object_ids(service_connection, object_ids)
+	final_config_ids = [] if config_ids == ["*"] else config_ids
 	# get depot_ids from map
 	client_depot_map = create_client_depot_mapping(service_connection, final_object_ids)
 	final_depot_ids = list({depot for depot in client_depot_map.values()})
@@ -187,19 +196,24 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 
 	service_connection = get_service_connection()
 	filter = process_where(where, attributes=CONFIG_STATE_WHERE_METADATA.attributes, operation="update")
-	object_ids = get_object_ids(service_connection, filter["objectId"])
-	config_id = filter["configId"]
-	config_obj: list[Config] = service_connection.config_getObjects(id=config_id)  # type: ignore[attr-defined]
 
+	object_id = filter["objectId"]
+	config_id = filter["configId"]
+
+	object_ids = get_object_ids(service_connection, object_id)
+	config_obj = service_connection.config_getObjects(id=config_id)  # type: ignore[attr-defined]
+
+	if not object_ids:
+		raise AttributeError(f"There is no such objectId: `{object_ids}`")
 	if not config_obj:
 		raise AttributeError(f"There is no such configId: `{config_id}`")
 	if len(config_obj) > 1:
 		raise AttributeError("Only one configId without wildcard is allowed.")
 
-	updates = process_set(set, obj=config_obj[0], attributes=CONFIG_STATE_SET_METADATA.attributes)
-	values = updates["values"]
+	updates = process_set(set, attributes=CONFIG_STATE_SET_METADATA.attributes)
+	values = validate_values_by_obj(updates["values"], config_obj[0])
 	current_values = service_connection.configState_getValues(config_id, object_ids)  # type: ignore[attr-defined]
 
-	new_config_states = _create_config_states(object_ids, config_id, values)
+	new_config_states = _create_config_states(object_ids, config_obj[0].id, values)
 	output_data = _create_output_data(config_obj[0], new_config_states, current_values)
 	_update_database(output_data, new_config_states, current_values)

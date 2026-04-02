@@ -8,7 +8,7 @@ from typing import Any, Literal, overload
 import rich_click as click
 from opsicommon.logging import get_logger
 from opsicommon.objects import BoolConfig, Config, ProductProperty, UnicodeConfig
-from opsicommon.types import forceBoolList, forceConfigId, forceObjectId
+from opsicommon.types import forceBoolList
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.io import Attribute, get_separated_entries
@@ -23,14 +23,17 @@ __description__ = "This command can be used to manage data and objects"
 # handle comma separated object-ids
 def get_object_ids(
 	service_connection: ServiceClient,
-	object_ids: str,
+	object_ids: str | list[str],
 	type: str = "OpsiClient",
 ) -> list[str]:
-	object_id_list = [item.strip() for item in object_ids.split(",")]
-	if "*" in object_id_list:
+	if isinstance(object_ids, str):
+		object_ids = [item.strip() for item in object_ids.split(",")]
+
+	if "*" in object_ids:
 		host_objects = service_connection.host_getObjects(id=[], type=type)  # type: ignore[attr-defined]
 		return [obj.id for obj in host_objects]
-	return service_connection.host_getIdents(id=object_id_list)  # type: ignore[attr-defined]
+
+	return service_connection.host_getIdents(id=object_ids)  # type: ignore[attr-defined]
 
 
 def create_client_depot_mapping(service_connection: ServiceClient, object_ids: list[str] | None = None) -> dict[str, str]:
@@ -77,13 +80,15 @@ def general_help_for_where(
 	return general_help
 
 
-def process_where(where: tuple[str, ...], *, attributes: list[Attribute], operation: Literal["list", "update"] = "list") -> dict[str, str]:
+def process_where(
+	where: tuple[str, ...], *, attributes: list[Attribute], operation: Literal["list", "update"] = "list"
+) -> dict[str, str | list[str]]:
 	where = where or tuple()
-	available_attributes = [a.id for a in attributes]
 	condition_pattern = re.compile(r"^([a-zA-Z]+)\s*(<|<=|=|>=|>)\s*(.*)$")
+	available_attributes_by_id = {attr.id: attr for attr in attributes}
 	general_help = general_help_for_where(available_attributes=attributes)
 
-	filter: dict[str, str] = {}
+	filter: dict[str, str | list[str]] = {}
 	for condition in where:
 		condition = condition.strip()
 		match = condition_pattern.match(condition)
@@ -95,11 +100,16 @@ def process_where(where: tuple[str, ...], *, attributes: list[Attribute], operat
 				f"{general_help}"
 			)
 		attr, operator, value = match.groups()
-		if attr not in available_attributes:
+		attribute = available_attributes_by_id.get(attr)
+		# validate the attribute
+		if not attribute:
 			raise ValueError(f"Invalid attribute in filter condition: `[bold][red]{attr}[/red]={value}[/]`.\n\n{general_help}")
 
 		# combine values if the attribute name is equal // "objectId=jenkins1" "objectId=jenkins2" => {"objectId": "jenkin1, jenkin2"})
-		filter[attr] = f"{filter[attr]}, {value}" if attr in filter else value
+		if attr in filter:
+			filter[attr] = f"{filter[attr]}, {value}"
+		else:
+			filter[attr] = value
 
 	id_attributes = [attr for attr in attributes if attr.identifier]
 	missing_attributes = []
@@ -114,14 +124,12 @@ def process_where(where: tuple[str, ...], *, attributes: list[Attribute], operat
 			raise ValueError(
 				f"At least one filter condition is required to prevent unintentional retrieval of large amounts of data.\n\n{general_help}"
 			)
-
 		raise ValueError(
 			"Incomplete filter for update operation.\n\n"
 			f"{general_help}"
 			"\nOn update operations, the filter must contain all identifier attributes.\n"
 			f"Missing required attributes: [bold red]{', '.join(missing_attributes)}[/]"
 		)
-
 	return filter
 
 
@@ -149,10 +157,10 @@ def process_set(
 ) -> dict[str, list[str] | list[bool]]: ...
 
 
-def process_set(set: tuple[str, ...], *, obj: Config | None = None, attributes: list[Attribute]):
+def process_set(set: tuple[str, ...], *, attributes: list[Attribute]):
 	set = set or tuple()
 	set_pattern: re.Pattern[str] = re.compile(r"^([a-zA -Z]+)\s*=\s*(.*)$")
-	attributes_by_id = {attr.id: attr for attr in attributes if not attr.identifier}
+	attributes_by_id = {attr.id: attr for attr in attributes if not attr.identifier}  # attributes with identifier shouldn't be changed
 	general_help = general_help_for_set(available_attributes=list(attributes_by_id.values()))
 	if not set:
 		raise ValueError(f"No attributes specified to update.\n\n{general_help}")
@@ -170,25 +178,18 @@ def process_set(set: tuple[str, ...], *, obj: Config | None = None, attributes: 
 		if not attribute:
 			raise ValueError(f"Invalid attribute in set statement: `[bold][red]{attr}[/red]={value}[/]`.\n\n{general_help}")
 
-		args = {"object": obj, "values": value} if obj else value
-
 		if attribute.validator:
 			try:
-				updates[attr] = attribute.validator(args)
-			except Exception as e:
-				msg = f"Invalid value in set statement: `[bold]{attr}=[red]{value}[/]`."
-
-				if obj:
-					msg += f"\n\n{e}"
-				raise ValueError(f"{msg}\n\n{general_help}")
+				updates[attr] = attribute.validator(value)
+			except Exception:
+				raise ValueError("Invalid value in set statement: `[bold]{attr}=[red]{value}[/]`.")
 		else:
 			updates[attr] = value
 	return updates
 
 
-def validate_values(args: dict[str, Any]) -> list[str] | list[bool]:
-	obj = args["object"]
-	values = get_separated_entries(args["values"])
+def validate_values_by_obj(val: str, obj: Any) -> list[str] | list[bool]:
+	values = get_separated_entries(val)
 	possible_values: list[str] = obj.possibleValues if obj else []
 	formatted_possible = "\n".join([f"'{val}'" for val in possible_values]) if possible_values else "Any"
 
@@ -216,32 +217,10 @@ def validate_values(args: dict[str, Any]) -> list[str] | list[bool]:
 	return []
 
 
-def validate_ids(ids: str, id_type: Literal["objectId", "configId"]) -> list[str]:
-	ids = [id.strip() for id in ids.split(",")]
-	for id in ids:
-		if id_type == "objectId":
-			try:
-				forceObjectId(id)
-			except Exception:
-				raise ValueError(f"{id} is not a valid objedtId.")
-		if id_type == "oconfigId":
-			try:
-				forceConfigId(id)
-			except Exception:
-				raise ValueError(f"{id} is not a valid configId.")
-	return ids
-
-
-def filter_by_attributes(data: list[dict[str, Any]], filter: dict[str, str]) -> list[dict[str, Any]]:
+def filter_by_attributes(data: list[dict[str, Any]], filter: dict[str, str | list[str]]) -> list[dict[str, Any]]:
 	for attr in filter:
-		if attr not in ("objectId", "configId"):
-			if filter[attr].lower() in ("false", "true"):
-				value: list[bool] = forceBoolList(filter[attr])
-			else:
-				value: str = filter[attr]
-
-			data = [item for item in data if item.get(attr) == value]
-
+		value = filter[attr]
+		data = [item for item in data if item.get(attr) == value]
 	return data
 
 
