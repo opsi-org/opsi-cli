@@ -9,7 +9,7 @@ from opsicommon.logging import get_logger
 from opsicommon.objects import Config, ConfigState
 
 from opsicli.decorators import dry_run_capable
-from opsicli.io import OutputType, console_print, write_output
+from opsicli.io import OutputType, console_print, get_separated_entries, write_output
 from opsicli.opsiservice import config, get_service_connection
 
 from .common import (
@@ -105,14 +105,14 @@ def list_config_state(where: tuple[str, ...]) -> None:
 	config_ids = filter["configId"]
 	object_ids = filter["objectId"]
 	# Handle different input formats (e.g. plain IDs, IDs with '*', or comma-separated strings)
-	final_object_ids = get_object_ids(service_connection, object_ids)
-	final_config_ids = [] if config_ids == ["*"] else config_ids
+	final_object_ids = service_connection.host_getIdents(id=[]) if object_ids == "*" else get_separated_entries(object_ids)
+	final_config_ids = [] if config_ids == "*" else get_separated_entries(config_ids)
 	# get depot_ids from map
 	client_depot_map = create_client_depot_mapping(service_connection, final_object_ids)
 	final_depot_ids = list({depot for depot in client_depot_map.values()})
 
 	# remove depot_ids from final_object_ids if no object_ids were given (e.g. object_ids contains all object_ids and depot_ids)
-	if filter["objectId"] == "*":
+	if object_ids == "*":
 		final_object_ids = [id for id in final_object_ids if id not in final_depot_ids]
 
 	default_states = _get_default_config_states(final_object_ids, final_config_ids)
@@ -120,7 +120,9 @@ def list_config_state(where: tuple[str, ...]) -> None:
 	client_states = _update_depot_states(final_object_ids, final_config_ids, depot_states)
 
 	flattened_result = [state_dict for client_configs in client_states.values() for state_dict in client_configs.values()]
-	filtered_data = filter_by_attributes(data=flattened_result, filter=filter)
+	filtered_data = filter_by_attributes(
+		data=flattened_result, attributes=COMMAND_METADATA.get("datastore_config-state_list").attributes, filter=filter
+	)
 
 	write_output(
 		data=filtered_data,

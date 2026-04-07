@@ -233,6 +233,49 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 			],
 			None,
 		),
+		# more than one --where "objectId=..."
+		(
+			[
+				"--sort-by",
+				"objectId",
+				"datastore",
+				"config-state",
+				"list",
+				"--where",
+				f"configId={TEST_CONFIG_STATES[0].configId}",
+				"--where",
+				f"objectId={TEST_CLIENTS[0].id}",
+				"--where",
+				f"objectId={TEST_CLIENTS[1].id}",
+			],
+			[
+				{
+					"objectId": TEST_CONFIG_STATES[0].objectId,
+					"configId": TEST_CONFIG_STATES[0].configId,
+					"values": ", ".join(str(v) if not isinstance(v, bool) else ("1" if v else "0") for v in TEST_CONFIG_STATES[0].values),
+					"origin": "client",
+				},
+				{
+					"objectId": TEST_CONFIG_STATES[2].objectId,
+					"configId": TEST_CONFIG_STATES[2].configId,
+					"values": ", ".join(str(v) if not isinstance(v, bool) else ("1" if v else "0") for v in TEST_CONFIG_STATES[2].values),
+					"origin": "client",
+				},
+			],
+			[
+				{
+					"objectId": TEST_CONFIG_STATES[0].objectId,
+					"configId": TEST_CONFIG_STATES[0].configId,
+					"values": TEST_CONFIG_STATES[0].values,
+				},
+				{
+					"objectId": TEST_CONFIG_STATES[2].objectId,
+					"configId": TEST_CONFIG_STATES[2].configId,
+					"values": TEST_CONFIG_STATES[2].values,
+				},
+			],
+			None,
+		),
 	),
 )
 def test_config_state_list(

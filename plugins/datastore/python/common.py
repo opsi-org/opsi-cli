@@ -3,11 +3,11 @@
 # All rights reserved.
 # License: AGPL-3.0-only
 import re
-from typing import Any, Literal, overload
+from typing import Any, Literal
 
 import rich_click as click
 from opsicommon.logging import get_logger
-from opsicommon.objects import BoolConfig, Config, ProductProperty, UnicodeConfig
+from opsicommon.objects import BoolConfig, UnicodeConfig
 from opsicommon.types import forceBoolList
 
 from opsicli.cli_helpers import OPSICLIGroup
@@ -147,25 +147,17 @@ def general_help_for_set(available_attributes: list[Attribute]) -> str:
 	return general_help
 
 
-@overload
-def process_set(set: tuple[str, ...], *, obj: None = None, attributes: list[Attribute]) -> dict[str, str]: ...
-
-
-@overload
-def process_set(
-	set: tuple[str, ...], *, obj: Config | ProductProperty, attributes: list[Attribute]
-) -> dict[str, list[str] | list[bool]]: ...
-
-
-def process_set(set: tuple[str, ...], *, attributes: list[Attribute]):
+def process_set(set: tuple[str, ...], *, attributes: list[Attribute]) -> dict[str, str]:
 	set = set or tuple()
 	set_pattern: re.Pattern[str] = re.compile(r"^([a-zA -Z]+)\s*=\s*(.*)$")
 	attributes_by_id = {attr.id: attr for attr in attributes if not attr.identifier}  # attributes with identifier shouldn't be changed
 	general_help = general_help_for_set(available_attributes=list(attributes_by_id.values()))
+
 	if not set:
 		raise ValueError(f"No attributes specified to update.\n\n{general_help}")
 
 	updates: dict[str, str] | dict[str, list[str]] | dict[str, list[bool]] = {}
+
 	for assignment in set:
 		assignment = assignment.strip()
 		match = set_pattern.match(assignment)
@@ -180,11 +172,16 @@ def process_set(set: tuple[str, ...], *, attributes: list[Attribute]):
 
 		if attribute.validator:
 			try:
-				updates[attr] = attribute.validator(value)
+				value = attribute.validator(value)
 			except Exception:
-				raise ValueError("Invalid value in set statement: `[bold]{attr}=[red]{value}[/]`.")
+				raise ValueError(f"Invalid value in set statement: `[bold]{attr}=[red]{value}[/]`.\n\n{general_help}")
+
+		# combine values if the attribute name is equal // "objectId=jenkins1" "objectId=jenkins2" => {"objectId": "jenkin1, jenkin2"})
+		if updates.get(attr):
+			updates[attr] = f"{updates[attr]}, {value}"
 		else:
 			updates[attr] = value
+
 	return updates
 
 
@@ -217,7 +214,28 @@ def validate_values_by_obj(val: str, obj: Any) -> list[str] | list[bool]:
 	return []
 
 
-def filter_by_attributes(data: list[dict[str, Any]], filter: dict[str, str | list[str]]) -> list[dict[str, Any]]:
+def filter_by_attributes(data: list[dict[str, Any]], filter: dict[str, str], attributes: list[Attribute]) -> list[dict[str, Any]]:
+
+	attributes_by_id = {attr.id: attr for attr in attributes}
+	for attr in filter:
+		if not filter.get(attr):
+			continue
+
+		attribute = attributes_by_id.get(attr)
+		if not attribute:
+			continue
+
+		if attr in ("objectId", "configId"):
+			continue
+
+		if filter[attr] in ("false", "true"):
+			value: list[bool] = forceBoolList(filter[attr])
+		else:
+			value: list[str] = [item.strip() for item in filter[attr].split(",")]
+
+		data = [item for item in data if item.get(attr) == value]
+
+	"""
 	for attr in filter:
 		if isinstance(filter[attr], str):
 			val = str(filter[attr])
@@ -226,6 +244,7 @@ def filter_by_attributes(data: list[dict[str, Any]], filter: dict[str, str | lis
 			else:
 				value: str = val
 		data = [item for item in data if item.get(attr) == value]
+	"""
 	return data
 
 
