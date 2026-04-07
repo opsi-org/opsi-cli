@@ -28,12 +28,15 @@ def get_object_ids(
 ) -> list[str]:
 	if isinstance(object_ids, str):
 		object_ids = [item.strip() for item in object_ids.split(",")]
-
-	if "*" in object_ids:
-		host_objects = service_connection.host_getObjects(id=[], type=type)  # type: ignore[attr-defined]
-		return [obj.id for obj in host_objects]
-
-	return service_connection.host_getIdents(id=object_ids)  # type: ignore[attr-defined]
+	if "*" in object_ids or "all" in object_ids:
+		return service_connection.host_getIdents(id=[], type=type)  # type: ignore[attr-defined]
+	result = []
+	for id in object_ids:
+		if "*" in id:
+			result.extend(service_connection.host_getIdents(id=id, type=type))  # type: ignore[attr-defined]
+		else:
+			result.append(id)
+	return result
 
 
 def create_client_depot_mapping(service_connection: ServiceClient, object_ids: list[str] | None = None) -> dict[str, str]:
@@ -80,15 +83,13 @@ def general_help_for_where(
 	return general_help
 
 
-def process_where(
-	where: tuple[str, ...], *, attributes: list[Attribute], operation: Literal["list", "update"] = "list"
-) -> dict[str, str | list[str]]:
+def process_where(where: tuple[str, ...], *, attributes: list[Attribute], operation: Literal["list", "update"] = "list") -> dict[str, str]:
 	where = where or tuple()
 	condition_pattern = re.compile(r"^([a-zA-Z]+)\s*(<|<=|=|>=|>)\s*(.*)$")
 	available_attributes_by_id = {attr.id: attr for attr in attributes}
 	general_help = general_help_for_where(available_attributes=attributes)
 
-	filter: dict[str, str | list[str]] = {}
+	filter: dict[str, str] = {}
 	for condition in where:
 		condition = condition.strip()
 		match = condition_pattern.match(condition)
@@ -216,35 +217,24 @@ def validate_values_by_obj(val: str, obj: Any) -> list[str] | list[bool]:
 
 def filter_by_attributes(data: list[dict[str, Any]], filter: dict[str, str], attributes: list[Attribute]) -> list[dict[str, Any]]:
 
-	attributes_by_id = {attr.id: attr for attr in attributes}
+	available_attributes = {attr.id: attr for attr in attributes}
 	for attr in filter:
-		if not filter.get(attr):
-			continue
-
-		attribute = attributes_by_id.get(attr)
-		if not attribute:
-			continue
-
 		if attr in ("objectId", "configId"):
 			continue
+		if not available_attributes.get(attr):
+			continue
 
-		if filter[attr] in ("false", "true"):
-			value: list[bool] = forceBoolList(filter[attr])
-		else:
-			value: list[str] = [item.strip() for item in filter[attr].split(",")]
+		value = filter[attr]
+		if value in ("false", "true"):
+			value = filter[attr].capitalize()
 
-		data = [item for item in data if item.get(attr) == value]
+		# compare strings
+		data = [
+			item
+			for item in data
+			if value == (", ".join(str(x) for x in item.get(attr)) if isinstance(item.get(attr), list) else str(item.get(attr)))
+		]
 
-	"""
-	for attr in filter:
-		if isinstance(filter[attr], str):
-			val = str(filter[attr])
-			if val.lower() in ("false", "true"):
-				value: list[bool] = forceBoolList(val)
-			else:
-				value: str = val
-		data = [item for item in data if item.get(attr) == value]
-	"""
 	return data
 
 

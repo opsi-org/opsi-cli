@@ -105,7 +105,7 @@ def list_config_state(where: tuple[str, ...]) -> None:
 	config_ids = filter["configId"]
 	object_ids = filter["objectId"]
 	# Handle different input formats (e.g. plain IDs, IDs with '*', or comma-separated strings)
-	final_object_ids = service_connection.host_getIdents(id=[]) if object_ids == "*" else get_separated_entries(object_ids)
+	final_object_ids = get_object_ids(service_connection, object_ids)
 	final_config_ids = [] if config_ids == "*" else get_separated_entries(config_ids)
 	# get depot_ids from map
 	client_depot_map = create_client_depot_mapping(service_connection, final_object_ids)
