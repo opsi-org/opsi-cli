@@ -215,9 +215,8 @@ def validate_against_possible_values(val: str, obj: Any) -> list[str] | list[boo
 	return []
 
 
-def filter_by_attributes(data: list[dict[str, Any]], filter: dict[str, str], attributes: list[Attribute] | None) -> list[dict[str, Any]]:
-	if attributes is None:
-		raise RuntimeError("Filter_by_attributes requires a list of attributes.")
+def filter_by_attributes(data: list[dict[str, Any]], filter: dict[str, str], attributes: list[Attribute]) -> list[dict[str, Any]]:
+
 	available_attributes = {attr.id: attr for attr in attributes}
 	filtered_data = []
 	for entry in data:

@@ -121,7 +121,7 @@ def list_config_state(where: tuple[str, ...]) -> None:
 
 	flattened_result = [state_dict for client_configs in client_states.values() for state_dict in client_configs.values()]
 	filtered_data = filter_by_attributes(
-		data=flattened_result, attributes=COMMAND_METADATA.get("datastore_config-state_list").attributes, filter=filter
+		data=flattened_result, attributes=COMMAND_METADATA["datastore_config-state_list"].attributes, filter=filter
 	)
 
 	write_output(
