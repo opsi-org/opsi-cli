@@ -78,7 +78,7 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 ]
 
 
-def _values_to_str(values: str | bool | list[Any]) -> str:
+def _values_to_str(values: str | bool | list[Any] | None) -> str:
 
 	if isinstance(values, bool):
 		print(values)
@@ -86,6 +86,8 @@ def _values_to_str(values: str | bool | list[Any]) -> str:
 	if isinstance(values, list):
 		processed = [("1" if v is True else "0" if v is False else str(v)) for v in values]
 		return ", ".join(processed)
+	if not values:
+		return ""
 	return values
 
 
