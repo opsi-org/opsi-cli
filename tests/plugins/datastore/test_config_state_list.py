@@ -3,6 +3,8 @@
 # All rights reserved.
 # License: AGPL-3.0-only
 
+from typing import Any
+
 import pytest
 from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.objects import BoolConfig, ConfigState, OpsiClient, UnicodeConfig
@@ -76,7 +78,7 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 ]
 
 
-def _values_to_str(values: str | bool | list[str]) -> str:
+def _values_to_str(values: str | bool | list[Any]) -> str:
 
 	if isinstance(values, bool):
 		print(values)
