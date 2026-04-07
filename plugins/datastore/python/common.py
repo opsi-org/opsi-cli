@@ -218,24 +218,32 @@ def validate_against_possible_values(val: str, obj: Any) -> list[str] | list[boo
 def filter_by_attributes(data: list[dict[str, Any]], filter: dict[str, str], attributes: list[Attribute]) -> list[dict[str, Any]]:
 
 	available_attributes = {attr.id: attr for attr in attributes}
-	for attr in filter:
-		if attr in ("objectId", "configId"):
-			continue
-		if not available_attributes.get(attr):
-			continue
+	filtered_data = []
+	for entry in data:
+		match = True
+		for attr in filter:
+			if attr in ("objectId", "configId"):
+				continue
+			if not available_attributes.get(attr):
+				continue
 
-		value = filter[attr]
-		if value in ("false", "true"):
-			value = filter[attr].capitalize()
+			attr_value = entry.get(attr)
+			if isinstance(attr_value, list):
+				comparison_value = ", ".join(str(x) for x in attr_value)
+			else:
+				comparison_value = str(attr_value) if attr_value is not None else ""
 
-		# compare strings
-		data = [
-			item
-			for item in data
-			if value == (", ".join(str(x) for x in item.get(attr)) if isinstance(item.get(attr), list) else str(item.get(attr)))
-		]
+			value = filter[attr]
+			if value in ("false", "true"):
+				value = filter[attr].capitalize()
 
-	return data
+			# compare strings
+			if value != comparison_value:
+				match = False
+				break
+		if match:
+			filtered_data.append(entry)
+	return filtered_data
 
 
 @click.group(cls=OPSICLIGroup, name="datastore", short_help="Manage objects and data")
