@@ -19,7 +19,7 @@ from .common import (
 	get_object_ids,
 	process_set,
 	process_where,
-	validate_values_by_obj,
+	validate_against_possible_values,
 )
 from .metadata import COMMAND_METADATA, CONFIG_STATE_SET_METADATA, CONFIG_STATE_WHERE_METADATA
 
@@ -213,7 +213,7 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 		raise AttributeError("Only one configId without wildcard is allowed.")
 
 	updates = process_set(set, attributes=CONFIG_STATE_SET_METADATA.attributes)
-	values = validate_values_by_obj(updates["values"], config_obj[0])
+	values = validate_against_possible_values(updates["values"], config_obj[0])
 	current_values = service_connection.configState_getValues(config_id, object_ids)  # type: ignore[attr-defined]
 
 	new_config_states = _create_config_states(object_ids, config_obj[0].id, values)

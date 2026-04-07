@@ -76,6 +76,17 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 ]
 
 
+def _values_to_str(values: str | bool | list[str]) -> str:
+
+	if isinstance(values, bool):
+		print(values)
+		return "1" if values else "0"
+	if isinstance(values, list):
+		processed = [("1" if v is True else "0" if v is False else str(v)) for v in values]
+		return ", ".join(processed)
+	return values
+
+
 @pytest.mark.opsi_service
 @pytest.mark.parametrize(
 	"command, expected_output, expected_values, expected_error",
@@ -97,7 +108,7 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 				{
 					"objectId": TEST_CONFIG_STATES[0].objectId,
 					"configId": TEST_CONFIG_STATES[0].configId,
-					"values": ", ".join(str(v) if not isinstance(v, bool) else ("1" if v else "0") for v in TEST_CONFIG_STATES[0].values),
+					"values": _values_to_str(TEST_CONFIG_STATES[0].values),
 					"origin": "client",
 				},
 			],
@@ -127,13 +138,13 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 				{
 					"objectId": TEST_CONFIG_STATES[0].objectId,
 					"configId": TEST_CONFIG_STATES[0].configId,
-					"values": ",".join(str(v) if not isinstance(v, bool) else ("1" if v else "0") for v in TEST_CONFIG_STATES[0].values),
+					"values": _values_to_str(TEST_CONFIG_STATES[0].values),
 					"origin": "client",
 				},
 				{
 					"objectId": TEST_CONFIG_STATES[2].objectId,
 					"configId": TEST_CONFIG_STATES[2].configId,
-					"values": ", ".join(str(v) if not isinstance(v, bool) else ("1" if v else "0") for v in TEST_CONFIG_STATES[2].values),
+					"values": _values_to_str(TEST_CONFIG_STATES[2].values),
 					"origin": "client",
 				},
 			],
@@ -168,13 +179,13 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 				{
 					"objectId": TEST_CONFIG_STATES[0].objectId,
 					"configId": TEST_CONFIG_STATES[0].configId,
-					"values": ", ".join(str(v) if not isinstance(v, bool) else ("1" if v else "0") for v in TEST_CONFIG_STATES[0].values),
+					"values": _values_to_str(TEST_CONFIG_STATES[0].values),
 					"origin": "client",
 				},
 				{
 					"objectId": TEST_CONFIG_STATES[1].objectId,
 					"configId": TEST_CONFIG_STATES[1].configId,
-					"values": ", ".join(str(v) if not isinstance(v, bool) else ("1" if v else "0") for v in TEST_CONFIG_STATES[1].values),
+					"values": _values_to_str(TEST_CONFIG_STATES[1].values),
 					"origin": "client",
 				},
 			],
@@ -209,13 +220,13 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 				{
 					"objectId": TEST_CONFIG_STATES[0].objectId,
 					"configId": TEST_CONFIG_STATES[0].configId,
-					"values": ", ".join(str(v) if not isinstance(v, bool) else ("1" if v else "0") for v in TEST_CONFIG_STATES[0].values),
+					"values": _values_to_str(TEST_CONFIG_STATES[0].values),
 					"origin": "client",
 				},
 				{
 					"objectId": TEST_CONFIG_STATES[2].objectId,
 					"configId": TEST_CONFIG_STATES[2].configId,
-					"values": ", ".join(str(v) if not isinstance(v, bool) else ("1" if v else "0") for v in TEST_CONFIG_STATES[2].values),
+					"values": _values_to_str(TEST_CONFIG_STATES[2].values),
 					"origin": "client",
 				},
 			],
@@ -252,13 +263,13 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 				{
 					"objectId": TEST_CONFIG_STATES[0].objectId,
 					"configId": TEST_CONFIG_STATES[0].configId,
-					"values": ", ".join(str(v) if not isinstance(v, bool) else ("1" if v else "0") for v in TEST_CONFIG_STATES[0].values),
+					"values": _values_to_str(TEST_CONFIG_STATES[0].values),
 					"origin": "client",
 				},
 				{
 					"objectId": TEST_CONFIG_STATES[2].objectId,
 					"configId": TEST_CONFIG_STATES[2].configId,
-					"values": ", ".join(str(v) if not isinstance(v, bool) else ("1" if v else "0") for v in TEST_CONFIG_STATES[2].values),
+					"values": _values_to_str(TEST_CONFIG_STATES[2].values),
 					"origin": "client",
 				},
 			],

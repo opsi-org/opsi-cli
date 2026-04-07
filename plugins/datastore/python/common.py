@@ -186,7 +186,7 @@ def process_set(set: tuple[str, ...], *, attributes: list[Attribute]) -> dict[st
 	return updates
 
 
-def validate_values_by_obj(val: str, obj: Any) -> list[str] | list[bool]:
+def validate_against_possible_values(val: str, obj: Any) -> list[str] | list[bool]:
 	values = get_separated_entries(val)
 	possible_values: list[str] = obj.possibleValues if obj else []
 	formatted_possible = "\n".join([f"'{val}'" for val in possible_values]) if possible_values else "Any"
