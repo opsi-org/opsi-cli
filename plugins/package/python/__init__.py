@@ -538,6 +538,7 @@ def meta_edit_set_package_version(ctx: click.Context, source_dir: Path, version:
 @click.option("--setup-where-installed", is_flag=True, help="Setup where installed.", default=False)
 @click.option("--setup-where-installed-with-dependencies", is_flag=True, help="Setup where installed with dependencies.", default=False)
 @click.option("--update-where-installed", is_flag=True, help="Update where installed.", default=False)
+@dry_run_capable
 def install(
 	packages: list[str],
 	depots: str,
@@ -588,6 +589,13 @@ def install(
 					dest_package_name = fix_custom_package_name(package_path)
 					if new_product_id:
 						dest_package_name = opsi_package.package_archive_name()
+
+					if config.dry_run:
+						console_print(
+							f"Package '{package_path}' would be uploaded to and installed on depot '{depot.id}' as '{dest_package_name}'.",
+							output_type=OutputType.WARNING_MESSAGE,
+						)
+						continue
 					upload_to_repository(
 						depot_connection=depot_connection,
 						depot_id=depot.id,
@@ -655,6 +663,7 @@ def complete_installed_products(ctx: click.Context, param: click.Parameter, inco
 	help="Remove all corresponding metadata, like installation states and product property states.",
 	default=False,
 )
+@dry_run_capable
 def uninstall(product_ids: list[str], depots: str, force: bool, keep_files: bool, purge: bool) -> None:
 	"""
 	opsi-cli package uninstall subcommand.
@@ -672,6 +681,19 @@ def uninstall(product_ids: list[str], depots: str, force: bool, keep_files: bool
 		if pod.depotId not in product_ids_by_depot:
 			product_ids_by_depot[pod.depotId] = []
 		product_ids_by_depot[pod.depotId].append(pod.productId)
+
+	if config.dry_run:
+		for depot_id, product_ids in product_ids_by_depot.items():
+			console_print(
+				f"Products {', '.join(product_ids)} would be uninstalled from depot '{depot_id}' with force={force} and keep_files={keep_files}.",
+				output_type=OutputType.WARNING_MESSAGE,
+			)
+		if purge:
+			console_print(
+				f"Metadata for products {', '.join(product_ids)} would be purged from depot '{depot_id}'.",
+				output_type=OutputType.WARNING_MESSAGE,
+			)
+		return
 
 	if not product_ids_by_depot:
 		if purge:
