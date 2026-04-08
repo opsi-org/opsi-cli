@@ -12,7 +12,7 @@ pytest-darwin:
     - catalina-py311-x64
   script:
     - export ZIPLAUNCHER_CLEAN_TMP=true
-    - export UV_PYTHON="3.13.13-x86_64"
+    - export UV_PYTHON="3.13.3-x86_64"
     - export UV_PYTHON_PREFERENCE="only-managed"
     - uv self update
     - uv sync --frozen
@@ -33,7 +33,7 @@ pytest-windows:
   script:
     - $Env:UV_PYTHON_INSTALL_DIR = "c:\\uv\\python"
     - $Env:UV_CACHE_DIR = "c:\\uv\\cache"
-    - $Env:UV_PYTHON = "3.13.13-x86"
+    - $Env:UV_PYTHON = "3.13.3-x86"
     - $Env:UV_PYTHON_PREFERENCE = "only-managed"
     - $Env:RUSTUP_TOOLCHAIN = "stable-i686-pc-windows-msvc"
     - uv sync --frozen
@@ -82,7 +82,7 @@ pytest-linux:
   before_script:
     - for trynum in $(seq 1 30); do curl --insecure https://opsiconfd:4447 && break; sleep 6; done
   script:
-    - export UV_PYTHON="3.13.13-x86_64"
+    - export UV_PYTHON="3.13.3-x86_64"
     - export UV_PYTHON_PREFERENCE="only-managed"
     - uv self update
     - uv sync --frozen
@@ -109,7 +109,7 @@ lint-pytest:
     - job: pytest-linux
       artifacts: true
   script:
-    - export UV_PYTHON="3.13.13-x86_64"
+    - export UV_PYTHON="3.13.3-x86_64"
     - export UV_PYTHON_PREFERENCE="only-managed"
     - uv self update
     - uv sync --frozen
@@ -136,7 +136,7 @@ linux-x64-pyinstaller:
     - export LC_ALL=C.UTF-8
     - curl -sS "${OPSIDEVTOOLS_INSTALLER_URL_LINUX_X64}" | sh
     - opsi-dev-cli binary pull ziplaunch
-    - export UV_PYTHON="3.13.13-x86_64"
+    - export UV_PYTHON="3.13.3-x86_64"
     - export UV_PYTHON_PREFERENCE="only-managed"
     - uv self update
     - uv sync --frozen
@@ -164,7 +164,7 @@ linux-arm64-pyinstaller:
     - export LC_ALL=C.UTF-8
     - curl -sS "${OPSIDEVTOOLS_INSTALLER_URL_LINUX_ARM64}" | sh
     - opsi-dev-cli binary pull ziplaunch
-    - export UV_PYTHON="3.13.13-aarch64"
+    - export UV_PYTHON="3.13.3-aarch64"
     - export UV_PYTHON_PREFERENCE="only-managed"
     - uv self update
     - uv sync --frozen
@@ -189,7 +189,7 @@ macos-x64-pyinstaller:
     - catalina-py311-x64
   script:
     - export LC_ALL=en_US.UTF-8
-    - export UV_PYTHON="3.13.13-x86_64"
+    - export UV_PYTHON="3.13.3-x86_64"
     - export UV_PYTHON_PREFERENCE="only-managed"
     - uv self update
     - uv sync --frozen
@@ -234,7 +234,7 @@ windows-x86-pyinstaller:
     - $Env:UV_PYTHON_INSTALL_DIR = "c:\\uv\\python"
     - $Env:UV_CACHE_DIR = "c:\\uv\\cache"
     - $Env:UV_PYTHON_PREFERENCE = "only-managed"
-    - $Env:UV_PYTHON = "3.13.13-x86"
+    - $Env:UV_PYTHON = "3.13.3-x86"
     - $Env:RUSTUP_TOOLCHAIN = "stable-i686-pc-windows-msvc"
     - uv sync --frozen
     # Get opsi-dev-tool
