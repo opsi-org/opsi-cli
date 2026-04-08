@@ -105,7 +105,6 @@ def list_config_state(where: tuple[str, ...]) -> None:
 	final_object_ids = get_validated_ids(service_connection, ids=filter["objectId"], type="objectId")
 	final_config_ids = get_validated_ids(service_connection, ids=filter["configId"], type="configId")
 
-	# get depot_ids from map
 	final_depot_ids = service_connection.host_getIdents(type="OpsiDepotserver")  # type: ignore[attr-defined]
 
 	default_states = _get_default_config_states(final_object_ids, final_config_ids)
