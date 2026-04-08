@@ -21,20 +21,19 @@ __version__ = "0.1.0"
 __description__ = "This command can be used to manage data and objects"
 
 
-# handle comma separated object-ids
 def get_validated_ids(
 	service_connection: ServiceClient,
 	ids: str | list[str],
 	type: Literal["objectId", "configId"],
 ) -> list[str]:
 
-	if isinstance(ids, str):
-		ids = get_separated_entries(ids)
 	if type == "objectId":
 		func = partial(service_connection.host_getIdents, type="OpsiClient")  # type: ignore[attr-defined]
 	elif type == "configId":
 		func = service_connection.config_getIdents  # type: ignore[attr-defined]
 
+	if isinstance(ids, str):
+		ids = get_separated_entries(ids)
 	if "*" in ids or "all" in ids:
 		return func([])
 

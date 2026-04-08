@@ -312,6 +312,23 @@ def _values_to_str(values: str | bool | list[Any] | None) -> str:
 			None,
 			("There is no such objectId:",),
 		),
+		# invalid configId"
+		(
+			[
+				"--sort-by",
+				"objectId",
+				"datastore",
+				"config-state",
+				"list",
+				"--where",
+				"configId=invalid",
+				"--where",
+				f"objectId={TEST_CLIENTS[1].id}",
+			],
+			None,
+			None,
+			("There is no such configId:",),
+		),
 	),
 )
 def test_config_state_list(

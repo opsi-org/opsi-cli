@@ -193,17 +193,11 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	filter = process_where(where, attributes=CONFIG_STATE_WHERE_METADATA.attributes, operation="update")
 	updates = process_set(set, attributes=CONFIG_STATE_SET_METADATA.attributes)
 
-	object_id = filter["objectId"]
-	config_id = filter["configId"]
-
-	object_ids = get_validated_ids(service_connection, object_id, "objectIds")
-
-	config_obj = service_connection.config_getObjects(id=config_id)  # type: ignore[attr-defined]
-
-	if not config_obj:
-		raise ValueError(f"There is no such configId: `{config_id}`")
-	if len(config_obj) > 1:
+	object_ids = get_validated_ids(service_connection, ids=filter["objectId"], type="objectId")
+	config_id = get_validated_ids(service_connection, ids=filter["configId"], type="configId")
+	if len(config_id) > 1:
 		raise ValueError("Only one configId without wildcard is allowed.")
+	config_obj = service_connection.config_getObjects(id=config_id)  # type: ignore[attr-defined]
 
 	values = validate_against_possible_values(updates["values"], config_obj[0])
 	current_values = service_connection.configState_getValues(config_id, object_ids)  # type: ignore[attr-defined]
