@@ -16,7 +16,7 @@ from .common import (
 	cli,
 	create_client_depot_mapping,
 	filter_by_attributes,
-	get_object_ids,
+	get_validated_object_ids,
 	process_set,
 	process_where,
 	validate_against_possible_values,
@@ -104,9 +104,18 @@ def list_config_state(where: tuple[str, ...]) -> None:
 	filter = process_where(where, attributes=COMMAND_METADATA["datastore_config-state_list"].attributes, operation="update")
 	config_ids = filter["configId"]
 	object_ids = filter["objectId"]
-	# Handle different input formats (e.g. plain IDs, IDs with '*', or comma-separated strings)
-	final_object_ids = get_object_ids(service_connection, object_ids)
+
+	try:
+		final_object_ids = get_validated_object_ids(service_connection, object_ids)
+	except ValueError:
+		raise
+
 	final_config_ids = [] if config_ids == "*" else get_separated_entries(config_ids)
+	config_obj = service_connection.config_getObjects(id=final_config_ids)  # type: ignore[attr-defined]
+
+	if not config_obj:
+		raise ValueError(f"There is no such configId: `{config_ids}`")
+
 	# get depot_ids from map
 	client_depot_map = create_client_depot_mapping(service_connection, final_object_ids)
 	final_depot_ids = list({depot for depot in client_depot_map.values()})
@@ -202,15 +211,17 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	object_id = filter["objectId"]
 	config_id = filter["configId"]
 
-	object_ids = get_object_ids(service_connection, object_id)
+	try:
+		object_ids = get_validated_object_ids(service_connection, object_id)
+	except ValueError:
+		raise
+
 	config_obj = service_connection.config_getObjects(id=config_id)  # type: ignore[attr-defined]
 
-	if not object_ids:
-		raise AttributeError(f"There is no such objectId: `{object_ids}`")
 	if not config_obj:
-		raise AttributeError(f"There is no such configId: `{config_id}`")
+		raise ValueError(f"There is no such configId: `{config_id}`")
 	if len(config_obj) > 1:
-		raise AttributeError("Only one configId without wildcard is allowed.")
+		raise ValueError("Only one configId without wildcard is allowed.")
 
 	updates = process_set(set, attributes=CONFIG_STATE_SET_METADATA.attributes)
 	values = validate_against_possible_values(updates["values"], config_obj[0])

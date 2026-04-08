@@ -21,22 +21,23 @@ __description__ = "This command can be used to manage data and objects"
 
 
 # handle comma separated object-ids
-def get_object_ids(
+def get_validated_object_ids(
 	service_connection: ServiceClient,
 	object_ids: str | list[str],
 	type: str = "OpsiClient",
 ) -> list[str]:
 	if isinstance(object_ids, str):
-		object_ids = [item.strip() for item in object_ids.split(",")]
+		object_ids = get_separated_entries(object_ids)
 	if "*" in object_ids or "all" in object_ids:
 		return service_connection.host_getIdents(id=[], type=type)  # type: ignore[attr-defined]
+
 	result = []
 	for id in object_ids:
-		if "*" in id:
-			result.extend(service_connection.host_getIdents(id=id, type=type))  # type: ignore[attr-defined]
-		else:
-			result.append(id)
-	return result
+		valid_ids = service_connection.host_getIdents(id=id, type=type)  # type: ignore[attr-defined]
+		if not valid_ids:
+			raise ValueError(f"There is no such objectId: `{id}`")
+		result.extend(valid_ids)
+	return list(set(result))
 
 
 def create_client_depot_mapping(service_connection: ServiceClient, object_ids: list[str] | None = None) -> dict[str, str]:

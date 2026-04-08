@@ -96,6 +96,7 @@ def _values_to_str(values: str | bool | list[Any] | None) -> str:
 	(
 		# one objectId, one configId
 		(
+			# COMMAND
 			[
 				"--sort-by",
 				"objectId",
@@ -107,6 +108,7 @@ def _values_to_str(values: str | bool | list[Any] | None) -> str:
 				"--where",
 				f"objectId={TEST_CLIENTS[0].id}",
 			],
+			# EXPECTED OUTPUT
 			[
 				{
 					"objectId": TEST_CONFIG_STATES[0].objectId,
@@ -115,6 +117,7 @@ def _values_to_str(values: str | bool | list[Any] | None) -> str:
 					"origin": "client",
 				},
 			],
+			# EXPECTED VALUES
 			[
 				{
 					"objectId": TEST_CONFIG_STATES[0].objectId,
@@ -122,6 +125,7 @@ def _values_to_str(values: str | bool | list[Any] | None) -> str:
 					"values": TEST_CONFIG_STATES[0].values,
 				},
 			],
+			# EXPECTED ERROR
 			None,
 		),
 		# multiple objectId's, one configId
@@ -290,6 +294,24 @@ def _values_to_str(values: str | bool | list[Any] | None) -> str:
 			],
 			None,
 		),
+		# ERRORS
+		# invalid objectId"
+		(
+			[
+				"--sort-by",
+				"objectId",
+				"datastore",
+				"config-state",
+				"list",
+				"--where",
+				f"configId={TEST_CONFIG_STATES[0].configId}",
+				"--where",
+				"objectId=invalid",
+			],
+			None,
+			None,
+			("There is no such objectId:",),
+		),
 	),
 )
 def test_config_state_list(
@@ -306,20 +328,21 @@ def test_config_state_list(
 		tmp_config_states(admin_service_client, TEST_CONFIG_STATES),
 	):
 		exit_code, stdout, stderr = run_cli(command)
-		if expected_error:
-			assert exit_code != 0
-			assert_error_contains(stderr, expected_error)
-		else:
-			assert exit_code == 0
-			data = read_input_csv(stdout.encode("utf-8"))
-			assert data == expected_output
 
-		config_id = next((arg.split("=")[1] for arg in command if arg.startswith("configId=")), None)
-		object_id = next((arg.split("=")[1] for arg in command if arg.startswith("objectId=")), None)
+	if expected_error:
+		assert exit_code != 0
+		assert_error_contains(stderr, expected_error)
+	else:
+		assert exit_code == 0
+		data = read_input_csv(stdout.encode("utf-8"))
+		assert data == expected_output
 
-		config_id = [] if config_id == "*" else config_id
-		object_id = [] if object_id == "*" else object_id
-		states = admin_service_client.configState_getObjects(configId=config_id, objectId=object_id)  # type: ignore[attr-defined]
-		if expected_output and config_id and object_id:
-			for state, expect in zip(states, expected_values):
-				assert state.__dict__ == expect
+	config_id = next((arg.split("=")[1] for arg in command if arg.startswith("configId=")), None)
+	object_id = next((arg.split("=")[1] for arg in command if arg.startswith("objectId=")), None)
+
+	config_id = [] if config_id == "*" else config_id
+	object_id = [] if object_id == "*" else object_id
+	states = admin_service_client.configState_getObjects(configId=config_id, objectId=object_id)  # type: ignore[attr-defined]
+	if expected_output and config_id and object_id:
+		for state, expect in zip(states, expected_values):
+			assert state.__dict__ == expect
