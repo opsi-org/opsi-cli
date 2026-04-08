@@ -9,14 +9,13 @@ from opsicommon.logging import get_logger
 from opsicommon.objects import Config, ConfigState
 
 from opsicli.decorators import dry_run_capable
-from opsicli.io import OutputType, console_print, get_separated_entries, write_output
+from opsicli.io import OutputType, console_print, write_output
 from opsicli.opsiservice import config, get_service_connection
 
 from .common import (
 	cli,
-	create_client_depot_mapping,
 	filter_by_attributes,
-	get_validated_object_ids,
+	get_validated_ids,
 	process_set,
 	process_where,
 	validate_against_possible_values,
@@ -102,27 +101,12 @@ def list_config_state(where: tuple[str, ...]) -> None:
 
 	service_connection = get_service_connection()
 	filter = process_where(where, attributes=COMMAND_METADATA["datastore_config-state_list"].attributes, operation="update")
-	config_ids = filter["configId"]
-	object_ids = filter["objectId"]
 
-	try:
-		final_object_ids = get_validated_object_ids(service_connection, object_ids)
-	except ValueError:
-		raise
-
-	final_config_ids = [] if config_ids == "*" else get_separated_entries(config_ids)
-	config_obj = service_connection.config_getObjects(id=final_config_ids)  # type: ignore[attr-defined]
-
-	if not config_obj:
-		raise ValueError(f"There is no such configId: `{config_ids}`")
+	final_object_ids = get_validated_ids(service_connection, ids=filter["objectId"], type="objectId")
+	final_config_ids = get_validated_ids(service_connection, ids=filter["configId"], type="configId")
 
 	# get depot_ids from map
-	client_depot_map = create_client_depot_mapping(service_connection, final_object_ids)
-	final_depot_ids = list({depot for depot in client_depot_map.values()})
-
-	# remove depot_ids from final_object_ids if no object_ids were given (e.g. object_ids contains all object_ids and depot_ids)
-	if object_ids == "*":
-		final_object_ids = [id for id in final_object_ids if id not in final_depot_ids]
+	final_depot_ids = service_connection.host_getIdents(type="OpsiDepotserver")  # type: ignore[attr-defined]
 
 	default_states = _get_default_config_states(final_object_ids, final_config_ids)
 	depot_states = _update_default_states(final_depot_ids, final_object_ids, default_states)
@@ -207,14 +191,12 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 
 	service_connection = get_service_connection()
 	filter = process_where(where, attributes=CONFIG_STATE_WHERE_METADATA.attributes, operation="update")
+	updates = process_set(set, attributes=CONFIG_STATE_SET_METADATA.attributes)
 
 	object_id = filter["objectId"]
 	config_id = filter["configId"]
 
-	try:
-		object_ids = get_validated_object_ids(service_connection, object_id)
-	except ValueError:
-		raise
+	object_ids = get_validated_ids(service_connection, object_id, "objectIds")
 
 	config_obj = service_connection.config_getObjects(id=config_id)  # type: ignore[attr-defined]
 
@@ -223,7 +205,6 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	if len(config_obj) > 1:
 		raise ValueError("Only one configId without wildcard is allowed.")
 
-	updates = process_set(set, attributes=CONFIG_STATE_SET_METADATA.attributes)
 	values = validate_against_possible_values(updates["values"], config_obj[0])
 	current_values = service_connection.configState_getValues(config_id, object_ids)  # type: ignore[attr-defined]
 

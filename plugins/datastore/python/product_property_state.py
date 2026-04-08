@@ -9,7 +9,7 @@ from opsicommon.logging import get_logger
 from opsicli.io import write_output
 from opsicli.opsiservice import get_service_connection
 
-from .common import cli, create_client_depot_mapping, get_validated_object_ids
+from .common import cli, create_client_depot_mapping, get_validated_ids
 from .metadata import COMMAND_METADATA
 
 logger = get_logger("opsicli")
@@ -107,7 +107,7 @@ def list_product_property_state(object_ids: str, product_ids: str, property_ids:
 
 	service_connection = get_service_connection()
 	# Handle different object_id input formats (e.g. plain IDs, IDs with '*', or comma-separated strings)
-	final_object_ids = get_validated_object_ids(service_connection, object_ids)
+	final_object_ids = get_validated_ids(service_connection, ids=object_ids, type="objectIds")
 	final_product_ids = None if product_ids == "all" else [item.strip() for item in product_ids.split(",")]
 	final_property_ids = None if property_ids == "all" else [item.strip() for item in property_ids.split(",")]
 
