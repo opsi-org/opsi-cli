@@ -695,10 +695,6 @@ def test_custom_package_installation(dry_run: bool) -> None:
 		exit_code, _, _ = run_cli(["package", "uninstall", "test2"])
 		assert exit_code == 0
 
-would be uploaded to and installed on depot 'opsi.opsi.test' as 'test2_1.0-6.opsi'"
-
-would be uploaded to and installed on depot 'test.uib.gmbh' as 'test2_1.0-6.opsi'. "
-
 
 @pytest.mark.opsi_service
 def test_package_installation_new_id() -> None:
