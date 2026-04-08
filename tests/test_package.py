@@ -674,16 +674,30 @@ def test_package_install_and_uninstall(admin_service_client: ServiceClient) -> N
 
 
 @pytest.mark.opsi_service
-def test_custom_package_installation() -> None:
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_custom_package_installation(dry_run: bool) -> None:
 	# Test case where the package has "~custom" name and has local md5 and zsync files, which are not updated.
-	exit_code, _, _ = run_cli(["package", "install", str(TEST_DATA_PATH / "test2_1.0-6~custom1.opsi")])
+	args = ["--dry-run"] if dry_run else []
+	args.extend(["package", "install", str(TEST_DATA_PATH / "test2_1.0-6~custom1.opsi")])
+	exit_code, _stdout, _stderr = run_cli(args)
 	assert exit_code == 0
-	if Path("/var/lib/opsi/repository").exists():  # we are probably running on the opsi-server itself (not just on same docker host)
-		for file in ["test2_1.0-6.opsi", "test2_1.0-6.opsi.md5", "test2_1.0-6.opsi.zsync"]:
-			assert (Path("/var/lib/opsi/repository") / file).exists()
+	if dry_run:
+		assert "would be uploaded to and installed on depot 'opsi.opsi.test' as 'test2_1.0-6.opsi'" in _stderr.replace("\n", " ").replace(
+			"  ", " "
+		)
+	else:
+		if Path("/var/lib/opsi/repository").exists():  # we are probably running on the opsi-server itself (not just on same docker host)
+			for file in ["test2_1.0-6.opsi", "test2_1.0-6.opsi.md5", "test2_1.0-6.opsi.zsync"]:
+				assert (Path("/var/lib/opsi/repository") / file).exists()
 
-	exit_code, _, _ = run_cli(["package", "uninstall", "test2"])
-	assert exit_code == 0
+		exit_code, _stdout, _stderr = run_cli(["--dry-run", "package", "uninstall", "test2"])
+		assert exit_code == 0
+		assert "would be uninstalled from depot 'opsi.opsi.test' with force=False and keep_files=False." in _stderr.replace(
+			"\n", " "
+		).replace("  ", " ")
+
+		exit_code, _, _ = run_cli(["package", "uninstall", "test2"])
+		assert exit_code == 0
 
 
 @pytest.mark.opsi_service
