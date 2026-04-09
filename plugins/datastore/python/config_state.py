@@ -20,7 +20,7 @@ from .common import (
 	process_where,
 	validate_against_possible_values,
 )
-from .metadata import COMMAND_METADATA, CONFIG_STATE_SET_METADATA, CONFIG_STATE_WHERE_METADATA
+from .metadata import COMMAND_METADATA, CONFIG_STATE_SET_METADATA
 
 logger = get_logger("opsicli")
 
@@ -100,10 +100,19 @@ def list_config_state(where: tuple[str, ...]) -> None:
 		return depot_states
 
 	service_connection = get_service_connection()
-	filter = process_where(where, attributes=COMMAND_METADATA["datastore_config-state_list"].attributes, operation="update")
+	attributes = COMMAND_METADATA["datastore_config-state_update"].attributes
 
-	final_object_ids = get_validated_ids(service_connection, ids=filter["objectId"], type="objectId")
-	final_config_ids = get_validated_ids(service_connection, ids=filter["configId"], type="configId")
+	# select attributes to display
+	for attr in attributes:
+		if attr.id in ("objectId", "configId", "values", "origin"):
+			attr.selected = True
+
+	filter = process_where(where, attributes=attributes, operation="list")
+	object_id = filter.get("objectId") if filter.get("objectId") else "*"
+	config_id = filter.get("configId") if filter.get("configId") else "*"
+
+	final_object_ids = get_validated_ids(service_connection, ids=object_id, type="objectId")
+	final_config_ids = get_validated_ids(service_connection, ids=config_id, type="configId")
 
 	final_depot_ids = service_connection.host_getIdents(type="OpsiDepotserver")  # type: ignore[attr-defined]
 
@@ -189,7 +198,13 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 		return config_states
 
 	service_connection = get_service_connection()
-	filter = process_where(where, attributes=CONFIG_STATE_WHERE_METADATA.attributes, operation="update")
+	attributes = COMMAND_METADATA["datastore_config-state_update"].attributes
+	# select attributes to display
+	for attr in attributes:
+		if attr.id in ("objectId", "configId", "possible", "old", "new"):
+			attr.selected = True
+
+	filter = process_where(where, attributes=attributes, operation="update")
 	updates = process_set(set, attributes=CONFIG_STATE_SET_METADATA.attributes)
 
 	object_ids = get_validated_ids(service_connection, ids=filter["objectId"], type="objectId")

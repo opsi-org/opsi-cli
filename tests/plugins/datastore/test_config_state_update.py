@@ -465,8 +465,10 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 			(
 				"At least one filter condition is required",
 				"Available attributes are:",
-				"objectId  (str)  The ID of the client.",
-				"configId  (str)  The ID of the config-state.",
+				"objectId",
+				"The ID of the object (host)",
+				"configId",
+				"The ID of the config.",
 			),
 		),
 		# Missing --set

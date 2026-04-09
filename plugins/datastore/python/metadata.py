@@ -2,7 +2,6 @@
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
-
 from datetime import datetime, timezone
 
 from opsicommon.types import (
@@ -109,21 +108,72 @@ CLIENT_METADATA = Metadata(
 	]
 )
 
-CONFIG_STATE_WHERE_METADATA = Metadata(
+CONFIG_STATE_METADATA = Metadata(
 	attributes=[
 		Attribute(
 			id="objectId",
-			description="The ID of the client.",
+			description="The ID of the object (host).",
 			identifier=True,
 			data_type="str",
-			selected=True,
+			selected=False,
 		),
 		Attribute(
 			id="configId",
-			description="The ID of the config-state.",
+			description="The ID of the config.",
 			identifier=True,
 			data_type="str",
-			selected=True,
+			selected=False,
+		),
+		Attribute(
+			id="default_values",
+			description="Values of given Config.",
+			identifier=False,
+			data_type="str | bool",
+			selected=False,
+		),
+		Attribute(
+			id="depot_values",
+			description="Values of given config state.",
+			identifier=False,
+			data_type="str | bool",
+			selected=False,
+		),
+		Attribute(
+			id="client_values",
+			description="Values of given config state.",
+			identifier=False,
+			data_type="str | bool",
+			selected=False,
+		),
+		Attribute(
+			id="values",
+			description="Values of given config state.",
+			identifier=False,
+			data_type="str | bool",
+			selected=False,
+			column_style="green",
+		),
+		Attribute(id="origin", description="Location where the change has been made.", identifier=False, data_type="str", selected=False),
+		Attribute(
+			id="possible",
+			description="Possible values of given Config.",
+			identifier=False,
+			data_type="str | bool",
+			selected=False,
+		),
+		Attribute(
+			id="old",
+			description="Old values.",
+			identifier=False,
+			data_type="str | bool",
+			selected=False,
+		),
+		Attribute(
+			id="new",
+			description="Updated values.",
+			identifier=False,
+			data_type="str | bool",
+			selected=False,
 		),
 	]
 )
@@ -141,81 +191,8 @@ CONFIG_STATE_SET_METADATA = Metadata(
 )
 
 COMMAND_METADATA = {
-	"datastore_config-state_list": Metadata(
-		attributes=[
-			Attribute(
-				id="objectId",
-				description="The ID of the object (host).",
-				identifier=True,
-				data_type="str",
-				selected=True,
-			),
-			Attribute(
-				id="configId",
-				description="The ID of the config.",
-				identifier=True,
-				data_type="str",
-				selected=True,
-			),
-			Attribute(
-				id="default_values",
-				description="Values of given Config.",
-				identifier=False,
-				data_type="str | bool",
-				selected=False,
-			),
-			Attribute(
-				id="depot_values",
-				description="Values of given config state.",
-				identifier=False,
-				data_type="str | bool",
-				selected=False,
-			),
-			Attribute(
-				id="client_values",
-				description="Values of given config state.",
-				identifier=False,
-				data_type="str | bool",
-				selected=False,
-			),
-			Attribute(
-				id="values",
-				description="Values of given config state.",
-				identifier=False,
-				data_type="str | bool",
-				selected=True,
-				column_style="green",
-			),
-			Attribute(id="origin", description="Location where the change was made.", identifier=False, data_type="str", selected=True),
-		]
-	),
-	"datastore_config-state_update": Metadata(
-		attributes=[
-			Attribute(id="objectId", description="The ID of the object (host).", identifier=False, data_type="str", selected=True),
-			Attribute(id="configId", description="The ID of the config.", identifier=False, data_type="str", selected=True),
-			Attribute(
-				id="possible",
-				description="Possible values of given Config.",
-				identifier=False,
-				data_type="str | bool",
-				selected=True,
-			),
-			Attribute(
-				id="old",
-				description="Old values.",
-				identifier=False,
-				data_type="str | bool",
-				selected=True,
-			),
-			Attribute(
-				id="new",
-				description="Updated values.",
-				identifier=False,
-				data_type="str | bool",
-				selected=True,
-			),
-		]
-	),
+	"datastore_config-state_list": CONFIG_STATE_METADATA,
+	"datastore_config-state_update": CONFIG_STATE_METADATA,
 	"datastore_product-property-state_list": Metadata(
 		attributes=[
 			Attribute(id="objectId", description="The ID of the object.", identifier=True, data_type="str", selected=True),

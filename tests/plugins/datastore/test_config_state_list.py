@@ -329,6 +329,45 @@ def _values_to_str(values: str | bool | list[Any] | None) -> str:
 			None,
 			("There is no such configId:",),
 		),
+		# Missing objectId"
+		(
+			[
+				"--sort-by",
+				"objectId",
+				"datastore",
+				"config-state",
+				"list",
+				"--where",
+				f"configId={TEST_CONFIG_STATES[0].configId}",
+			],
+			[
+				{
+					"objectId": TEST_CONFIG_STATES[0].objectId,
+					"configId": TEST_CONFIG_STATES[0].configId,
+					"values": _values_to_str(TEST_CONFIG_STATES[0].values),
+					"origin": "client",
+				},
+				{
+					"objectId": TEST_CONFIG_STATES[2].objectId,
+					"configId": TEST_CONFIG_STATES[2].configId,
+					"values": _values_to_str(TEST_CONFIG_STATES[2].values),
+					"origin": "client",
+				},
+			],
+			[
+				{
+					"objectId": TEST_CONFIG_STATES[0].objectId,
+					"configId": TEST_CONFIG_STATES[0].configId,
+					"values": TEST_CONFIG_STATES[0].values,
+				},
+				{
+					"objectId": TEST_CONFIG_STATES[2].objectId,
+					"configId": TEST_CONFIG_STATES[2].configId,
+					"values": TEST_CONFIG_STATES[2].values,
+				},
+			],
+			None,
+		),
 	),
 )
 def test_config_state_list(

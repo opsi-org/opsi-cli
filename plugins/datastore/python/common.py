@@ -23,9 +23,12 @@ __description__ = "This command can be used to manage data and objects"
 
 def get_validated_ids(
 	service_connection: ServiceClient,
-	ids: str | list[str],
+	ids: str | list[str] | None,
 	type: Literal["objectId", "configId", "productId", "propertyId", "depotId"],
 ) -> list[str]:
+	if not ids:
+		return []
+
 	func: Callable[[Any], list[str]]
 
 	if type == "objectId":
@@ -262,7 +265,6 @@ def filter_by_attributes(data: list[dict[str, Any]], filter: dict[str, str], att
 			if value in ("false", "true"):
 				value = filter[attr].capitalize()
 
-			# compare strings
 			if value != comparison_value:
 				match = False
 				break
