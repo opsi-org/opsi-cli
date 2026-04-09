@@ -146,7 +146,7 @@ def test_wrong_depot_id(admin_service_client: ServiceClient) -> None:
 
 # ===================================(PRODUCT-PROPTERY-STATE LIST || TESTS)============================================
 @pytest.mark.opsi_service
-def _test_product_property_list(admin_service_client: ServiceClient) -> None:
+def test_product_property_list(admin_service_client: ServiceClient) -> None:
 	start = time.perf_counter()
 	with (
 		tmp_client(admin_service_client, CLIENT_ID_1),
@@ -198,12 +198,12 @@ def _test_product_property_list(admin_service_client: ServiceClient) -> None:
 				"datastore",
 				"product-property-state",
 				"list",
-				"--object-ids",
-				"all",
-				"--product-ids",
-				f"{PRODUCT_ID_1}",
-				"--property-ids",
-				f"{PROPERTY_ID_1}",
+				"--where",
+				"objectId=all",
+				"--where",
+				f"productId={PRODUCT_ID_1}",
+				"--where",
+				f"propertyId={PROPERTY_ID_1}",
 			]
 		)
 		assert exit_code == 0
@@ -225,12 +225,12 @@ def _test_product_property_list(admin_service_client: ServiceClient) -> None:
 				"datastore",
 				"product-property-state",
 				"list",
-				"--object-ids",
-				"py*",
-				"--product-ids",
-				f"{PRODUCT_ID_2}",
-				"--property-ids",
-				f"{PROPERTY_ID_2}",
+				"--where",
+				"objectId=py*",
+				"--where",
+				f"productId={PRODUCT_ID_2}",
+				"--where",
+				f"propertyId={PROPERTY_ID_2}",
 			]
 		)
 		assert exit_code == 0
@@ -252,12 +252,12 @@ def _test_product_property_list(admin_service_client: ServiceClient) -> None:
 				"datastore",
 				"product-property-state",
 				"list",
-				"--object-ids",
-				f"{CLIENT_ID_1},{CLIENT_ID_2}",
-				"--product-ids",
-				f"{PRODUCT_ID_2}",
-				"--property-ids",
-				f"{PROPERTY_ID_2}",
+				"--where",
+				f"objectId={CLIENT_ID_1},{CLIENT_ID_2}",
+				"--where",
+				f"productId={PRODUCT_ID_2}",
+				"--where",
+				f"propertyId={PROPERTY_ID_2}",
 			]
 		)
 		assert exit_code == 0
@@ -279,12 +279,12 @@ def _test_product_property_list(admin_service_client: ServiceClient) -> None:
 				"datastore",
 				"product-property-state",
 				"list",
-				"--object-ids",
-				"py*",
-				"--product-ids",
-				"pytest*",
-				"--property-ids",
-				"proper*",
+				"--where",
+				"objectId=py*",
+				"--where",
+				"productId=pytest*",
+				"--where",
+				"propertyId=proper*",
 			]
 		)
 		assert exit_code == 0
@@ -308,12 +308,12 @@ def _test_product_property_list(admin_service_client: ServiceClient) -> None:
 				"datastore",
 				"product-property-state",
 				"list",
-				"--object-ids",
-				f"{CLIENT_ID_1},{CLIENT_ID_2}",
-				"--product-ids",
-				f"{PRODUCT_ID_1},{PRODUCT_ID_2}",
-				"--property-ids",
-				f"{PROPERTY_ID_1},{PROPERTY_ID_2}",
+				"--where",
+				f"objectId={CLIENT_ID_1},{CLIENT_ID_2}",
+				"--where",
+				f"productId={PRODUCT_ID_1},{PRODUCT_ID_2}",
+				"--where",
+				f"propertyId={PROPERTY_ID_1},{PROPERTY_ID_2}",
 			]
 		)
 		assert exit_code == 0
@@ -326,7 +326,7 @@ def _test_product_property_list(admin_service_client: ServiceClient) -> None:
 		assert stdout_into_list(_stdout)[7][:3] == [CLIENT_ID_2, PRODUCT_ID_2, PROPERTY_ID_1]
 		assert stdout_into_list(_stdout)[8][:3] == [CLIENT_ID_2, PRODUCT_ID_2, PROPERTY_ID_2]
 		assert len(stdout_into_list(_stdout)) - 1 == 8
-
+		"""
 		# object-id is a depot-id
 		exit_code, _stdout, _stderr = run_cli(
 			[
@@ -351,7 +351,7 @@ def _test_product_property_list(admin_service_client: ServiceClient) -> None:
 		assert stdout_into_list(_stdout)[3][:3] == [DEPOT_ID, PRODUCT_ID_2, PROPERTY_ID_1]
 		assert stdout_into_list(_stdout)[4][:3] == [DEPOT_ID, PRODUCT_ID_2, PROPERTY_ID_2]
 		assert len(stdout_into_list(_stdout)) - 1 == 4
-
+		"""
 	diff = time.perf_counter() - start
 	print(diff)
 

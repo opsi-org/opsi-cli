@@ -4,7 +4,7 @@
 # License: AGPL-3.0-only
 import re
 from functools import partial
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 
 import rich_click as click
 from opsicommon.logging import get_logger
@@ -24,13 +24,30 @@ __description__ = "This command can be used to manage data and objects"
 def get_validated_ids(
 	service_connection: ServiceClient,
 	ids: str | list[str],
-	type: Literal["objectId", "configId"],
+	type: Literal["objectId", "configId", "productId", "propertyId", "depotId"],
 ) -> list[str]:
+	func: Callable[[Any], list[str]]
 
 	if type == "objectId":
 		func = partial(service_connection.host_getIdents, type="OpsiClient")  # type: ignore[attr-defined]
+	if type == "depotId":
+		func = partial(service_connection.host_getIdents, type="OpsiDepotserver")  # type: ignore[attr-defined]
 	elif type == "configId":
 		func = service_connection.config_getIdents  # type: ignore[attr-defined]
+	elif type == "productId":
+
+		def get_product_ids(id: Any) -> list[str]:
+			idents = service_connection.product_getIdents(id=id)  # type: ignore[attr-defined]
+			return list(set([p.split(";")[0] for p in idents]))
+
+		func = get_product_ids
+	elif type == "propertyId":
+
+		def get_property_ids(id: Any) -> list[str]:
+			idents = service_connection.productProperty_getIdents(propertyId=id)  # type: ignore[attr-defined]
+			return list(set([p.split(";")[3] for p in idents]))
+
+		func = get_property_ids
 
 	if isinstance(ids, str):
 		ids = get_separated_entries(ids)
