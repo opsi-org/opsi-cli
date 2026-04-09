@@ -468,7 +468,7 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 				"objectId",
 				"The ID of the object (host)",
 				"configId",
-				"The ID of the config.",
+				"The ID of the config-state.",
 			),
 		),
 		# Missing --set
