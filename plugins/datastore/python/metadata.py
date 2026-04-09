@@ -218,9 +218,9 @@ COMMAND_METADATA = {
 	),
 	"datastore_product-property-state_list": Metadata(
 		attributes=[
-			Attribute(id="objectId", description="The ID of the object.", identifier=False, data_type="str", selected=True),
-			Attribute(id="productId", description="The ID of the product.", identifier=False, data_type="str", selected=True),
-			Attribute(id="propertyId", description="The ID of the property.", identifier=False, data_type="str", selected=True),
+			Attribute(id="objectId", description="The ID of the object.", identifier=True, data_type="str", selected=True),
+			Attribute(id="productId", description="The ID of the product.", identifier=True, data_type="str", selected=True),
+			Attribute(id="propertyId", description="The ID of the property.", identifier=True, data_type="str", selected=True),
 			Attribute(
 				id="default_values",
 				description="Values of given property.",
