@@ -182,3 +182,26 @@ def admin_service_config() -> Generator[tuple[str, str, str], None, None]:
 		yield address, username, password
 	finally:
 		config.service, config.username, config.password = current_values
+
+
+def stdout_into_list(_stdout: str) -> list[list[str]]:
+	stdout_result_list = []
+	stdout_list = _stdout.splitlines()
+	list_len = len(stdout_list)
+	i = 0
+
+	# not pretty but working
+	while i < list_len:
+		line = stdout_list[i]
+		line_as_list = line.split(";")
+		if "netboot.grub.additional_menu_entries" in line_as_list:
+			line_as_list = [
+				line_as_list[0],
+				"netboot.grub.additional_menu_entries",
+				"if [ $grub_platform = efi ]; then menuentry 'UEFI Firmware Settings' --class firmware {fwsetup}fi",
+				stdout_list[i + 5].split(";")[1],
+			]
+			i += 5
+		stdout_result_list.append(line_as_list)
+		i += 1
+	return stdout_result_list
