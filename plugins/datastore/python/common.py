@@ -246,28 +246,46 @@ def validate_against_possible_values(val: str, obj: Any) -> list[str] | list[boo
 
 
 def filter_by_attributes(data: list[dict[str, Any]], filter: dict[str, str], attributes: list[Attribute]) -> list[dict[str, Any]]:
+	"""
+	Filters a list of dictionaries based on specific attribute values.
+
+	Args:
+	    data: A list of dictionaries representing the records to filter.
+	    filter: A mapping of attribute IDs to the desired string values.
+	    attributes: A list of Attribute objects used to validate filter keys.
+
+	Returns:
+	    A list of dictionaries that match all valid criteria in the filter.
+	"""
 	if not filter:
 		return data
 
+	# Map attribute IDs for O(1) lookup during the filtering loop
 	available_attributes = {attr.id: attr for attr in attributes}
 	filtered_data = []
+
 	for entry in data:
 		match = True
 		for attr in filter:
+			# Skip filters that do not correspond to known attributes
 			if not available_attributes.get(attr):
 				continue
 
-			attr_value = entry.get(attr)
-			if isinstance(attr_value, list):
-				comparison_value = ", ".join(str(x) for x in attr_value)
+			# Normalize data values to string for comparison.
+			# Lists are joined by commas to match the filter's string format.
+			data_value = entry.get(attr)
+			if isinstance(data_value, list):
+				data_value = ", ".join(str(x) for x in data_value)
 			else:
-				comparison_value = str(attr_value) if attr_value is not None else ""
+				data_value = str(data_value) if data_value is not None else ""
 
-			value = filter[attr]
-			if value in ("false", "true"):
-				value = filter[attr].capitalize()
+			# Normalize boolean-like filter strings to capitalized format (e.g., "true" -> "True")
+			filter_value = filter[attr]
+			if filter_value in ("false", "true"):
+				filter_value = filter[attr].capitalize()
 
-			if value != comparison_value:
+			# compare
+			if data_value != filter_value:
 				match = False
 				break
 		if match:

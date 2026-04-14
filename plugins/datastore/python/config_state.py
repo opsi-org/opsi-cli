@@ -223,17 +223,21 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 			attr.selected = True
 
 	filter = process_where(where, attributes=attributes, operation="update")
-	updates = process_set(set, attributes=attributes[-1:])
+	updates = process_set(set, attributes=attributes[-1:])  # only attribute to set: values
 
+	# validate Id's
 	object_ids = get_validated_ids(service_connection, ids=filter["objectId"], type="objectId")
 	config_id = get_validated_ids(service_connection, ids=filter["configId"], type="configId")
 	if len(config_id) > 1:
 		raise ValueError("Only one configId without wildcard is allowed.")
 	config_obj = service_connection.config_getObjects(id=config_id)  # type: ignore[attr-defined]
 
+	# validae values
 	values = validate_against_possible_values(updates["values"], config_obj[0])
-	current_values = service_connection.configState_getValues(config_id, object_ids)  # type: ignore[attr-defined]
 
+	# create config-state objects
 	new_config_states = _create_config_states(object_ids, config_obj[0].id, values)
+
+	current_values = service_connection.configState_getValues(config_id, object_ids)  # type: ignore[attr-defined]
 	output_data = _create_output_data(config_obj[0], new_config_states, current_values)
 	_update_database(output_data, new_config_states, current_values)
