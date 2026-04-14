@@ -211,7 +211,6 @@ package_version = Attribute(
 is_default = Attribute(id="Indicates if values are default.", identifier=False, data_type="str", selected=False)
 
 COMMAND_METADATA = {
-	"set": Metadata(attributes=[values]),
 	"datastore_config-state_list": Metadata(
 		attributes=[
 			object_id,
@@ -227,7 +226,7 @@ COMMAND_METADATA = {
 			origin,
 		]
 	),
-	"datastore_config-state_update": Metadata(attributes=[object_id, config_id, possible_values, old, new]),
+	"datastore_config-state_update": Metadata(attributes=[object_id, config_id, possible_values, old, new, values]),
 	"datastore_product-property-state_list": Metadata(
 		attributes=[
 			object_id,

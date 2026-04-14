@@ -218,7 +218,7 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 			attr.selected = True
 
 	filter = process_where(where, attributes=attributes, operation="update")
-	updates = process_set(set, attributes=COMMAND_METADATA["set"].attributes)
+	updates = process_set(set, attributes=attributes[-1:])
 
 	object_ids = get_validated_ids(service_connection, ids=filter["objectId"], type="objectId")
 	config_id = get_validated_ids(service_connection, ids=filter["configId"], type="configId")
