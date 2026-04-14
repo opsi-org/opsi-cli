@@ -115,22 +115,27 @@ def list_config_state(where: tuple[str, ...]) -> None:
 	service_connection = get_service_connection()
 	metadata = COMMAND_METADATA["datastore_config-state_list"]
 	attributes = metadata.attributes
-
 	filter = process_where(where, attributes=attributes, operation="list")
 
+	# get Id's from filter
 	object_ids = filter.pop("objectId", "*")
 	config_ids = filter.pop("configId", "*")
 
+	# validate Id's
 	final_object_ids = get_validated_ids(
-		service_connection, ids=object_ids, type="objectId or depotId" if object_ids != "*" else "objectId"
+		service_connection,
+		ids=object_ids,
+		type="objectId or depotId" if object_ids != "*" else "objectId",  # don't get depotId's if '*'
 	)
 	final_config_ids = get_validated_ids(service_connection, ids=config_ids, type="configId")
 	final_depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # type: ignore[attr-defined]
 
+	# get default states and upfate them
 	default_states = _get_default_config_states(final_object_ids, final_config_ids)
 	depot_states = _update_default_states(final_depot_ids, final_config_ids, default_states)
 	client_states = _update_depot_states(final_object_ids, final_config_ids, depot_states)
 
+	# prepare data for writing output
 	flattened_result = [
 		config_state
 		for config_map in client_states.values()  # objcects
@@ -198,7 +203,7 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 			service_connection.configState_updateObjects(config_states)  # type: ignore[attr-defined]
 
 		console_print(msg, style="green", output_type=OutputType.MESSAGE)
-		write_output(data=data, metadata=COMMAND_METADATA.get("datastore_config-state_update"))
+		write_output(data=data, metadata=metadata)
 
 	def _create_config_states(object_ids: list[str], config_id: str, values: list[str] | list[bool]) -> list[ConfigState]:
 		config_states = []

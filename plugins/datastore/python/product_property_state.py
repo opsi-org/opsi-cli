@@ -132,22 +132,27 @@ def list_product_property_state(where: tuple[str, ...]) -> None:
 	attributes = metadata.attributes
 	filter = process_where(where, attributes=attributes, operation="list")
 
+	# get Id's from filter
 	object_ids = filter.pop("objectId", "*")
 	product_ids = filter.pop("productId", "*")
 	property_ids = filter.pop("propertyId", "*")
 
+	# validate Id's
 	final_object_ids = get_validated_ids(
-		service_connection, ids=object_ids, type="objectId or depotId" if object_ids != "*" else "objectId"
+		service_connection,
+		ids=object_ids,
+		type="objectId or depotId" if object_ids != "*" else "objectId",  # don't get depotId's if '*'
 	)
 	final_product_ids = get_validated_ids(service_connection, ids=product_ids, type="productId")
 	final_property_ids = get_validated_ids(service_connection, ids=property_ids, type="propertyId")
 	final_depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # type: ignore[attr-defined]
 
-	# get states and update them
+	# get default states and update them
 	default_states = get_default_property_states(final_object_ids, final_product_ids, final_property_ids)
 	depot_states = update_default_states(final_depot_ids, final_object_ids, final_product_ids, final_property_ids, default_states)
 	client_states = update_depot_states(final_object_ids, final_product_ids, final_property_ids, depot_states)
 
+	# prepare data for writing output
 	flattened_result: list[dict[str, Any]] = [
 		product_property_state
 		for product_map in client_states.values()  # objects
