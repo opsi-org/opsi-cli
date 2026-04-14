@@ -149,7 +149,7 @@ def list_config_state(where: tuple[str, ...]) -> None:
 			attr.selected = True
 
 	write_output(
-		data=filtered_data,
+		data=sorted(filtered_data, key=lambda x: x["objectId"]),
 		metadata=metadata,
 		value_styles={"depot": "yellow", "client": "blue"},
 	)
@@ -157,7 +157,7 @@ def list_config_state(where: tuple[str, ...]) -> None:
 
 @config_state.command(
 	name="update",
-	short_help="Update an existing config state or create a new one if it doesn't exist. Using 'all' or '*' as the object ID will apply the value to all objects.",
+	short_help="Update an existing config state or create a new one if it doesn't exist. Using or '*' as the object ID will apply the value to all objects.",
 )
 @click.option(
 	"--where",

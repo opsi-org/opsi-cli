@@ -168,7 +168,7 @@ def list_product_property_state(where: tuple[str, ...]) -> None:
 			attr.selected = True
 
 	write_output(
-		data=filtered_data,
+		data=sorted(filtered_data, key=lambda x: x["objectId"]),
 		metadata=metadata,
 		value_styles={"depot": "yellow", "client": "blue"},
 	)
