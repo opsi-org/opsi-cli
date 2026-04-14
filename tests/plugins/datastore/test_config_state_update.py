@@ -99,7 +99,7 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 				{
 					"objectId": TEST_CLIENTS[0].id,
 					"configId": TEST_CONFIGS[0].id,
-					"possible": "0,1",
+					"possibleValues": "0,1",
 					"old": "1",
 					"new": "0",
 				},
@@ -132,14 +132,14 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 				{
 					"objectId": TEST_CLIENTS[0].id,
 					"configId": TEST_CONFIGS[0].id,
-					"possible": "0,1",
+					"possibleValues": "0,1",
 					"old": "1",
 					"new": "1",
 				},
 				{
 					"objectId": TEST_CLIENTS[1].id,
 					"configId": TEST_CONFIGS[0].id,
-					"possible": "0,1",
+					"possibleValues": "0,1",
 					"old": "1",
 					"new": "1",
 				},
@@ -177,14 +177,14 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 				{
 					"objectId": TEST_CLIENTS[0].id,
 					"configId": TEST_CONFIGS[0].id,
-					"possible": "0,1",
+					"possibleValues": "0,1",
 					"old": "1",
 					"new": "0",
 				},
 				{
 					"objectId": TEST_CLIENTS[1].id,
 					"configId": TEST_CONFIGS[0].id,
-					"possible": "0,1",
+					"possibleValues": "0,1",
 					"old": "1",
 					"new": "0",
 				},
@@ -224,14 +224,14 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 				{
 					"objectId": TEST_CLIENTS[0].id,
 					"configId": TEST_CONFIGS[0].id,
-					"possible": "0,1",
+					"possibleValues": "0,1",
 					"old": "1",
 					"new": "0",
 				},
 				{
 					"objectId": TEST_CLIENTS[1].id,
 					"configId": TEST_CONFIGS[0].id,
-					"possible": "0,1",
+					"possibleValues": "0,1",
 					"old": "1",
 					"new": "0",
 				},
@@ -269,7 +269,7 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 				{
 					"objectId": TEST_CLIENTS[0].id,
 					"configId": TEST_CONFIGS[1].id,
-					"possible": "test,windomain",
+					"possibleValues": "test,windomain",
 					"old": "windomain",
 					"new": "test",
 				},
@@ -302,14 +302,14 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 				{
 					"objectId": TEST_CLIENTS[0].id,
 					"configId": TEST_CONFIGS[1].id,
-					"possible": "test,windomain",
+					"possibleValues": "test,windomain",
 					"old": "windomain",
 					"new": "test,test",
 				},
 				{
 					"objectId": TEST_CLIENTS[1].id,
 					"configId": TEST_CONFIGS[1].id,
-					"possible": "test,windomain",
+					"possibleValues": "test,windomain",
 					"old": "windomain",
 					"new": "test,test",
 				},
@@ -486,7 +486,11 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 			],
 			None,
 			None,
-			("No attributes specified to update.", "Available attributes are:", "values  (Any)  The value(s) of the config-state"),
+			(
+				"No attributes specified to update.",
+				"Available attributes are:",
+				"values  (str | bool)  The current effective value for this state.",
+			),
 		),
 	),
 )

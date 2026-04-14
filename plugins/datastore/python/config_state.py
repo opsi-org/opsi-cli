@@ -7,6 +7,7 @@ from typing import Any
 import rich_click as click
 from opsicommon.logging import get_logger
 from opsicommon.objects import Config, ConfigState
+from opsicommon.types import forceBool
 
 from opsicli.decorators import dry_run_capable
 from opsicli.io import OutputType, console_print, write_output
@@ -20,7 +21,7 @@ from .common import (
 	process_where,
 	validate_against_possible_values,
 )
-from .metadata import COMMAND_METADATA, CONFIG_STATE_SET_METADATA
+from .metadata import COMMAND_METADATA
 
 logger = get_logger("opsicli")
 
@@ -46,19 +47,31 @@ def list_config_state(where: tuple[str, ...]) -> None:
 	"""
 
 	def _get_default_config_states(object_ids: list[str], config_ids: list[str] | None) -> dict[str, dict[str, dict[str, Any]]]:
-		default_config_objects = service_connection.config_getObjects(id=config_ids or [])  # type: ignore[attr-defined]
+		default_config_objects = service_connection.config_getObjects(  # type: ignore[attr-defined]
+			id=config_ids or [],
+			type=filter.pop("type", None),
+			description=filter.pop("description", None),
+			multiValue=forceBool(v) if (v := filter.pop("multiValue", None)) is not None else None,
+			editable=forceBool(v) if (v := filter.pop("editable", None)) is not None else None,
+			value=filter.pop("defaultValues", None),
+		)
+
 		default_states = {}
 		for object_id in object_ids:
 			default_states[object_id] = {}
 			for entry in default_config_objects:
 				default_states[object_id][entry.id] = {
-					"values": entry.defaultValues,
-					"default_values": entry.defaultValues,
-					"depot_values": "",
-					"client_values": "",
-					"origin": "default",
-					"configId": entry.id,
 					"objectId": object_id,
+					"configId": entry.id,
+					"description": entry.description,
+					"multiValue": entry.multiValue,
+					"editable": entry.editable,
+					"values": entry.defaultValues,
+					"possibleValues": entry.possibleValues,
+					"defaultValues": entry.defaultValues,
+					"depotValues": "",
+					"clientValues": "",
+					"origin": "default",
 				}
 		return default_states
 
@@ -67,15 +80,15 @@ def list_config_state(where: tuple[str, ...]) -> None:
 		config_ids: list[str] | None,
 		default_states: dict[str, dict[str, dict[str, Any]]],
 	) -> dict[str, dict[str, dict[str, Any]]]:
-		depot_config_state_objects = service_connection.configState_getObjects(  # type: ignore[attr-defined]
+		depot_config_states = service_connection.configState_getObjects(  # type: ignore[attr-defined]
 			objectId=depot_ids, configId=config_ids or []
 		)
-		for state in depot_config_state_objects:
+		for state in depot_config_states:
 			if state.objectId in default_states and state.configId in default_states[state.objectId]:
-				target = default_states[state.object_id][state.configId]
-				target["depot_values"] = state.values
+				target = default_states[state.objectId][state.configId]
+				target["depotValues"] = state.values
 				target["origin"] = "depot"
-				if target["default_values"] != state.values:
+				if target["defaultValues"] != state.values:
 					target["values"] = state.values
 
 		return default_states
@@ -92,49 +105,54 @@ def list_config_state(where: tuple[str, ...]) -> None:
 		for state in client_config_state_objects:
 			if state.objectId in depot_states and state.configId in depot_states[state.objectId]:
 				target = depot_states[state.objectId][state.configId]
-				target["client_values"] = state.values
+				target["clientValues"] = state.values
 				target["origin"] = "client"
-				if target["default_values"] != state:
+				if target["defaultValues"] != state:
 					target["values"] = state.values
 
 		return depot_states
 
 	service_connection = get_service_connection()
-	attributes = COMMAND_METADATA["datastore_config-state_update"].attributes
+	metadata = COMMAND_METADATA["datastore_config-state_list"]
+	attributes = metadata.attributes
+
+	filter = process_where(where, attributes=attributes, operation="list")
+
+	object_ids = filter.pop("objectId", "*")
+	config_ids = filter.pop("configId", "*")
+
+	final_object_ids = get_validated_ids(
+		service_connection, ids=object_ids, type="objectId or depotId" if object_ids != "*" else "objectId"
+	)
+	final_config_ids = get_validated_ids(service_connection, ids=config_ids, type="configId")
+	final_depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # type: ignore[attr-defined]
+
+	default_states = _get_default_config_states(final_object_ids, final_config_ids)
+	depot_states = _update_default_states(final_depot_ids, final_config_ids, default_states)
+	client_states = _update_depot_states(final_object_ids, final_config_ids, depot_states)
+
+	flattened_result = [
+		config_state
+		for config_map in client_states.values()  # objcects
+		for config_state in config_map.values()  # configs
+	]
+	filtered_data = filter_by_attributes(data=flattened_result, attributes=attributes, filter=filter)
 
 	# select attributes to display
 	for attr in attributes:
 		if attr.id in ("objectId", "configId", "values", "origin"):
 			attr.selected = True
 
-	filter = process_where(where, attributes=attributes, operation="list")
-	object_id = filter.get("objectId") if filter.get("objectId") else "*"
-	config_id = filter.get("configId") if filter.get("configId") else "*"
-
-	final_object_ids = get_validated_ids(service_connection, ids=object_id, type="objectId")
-	final_config_ids = get_validated_ids(service_connection, ids=config_id, type="configId")
-
-	final_depot_ids = service_connection.host_getIdents(type="OpsiDepotserver")  # type: ignore[attr-defined]
-
-	default_states = _get_default_config_states(final_object_ids, final_config_ids)
-	depot_states = _update_default_states(final_depot_ids, final_object_ids, default_states)
-	client_states = _update_depot_states(final_object_ids, final_config_ids, depot_states)
-
-	flattened_result = [state_dict for client_configs in client_states.values() for state_dict in client_configs.values()]
-	filtered_data = filter_by_attributes(
-		data=flattened_result, attributes=COMMAND_METADATA["datastore_config-state_list"].attributes, filter=filter
-	)
-
 	write_output(
 		data=filtered_data,
-		metadata=COMMAND_METADATA.get("datastore_config-state_list"),
+		metadata=metadata,
 		value_styles={"depot": "yellow", "client": "blue"},
 	)
 
 
 @config_state.command(
 	name="update",
-	short_help="Update an existing config state or create a new one if it doesn't exist. Using 'all' as the object ID will apply the value to all objects.",
+	short_help="Update an existing config state or create a new one if it doesn't exist. Using 'all' or '*' as the object ID will apply the value to all objects.",
 )
 @click.option(
 	"--where",
@@ -163,7 +181,7 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 				{
 					"objectId": state.objectId,
 					"configId": state.configId,
-					"possible": config_obj.possibleValues,
+					"possibleValues": config_obj.possibleValues,
 					"old": current_values[state.objectId][state.configId],
 					"new": state.values,
 				}
@@ -172,19 +190,12 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 
 	def _update_database(data: list[dict[str, str]], config_states: list[ConfigState], current_values: dict[str, dict[str, str]]) -> None:
 		service_connection = get_service_connection()
-		update = []
-		create = []
+
 		if config.dry_run:
 			msg = "Update skipped due to dry run. Here are the clients that would have been updated:\n"
 		else:
 			msg = "Config-state updated successfully. Here are the updated clients."
-			for state in config_states:
-				if current_values.get(state.objectId, {}).get(state.configId):
-					update.append(state)
-				else:
-					create.append(state)
-			service_connection.configState_updateObjects(update)  # type: ignore[attr-defined]
-			service_connection.configState_createObjects(create)  # type: ignore[attr-defined]
+			service_connection.configState_updateObjects(config_states)  # type: ignore[attr-defined]
 
 		console_print(msg, style="green", output_type=OutputType.MESSAGE)
 		write_output(data=data, metadata=COMMAND_METADATA.get("datastore_config-state_update"))
@@ -198,14 +209,16 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 		return config_states
 
 	service_connection = get_service_connection()
-	attributes = COMMAND_METADATA["datastore_config-state_update"].attributes
+	metadata = COMMAND_METADATA["datastore_config-state_update"]
+	attributes = metadata.attributes
+
 	# select attributes to display
 	for attr in attributes:
-		if attr.id in ("objectId", "configId", "possible", "old", "new"):
+		if attr.id in ("objectId", "configId", "possibleValues", "old", "new"):
 			attr.selected = True
 
 	filter = process_where(where, attributes=attributes, operation="update")
-	updates = process_set(set, attributes=CONFIG_STATE_SET_METADATA.attributes)
+	updates = process_set(set, attributes=COMMAND_METADATA["set"].attributes)
 
 	object_ids = get_validated_ids(service_connection, ids=filter["objectId"], type="objectId")
 	config_id = get_validated_ids(service_connection, ids=filter["configId"], type="configId")

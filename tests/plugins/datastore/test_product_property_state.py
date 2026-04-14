@@ -2,10 +2,6 @@
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
-
-
-import time
-
 import pytest
 from opsicommon.client.opsiservice import ServiceClient
 
@@ -22,34 +18,28 @@ PROPERTY_ID_2 = "property2"
 
 @pytest.mark.opsi_service
 def test_product_property_list(admin_service_client: ServiceClient) -> None:
-	start = time.perf_counter()
+
 	with (
 		tmp_client(admin_service_client, CLIENT_ID_1),
 		tmp_client(admin_service_client, CLIENT_ID_2),
 		tmp_product(admin_service_client, PRODUCT_ID_1),
 		tmp_product(admin_service_client, PRODUCT_ID_2),
 	):
-		# client_to_depot_objects = admin_service_client.configState_getClientToDepotserver()  # type:ignore[attr-defined]
-		# DEPOT_ID = client_to_depot_objects[0]["depotId"]
+		client_to_depot_objects = admin_service_client.configState_getClientToDepotserver()  # type:ignore[attr-defined]
+		DEPOT_ID = client_to_depot_objects[0]["depotId"]
 
 		# add PRODUCT-PROPERTIES
 		admin_service_client.productProperty_create(  # type:ignore[attr-defined]
-			productId=PRODUCT_ID_1,
-			productVersion="1",
-			packageVersion="1",
-			propertyId=PROPERTY_ID_1,
+			productId=PRODUCT_ID_1, productVersion="1", packageVersion="1", propertyId=PROPERTY_ID_1, type="BoolProductProperty"
 		)
 		admin_service_client.productProperty_create(  # type:ignore[attr-defined]
-			productId=PRODUCT_ID_2, productVersion="1", packageVersion="1", propertyId=PROPERTY_ID_2
+			productId=PRODUCT_ID_2, productVersion="1", packageVersion="1", propertyId=PROPERTY_ID_2, type="UnicodeProductProperty"
 		)
 		admin_service_client.productProperty_create(  # type:ignore[attr-defined]
-			productId=PRODUCT_ID_1,
-			productVersion="1",
-			packageVersion="1",
-			propertyId=PROPERTY_ID_2,
+			productId=PRODUCT_ID_1, productVersion="1", packageVersion="1", propertyId=PROPERTY_ID_2, type="BoolProductProperty"
 		)
 		admin_service_client.productProperty_create(  # type:ignore[attr-defined]
-			productId=PRODUCT_ID_2, productVersion="1", packageVersion="1", propertyId=PROPERTY_ID_1
+			productId=PRODUCT_ID_2, productVersion="1", packageVersion="1", propertyId=PROPERTY_ID_1, type="UnicodeProductProperty"
 		)
 
 		# add PRODUCT-PROPERTY-STATES for client 1 & 2
@@ -74,7 +64,7 @@ def test_product_property_list(admin_service_client: ServiceClient) -> None:
 				"product-property-state",
 				"list",
 				"--where",
-				"objectId=all",
+				"objectId=*",
 				"--where",
 				f"productId={PRODUCT_ID_1}",
 				"--where",
@@ -201,7 +191,7 @@ def test_product_property_list(admin_service_client: ServiceClient) -> None:
 		assert stdout_into_list(_stdout)[7][:3] == [CLIENT_ID_2, PRODUCT_ID_2, PROPERTY_ID_1]
 		assert stdout_into_list(_stdout)[8][:3] == [CLIENT_ID_2, PRODUCT_ID_2, PROPERTY_ID_2]
 		assert len(stdout_into_list(_stdout)) - 1 == 8
-		"""
+
 		# object-id is a depot-id
 		exit_code, _stdout, _stderr = run_cli(
 			[
@@ -212,12 +202,12 @@ def test_product_property_list(admin_service_client: ServiceClient) -> None:
 				"datastore",
 				"product-property-state",
 				"list",
-				"--object-ids",
-				f"{DEPOT_ID}",
-				"--product-ids",
-				"pytest*",
-				"--property-ids",
-				"all",
+				"--where",
+				f"objectId={DEPOT_ID}",
+				"--where",
+				"productId=pytest*",
+				"--where",
+				"propertyId=*",
 			]
 		)
 		assert exit_code == 0
@@ -226,6 +216,3 @@ def test_product_property_list(admin_service_client: ServiceClient) -> None:
 		assert stdout_into_list(_stdout)[3][:3] == [DEPOT_ID, PRODUCT_ID_2, PROPERTY_ID_1]
 		assert stdout_into_list(_stdout)[4][:3] == [DEPOT_ID, PRODUCT_ID_2, PROPERTY_ID_2]
 		assert len(stdout_into_list(_stdout)) - 1 == 4
-		"""
-	diff = time.perf_counter() - start
-	print(diff)

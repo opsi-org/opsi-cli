@@ -24,7 +24,7 @@ __description__ = "This command can be used to manage data and objects"
 def get_validated_ids(
 	service_connection: ServiceClient,
 	ids: str | list[str] | None,
-	type: Literal["objectId", "configId", "productId", "propertyId", "depotId"],
+	type: Literal["objectId", "configId", "productId", "propertyId", "depotId", "objectId or depotId"],
 ) -> list[str]:
 	if not ids:
 		return []
@@ -35,16 +35,18 @@ def get_validated_ids(
 		func = partial(service_connection.host_getIdents, type="OpsiClient")  # type: ignore[attr-defined]
 	if type == "depotId":
 		func = partial(service_connection.host_getIdents, type="OpsiDepotserver")  # type: ignore[attr-defined]
-	elif type == "configId":
+	if type == "objectId or depotId":
+		func = partial(service_connection.host_getIdents)  # type: ignore[attr-defined]
+	if type == "configId":
 		func = service_connection.config_getIdents  # type: ignore[attr-defined]
-	elif type == "productId":
+	if type == "productId":
 
 		def get_product_ids(id: Any) -> list[str]:
 			idents = service_connection.product_getIdents(id=id)  # type: ignore[attr-defined]
 			return list(set([p.split(";")[0] for p in idents]))
 
 		func = get_product_ids
-	elif type == "propertyId":
+	if type == "propertyId":
 
 		def get_property_ids(id: Any) -> list[str]:
 			idents = service_connection.productProperty_getIdents(propertyId=id)  # type: ignore[attr-defined]
@@ -54,14 +56,14 @@ def get_validated_ids(
 
 	if isinstance(ids, str):
 		ids = get_separated_entries(ids)
-	if "*" in ids or "all" in ids:
+	if "*" in ids:
 		return func([])
 
 	result = []
 	for id in ids:
 		valid = func(id=id)
 		if not valid:
-			raise ValueError(f"There is no such {type}: `{id}`")
+			raise ValueError(f"There is no such {type}: '{id}'")
 		result.extend(valid)
 
 	return list(set(result))
@@ -113,7 +115,7 @@ def general_help_for_where(
 
 def process_where(where: tuple[str, ...], *, attributes: list[Attribute], operation: Literal["list", "update"] = "list") -> dict[str, str]:
 	where = where or tuple()
-	condition_pattern = re.compile(r"^([a-zA-Z]+)\s*(<|<=|=|>=|>)\s*(.*)$")
+	condition_pattern = re.compile(r"^([a-zA-Z_]+)\s*(<|<=|=|>=|>)\s*(.*)$")
 	available_attributes_by_id = {attr.id: attr for attr in attributes}
 	general_help = general_help_for_where(available_attributes=attributes)
 
@@ -244,14 +246,14 @@ def validate_against_possible_values(val: str, obj: Any) -> list[str] | list[boo
 
 
 def filter_by_attributes(data: list[dict[str, Any]], filter: dict[str, str], attributes: list[Attribute]) -> list[dict[str, Any]]:
+	if not filter:
+		return data
 
 	available_attributes = {attr.id: attr for attr in attributes}
 	filtered_data = []
 	for entry in data:
 		match = True
 		for attr in filter:
-			if attr in ("objectId", "configId"):
-				continue
 			if not available_attributes.get(attr):
 				continue
 

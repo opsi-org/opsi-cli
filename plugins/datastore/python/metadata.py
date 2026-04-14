@@ -108,122 +108,143 @@ CLIENT_METADATA = Metadata(
 	]
 )
 
-CONFIG_STATE_METADATA = Metadata(
-	attributes=[
-		Attribute(
-			id="objectId",
-			description="The ID of the object (host).",
-			identifier=True,
-			data_type="str",
-			selected=False,
-		),
-		Attribute(
-			id="configId",
-			description="The ID of the config-state.",
-			identifier=True,
-			data_type="str",
-			selected=False,
-		),
-		Attribute(
-			id="default_values",
-			description="Default values of given config-state.",
-			identifier=False,
-			data_type="str | bool",
-			selected=False,
-		),
-		Attribute(
-			id="depot_values",
-			description="Depot values of given config-state.",
-			identifier=False,
-			data_type="str | bool",
-			selected=False,
-		),
-		Attribute(
-			id="client_values",
-			description="Client values of given config-state.",
-			identifier=False,
-			data_type="str | bool",
-			selected=False,
-		),
-		Attribute(
-			id="values",
-			description="Final values of given config-state.",
-			identifier=False,
-			data_type="str | bool",
-			selected=False,
-			column_style="green",
-		),
-		Attribute(id="origin", description="Location where the change has been made.", identifier=False, data_type="str", selected=False),
-		Attribute(
-			id="possible",
-			description="Possible values of given config-state.",
-			identifier=False,
-			data_type="str | bool",
-			selected=False,
-		),
-		Attribute(
-			id="old",
-			description="Old values.",
-			identifier=False,
-			data_type="str | bool",
-			selected=False,
-		),
-		Attribute(
-			id="new",
-			description="New values.",
-			identifier=False,
-			data_type="str | bool",
-			selected=False,
-		),
-	]
+object_id = Attribute(
+	id="objectId",
+	description="The ID of the object (host).",
+	identifier=True,
+	data_type="str",
+	selected=False,
 )
-
-CONFIG_STATE_SET_METADATA = Metadata(
-	attributes=[
-		Attribute(
-			id="values",
-			description="The value(s) of the config-state.",
-			identifier=False,
-			data_type="Any",
-			selected=True,
-		),
-	]
+config_id = Attribute(
+	id="configId",
+	description="The ID of the config-state.",
+	identifier=True,
+	data_type="str",
+	selected=False,
 )
+description = Attribute(
+	id="description",
+	description="The description of given state.",
+	identifier=False,
+	data_type="str",
+	selected=False,
+)
+multi_value = Attribute(
+	id="multiValue",
+	description="Shows if given state accepts multi-values.",
+	identifier=False,
+	data_type="str",
+	selected=False,
+)
+editable = Attribute(
+	id="editable",
+	description="Shows if given state is editable via configed.",
+	identifier=False,
+	data_type="str",
+	selected=False,
+)
+values = Attribute(
+	id="values",
+	description="The current effective value for this state.",
+	identifier=False,
+	data_type="str | bool",
+	selected=False,
+)
+possible_values = Attribute(
+	id="possibleValues",
+	description="Possible values of given state.",
+	identifier=False,
+	data_type="str | bool",
+	selected=False,
+)
+default_values = Attribute(
+	id="defaultValues",
+	description="Default values of given state.",
+	identifier=False,
+	data_type="str | bool",
+	selected=False,
+)
+type = Attribute(
+	id="type",
+	description="The type of the state object. (Bool/Unicode)",
+	identifier=False,
+	data_type="str | bool",
+	selected=False,
+)
+depot_values = Attribute(
+	id="depotValues",
+	description="Depot values of given state.",
+	identifier=False,
+	data_type="str | bool",
+	selected=False,
+)
+client_values = Attribute(
+	id="clientValues",
+	description="Client values of given state.",
+	identifier=False,
+	data_type="str | bool",
+	selected=False,
+)
+origin = Attribute(id="origin", description="Location where the change has been made.", identifier=False, data_type="str", selected=False)
+old = Attribute(
+	id="old",
+	description="Old values.",
+	identifier=False,
+	data_type="str | bool",
+	selected=False,
+)
+new = Attribute(
+	id="new",
+	description="New values.",
+	identifier=False,
+	data_type="str | bool",
+	selected=False,
+)
+product_id = Attribute(id="productId", description="The ID of the product.", identifier=True, data_type="str", selected=False)
+property_id = Attribute(id="propertyId", description="The ID of the property.", identifier=True, data_type="str", selected=False)
+product_version = Attribute(
+	id="productVersion", description="The product version of given state.", identifier=False, data_type="str", selected=False
+)
+package_version = Attribute(
+	id="packageVersion", description="The package version of given state.", identifier=False, data_type="str", selected=False
+)
+is_default = Attribute(id="Indicates if values are default.", identifier=False, data_type="str", selected=False)
 
 COMMAND_METADATA = {
-	"datastore_config-state_list": CONFIG_STATE_METADATA,
-	"datastore_config-state_update": CONFIG_STATE_METADATA,
+	"set": Metadata(attributes=[values]),
+	"datastore_config-state_list": Metadata(
+		attributes=[
+			object_id,
+			config_id,
+			description,
+			multi_value,
+			editable,
+			values,
+			possible_values,
+			default_values,
+			depot_values,
+			client_values,
+			origin,
+		]
+	),
+	"datastore_config-state_update": Metadata(attributes=[object_id, config_id, possible_values, old, new]),
 	"datastore_product-property-state_list": Metadata(
 		attributes=[
-			Attribute(id="objectId", description="The ID of the object.", identifier=True, data_type="str", selected=True),
-			Attribute(id="productId", description="The ID of the product.", identifier=True, data_type="str", selected=True),
-			Attribute(id="propertyId", description="The ID of the property.", identifier=True, data_type="str", selected=True),
-			Attribute(
-				id="default_values",
-				description="Values of given property.",
-				identifier=False,
-				data_type="str | bool",
-				selected=False,
-			),
-			Attribute(id="depot_values", description="Values of given property.", identifier=False, data_type="str | bool", selected=False),
-			Attribute(
-				id="client_values", description="Values of given property.", identifier=False, data_type="str | bool", selected=False
-			),
-			Attribute(
-				id="final_values",
-				description="Values of given property.",
-				identifier=False,
-				data_type="str | bool",
-				selected=True,
-				column_style="green",
-			),
-			Attribute(
-				id="origin",
-				description="Location where the change was made.",
-				identifier=False,
-				data_type="str",
-				selected=True,
-			),
+			object_id,
+			product_id,
+			property_id,
+			product_version,
+			package_version,
+			type,
+			description,
+			editable,
+			multi_value,
+			values,
+			is_default,
+			default_values,
+			depot_values,
+			client_values,
+			origin,
 		]
 	),
 	"datastore_product-client-state_list": Metadata(

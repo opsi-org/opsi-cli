@@ -310,7 +310,10 @@ def _values_to_str(values: str | bool | list[Any] | None) -> str:
 			],
 			None,
 			None,
-			("There is no such objectId:",),
+			(
+				"There is no such objectId or depotId",
+				"invalid",
+			),
 		),
 		# invalid configId"
 		(

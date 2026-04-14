@@ -2,13 +2,13 @@
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
-
 from typing import Literal
+from unittest.mock import MagicMock
 
 import pytest
 
 from opsicli.io import Attribute
-from plugins.datastore.python.common import process_set, process_where
+from plugins.datastore.python.common import get_validated_ids, process_set, process_where
 
 
 @pytest.mark.parametrize(
@@ -141,3 +141,27 @@ def test_process_set(
 		return
 
 	assert process_set(set_values, attributes=attributes) == expected
+
+
+@pytest.mark.parametrize(
+	("ids", "type", "expected", "error"),
+	[
+		("invalid", "objectId", [], "There is no such objectId"),
+	],
+)
+def _test_get_validated_ids(
+	ids: list[str],
+	type: Literal["objectId", "configId", "productId", "propertyId", "depotId"],
+	expected: list[str],
+	error: str | None,
+) -> None:
+
+	service_connection = MagicMock()
+	service_connection.host_getIdents.return_value = ["depot1.uibmz.de"]
+
+	if error:
+		with pytest.raises(ValueError, match=error):
+			get_validated_ids(service_connection, ids, type)
+		return
+
+	assert expected in get_validated_ids(service_connection, ids, type)
