@@ -26,6 +26,11 @@ def get_validated_ids(
 	ids: str | list[str] | None,
 	type: Literal["objectId", "configId", "productId", "propertyId", "depotId", "objectId or depotId"],
 ) -> list[str]:
+
+	# ids: None, "", [] 	=> []
+	# ids: invalid 			=> ValueError
+	# ids: valid 			=> list[str]
+
 	if not ids:
 		return []
 

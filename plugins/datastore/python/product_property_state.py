@@ -38,14 +38,14 @@ def list_product_property_state(where: tuple[str, ...]) -> None:
 	"""
 
 	def get_default_property_states(
-		object_ids: list[str], product_id: list[str] | None, property_id: list[str] | None
+		object_ids: list[str], product_ids: list[str], property_ids: list[str]
 	) -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
 
 		default_property_objects = service_connection.productProperty_getObjects(  # type: ignore[attr-defined]
-			productId=product_id,
+			productId=product_ids,
 			productVersion=filter.pop("productVersion", None),
 			packageVersion=filter.pop("packageVersion", None),
-			propertyId=property_id,
+			propertyId=property_ids,
 			type=filter.pop("type", None),
 			description=filter.pop("description", None),
 			editable=forceBool(v) if (v := filter.pop("editable", None)) is not None else None,
@@ -79,13 +79,12 @@ def list_product_property_state(where: tuple[str, ...]) -> None:
 
 	def update_default_states(
 		depot_ids: list[str],
-		object_ids: list[str],
-		product_id: list[str] | None,
-		property_id: list[str] | None,
+		product_ids: list[str],
+		property_ids: list[str],
 		default_states: dict[str, dict[str, dict[str, dict[str, Any]]]],
 	) -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
 		depot_property_states = service_connection.productPropertyState_getObjects(  # type: ignore[attr-defined]
-			objectId=depot_ids, productId=product_id or [], propertyId=property_id or []
+			objectId=depot_ids, productId=product_ids, propertyId=property_ids
 		)
 
 		# account for different depots
@@ -111,12 +110,12 @@ def list_product_property_state(where: tuple[str, ...]) -> None:
 
 	def update_depot_states(
 		object_ids: list[str],
-		product_ids: list[str] | None,
-		property_ids: list[str] | None,
+		product_ids: list[str],
+		property_ids: list[str],
 		depot_states: dict[str, dict[str, dict[str, dict[str, Any]]]],
 	) -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
 		client_property_states = service_connection.productPropertyState_getObjects(  # type: ignore[attr-defined]
-			objectId=object_ids, productId=product_ids or [], propertyId=property_ids or []
+			objectId=object_ids, productId=product_ids, propertyId=property_ids
 		)
 		for state in client_property_states:
 			for object_id in object_ids:

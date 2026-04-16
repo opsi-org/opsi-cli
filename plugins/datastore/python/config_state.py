@@ -47,7 +47,7 @@ def list_config_state(where: tuple[str, ...]) -> None:
 	View all configuration states or apply filters to narrow your search.
 	"""
 
-	def _get_default_config_states(object_ids: list[str], config_ids: list[str] | None) -> dict[str, dict[str, dict[str, Any]]]:
+	def _get_default_config_states(object_ids: list[str], config_ids: list[str]) -> dict[str, dict[str, dict[str, Any]]]:
 		default_config_objects = service_connection.config_getObjects(  # type: ignore[attr-defined]
 			id=config_ids or [],
 			type=filter.pop("type", None),
@@ -78,12 +78,12 @@ def list_config_state(where: tuple[str, ...]) -> None:
 
 	def _update_default_states(
 		depot_ids: list[str],
-		config_ids: list[str] | None,
+		config_ids: list[str],
 		default_states: dict[str, dict[str, dict[str, Any]]],
 	) -> dict[str, dict[str, dict[str, Any]]]:
 
 		depot_config_states = service_connection.configState_getObjects(  # type: ignore[attr-defined]
-			objectId=depot_ids, configId=config_ids or []
+			objectId=depot_ids, configId=config_ids
 		)
 
 		# account for different depots
@@ -106,14 +106,14 @@ def list_config_state(where: tuple[str, ...]) -> None:
 
 	def _update_depot_states(
 		object_ids: list[str],
-		config_ids: list[str] | None,
+		config_ids: list[str],
 		depot_states: dict[str, dict[str, dict[str, Any]]],
 	) -> dict[str, dict[str, dict[str, Any]]]:
-		client_config_state_objects = service_connection.configState_getObjects(  # type: ignore[attr-defined]
-			objectId=object_ids, configId=config_ids or []
+		client_config_states = service_connection.configState_getObjects(  # type: ignore[attr-defined]
+			objectId=object_ids, configId=config_ids
 		)
 
-		for state in client_config_state_objects:
+		for state in client_config_states:
 			if state.objectId in depot_states and state.configId in depot_states[state.objectId]:
 				target = depot_states[state.objectId][state.configId]
 				target["clientValues"] = state.values
