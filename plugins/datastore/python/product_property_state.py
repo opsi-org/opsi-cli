@@ -104,10 +104,10 @@ def list_product_property_state(where: tuple[str, ...]) -> None:
 				for property_id, default_state in property_id_dict.items():
 					if (assigned_depot_id, product_id, property_id) in depot_lookup:
 						depot_values = depot_lookup[(assigned_depot_id, product_id, property_id)]
-						default_states["depotValues"] = depot_values
-						default_states["origin"] = "depot"
-						if default_states["defaultValues"] != depot_values:
-							default_states["values"] = depot_values
+						default_state["depotValues"] = depot_values
+						default_state["origin"] = "depot"
+						if default_state["defaultValues"] != depot_values:
+							default_state["values"] = depot_values
 
 		return default_states
 
