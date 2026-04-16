@@ -78,6 +78,7 @@ def list_product_property_state(where: tuple[str, ...]) -> None:
 		return default_states
 
 	def update_default_states(
+		client_to_depot: dict[str, str],
 		depot_ids: list[str],
 		product_ids: list[str],
 		property_ids: list[str],
@@ -157,7 +158,7 @@ def list_product_property_state(where: tuple[str, ...]) -> None:
 
 	# get default states and update them
 	default_states = get_default_property_states(final_object_ids, final_product_ids, final_property_ids)
-	depot_states = update_default_states(final_depot_ids, final_product_ids, final_property_ids, default_states)
+	depot_states = update_default_states(client_to_depot, final_depot_ids, final_product_ids, final_property_ids, default_states)
 	client_states = update_depot_states(final_object_ids, final_product_ids, final_property_ids, depot_states)
 
 	# prepare data for writing output

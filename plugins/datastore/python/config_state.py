@@ -77,6 +77,7 @@ def list_config_state(where: tuple[str, ...]) -> None:
 		return default_states
 
 	def _update_default_states(
+		client_to_depot: dict[str, str],
 		depot_ids: list[str],
 		config_ids: list[str],
 		default_states: dict[str, dict[str, dict[str, Any]]],
@@ -146,7 +147,7 @@ def list_config_state(where: tuple[str, ...]) -> None:
 
 	# get default states and upfate them
 	default_states = _get_default_config_states(final_object_ids, final_config_ids)
-	depot_states = _update_default_states(final_depot_ids, final_config_ids, default_states)
+	depot_states = _update_default_states(client_to_depot, final_depot_ids, final_config_ids, default_states)
 	client_states = _update_depot_states(final_object_ids, final_config_ids, depot_states)
 
 	# prepare data for writing output
