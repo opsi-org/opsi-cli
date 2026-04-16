@@ -8,6 +8,7 @@ import rich_click as click
 from opsicommon.logging import get_logger
 from opsicommon.types import forceBool
 
+from opsicli.decorators import dry_run_capable
 from opsicli.io import write_output
 from opsicli.opsiservice import get_service_connection
 
@@ -32,6 +33,7 @@ def product_property_state() -> None:
 	multiple=True,
 	help="Filter the output. ObjectId and ConfigId are required",
 )
+@dry_run_capable
 def list_product_property_state(where: tuple[str, ...]) -> None:
 	"""
 	View all product property states or apply filters to narrow your search.

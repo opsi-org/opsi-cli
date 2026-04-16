@@ -42,6 +42,7 @@ def config_state() -> None:
 	multiple=True,
 	help="Filter the output. ObjectId and ConfigId are required",
 )
+@dry_run_capable
 def list_config_state(where: tuple[str, ...]) -> None:
 	"""
 	View all configuration states or apply filters to narrow your search.
