@@ -186,19 +186,12 @@ client_values = Attribute(
 	selected=False,
 )
 origin = Attribute(id="origin", description="Location where the change has been made.", identifier=False, data_type="str", selected=True)
-old = Attribute(
-	id="old",
-	description="Old values.",
+previous_values = Attribute(
+	id="previousValues",
+	description="Values befor change.",
 	identifier=False,
 	data_type="str | bool",
-	selected=False,
-)
-new = Attribute(
-	id="new",
-	description="New values.",
-	identifier=False,
-	data_type="str | bool",
-	selected=False,
+	selected=True,
 )
 product_id = Attribute(id="productId", description="The ID of the product.", identifier=True, data_type="str", selected=True)
 property_id = Attribute(id="propertyId", description="The ID of the property.", identifier=True, data_type="str", selected=True)
@@ -227,7 +220,7 @@ COMMAND_METADATA = {
 			origin,
 		]
 	),
-	"datastore_config-state_update": Metadata(attributes=[object_id, config_id, possible_values, old, new, values]),
+	"datastore_config-state_update": Metadata(attributes=[object_id, config_id, possible_values, previous_values, values]),
 	"datastore_product-property-state_list": Metadata(
 		attributes=[
 			object_id,
