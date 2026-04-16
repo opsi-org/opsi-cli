@@ -15,6 +15,7 @@ from opsicli.opsiservice import config, get_service_connection
 
 from .common import (
 	cli,
+	create_client_depot_mapping,
 	filter_by_attributes,
 	get_validated_ids,
 	process_set,
@@ -80,16 +81,26 @@ def list_config_state(where: tuple[str, ...]) -> None:
 		config_ids: list[str] | None,
 		default_states: dict[str, dict[str, dict[str, Any]]],
 	) -> dict[str, dict[str, dict[str, Any]]]:
+
 		depot_config_states = service_connection.configState_getObjects(  # type: ignore[attr-defined]
 			objectId=depot_ids, configId=config_ids or []
 		)
-		for state in depot_config_states:
-			if state.objectId in default_states and state.configId in default_states[state.objectId]:
-				target = default_states[state.objectId][state.configId]
-				target["depotValues"] = state.values
-				target["origin"] = "depot"
-				if target["defaultValues"] != state.values:
-					target["values"] = state.values
+
+		# account for different depots
+		depot_lookup = {(s.objectId, s.configId): s.values for s in depot_config_states}
+
+		for object_id, config_id_dict in default_states.items():
+			assigned_depot_id = client_to_depot.get(object_id)
+			if not assigned_depot_id:
+				continue
+
+			for config_id, default_state in config_id_dict.items():
+				if (assigned_depot_id, config_id) in depot_lookup:
+					depot_values = depot_lookup[(assigned_depot_id, config_id)]
+					default_state["depotValues"] = depot_values
+					default_state["origin"] = "depot"
+					if default_state["defaultValues"] != depot_values:
+						default_state["values"] = depot_values
 
 		return default_states
 
@@ -129,6 +140,9 @@ def list_config_state(where: tuple[str, ...]) -> None:
 	)
 	final_config_ids = get_validated_ids(service_connection, ids=config_ids, type="configId")
 	final_depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # type: ignore[attr-defined]
+
+	# map clients to depots
+	client_to_depot = create_client_depot_mapping(service_connection, final_object_ids)
 
 	# get default states and upfate them
 	default_states = _get_default_config_states(final_object_ids, final_config_ids)
@@ -177,6 +191,18 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	Change values of config states.
 	"""
 
+	def _update_database(data: list[dict[str, str]], config_states: list[ConfigState], current_values: dict[str, dict[str, str]]) -> None:
+		service_connection = get_service_connection()
+
+		if config.dry_run:
+			msg = "Update skipped due to dry run. Here are the clients that would have been updated:\n"
+		else:
+			msg = "Config-state updated successfully. Here are the updated clients."
+			service_connection.configState_updateObjects(config_states)  # type: ignore[attr-defined]
+
+		console_print(msg, style="green", output_type=OutputType.MESSAGE)
+		write_output(data=data, metadata=metadata)
+
 	def _create_output_data(
 		config_obj: Config, config_states: list[ConfigState], current_values: dict[str, dict[str, str]]
 	) -> list[dict[str, str]]:
@@ -192,18 +218,6 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 				}
 			)
 		return sorted(updated_data, key=lambda x: x["objectId"])
-
-	def _update_database(data: list[dict[str, str]], config_states: list[ConfigState], current_values: dict[str, dict[str, str]]) -> None:
-		service_connection = get_service_connection()
-
-		if config.dry_run:
-			msg = "Update skipped due to dry run. Here are the clients that would have been updated:\n"
-		else:
-			msg = "Config-state updated successfully. Here are the updated clients."
-			service_connection.configState_updateObjects(config_states)  # type: ignore[attr-defined]
-
-		console_print(msg, style="green", output_type=OutputType.MESSAGE)
-		write_output(data=data, metadata=metadata)
 
 	def _create_config_states(object_ids: list[str], config_id: str, values: list[str] | list[bool]) -> list[ConfigState]:
 		config_states = []

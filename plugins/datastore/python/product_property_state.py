@@ -11,7 +11,7 @@ from opsicommon.types import forceBool
 from opsicli.io import write_output
 from opsicli.opsiservice import get_service_connection
 
-from .common import cli, filter_by_attributes, get_validated_ids, process_where
+from .common import cli, create_client_depot_mapping, filter_by_attributes, get_validated_ids, process_where
 from .metadata import COMMAND_METADATA
 
 logger = get_logger("opsicli")
@@ -88,18 +88,24 @@ def list_product_property_state(where: tuple[str, ...]) -> None:
 			objectId=depot_ids, productId=product_id or [], propertyId=property_id or []
 		)
 
-		for state in depot_property_states:
-			for object_id in object_ids:
-				if (
-					object_id in default_states
-					and state.productId in default_states[object_id]
-					and state.propertyId in default_states[object_id][state.productId]
-				):
-					target = default_states[object_id][state.productId][state.propertyId]
-					target["depotValues"] = state.values
-					target["origin"] = "depot"
-					if target["defaultValues"] != state.values:
-						target["values"] = state.values
+		# account for different depots
+		depot_lookup = {(s.objectId, s.productId, s.propertyId): s.values for s in depot_property_states}
+
+		# key: objectId
+		for object_id, product_id_dict in default_states.items():
+			assigned_depot_id = client_to_depot.get(object_id)
+			if not assigned_depot_id:
+				continue
+			# key: productId
+			for product_id, property_id_dict in product_id_dict.items():
+				# key: propertyId
+				for property_id, default_state in property_id_dict.items():
+					if (assigned_depot_id, product_id, property_id) in depot_lookup:
+						depot_values = depot_lookup[(assigned_depot_id, product_id, property_id)]
+						default_states["depotValues"] = depot_values
+						default_states["origin"] = "depot"
+						if default_states["defaultValues"] != depot_values:
+							default_states["values"] = depot_values
 
 		return default_states
 
@@ -146,6 +152,9 @@ def list_product_property_state(where: tuple[str, ...]) -> None:
 	final_product_ids = get_validated_ids(service_connection, ids=product_ids, type="productId")
 	final_property_ids = get_validated_ids(service_connection, ids=property_ids, type="propertyId")
 	final_depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # type: ignore[attr-defined]
+
+	# map clients to depots
+	client_to_depot = create_client_depot_mapping(service_connection, final_object_ids)
 
 	# get default states and update them
 	default_states = get_default_property_states(final_object_ids, final_product_ids, final_property_ids)
