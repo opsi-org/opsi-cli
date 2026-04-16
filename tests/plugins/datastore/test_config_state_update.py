@@ -99,7 +99,6 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 				{
 					"objectId": TEST_CLIENTS[0].id,
 					"configId": TEST_CONFIGS[0].id,
-					"possibleValues": "0,1",
 					"previousValues": "1",
 					"values": "0",
 				},
@@ -132,14 +131,12 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 				{
 					"objectId": TEST_CLIENTS[0].id,
 					"configId": TEST_CONFIGS[0].id,
-					"possibleValues": "0,1",
 					"previousValues": "1",
 					"values": "1",
 				},
 				{
 					"objectId": TEST_CLIENTS[1].id,
 					"configId": TEST_CONFIGS[0].id,
-					"possibleValues": "0,1",
 					"previousValues": "1",
 					"values": "1",
 				},
@@ -177,14 +174,12 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 				{
 					"objectId": TEST_CLIENTS[0].id,
 					"configId": TEST_CONFIGS[0].id,
-					"possibleValues": "0,1",
 					"previousValues": "1",
 					"values": "0",
 				},
 				{
 					"objectId": TEST_CLIENTS[1].id,
 					"configId": TEST_CONFIGS[0].id,
-					"possibleValues": "0,1",
 					"previousValues": "1",
 					"values": "0",
 				},
@@ -224,14 +219,12 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 				{
 					"objectId": TEST_CLIENTS[0].id,
 					"configId": TEST_CONFIGS[0].id,
-					"possibleValues": "0,1",
 					"previousValues": "1",
 					"values": "0",
 				},
 				{
 					"objectId": TEST_CLIENTS[1].id,
 					"configId": TEST_CONFIGS[0].id,
-					"possibleValues": "0,1",
 					"previousValues": "1",
 					"values": "0",
 				},
@@ -269,7 +262,6 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 				{
 					"objectId": TEST_CLIENTS[0].id,
 					"configId": TEST_CONFIGS[1].id,
-					"possibleValues": "test,windomain",
 					"previousValues": "windomain",
 					"values": "test",
 				},
@@ -302,14 +294,12 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 				{
 					"objectId": TEST_CLIENTS[0].id,
 					"configId": TEST_CONFIGS[1].id,
-					"possibleValues": "test,windomain",
 					"previousValues": "windomain",
 					"values": "test,test",
 				},
 				{
 					"objectId": TEST_CLIENTS[1].id,
 					"configId": TEST_CONFIGS[1].id,
-					"possibleValues": "test,windomain",
 					"previousValues": "windomain",
 					"values": "test,test",
 				},
@@ -463,12 +453,14 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 			None,
 			None,
 			(
-				"At least one filter condition is required",
+				"Incomplete filter for update operation.",
+				"If you intentionally do not want to filter by an attribute",
 				"Available attributes are:",
 				"objectId",
 				"The ID of the object (host)",
 				"configId",
 				"The ID of the config-state.",
+				"Missing required attributes: objectId, configId",
 			),
 		),
 		# Missing --set

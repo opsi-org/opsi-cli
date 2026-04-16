@@ -240,7 +240,7 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 		raise ValueError("Only one configId without wildcard is allowed.")
 	config_obj = service_connection.config_getObjects(id=config_id)  # type: ignore[attr-defined]
 
-	# validae values
+	# validate values
 	validated_values = validate_against_possible_values(updates["values"], config_obj[0])
 	current_values = service_connection.configState_getValues(config_id, object_ids)  # type: ignore[attr-defined]
 
