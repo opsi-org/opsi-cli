@@ -208,7 +208,7 @@ product_version = Attribute(
 package_version = Attribute(
 	id="packageVersion", description="The package version of given state.", identifier=False, data_type="str", selected=False
 )
-is_default = Attribute(id="Indicates if values are default.", identifier=False, data_type="str", selected=False)
+is_default = Attribute(id="isDefault", description="Indicates if values are default.", identifier=False, data_type="str", selected=False)
 
 COMMAND_METADATA = {
 	"datastore_config-state_list": Metadata(
