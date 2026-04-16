@@ -230,14 +230,11 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	service_connection = get_service_connection()
 	metadata = COMMAND_METADATA["datastore_config-state_update"]
 	attributes = metadata.attributes
+	attributes_where = attributes[:2]  # objectId, configId
+	attributes_set = attributes[-1:]  # values
 
-	# select attributes to display
-	for attr in attributes:
-		if attr.id in ("objectId", "configId", "possibleValues", "old", "new"):
-			attr.selected = True
-
-	filter = process_where(where, attributes=attributes, operation="update")
-	updates = process_set(set, attributes=attributes[-1:])  # only attribute to set: values
+	filter = process_where(where, attributes=attributes_where, operation="update")
+	updates = process_set(set, attributes=attributes_set)  # only attribute to set: values
 
 	# validate Id's
 	object_ids = get_validated_ids(service_connection, ids=filter["objectId"], type="objectId")
@@ -251,7 +248,7 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 
 	# create config-state objects
 	new_config_states = _create_config_states(object_ids, config_obj[0].id, values)
-
+	filtered_states = filter_by_attributes()
 	current_values = service_connection.configState_getValues(config_id, object_ids)  # type: ignore[attr-defined]
-	output_data = _create_output_data(config_obj[0], new_config_states, current_values)
+	output_data = _create_output_data(config_obj[0], filtered_states, current_values)
 	_update_database(output_data, new_config_states, current_values)

@@ -113,14 +113,14 @@ object_id = Attribute(
 	description="The ID of the object (host).",
 	identifier=True,
 	data_type="str",
-	selected=False,
+	selected=True,
 )
 config_id = Attribute(
 	id="configId",
 	description="The ID of the config-state.",
 	identifier=True,
 	data_type="str",
-	selected=False,
+	selected=True,
 )
 description = Attribute(
 	id="description",
@@ -148,7 +148,7 @@ values = Attribute(
 	description="The current effective value for this state.",
 	identifier=False,
 	data_type="str | bool",
-	selected=False,
+	selected=True,
 )
 possible_values = Attribute(
 	id="possibleValues",
@@ -185,7 +185,7 @@ client_values = Attribute(
 	data_type="str | bool",
 	selected=False,
 )
-origin = Attribute(id="origin", description="Location where the change has been made.", identifier=False, data_type="str", selected=False)
+origin = Attribute(id="origin", description="Location where the change has been made.", identifier=False, data_type="str", selected=True)
 old = Attribute(
 	id="old",
 	description="Old values.",
@@ -200,8 +200,8 @@ new = Attribute(
 	data_type="str | bool",
 	selected=False,
 )
-product_id = Attribute(id="productId", description="The ID of the product.", identifier=True, data_type="str", selected=False)
-property_id = Attribute(id="propertyId", description="The ID of the property.", identifier=True, data_type="str", selected=False)
+product_id = Attribute(id="productId", description="The ID of the product.", identifier=True, data_type="str", selected=True)
+property_id = Attribute(id="propertyId", description="The ID of the property.", identifier=True, data_type="str", selected=True)
 product_version = Attribute(
 	id="productVersion", description="The product version of given state.", identifier=False, data_type="str", selected=False
 )
@@ -209,6 +209,7 @@ package_version = Attribute(
 	id="packageVersion", description="The package version of given state.", identifier=False, data_type="str", selected=False
 )
 is_default = Attribute(id="isDefault", description="Indicates if values are default.", identifier=False, data_type="str", selected=False)
+
 
 COMMAND_METADATA = {
 	"datastore_config-state_list": Metadata(

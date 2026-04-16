@@ -156,7 +156,7 @@ def process_where(where: tuple[str, ...], *, attributes: list[Attribute], operat
 		general_help = general_help_for_where(
 			available_attributes=attributes, used_attributes=list(filter), missing_attributes=missing_attributes
 		)
-		if not filter:
+		if not filter and operation == "list":
 			raise ValueError(
 				f"At least one filter condition is required to prevent unintentional retrieval of large amounts of data.\n\n{general_help}"
 			)

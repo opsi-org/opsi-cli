@@ -157,7 +157,7 @@ def list_product_property_state(where: tuple[str, ...]) -> None:
 
 	# get default states and update them
 	default_states = get_default_property_states(final_object_ids, final_product_ids, final_property_ids)
-	depot_states = update_default_states(final_depot_ids, final_object_ids, final_product_ids, final_property_ids, default_states)
+	depot_states = update_default_states(final_depot_ids, final_product_ids, final_property_ids, default_states)
 	client_states = update_depot_states(final_object_ids, final_product_ids, final_property_ids, depot_states)
 
 	# prepare data for writing output
@@ -169,11 +169,6 @@ def list_product_property_state(where: tuple[str, ...]) -> None:
 	]
 
 	filtered_data = filter_by_attributes(flattened_result, filter, attributes)
-
-	# select attributes to display
-	for attr in attributes:
-		if attr.id in ("objectId", "productId", "propertyId", "values", "origin"):
-			attr.selected = True
 
 	write_output(
 		data=sorted(filtered_data, key=lambda x: x["objectId"]),
