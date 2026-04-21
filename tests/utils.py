@@ -204,12 +204,7 @@ def stdout_into_list(_stdout: str) -> list[list[str]]:
 			i += 5
 		stdout_result_list.append(line_as_list)
 		i += 1
-
-	header = stdout_result_list[0]
-	data = stdout_result_list[1:]
-	data.sort(key=lambda x: x[0])
-
-	return [header] + data
+	return sorted(stdout_result_list, key=lambda x: x[0])
 
 
 def get_depot_id(admin_service_client: ServiceClient) -> str:
