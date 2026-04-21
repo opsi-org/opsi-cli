@@ -516,7 +516,8 @@ def test_config_state_update(
 			for entry in data_list or []:
 				if entry.get("objectId") == "DEPOT_ID":
 					entry["objectId"] = depot_id
-
+		if expected_output:
+			expected_output = sorted(expected_output, key=lambda x: x["objectId"])
 		exit_code, stdout, stderr = run_cli(command)
 		if expected_error:
 			assert exit_code != 0

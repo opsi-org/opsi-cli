@@ -207,7 +207,7 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 			service_connection.configState_updateObjects(config_states)  # type: ignore[attr-defined]
 
 		console_print(msg, style="green", output_type=OutputType.MESSAGE)
-		write_output(data=data, metadata=metadata)
+		write_output(data=sorted(data, key=lambda x: x["objectId"]), metadata=metadata)
 
 	def _create_output_data(
 		config_obj: Config, config_states: list[ConfigState], current_values: dict[str, dict[str, str]]
@@ -223,7 +223,7 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 					"values": state.values,
 				}
 			)
-		return sorted(updated_data, key=lambda x: x["objectId"])
+		return updated_data
 
 	def _create_config_states(object_ids: list[str], config_id: str, values: list[str] | list[bool]) -> list[ConfigState]:
 		config_states = []

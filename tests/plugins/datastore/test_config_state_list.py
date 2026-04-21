@@ -225,12 +225,6 @@ def _values_to_str(values: str | bool | list[Any] | None) -> str:
 			],
 			[
 				{
-					"objectId": "DEPOT_ID",
-					"configId": TEST_CONFIG_STATES[0].configId,
-					"values": _values_to_str(TEST_CONFIG_STATES[0].values),
-					"origin": "default",
-				},
-				{
 					"objectId": TEST_CONFIG_STATES[0].objectId,
 					"configId": TEST_CONFIG_STATES[0].configId,
 					"values": _values_to_str(TEST_CONFIG_STATES[0].values),
@@ -241,6 +235,12 @@ def _values_to_str(values: str | bool | list[Any] | None) -> str:
 					"configId": TEST_CONFIG_STATES[2].configId,
 					"values": _values_to_str(TEST_CONFIG_STATES[2].values),
 					"origin": "client",
+				},
+				{
+					"objectId": "DEPOT_ID",
+					"configId": TEST_CONFIG_STATES[0].configId,
+					"values": _values_to_str(TEST_CONFIG_STATES[0].values),
+					"origin": "default",
 				},
 			],
 			[
@@ -403,6 +403,8 @@ def test_config_state_list(
 					entry["objectId"] = depot_id
 
 		exit_code, stdout, stderr = run_cli(command)
+		if expected_output:
+			expected_output = sorted(expected_output, key=lambda x: x["objectId"])
 		if expected_error:
 			assert exit_code != 0
 			assert_error_contains(stderr, expected_error)
