@@ -165,7 +165,7 @@ def config_state() -> None:
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter the output. ObjectId and ConfigId are required",
+	help="Filter config-states.",
 )
 @dry_run_capable
 def list_config_state(where: tuple[str, ...]) -> None:

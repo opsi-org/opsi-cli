@@ -223,10 +223,10 @@ def test_list_product_client_state(admin_service_client: ServiceClient) -> None:
 				"datastore",
 				"product-client-state",
 				"list",
-				"--client-ids",
-				"*",
-				"--product-ids",
-				"pytest*",
+				"--where",
+				"clientId=*",
+				"--where",
+				"productId=pytest*",
 			]
 		)
 		assert exit_code == 0
@@ -248,14 +248,14 @@ def test_list_product_client_state(admin_service_client: ServiceClient) -> None:
 				"datastore",
 				"product-client-state",
 				"list",
-				"--client-ids",
-				"*",
-				"--product-ids",
-				"pytest*",
-				"--installation-statuses",
-				"installed",
-				"--action-requests",
-				"none",
+				"--where",
+				"clientId=*",
+				"--where",
+				"productId=pytest*",
+				"--where",
+				"installationStatus=installed",
+				"--where",
+				"actionRequest=none",
 			]
 		)
 		assert exit_code == 0
@@ -274,14 +274,14 @@ def test_list_product_client_state(admin_service_client: ServiceClient) -> None:
 				"datastore",
 				"product-client-state",
 				"list",
-				"--client-ids",
-				"*",
-				"--product-ids",
-				"pytest*",
-				"--installation-statuses",
-				"unknown",
-				"--action-requests",
-				"setup",
+				"--where",
+				"clientId=*",
+				"--where",
+				"productId=pytest*",
+				"--where",
+				"installationStatus=unknown",
+				"--where",
+				"actionRequest=setup",
 			]
 		)
 		assert exit_code == 0
