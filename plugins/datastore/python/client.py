@@ -76,6 +76,7 @@ def client() -> None:
 	multiple=True,
 	help="Filter clients.",
 )
+@dry_run_capable
 def list_clients(where: tuple[str, ...]) -> None:
 	"""
 	View clients.
