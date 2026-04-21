@@ -2,12 +2,12 @@
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from opsicommon.types import (
 	forceBool,
 	forceConfigId,
-	forceDepotId,
 	forceHardwareAddress,
 	forceHostId,
 	forceIpAddress,
@@ -252,7 +252,26 @@ depot_id = Attribute(
 	identifier=False,
 	data_type="str",
 	selected=False,
-	validator=lambda val: forceDepotId(val),
+	validator=lambda val: forceObjectId(val),
+)
+client_id = Attribute(id="clientId", description="The ID of the client.", identifier=True, data_type="str", selected=True)
+product_type = Attribute(id="productType", description="The type of the product.", identifier=True, data_type="str", selected=True)
+installation_status = Attribute(
+	id="installationStatus",
+	description="The installation status of the product.",
+	identifier=False,
+	data_type="str",
+	selected=True,
+)
+action_request = Attribute(
+	id="actionRequest", description="The action request of the product.", identifier=False, data_type="str", selected=True
+)
+modification_time = Attribute(
+	id="modificationTime",
+	description="The last modification time of the product state.",
+	identifier=False,
+	data_type="datetime",
+	selected=True,
 )
 
 
@@ -296,28 +315,14 @@ COMMAND_METADATA = {
 	),
 	"datastore_product-client-state_list": Metadata(
 		attributes=[
-			Attribute(id="clientId", description="The ID of the client.", identifier=True, data_type="str", selected=True),
-			Attribute(id="productId", description="The ID of the product.", identifier=True, data_type="str", selected=True),
-			Attribute(id="productType", description="The type of the product.", identifier=True, data_type="str", selected=True),
-			Attribute(id="productVersion", description="The installed product version.", identifier=False, data_type="str", selected=True),
-			Attribute(id="packageVersion", description="The installed package version.", identifier=False, data_type="str", selected=True),
-			Attribute(
-				id="installationStatus",
-				description="The installation status of the product.",
-				identifier=False,
-				data_type="str",
-				selected=True,
-			),
-			Attribute(
-				id="actionRequest", description="The action request of the product.", identifier=False, data_type="str", selected=True
-			),
-			Attribute(
-				id="modificationTime",
-				description="The last modification time of the product state.",
-				identifier=False,
-				data_type="datetime",
-				selected=True,
-			),
+			client_id,
+			product_id,
+			product_type,
+			replace(product_version, selected=True),
+			replace(package_version, selected=True),
+			installation_status,
+			action_request,
+			modification_time,
 		]
 	),
 	"datastore_client_apply": CLIENT_METADATA,

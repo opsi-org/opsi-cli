@@ -8,12 +8,121 @@ import rich_click as click
 from opsicommon.logging import get_logger
 
 from opsicli.io import get_separated_entries, write_output
-from opsicli.opsiservice import get_service_connection
+from opsicli.opsiservice import ServiceClient, get_service_connection
 
 from .common import cli, create_client_depot_mapping, filter_by_attributes, process_where
 from .metadata import COMMAND_METADATA
 
 logger = get_logger("opsicli")
+
+
+def _get_default_property_states(
+	service_connection: ServiceClient, object_ids: list[str], product_ids: list[str], property_ids: list[str], filter: dict[str, str]
+) -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
+	bool_attr = [filter.pop("multiValue", None), filter.pop("editable", None)]
+	normalized_bool_attr = [
+		True if value in ("True", "true", "1") else False if value in ("False", "false", "0") else None for value in bool_attr
+	]
+
+	default_property_objects = service_connection.productProperty_getObjects(  # type: ignore[attr-defined]
+		productId=product_ids,
+		productVersion=filter.pop("productVersion", None),
+		packageVersion=filter.pop("packageVersion", None),
+		propertyId=property_ids,
+		type=filter.pop("type", None),
+		description=filter.pop("description", None),
+		editable=normalized_bool_attr[1],
+		multiValue=normalized_bool_attr[0],
+		value=filter.pop("values", None),
+		isDefault=filter.pop("isDefault", None),
+	)
+
+	default_states = {}
+	for object_id in object_ids:
+		default_states[object_id] = {}
+		for entry in default_property_objects:
+			if entry.productId not in default_states[object_id]:
+				default_states[object_id][entry.productId] = {}
+
+			default_states[object_id][entry.productId][entry.propertyId] = {
+				"productId": entry.productId,
+				"productVersion": entry.productVersion,
+				"packageVersion": entry.packageVersion,
+				"propertyId": entry.propertyId,
+				"description": entry.description,
+				"editable": entry.editable,
+				"multiValue": entry.multiValue,
+				"values": entry.defaultValues,
+				"defaultValues": entry.defaultValues,
+				"depotValues": "",
+				"clientValues": "",
+				"origin": "default",
+				"objectId": object_id,
+			}
+	return default_states
+
+
+def _update_default_states(
+	service_connection: ServiceClient,
+	client_to_depot: dict[str, str],
+	depot_ids: list[str],
+	product_ids: list[str],
+	property_ids: list[str],
+	default_states: dict[str, dict[str, dict[str, dict[str, Any]]]],
+) -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
+
+	depot_property_states = service_connection.productPropertyState_getObjects(  # type: ignore[attr-defined]
+		objectId=depot_ids, productId=product_ids, propertyId=property_ids
+	)
+
+	# account for different depots
+	depot_lookup = {(s.objectId, s.productId, s.propertyId): s.values for s in depot_property_states}
+
+	# key: objectId
+	for object_id, product_id_dict in default_states.items():
+		assigned_depot_id = client_to_depot.get(object_id)
+		if not assigned_depot_id:
+			continue
+		# key: productId
+		for product_id, property_id_dict in product_id_dict.items():
+			# key: propertyId
+			for property_id, default_state in property_id_dict.items():
+				if (assigned_depot_id, product_id, property_id) in depot_lookup:
+					depot_values = depot_lookup[(assigned_depot_id, product_id, property_id)]
+					default_state["depotValues"] = depot_values
+					default_state["origin"] = "depot"
+					if default_state["defaultValues"] != depot_values:
+						default_state["values"] = depot_values
+
+	return default_states
+
+
+def _update_depot_states(
+	service_connection: ServiceClient,
+	object_ids: list[str],
+	product_ids: list[str],
+	property_ids: list[str],
+	depot_states: dict[str, dict[str, dict[str, dict[str, Any]]]],
+) -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
+
+	client_property_states = service_connection.productPropertyState_getObjects(  # type: ignore[attr-defined]
+		objectId=object_ids, productId=product_ids, propertyId=property_ids
+	)
+
+	for state in client_property_states:
+		for object_id in object_ids:
+			if (
+				object_id in depot_states
+				and state.productId in depot_states[object_id]
+				and state.propertyId in depot_states[object_id][state.productId]
+			):
+				target = depot_states[object_id][state.productId][state.propertyId]
+				target["depotValues"] = state.values
+				target["origin"] = "depot"
+				if target["defaultValues"] != state.values:
+					target["values"] = state.values
+
+	return depot_states
 
 
 @cli.group(name="product-property-state", short_help="Configure product property states.")
@@ -36,116 +145,6 @@ def list_product_property_state(where: tuple[str, ...]) -> None:
 	View all product property states or apply filters to narrow your search.
 	"""
 
-	def get_default_property_states(
-		object_ids: list[str], product_ids: list[str], property_ids: list[str]
-	) -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
-		bool_attr = [filter.pop("multiValue", None), filter.pop("editable", None)]
-		normalized_bool_attr = [
-			True if value in ("True", "true", "1") else False if value in ("False", "false", "0") else None for value in bool_attr
-		]
-
-		try:
-			default_property_objects = service_connection.productProperty_getObjects(  # type: ignore[attr-defined]
-				productId=product_ids,
-				productVersion=filter.pop("productVersion", None),
-				packageVersion=filter.pop("packageVersion", None),
-				propertyId=property_ids,
-				type=filter.pop("type", None),
-				description=filter.pop("description", None),
-				editable=normalized_bool_attr[1],
-				multiValue=normalized_bool_attr[0],
-				value=filter.pop("values", None),
-				isDefault=filter.pop("isDefault", None),
-			)
-		except Exception as e:
-			raise ValueError(f"Invalid value in at least one filter condition.\n\n{e}")
-
-		default_states = {}
-		for object_id in object_ids:
-			default_states[object_id] = {}
-			for entry in default_property_objects:
-				if entry.productId not in default_states[object_id]:
-					default_states[object_id][entry.productId] = {}
-
-				default_states[object_id][entry.productId][entry.propertyId] = {
-					"productId": entry.productId,
-					"productVersion": entry.productVersion,
-					"packageVersion": entry.packageVersion,
-					"propertyId": entry.propertyId,
-					"description": entry.description,
-					"editable": entry.editable,
-					"multiValue": entry.multiValue,
-					"values": entry.defaultValues,
-					"defaultValues": entry.defaultValues,
-					"depotValues": "",
-					"clientValues": "",
-					"origin": "default",
-					"objectId": object_id,
-				}
-		return default_states
-
-	def update_default_states(
-		client_to_depot: dict[str, str],
-		depot_ids: list[str],
-		product_ids: list[str],
-		property_ids: list[str],
-		default_states: dict[str, dict[str, dict[str, dict[str, Any]]]],
-	) -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
-
-		try:
-			depot_property_states = service_connection.productPropertyState_getObjects(  # type: ignore[attr-defined]
-				objectId=depot_ids, productId=product_ids, propertyId=property_ids
-			)
-		except Exception as e:
-			raise ValueError(f"Invalid value in at least one filter condition.\n\n{e}")
-
-		# account for different depots
-		depot_lookup = {(s.objectId, s.productId, s.propertyId): s.values for s in depot_property_states}
-
-		# key: objectId
-		for object_id, product_id_dict in default_states.items():
-			assigned_depot_id = client_to_depot.get(object_id)
-			if not assigned_depot_id:
-				continue
-			# key: productId
-			for product_id, property_id_dict in product_id_dict.items():
-				# key: propertyId
-				for property_id, default_state in property_id_dict.items():
-					if (assigned_depot_id, product_id, property_id) in depot_lookup:
-						depot_values = depot_lookup[(assigned_depot_id, product_id, property_id)]
-						default_state["depotValues"] = depot_values
-						default_state["origin"] = "depot"
-						if default_state["defaultValues"] != depot_values:
-							default_state["values"] = depot_values
-
-		return default_states
-
-	def update_depot_states(
-		object_ids: list[str],
-		product_ids: list[str],
-		property_ids: list[str],
-		depot_states: dict[str, dict[str, dict[str, dict[str, Any]]]],
-	) -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
-
-		client_property_states = service_connection.productPropertyState_getObjects(  # type: ignore[attr-defined]
-			objectId=object_ids, productId=product_ids, propertyId=property_ids
-		)
-
-		for state in client_property_states:
-			for object_id in object_ids:
-				if (
-					object_id in depot_states
-					and state.productId in depot_states[object_id]
-					and state.propertyId in depot_states[object_id][state.productId]
-				):
-					target = depot_states[object_id][state.productId][state.propertyId]
-					target["depotValues"] = state.values
-					target["origin"] = "depot"
-					if target["defaultValues"] != state.values:
-						target["values"] = state.values
-
-		return depot_states
-
 	service_connection = get_service_connection()
 	metadata = COMMAND_METADATA["datastore_product-property-state_list"]
 	attributes = metadata.attributes
@@ -165,9 +164,11 @@ def list_product_property_state(where: tuple[str, ...]) -> None:
 	client_to_depot = create_client_depot_mapping(service_connection, final_object_ids)
 
 	# get default states and update them
-	default_states = get_default_property_states(final_object_ids, final_product_ids, final_property_ids)
-	depot_states = update_default_states(client_to_depot, final_depot_ids, final_product_ids, final_property_ids, default_states)
-	client_states = update_depot_states(final_object_ids, final_product_ids, final_property_ids, depot_states)
+	default_states = _get_default_property_states(service_connection, final_object_ids, final_product_ids, final_property_ids, filter)
+	depot_states = _update_default_states(
+		service_connection, client_to_depot, final_depot_ids, final_product_ids, final_property_ids, default_states
+	)
+	client_states = _update_depot_states(service_connection, final_object_ids, final_product_ids, final_property_ids, depot_states)
 
 	# prepare data for writing output
 	flattened_result: list[dict[str, Any]] = [

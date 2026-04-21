@@ -26,7 +26,7 @@ logger = get_logger("opsicli")
 
 
 def _get_default_config_states(
-	service_connection: ServiceClient, object_ids: list[str], config_ids: list[str]
+	service_connection: ServiceClient, object_ids: list[str], config_ids: list[str], filter: dict[str, str]
 ) -> dict[str, dict[str, dict[str, Any]]]:
 	bool_attr = [filter.pop("multiValue", None), filter.pop("editable", None)]
 	normalized_bool_attr = [
@@ -191,9 +191,9 @@ def list_config_state(where: tuple[str, ...]) -> None:
 	client_to_depot = create_client_depot_mapping(service_connection)
 
 	# get default states and upfate them
-	default_states = _get_default_config_states(final_object_ids, final_config_ids)
-	depot_states = _update_default_states(client_to_depot, final_depot_ids, final_config_ids, default_states)
-	client_states = _update_depot_states(final_object_ids, final_config_ids, depot_states)
+	default_states = _get_default_config_states(service_connection, final_object_ids, final_config_ids, filter)
+	depot_states = _update_default_states(service_connection, client_to_depot, final_depot_ids, final_config_ids, default_states)
+	client_states = _update_depot_states(service_connection, final_object_ids, final_config_ids, depot_states)
 
 	# prepare data for writing output
 	flattened_result = [
@@ -261,4 +261,4 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	# create config-state objects
 	updated_config_states = _create_config_states(object_ids, config_obj[0].id, validated_values)
 	output_data = _create_output_data(config_obj[0], updated_config_states, current_values)
-	_update_database(output_data, updated_config_states)
+	_update_database(output_data, updated_config_states, metadata)
