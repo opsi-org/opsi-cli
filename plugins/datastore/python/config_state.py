@@ -7,17 +7,15 @@ from typing import Any
 import rich_click as click
 from opsicommon.logging import get_logger
 from opsicommon.objects import Config, ConfigState
-from opsicommon.types import forceBool
 
 from opsicli.decorators import dry_run_capable
-from opsicli.io import OutputType, console_print, write_output
+from opsicli.io import OutputType, console_print, get_separated_entries, write_output
 from opsicli.opsiservice import config, get_service_connection
 
 from .common import (
 	cli,
 	create_client_depot_mapping,
 	filter_by_attributes,
-	get_validated_ids,
 	process_set,
 	process_where,
 	validate_against_possible_values,
@@ -49,14 +47,22 @@ def list_config_state(where: tuple[str, ...]) -> None:
 	"""
 
 	def _get_default_config_states(object_ids: list[str], config_ids: list[str]) -> dict[str, dict[str, dict[str, Any]]]:
-		default_config_objects = service_connection.config_getObjects(  # type: ignore[attr-defined]
-			id=config_ids or [],
-			type=filter.pop("type", None),
-			description=filter.pop("description", None),
-			multiValue=forceBool(v) if (v := filter.pop("multiValue", None)) is not None else None,
-			editable=forceBool(v) if (v := filter.pop("editable", None)) is not None else None,
-			value=filter.pop("defaultValues", None),
-		)
+		bool_attr = [filter.pop("multiValue", None), filter.pop("editable", None)]
+		normalized_bool_attr = [
+			True if value in ("True", "true", "1") else False if value in ("False", "false", "0") else None for value in bool_attr
+		]
+
+		try:
+			default_config_objects = service_connection.config_getObjects(  # type: ignore[attr-defined]
+				id=config_ids,
+				type=filter.pop("type", None),
+				description=filter.pop("description", None),
+				multiValue=normalized_bool_attr[0],  # focreBool() is not enough; every string that is not empty will be true
+				editable=normalized_bool_attr[1],  # 							""
+				value=filter.pop("defaultValues", None),
+			)
+		except Exception as e:
+			raise ValueError(f"Invalid value in at least one filter condition.\n\n{e}")
 
 		default_states = {}
 		for object_id in object_ids:
@@ -84,9 +90,12 @@ def list_config_state(where: tuple[str, ...]) -> None:
 		default_states: dict[str, dict[str, dict[str, Any]]],
 	) -> dict[str, dict[str, dict[str, Any]]]:
 
-		depot_config_states = service_connection.configState_getObjects(  # type: ignore[attr-defined]
-			objectId=depot_ids, configId=config_ids
-		)
+		try:
+			depot_config_states = service_connection.configState_getObjects(  # type: ignore[attr-defined]
+				objectId=depot_ids, configId=config_ids if filter.pop("objectId", None) != "*" else None
+			)
+		except Exception as e:
+			raise ValueError(f"Invalid value in at least one filter condition.\n\n{e}")
 
 		# account for different depots
 		depot_lookup = {(s.objectId, s.configId): s.values for s in depot_config_states}
@@ -111,9 +120,13 @@ def list_config_state(where: tuple[str, ...]) -> None:
 		config_ids: list[str],
 		depot_states: dict[str, dict[str, dict[str, Any]]],
 	) -> dict[str, dict[str, dict[str, Any]]]:
-		client_config_states = service_connection.configState_getObjects(  # type: ignore[attr-defined]
-			objectId=object_ids, configId=config_ids
-		)
+
+		try:
+			client_config_states = service_connection.configState_getObjects(  # type: ignore[attr-defined]
+				objectId=object_ids, configId=config_ids
+			)
+		except Exception as e:
+			raise ValueError(f"Invalid value in at least one filter condition.\n\n{e}")
 
 		for state in client_config_states:
 			if state.objectId in depot_states and state.configId in depot_states[state.objectId]:
@@ -128,23 +141,19 @@ def list_config_state(where: tuple[str, ...]) -> None:
 	service_connection = get_service_connection()
 	metadata = COMMAND_METADATA["datastore_config-state_list"]
 	attributes = metadata.attributes
-	filter = process_where(where, attributes=attributes, operation="list")
 
-	# get Id's from filter
-	object_ids = filter.pop("objectId", "*")
-	config_ids = filter.pop("configId", "*")
+	filter = process_where(where, attributes=attributes)
 
-	# validate Id's
-	final_object_ids = get_validated_ids(
-		service_connection,
-		ids=object_ids,
-		type="objectId or depotId" if object_ids != "*" else "objectId",  # don't get depotId's if '*'
-	)
-	final_config_ids = get_validated_ids(service_connection, ids=config_ids, type="configId")
+	# process wildcards
+	{key: None for key, value in filter.items() if value == "*"}
+
+	# get separated Id's from filter
+	final_object_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("objectId", None)))  # type: ignore[attr-defined]
+	final_config_ids = get_separated_entries(filter.pop("configId", None))
 	final_depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # type: ignore[attr-defined]
 
-	# map clients to depots
-	client_to_depot = create_client_depot_mapping(service_connection, final_object_ids)
+	# get a client to depot mapping
+	client_to_depot = create_client_depot_mapping(service_connection)
 
 	# get default states and upfate them
 	default_states = _get_default_config_states(final_object_ids, final_config_ids)
@@ -188,7 +197,7 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	Change values of config states.
 	"""
 
-	def _update_database(data: list[dict[str, str]], config_states: list[ConfigState], current_values: dict[str, dict[str, str]]) -> None:
+	def _update_database(data: list[dict[str, str]], config_states: list[ConfigState]) -> None:
 		service_connection = get_service_connection()
 
 		if config.dry_run:
@@ -233,12 +242,18 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	filter = process_where(where, attributes=attributes_where, operation="update")
 	updates = process_set(set, attributes=attributes_set)
 
-	# validate Id's
-	object_ids = get_validated_ids(service_connection, ids=filter["objectId"], type="objectId")
-	config_id = get_validated_ids(service_connection, ids=filter["configId"], type="configId")
-	if len(config_id) > 1:
+	# get separated Id's from filter
+	object_ids = service_connection.host_getIdents(id=get_separated_entries(filter["objectId"]) if filter["objectId"] != "*" else None)  # type: ignore[attr-defined]
+	if not object_ids:
+		raise ValueError("No clients found to update.")
+
+	config_id = get_separated_entries(filter["configId"])
+	if len(config_id) > 1 or "*" in config_id:
 		raise ValueError("Only one configId without wildcard is allowed.")
-	config_obj = service_connection.config_getObjects(id=config_id)  # type: ignore[attr-defined]
+
+	config_obj = service_connection.config_getObjects(id=config_id[0])  # type: ignore[attr-defined]
+	if not config_obj:
+		raise ValueError("No config-state found to update.")
 
 	# validate values
 	validated_values = validate_against_possible_values(updates["values"], config_obj[0])
@@ -247,4 +262,4 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	# create config-state objects
 	updated_config_states = _create_config_states(object_ids, config_obj[0].id, validated_values)
 	output_data = _create_output_data(config_obj[0], updated_config_states, current_values)
-	_update_database(output_data, updated_config_states, current_values)
+	_update_database(output_data, updated_config_states)

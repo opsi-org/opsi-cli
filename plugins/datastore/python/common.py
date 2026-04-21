@@ -3,8 +3,7 @@
 # All rights reserved.
 # License: AGPL-3.0-only
 import re
-from functools import partial
-from typing import Any, Callable, Literal
+from typing import Any, Literal
 
 import rich_click as click
 from opsicommon.logging import get_logger
@@ -19,59 +18,6 @@ logger = get_logger("opsicli")
 
 __version__ = "0.1.0"
 __description__ = "This command can be used to manage data and objects"
-
-
-def get_validated_ids(
-	service_connection: ServiceClient,
-	ids: str | list[str] | None,
-	type: Literal["objectId", "configId", "productId", "propertyId", "depotId", "objectId or depotId"],
-) -> list[str]:
-
-	# ids: None, "", [] 	=> []
-	# ids: invalid 			=> ValueError
-	# ids: valid 			=> list[str]
-
-	if not ids:
-		return []
-
-	func: Callable[[Any], list[str]]
-
-	if type == "objectId":
-		func = partial(service_connection.host_getIdents, type="OpsiClient")  # type: ignore[attr-defined]
-	if type == "depotId":
-		func = partial(service_connection.host_getIdents, type="OpsiDepotserver")  # type: ignore[attr-defined]
-	if type == "objectId or depotId":
-		func = partial(service_connection.host_getIdents)  # type: ignore[attr-defined]
-	if type == "configId":
-		func = service_connection.config_getIdents  # type: ignore[attr-defined]
-	if type == "productId":
-
-		def get_product_ids(id: Any) -> list[str]:
-			idents = service_connection.product_getIdents(id=id)  # type: ignore[attr-defined]
-			return list(set([p.split(";")[0] for p in idents]))
-
-		func = get_product_ids
-	if type == "propertyId":
-
-		def get_property_ids(id: Any) -> list[str]:
-			idents = service_connection.productProperty_getIdents(propertyId=id)  # type: ignore[attr-defined]
-			return list(set([p.split(";")[3] for p in idents]))
-
-		func = get_property_ids
-
-	if isinstance(ids, str):
-		ids = get_separated_entries(ids)
-	if "*" in ids:
-		return func([])
-
-	result = []
-	for id in ids:
-		valid = func(id=id)
-		if not valid:
-			raise ValueError(f"There is no such {type}: '{id}'")
-		result.extend(valid)
-
-	return list(set(result))
 
 
 def create_client_depot_mapping(service_connection: ServiceClient, object_ids: list[str] | None = None) -> dict[str, str]:
@@ -152,14 +98,14 @@ def process_where(where: tuple[str, ...], *, attributes: list[Attribute], operat
 	if operation == "update":
 		missing_attributes = [attr.id for attr in id_attributes if attr.id not in filter]
 
-	if not filter or (operation == "update" and missing_attributes):
-		general_help = general_help_for_where(
-			available_attributes=attributes, used_attributes=list(filter), missing_attributes=missing_attributes
+	general_help = general_help_for_where(
+		available_attributes=attributes, used_attributes=list(filter), missing_attributes=missing_attributes
+	)
+	if operation == "list" and not filter:
+		raise ValueError(
+			f"At least one filter condition is required to prevent unintentional retrieval of large amounts of data.\n\n{general_help}"
 		)
-		if not filter and operation == "list":
-			raise ValueError(
-				f"At least one filter condition is required to prevent unintentional retrieval of large amounts of data.\n\n{general_help}"
-			)
+	if operation == "update" and missing_attributes:
 		raise ValueError(
 			"Incomplete filter for update operation.\n\n"
 			f"{general_help}"

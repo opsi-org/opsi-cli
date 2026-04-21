@@ -172,6 +172,12 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 			],
 			[
 				{
+					"objectId": "opsi.opsi.test",
+					"configId": TEST_CONFIGS[0].id,
+					"previousValues": "1",
+					"values": "0",
+				},
+				{
 					"objectId": TEST_CLIENTS[0].id,
 					"configId": TEST_CONFIGS[0].id,
 					"previousValues": "1",
@@ -185,6 +191,11 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 				},
 			],
 			[
+				{
+					"objectId": "opsi.opsi.test",
+					"configId": TEST_CONFIGS[0].id,
+					"values": [False],
+				},
 				{
 					"objectId": TEST_CLIENTS[0].id,
 					"configId": TEST_CONFIGS[0].id,

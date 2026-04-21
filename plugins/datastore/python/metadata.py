@@ -5,11 +5,18 @@
 from datetime import datetime, timezone
 
 from opsicommon.types import (
+	forceBool,
+	forceConfigId,
 	forceHardwareAddress,
 	forceHostId,
 	forceIpAddress,
+	forceObjectId,
 	forceOpsiHostKey,
 	forceOpsiTimestamp,
+	forcePackageVersion,
+	forceProductId,
+	forceProductPropertyId,
+	forceProductVersion,
 	forceUUIDString,
 )
 
@@ -114,6 +121,7 @@ object_id = Attribute(
 	identifier=True,
 	data_type="str",
 	selected=True,
+	validator=lambda val: forceObjectId(val),
 )
 config_id = Attribute(
 	id="configId",
@@ -121,6 +129,7 @@ config_id = Attribute(
 	identifier=True,
 	data_type="str",
 	selected=True,
+	validator=lambda val: forceConfigId(val),
 )
 description = Attribute(
 	id="description",
@@ -128,20 +137,23 @@ description = Attribute(
 	identifier=False,
 	data_type="str",
 	selected=False,
+	validator=lambda val: str(val),
 )
 multi_value = Attribute(
 	id="multiValue",
 	description="Shows if given state accepts multi-values.",
 	identifier=False,
-	data_type="str",
+	data_type="bool",
 	selected=False,
+	validator=lambda val: forceBool(val),
 )
 editable = Attribute(
 	id="editable",
 	description="Shows if given state is editable via configed.",
 	identifier=False,
-	data_type="str",
+	data_type="bool",
 	selected=False,
+	validator=lambda val: forceBool(val),
 )
 values = Attribute(
 	id="values",
@@ -193,15 +205,46 @@ previous_values = Attribute(
 	data_type="str | bool",
 	selected=True,
 )
-product_id = Attribute(id="productId", description="The ID of the product.", identifier=True, data_type="str", selected=True)
-property_id = Attribute(id="propertyId", description="The ID of the property.", identifier=True, data_type="str", selected=True)
+product_id = Attribute(
+	id="productId",
+	description="The ID of the product.",
+	identifier=True,
+	data_type="str",
+	selected=True,
+	validator=lambda val: forceProductId(val),
+)
+property_id = Attribute(
+	id="propertyId",
+	description="The ID of the property.",
+	identifier=True,
+	data_type="str",
+	selected=True,
+	validator=lambda val: forceProductPropertyId(val),
+)
 product_version = Attribute(
-	id="productVersion", description="The product version of given state.", identifier=False, data_type="str", selected=False
+	id="productVersion",
+	description="The product version of given state.",
+	identifier=False,
+	data_type="str",
+	selected=False,
+	validator=lambda val: forceProductVersion(val),
 )
 package_version = Attribute(
-	id="packageVersion", description="The package version of given state.", identifier=False, data_type="str", selected=False
+	id="packageVersion",
+	description="The package version of given state.",
+	identifier=False,
+	data_type="str",
+	selected=False,
+	validator=lambda val: forcePackageVersion(val),
 )
-is_default = Attribute(id="isDefault", description="Indicates if values are default.", identifier=False, data_type="str", selected=False)
+is_default = Attribute(
+	id="isDefault",
+	description="Indicates if values are default.",
+	identifier=False,
+	data_type="str",
+	selected=False,
+	validator=lambda val: forceBool(val),
+)
 
 
 COMMAND_METADATA = {

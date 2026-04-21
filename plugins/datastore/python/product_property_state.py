@@ -6,13 +6,11 @@ from typing import Any
 
 import rich_click as click
 from opsicommon.logging import get_logger
-from opsicommon.types import forceBool
 
-from opsicli.decorators import dry_run_capable
-from opsicli.io import write_output
+from opsicli.io import get_separated_entries, write_output
 from opsicli.opsiservice import get_service_connection
 
-from .common import cli, create_client_depot_mapping, filter_by_attributes, get_validated_ids, process_where
+from .common import cli, create_client_depot_mapping, filter_by_attributes, process_where
 from .metadata import COMMAND_METADATA
 
 logger = get_logger("opsicli")
@@ -33,7 +31,6 @@ def product_property_state() -> None:
 	multiple=True,
 	help="Filter the output. ObjectId and ConfigId are required",
 )
-@dry_run_capable
 def list_product_property_state(where: tuple[str, ...]) -> None:
 	"""
 	View all product property states or apply filters to narrow your search.
@@ -42,19 +39,27 @@ def list_product_property_state(where: tuple[str, ...]) -> None:
 	def get_default_property_states(
 		object_ids: list[str], product_ids: list[str], property_ids: list[str]
 	) -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
+		bool_attr = [filter.pop("multiValue", None), filter.pop("editable", None)]
+		normalized_bool_attr = [
+			True if value in ("True", "true", "1") else False if value in ("False", "false", "0") else None for value in bool_attr
+		]
 
-		default_property_objects = service_connection.productProperty_getObjects(  # type: ignore[attr-defined]
-			productId=product_ids,
-			productVersion=filter.pop("productVersion", None),
-			packageVersion=filter.pop("packageVersion", None),
-			propertyId=property_ids,
-			type=filter.pop("type", None),
-			description=filter.pop("description", None),
-			editable=forceBool(v) if (v := filter.pop("editable", None)) is not None else None,
-			multiValue=forceBool(v) if (v := filter.pop("multiValue", None)) is not None else None,
-			value=filter.pop("values", None),
-			isDefault=filter.pop("isDefault", None),
-		)
+		try:
+			default_property_objects = service_connection.productProperty_getObjects(  # type: ignore[attr-defined]
+				productId=product_ids,
+				productVersion=filter.pop("productVersion", None),
+				packageVersion=filter.pop("packageVersion", None),
+				propertyId=property_ids,
+				type=filter.pop("type", None),
+				description=filter.pop("description", None),
+				editable=normalized_bool_attr[1],
+				multiValue=normalized_bool_attr[0],
+				value=filter.pop("values", None),
+				isDefault=filter.pop("isDefault", None),
+			)
+		except Exception as e:
+			raise ValueError(f"Invalid value in at least one filter condition.\n\n{e}")
+
 		default_states = {}
 		for object_id in object_ids:
 			default_states[object_id] = {}
@@ -86,9 +91,13 @@ def list_product_property_state(where: tuple[str, ...]) -> None:
 		property_ids: list[str],
 		default_states: dict[str, dict[str, dict[str, dict[str, Any]]]],
 	) -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
-		depot_property_states = service_connection.productPropertyState_getObjects(  # type: ignore[attr-defined]
-			objectId=depot_ids, productId=product_ids, propertyId=property_ids
-		)
+
+		try:
+			depot_property_states = service_connection.productPropertyState_getObjects(  # type: ignore[attr-defined]
+				objectId=depot_ids, productId=product_ids, propertyId=property_ids
+			)
+		except Exception as e:
+			raise ValueError(f"Invalid value in at least one filter condition.\n\n{e}")
 
 		# account for different depots
 		depot_lookup = {(s.objectId, s.productId, s.propertyId): s.values for s in depot_property_states}
@@ -117,9 +126,11 @@ def list_product_property_state(where: tuple[str, ...]) -> None:
 		property_ids: list[str],
 		depot_states: dict[str, dict[str, dict[str, dict[str, Any]]]],
 	) -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
+
 		client_property_states = service_connection.productPropertyState_getObjects(  # type: ignore[attr-defined]
 			objectId=object_ids, productId=product_ids, propertyId=property_ids
 		)
+
 		for state in client_property_states:
 			for object_id in object_ids:
 				if (
@@ -138,21 +149,16 @@ def list_product_property_state(where: tuple[str, ...]) -> None:
 	service_connection = get_service_connection()
 	metadata = COMMAND_METADATA["datastore_product-property-state_list"]
 	attributes = metadata.attributes
+
 	filter = process_where(where, attributes=attributes, operation="list")
 
-	# get Id's from filter
-	object_ids = filter.pop("objectId", "*")
-	product_ids = filter.pop("productId", "*")
-	property_ids = filter.pop("propertyId", "*")
+	# process wildcards
+	{key: None for key, value in filter.items() if value == "*"}
 
-	# validate Id's
-	final_object_ids = get_validated_ids(
-		service_connection,
-		ids=object_ids,
-		type="objectId or depotId" if object_ids != "*" else "objectId",  # don't get depotId's if '*'
-	)
-	final_product_ids = get_validated_ids(service_connection, ids=product_ids, type="productId")
-	final_property_ids = get_validated_ids(service_connection, ids=property_ids, type="propertyId")
+	# get separated Id's from filter
+	final_object_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("objectId", None)))  # type: ignore[attr-defined]
+	final_product_ids = get_separated_entries(filter.pop("productId", None))
+	final_property_ids = get_separated_entries(filter.pop("propertyId", None))
 	final_depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # type: ignore[attr-defined]
 
 	# map clients to depots

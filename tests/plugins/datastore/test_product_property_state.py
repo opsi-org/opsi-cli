@@ -72,13 +72,16 @@ def test_product_property_list(admin_service_client: ServiceClient) -> None:
 			]
 		)
 		assert exit_code == 0
-		assert stdout_into_list(_stdout)[1][0] == CLIENT_ID_1
+		assert stdout_into_list(_stdout)[1][0] == DEPOT_ID
 		assert stdout_into_list(_stdout)[1][1] == PRODUCT_ID_1
 		assert stdout_into_list(_stdout)[1][2] == PROPERTY_ID_1
-		assert stdout_into_list(_stdout)[2][0] == CLIENT_ID_2
+		assert stdout_into_list(_stdout)[2][0] == CLIENT_ID_1
 		assert stdout_into_list(_stdout)[2][1] == PRODUCT_ID_1
 		assert stdout_into_list(_stdout)[2][2] == PROPERTY_ID_1
-		assert len(stdout_into_list(_stdout)) - 1 == 2
+		assert stdout_into_list(_stdout)[3][0] == CLIENT_ID_2
+		assert stdout_into_list(_stdout)[3][1] == PRODUCT_ID_1
+		assert stdout_into_list(_stdout)[3][2] == PROPERTY_ID_1
+		assert len(stdout_into_list(_stdout)) - 1 == 3
 
 		# One productId, one propertyId, object-id=py*
 		exit_code, _stdout, _stderr = run_cli(

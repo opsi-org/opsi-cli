@@ -14,10 +14,10 @@ from opsicommon.types import forceActionRequest, forceInstallationStatus
 
 from opsicli.config import config
 from opsicli.decorators import dry_run_capable
-from opsicli.io import OutputType, console_print, read_input, write_output
+from opsicli.io import OutputType, console_print, get_separated_entries, read_input, write_output
 from opsicli.opsiservice import get_service_connection
 
-from .common import cli, get_depot_to_clients, get_validated_ids
+from .common import cli, get_depot_to_clients
 from .metadata import COMMAND_METADATA
 
 logger = get_logger("opsicli")
@@ -91,7 +91,7 @@ def list_product_client_state(client_ids: str, product_ids: str, installation_st
 	View product states on clients.
 	"""
 	service_connection = get_service_connection()
-	filter_client_ids = get_validated_ids(service_connection, ids=client_ids, type="objectId")
+	filter_client_ids = service_connection.host_getIdents(id=get_separated_entries(client_ids), type="OpsiHost")  # type: ignore[attr-defined]
 	filter_product_ids = None if product_ids == "all" else [item.strip() for item in product_ids.split(",")]
 
 	tmp_list = [item.strip() for item in installation_statuses.split(",")]

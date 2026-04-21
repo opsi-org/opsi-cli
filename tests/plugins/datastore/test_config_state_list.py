@@ -225,6 +225,12 @@ def _values_to_str(values: str | bool | list[Any] | None) -> str:
 			],
 			[
 				{
+					"objectId": "opsi.opsi.test",
+					"configId": TEST_CONFIG_STATES[0].configId,
+					"values": _values_to_str(TEST_CONFIG_STATES[0].values),
+					"origin": "default",
+				},
+				{
 					"objectId": TEST_CONFIG_STATES[0].objectId,
 					"configId": TEST_CONFIG_STATES[0].configId,
 					"values": _values_to_str(TEST_CONFIG_STATES[0].values),
@@ -308,12 +314,9 @@ def _values_to_str(values: str | bool | list[Any] | None) -> str:
 				"--where",
 				"objectId=invalid",
 			],
+			[],
+			[],
 			None,
-			None,
-			(
-				"There is no such objectId or depotId",
-				"invalid",
-			),
 		),
 		# invalid configId"
 		(
@@ -328,9 +331,9 @@ def _values_to_str(values: str | bool | list[Any] | None) -> str:
 				"--where",
 				f"objectId={TEST_CLIENTS[1].id}",
 			],
+			[],
+			[],
 			None,
-			None,
-			("There is no such configId:",),
 		),
 		# Missing objectId"
 		(
@@ -344,6 +347,12 @@ def _values_to_str(values: str | bool | list[Any] | None) -> str:
 				f"configId={TEST_CONFIG_STATES[0].configId}",
 			],
 			[
+				{
+					"objectId": "opsi.opsi.test",
+					"configId": TEST_CONFIG_STATES[0].configId,
+					"values": _values_to_str(TEST_CONFIG_STATES[0].values),
+					"origin": "default",
+				},
 				{
 					"objectId": TEST_CONFIG_STATES[0].objectId,
 					"configId": TEST_CONFIG_STATES[0].configId,
