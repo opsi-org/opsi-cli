@@ -72,6 +72,7 @@ def test_product_property_list(admin_service_client: ServiceClient) -> None:
 			]
 		)
 		assert exit_code == 0
+		print(stdout_into_list(_stdout))
 		assert stdout_into_list(_stdout)[1][0] == DEPOT_ID
 		assert stdout_into_list(_stdout)[1][1] == PRODUCT_ID_1
 		assert stdout_into_list(_stdout)[1][2] == PROPERTY_ID_1
