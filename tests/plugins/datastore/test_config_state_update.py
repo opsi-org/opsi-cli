@@ -8,7 +8,7 @@ from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.objects import BoolConfig, ConfigState, OpsiClient, UnicodeConfig
 
 from opsicli.io import read_input_csv
-from tests.utils import assert_error_contains, run_cli, tmp_clients, tmp_config_states, tmp_configs
+from tests.utils import assert_error_contains, get_depot_id, run_cli, tmp_clients, tmp_config_states, tmp_configs
 
 TEST_CLIENTS: list[OpsiClient] = [
 	OpsiClient(id="pytest-client10.test.tld"),
@@ -172,7 +172,7 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 			],
 			[
 				{
-					"objectId": "opsi.opsi.test",
+					"objectId": "DEPOT_ID",
 					"configId": TEST_CONFIGS[0].id,
 					"previousValues": "1",
 					"values": "0",
@@ -192,7 +192,7 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 			],
 			[
 				{
-					"objectId": "opsi.opsi.test",
+					"objectId": "DEPOT_ID",
 					"configId": TEST_CONFIGS[0].id,
 					"values": [False],
 				},
@@ -510,6 +510,13 @@ def test_config_state_update(
 		tmp_configs(admin_service_client, TEST_CONFIGS),
 		tmp_config_states(admin_service_client, TEST_CONFIG_STATES),
 	):
+		# process depot_id placeholders
+		depot_id = get_depot_id(admin_service_client)
+		for data_list in (expected_output, expected_values):
+			for entry in data_list or []:
+				if entry.get("objectId") == "DEPOT_ID":
+					entry["objectId"] = depot_id
+
 		exit_code, stdout, stderr = run_cli(command)
 		if expected_error:
 			assert exit_code != 0

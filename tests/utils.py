@@ -205,3 +205,8 @@ def stdout_into_list(_stdout: str) -> list[list[str]]:
 		stdout_result_list.append(line_as_list)
 		i += 1
 	return stdout_result_list
+
+
+def get_depot_id(admin_service_client: ServiceClient) -> str:
+	client_to_depot_objects = admin_service_client.jsonrpc("configState_getClientToDepotserver", [])
+	return client_to_depot_objects[0]["depotId"]

@@ -10,7 +10,7 @@ from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.objects import BoolConfig, ConfigState, OpsiClient, UnicodeConfig
 
 from opsicli.io import read_input_csv
-from tests.utils import assert_error_contains, run_cli, tmp_clients, tmp_config_states, tmp_configs
+from tests.utils import assert_error_contains, get_depot_id, run_cli, tmp_clients, tmp_config_states, tmp_configs
 
 TEST_CLIENTS: list[OpsiClient] = [
 	OpsiClient(id="pytest-client10.test.tld"),
@@ -225,7 +225,7 @@ def _values_to_str(values: str | bool | list[Any] | None) -> str:
 			],
 			[
 				{
-					"objectId": "opsi.opsi.test",
+					"objectId": "DEPOT_ID",
 					"configId": TEST_CONFIG_STATES[0].configId,
 					"values": _values_to_str(TEST_CONFIG_STATES[0].values),
 					"origin": "default",
@@ -348,7 +348,7 @@ def _values_to_str(values: str | bool | list[Any] | None) -> str:
 			],
 			[
 				{
-					"objectId": "opsi.opsi.test",
+					"objectId": "DEPOT_ID",
 					"configId": TEST_CONFIG_STATES[0].configId,
 					"values": _values_to_str(TEST_CONFIG_STATES[0].values),
 					"origin": "default",
@@ -395,22 +395,28 @@ def test_config_state_list(
 		tmp_configs(admin_service_client, TEST_CONFIGS),
 		tmp_config_states(admin_service_client, TEST_CONFIG_STATES),
 	):
+		# process depot_id placeholders
+		depot_id = get_depot_id(admin_service_client)
+		for data_list in (expected_output, expected_values):
+			for entry in data_list or []:
+				if entry.get("objectId") == "DEPOT_ID":
+					entry["objectId"] = depot_id
+
 		exit_code, stdout, stderr = run_cli(command)
+		if expected_error:
+			assert exit_code != 0
+			assert_error_contains(stderr, expected_error)
+		else:
+			assert exit_code == 0
+			data = read_input_csv(stdout.encode("utf-8"))
+			assert data == expected_output
 
-	if expected_error:
-		assert exit_code != 0
-		assert_error_contains(stderr, expected_error)
-	else:
-		assert exit_code == 0
-		data = read_input_csv(stdout.encode("utf-8"))
-		assert data == expected_output
+		config_id = next((arg.split("=")[1] for arg in command if arg.startswith("configId=")), None)
+		object_id = next((arg.split("=")[1] for arg in command if arg.startswith("objectId=")), None)
 
-	config_id = next((arg.split("=")[1] for arg in command if arg.startswith("configId=")), None)
-	object_id = next((arg.split("=")[1] for arg in command if arg.startswith("objectId=")), None)
-
-	config_id = [] if config_id == "*" else config_id
-	object_id = [] if object_id == "*" else object_id
-	states = admin_service_client.configState_getObjects(configId=config_id, objectId=object_id)  # type: ignore[attr-defined]
-	if expected_output and config_id and object_id:
-		for state, expect in zip(states, expected_values):
-			assert state.__dict__ == expect
+		config_id = [] if config_id == "*" else config_id
+		object_id = [] if object_id == "*" else object_id
+		states = admin_service_client.configState_getObjects(configId=config_id, objectId=object_id)  # type: ignore[attr-defined]
+		if expected_output and config_id and object_id:
+			for state, expect in zip(states, expected_values):
+				assert state.__dict__ == expect
