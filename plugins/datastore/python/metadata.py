@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from opsicommon.types import (
 	forceBool,
 	forceConfigId,
+	forceDepotId,
 	forceHardwareAddress,
 	forceHostId,
 	forceIpAddress,
@@ -245,6 +246,14 @@ is_default = Attribute(
 	selected=False,
 	validator=lambda val: forceBool(val),
 )
+depot_id = Attribute(
+	id="depotId",
+	description="The ID of the depotserver.",
+	identifier=False,
+	data_type="str",
+	selected=False,
+	validator=lambda val: forceDepotId(val),
+)
 
 
 COMMAND_METADATA = {
@@ -261,6 +270,7 @@ COMMAND_METADATA = {
 			depot_values,
 			client_values,
 			origin,
+			depot_id,
 		]
 	),
 	"datastore_config-state_update": Metadata(attributes=[object_id, config_id, possible_values, previous_values, values]),
@@ -281,6 +291,7 @@ COMMAND_METADATA = {
 			depot_values,
 			client_values,
 			origin,
+			depot_id,
 		]
 	),
 	"datastore_product-client-state_list": Metadata(

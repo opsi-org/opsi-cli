@@ -9,8 +9,8 @@ from opsicommon.logging import get_logger
 from opsicommon.objects import Config, ConfigState
 
 from opsicli.decorators import dry_run_capable
-from opsicli.io import OutputType, console_print, get_separated_entries, write_output
-from opsicli.opsiservice import config, get_service_connection
+from opsicli.io import Metadata, OutputType, console_print, get_separated_entries, write_output
+from opsicli.opsiservice import ServiceClient, config, get_service_connection
 
 from .common import (
 	cli,
@@ -23,6 +23,133 @@ from .common import (
 from .metadata import COMMAND_METADATA
 
 logger = get_logger("opsicli")
+
+
+def _get_default_config_states(
+	service_connection: ServiceClient, object_ids: list[str], config_ids: list[str]
+) -> dict[str, dict[str, dict[str, Any]]]:
+	bool_attr = [filter.pop("multiValue", None), filter.pop("editable", None)]
+	normalized_bool_attr = [
+		True if value in ("True", "true", "1") else False if value in ("False", "false", "0") else None for value in bool_attr
+	]
+
+	default_config_objects = service_connection.config_getObjects(  # type: ignore[attr-defined]
+		id=config_ids,
+		type=filter.pop("type", None),
+		description=filter.pop("description", None),
+		multiValue=normalized_bool_attr[0],  # focreBool() is not enough; every string that is not empty will be true
+		editable=normalized_bool_attr[1],  # 							""
+		value=filter.pop("defaultValues", None),
+	)
+
+	default_states = {}
+	for object_id in object_ids:
+		default_states[object_id] = {}
+		for entry in default_config_objects:
+			default_states[object_id][entry.id] = {
+				"objectId": object_id,
+				"configId": entry.id,
+				"description": entry.description,
+				"multiValue": entry.multiValue,
+				"editable": entry.editable,
+				"values": entry.defaultValues,
+				"possibleValues": entry.possibleValues,
+				"defaultValues": entry.defaultValues,
+				"depotValues": "",
+				"clientValues": "",
+				"origin": "default",
+				"depotId": "",
+			}
+	return default_states
+
+
+def _update_default_states(
+	service_connection: ServiceClient,
+	client_to_depot: dict[str, str],
+	depot_ids: list[str],
+	config_ids: list[str],
+	default_states: dict[str, dict[str, dict[str, Any]]],
+) -> dict[str, dict[str, dict[str, Any]]]:
+
+	depot_config_states = service_connection.configState_getObjects(objectId=depot_ids, configId=config_ids)  # type: ignore[attr-defined]
+
+	# account for different depots
+	depot_lookup = {(s.objectId, s.configId): s.values for s in depot_config_states}
+
+	for object_id, config_id_dict in default_states.items():
+		assigned_depot_id = client_to_depot.get(object_id)
+		if not assigned_depot_id:
+			continue
+
+		for config_id, default_state in config_id_dict.items():
+			default_state["depotId"] = assigned_depot_id
+			if (assigned_depot_id, config_id) in depot_lookup:
+				depot_values = depot_lookup[(assigned_depot_id, config_id)]
+				default_state["depotValues"] = depot_values
+				default_state["origin"] = "depot"
+				if default_state["defaultValues"] != depot_values:
+					default_state["values"] = depot_values
+
+	return default_states
+
+
+def _update_depot_states(
+	service_connection: ServiceClient,
+	object_ids: list[str],
+	config_ids: list[str],
+	depot_states: dict[str, dict[str, dict[str, Any]]],
+) -> dict[str, dict[str, dict[str, Any]]]:
+
+	client_config_states = service_connection.configState_getObjects(objectId=object_ids, configId=config_ids)  # type: ignore[attr-defined]
+
+	for state in client_config_states:
+		if state.objectId in depot_states and state.configId in depot_states[state.objectId]:
+			target = depot_states[state.objectId][state.configId]
+			target["clientValues"] = state.values
+			target["origin"] = "client"
+			if target["defaultValues"] != state:
+				target["values"] = state.values
+
+	return depot_states
+
+
+def _update_database(data: list[dict[str, str]], config_states: list[ConfigState], metadata: Metadata) -> None:
+	service_connection = get_service_connection()
+
+	if config.dry_run:
+		msg = "Update skipped due to dry run. Here are the clients that would have been updated:\n"
+	else:
+		msg = "Config-state updated successfully. Here are the updated clients."
+		service_connection.configState_updateObjects(config_states)  # type: ignore[attr-defined]
+
+	console_print(msg, style="green", output_type=OutputType.MESSAGE)
+	write_output(data=sorted(data, key=lambda x: x["objectId"]), metadata=metadata)
+
+
+def _create_output_data(
+	config_obj: Config, config_states: list[ConfigState], current_values: dict[str, dict[str, str]]
+) -> list[dict[str, str]]:
+	updated_data = []
+	for state in config_states:
+		updated_data.append(
+			{
+				"objectId": state.objectId,
+				"configId": state.configId,
+				"possibleValues": config_obj.possibleValues,
+				"previousValues": current_values[state.objectId][state.configId],
+				"values": state.values,
+			}
+		)
+	return updated_data
+
+
+def _create_config_states(object_ids: list[str], config_id: str, values: list[str] | list[bool]) -> list[ConfigState]:
+	config_states = []
+
+	for obj_id in object_ids:
+		config_state = ConfigState(configId=config_id, objectId=obj_id, values=values)
+		config_states.append(config_state)
+	return config_states
 
 
 @cli.group(name="config-state", short_help="Configure config states.")
@@ -45,98 +172,6 @@ def list_config_state(where: tuple[str, ...]) -> None:
 	"""
 	View all configuration states or apply filters to narrow your search.
 	"""
-
-	def _get_default_config_states(object_ids: list[str], config_ids: list[str]) -> dict[str, dict[str, dict[str, Any]]]:
-		bool_attr = [filter.pop("multiValue", None), filter.pop("editable", None)]
-		normalized_bool_attr = [
-			True if value in ("True", "true", "1") else False if value in ("False", "false", "0") else None for value in bool_attr
-		]
-
-		try:
-			default_config_objects = service_connection.config_getObjects(  # type: ignore[attr-defined]
-				id=config_ids,
-				type=filter.pop("type", None),
-				description=filter.pop("description", None),
-				multiValue=normalized_bool_attr[0],  # focreBool() is not enough; every string that is not empty will be true
-				editable=normalized_bool_attr[1],  # 							""
-				value=filter.pop("defaultValues", None),
-			)
-		except Exception as e:
-			raise ValueError(f"Invalid value in at least one filter condition.\n\n{e}")
-
-		default_states = {}
-		for object_id in object_ids:
-			default_states[object_id] = {}
-			for entry in default_config_objects:
-				default_states[object_id][entry.id] = {
-					"objectId": object_id,
-					"configId": entry.id,
-					"description": entry.description,
-					"multiValue": entry.multiValue,
-					"editable": entry.editable,
-					"values": entry.defaultValues,
-					"possibleValues": entry.possibleValues,
-					"defaultValues": entry.defaultValues,
-					"depotValues": "",
-					"clientValues": "",
-					"origin": "default",
-				}
-		return default_states
-
-	def _update_default_states(
-		client_to_depot: dict[str, str],
-		depot_ids: list[str],
-		config_ids: list[str],
-		default_states: dict[str, dict[str, dict[str, Any]]],
-	) -> dict[str, dict[str, dict[str, Any]]]:
-
-		try:
-			depot_config_states = service_connection.configState_getObjects(  # type: ignore[attr-defined]
-				objectId=depot_ids, configId=config_ids if filter.pop("objectId", None) != "*" else None
-			)
-		except Exception as e:
-			raise ValueError(f"Invalid value in at least one filter condition.\n\n{e}")
-
-		# account for different depots
-		depot_lookup = {(s.objectId, s.configId): s.values for s in depot_config_states}
-
-		for object_id, config_id_dict in default_states.items():
-			assigned_depot_id = client_to_depot.get(object_id)
-			if not assigned_depot_id:
-				continue
-
-			for config_id, default_state in config_id_dict.items():
-				if (assigned_depot_id, config_id) in depot_lookup:
-					depot_values = depot_lookup[(assigned_depot_id, config_id)]
-					default_state["depotValues"] = depot_values
-					default_state["origin"] = "depot"
-					if default_state["defaultValues"] != depot_values:
-						default_state["values"] = depot_values
-
-		return default_states
-
-	def _update_depot_states(
-		object_ids: list[str],
-		config_ids: list[str],
-		depot_states: dict[str, dict[str, dict[str, Any]]],
-	) -> dict[str, dict[str, dict[str, Any]]]:
-
-		try:
-			client_config_states = service_connection.configState_getObjects(  # type: ignore[attr-defined]
-				objectId=object_ids, configId=config_ids
-			)
-		except Exception as e:
-			raise ValueError(f"Invalid value in at least one filter condition.\n\n{e}")
-
-		for state in client_config_states:
-			if state.objectId in depot_states and state.configId in depot_states[state.objectId]:
-				target = depot_states[state.objectId][state.configId]
-				target["clientValues"] = state.values
-				target["origin"] = "client"
-				if target["defaultValues"] != state:
-					target["values"] = state.values
-
-		return depot_states
 
 	service_connection = get_service_connection()
 	metadata = COMMAND_METADATA["datastore_config-state_list"]
@@ -196,42 +231,6 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	"""
 	Change values of config states.
 	"""
-
-	def _update_database(data: list[dict[str, str]], config_states: list[ConfigState]) -> None:
-		service_connection = get_service_connection()
-
-		if config.dry_run:
-			msg = "Update skipped due to dry run. Here are the clients that would have been updated:\n"
-		else:
-			msg = "Config-state updated successfully. Here are the updated clients."
-			service_connection.configState_updateObjects(config_states)  # type: ignore[attr-defined]
-
-		console_print(msg, style="green", output_type=OutputType.MESSAGE)
-		write_output(data=sorted(data, key=lambda x: x["objectId"]), metadata=metadata)
-
-	def _create_output_data(
-		config_obj: Config, config_states: list[ConfigState], current_values: dict[str, dict[str, str]]
-	) -> list[dict[str, str]]:
-		updated_data = []
-		for state in config_states:
-			updated_data.append(
-				{
-					"objectId": state.objectId,
-					"configId": state.configId,
-					"possibleValues": config_obj.possibleValues,
-					"previousValues": current_values[state.objectId][state.configId],
-					"values": state.values,
-				}
-			)
-		return updated_data
-
-	def _create_config_states(object_ids: list[str], config_id: str, values: list[str] | list[bool]) -> list[ConfigState]:
-		config_states = []
-
-		for obj_id in object_ids:
-			config_state = ConfigState(configId=config_id, objectId=obj_id, values=values)
-			config_states.append(config_state)
-		return config_states
 
 	service_connection = get_service_connection()
 	metadata = COMMAND_METADATA["datastore_config-state_update"]

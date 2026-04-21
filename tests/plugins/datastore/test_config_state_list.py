@@ -405,6 +405,8 @@ def test_config_state_list(
 		exit_code, stdout, stderr = run_cli(command)
 		if expected_output:
 			expected_output = sorted(expected_output, key=lambda x: x["objectId"])
+		if expected_values:
+			expected_values = sorted(expected_values, key=lambda x: x["objectId"])
 		if expected_error:
 			assert exit_code != 0
 			assert_error_contains(stderr, expected_error)

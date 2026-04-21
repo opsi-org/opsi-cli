@@ -518,6 +518,8 @@ def test_config_state_update(
 					entry["objectId"] = depot_id
 		if expected_output:
 			expected_output = sorted(expected_output, key=lambda x: x["objectId"])
+		if expected_values:
+			expected_values = sorted(expected_values, key=lambda x: x["objectId"])
 		exit_code, stdout, stderr = run_cli(command)
 		if expected_error:
 			assert exit_code != 0
