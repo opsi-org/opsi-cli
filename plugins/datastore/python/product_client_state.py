@@ -60,7 +60,7 @@ PRODUCT_CLIENT_STATE_VALUE_STYLES = {
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter product-client-states.",
+	help="Filter product-client-states by their attributes.",
 )
 @click.option(
 	"--all",

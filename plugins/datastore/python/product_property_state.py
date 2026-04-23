@@ -139,7 +139,7 @@ def product_property_state() -> None:
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter product-property-states.",
+	help="Filter product-property-states by their attributes.",
 )
 @click.option(
 	"--all",

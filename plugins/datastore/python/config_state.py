@@ -165,7 +165,7 @@ def config_state() -> None:
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter config-states.",
+	help="Filter config-states by their attributes.",
 )
 @click.option(
 	"--all",
@@ -230,7 +230,7 @@ def list_config_state(where: tuple[str, ...], all: bool) -> None:
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter config-states.",
+	help="Filter config-states by their attributes.",
 )
 @click.option(
 	"--set",

@@ -35,7 +35,7 @@ def product() -> None:
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter products.",
+	help="Filter products by product and depot ID.",
 )
 @click.option(
 	"--all",
@@ -85,7 +85,7 @@ def product_unlock(where: tuple[str, ...], all: bool) -> None:
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter products.",
+	help="Filter products by their ID.",
 )
 @click.option(
 	"--all",

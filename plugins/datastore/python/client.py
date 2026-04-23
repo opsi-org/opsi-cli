@@ -74,7 +74,7 @@ def client() -> None:
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter clients.",
+	help="Filter clients by their attributes.",
 )
 @click.option(
 	"--all",
@@ -117,7 +117,7 @@ def apply_clients() -> None:
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter clients.",
+	help="Filter clients by their attributes.",
 )
 @dry_run_capable
 def edit_clients(where: tuple[str, ...]) -> None:
@@ -159,7 +159,7 @@ def edit_clients(where: tuple[str, ...]) -> None:
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter clients.",
+	help="Filter clients by their attributes.",
 )
 @click.option(
 	"--set",
