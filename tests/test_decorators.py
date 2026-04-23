@@ -20,5 +20,6 @@ def test_dry_run_support_note() -> None:
 
 @pytest.mark.parametrize("command", ("client", "config-state", "product-client-state", "product-property-state"))
 def test_mutually_exclusive(command: str) -> None:
-	exit_code, stdout, _stderr = run_cli(["datastore", command, "list", "--where", "--all"])
-	assert assert_error_contains(_stderr, ("The options", "--where", "--all", "are mutually exclusive"))
+	exit_code, stdout, _stderr = run_cli(["datastore", command, "list", "--where", "objectId=j*", "--all"])
+	assert exit_code != 0
+	assert_error_contains(_stderr, ("The options", "--where", "--all", "are mutually", "exclusive"))

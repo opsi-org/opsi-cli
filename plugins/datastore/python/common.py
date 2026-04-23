@@ -46,7 +46,7 @@ def general_help_for_where(
 
 	general_help = (
 		'Use one or more `[bold]--where "<attribute><operator><value>"[/]` options to define the filter.\n'
-		'If you intentionally do not want to filter by an attribute, use: `[bold]--where "<attribute>=*"[/]`.\n\n'
+		"If you intentionally do not want to filter by an attribute, use: `[bold]--all[/]`.\n\n"
 		"Available attributes are:\n"
 	)
 	max_attr_len = max(len(attr.id) for attr in available_attributes)
