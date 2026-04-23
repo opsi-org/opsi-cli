@@ -3,7 +3,7 @@
 # All rights reserved.
 # License: AGPL-3.0-only
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from typing import cast
 
@@ -13,20 +13,20 @@ from opsicommon.objects import ProductOnClient
 from opsicommon.types import forceActionRequest, forceInstallationStatus
 
 from opsicli.config import config
-from opsicli.decorators import dry_run_capable
-from opsicli.io import OutputType, console_print, read_input, write_output
+from opsicli.decorators import dry_run_capable, mutually_exclusive
+from opsicli.io import OutputType, console_print, get_separated_entries, read_input, write_output
 from opsicli.opsiservice import get_service_connection
 
-from .common import cli, get_depot_to_clients, get_object_ids
+from .common import cli, filter_by_attributes, get_depot_to_clients, process_where
 from .metadata import COMMAND_METADATA
 
 logger = get_logger("opsicli")
 
 
-@cli.group(name="product-client-state", short_help="Product states on clients.")
+@cli.group(name="product-client-state", short_help="Manage product states of clients.")
 def product_client_state() -> None:
 	"""
-	View and change product states on clients.
+	View and change product states of clients.
 	"""
 	pass
 
@@ -55,56 +55,45 @@ PRODUCT_CLIENT_STATE_VALUE_STYLES = {
 }
 
 
-@product_client_state.command(name="list", short_help="List client product states.")
+@product_client_state.command(name="list", short_help="List product states of clients.")
 @click.option(
-	"--client-ids",
+	"--where",
 	type=str,
-	required=True,
-	help="Filter by client ID(s). Use commas as separators and 'all' to include all IDs. Wildcards (*) are supported.",
+	multiple=True,
+	help="Filter product-client-states by their attributes.",
 )
 @click.option(
-	"--product-ids",
-	type=str,
-	required=True,
-	help="Filter by product ID(s). Use commas as separators and 'all' to include all IDs. Wildcards (*) are supported.",
+	"--all",
+	is_flag=True,
+	help="Show every product state for every client.",
 )
-@click.option(
-	"--installation-statuses",
-	type=str,
-	default="all",
-	help=(
-		"Filter by installation statuses. Use commas as separators and 'all' to include all statuses. "
-		"Possible values are: 'installed', 'not_installed', 'unknown', 'all'."
-	),
-)
-@click.option(
-	"--action-requests",
-	type=str,
-	default="all",
-	help=(
-		"Filter by action requests. Use commas as separators and 'all' to include all action requests. "
-		"Possible values are: 'setup', 'uninstall', 'update', 'always', 'once', 'custom', 'none', 'all'."
-	),
-)
-def list_product_client_state(client_ids: str, product_ids: str, installation_statuses: str, action_requests: str) -> None:
+@mutually_exclusive("where", "all")
+def list_product_client_state(where: tuple[str, ...], all: bool) -> None:
 	"""
-	View product states on clients.
+	List all product states or apply filters to narrow the result.
 	"""
 	service_connection = get_service_connection()
-	filter_client_ids = get_object_ids(service_connection, client_ids)
-	filter_product_ids = None if product_ids == "all" else [item.strip() for item in product_ids.split(",")]
+	metadata = COMMAND_METADATA["datastore_product-client-state_list"]
+	if not all:
+		filter = process_where(where, attributes=metadata.attributes, operation="list")
+		filter = {k: (v if v != "*" else "") for k, v in filter.items()}  # process wildcards
+	else:
+		filter = {}
 
-	tmp_list = [item.strip() for item in installation_statuses.split(",")]
-	filter_installation_statuses = (
-		["installed", "not_installed", "unknown"] if "all" in tmp_list else [forceInstallationStatus(item) for item in tmp_list]
-	)
+	filter_client_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("clientId", None)), type="OpsiClient")  # type: ignore[attr-defined]
+	filter_product_ids = get_separated_entries(filter.pop("productId", None))
 
-	tmp_list = [item.strip() for item in action_requests.split(",")]
-	filter_action_requests = (
-		["setup", "uninstall", "update", "always", "once", "custom", "none"]
-		if "all" in tmp_list
-		else [forceActionRequest(item) for item in tmp_list]
-	)
+	tmp_list = get_separated_entries(filter.pop("installationStatus", None))
+	if not tmp_list:
+		filter_installation_statuses = ["installed", "not_installed", "unknown"]
+	else:
+		filter_installation_statuses = [forceInstallationStatus(item) for item in tmp_list]
+
+	tmp_list = get_separated_entries(filter.pop("actionRequest", None))
+	if not tmp_list:
+		filter_action_requests = ["setup", "uninstall", "update", "always", "once", "custom", "none"]
+	else:
+		filter_action_requests = [forceActionRequest(item) for item in tmp_list]
 
 	product_states: dict[str, ProductClientState] = {}
 	if "none" in filter_action_requests and "not_installed" in filter_installation_statuses:
@@ -138,18 +127,27 @@ def list_product_client_state(client_ids: str, product_ids: str, installation_st
 			modificationTime=datetime.fromisoformat(f"{poc.modificationTime}Z") if poc.modificationTime else None,
 		)
 
+	# filter by remaining attributes
+	result_as_dicts = [asdict(state) for state in product_states.values()]
+	filtered_data = filter_by_attributes(data=result_as_dicts, attributes=metadata.attributes, filter=filter)
+
+	# empty result
+	if not filtered_data:
+		raise ValueError("No product-client-states found matching the filtering criteria.")
+
 	write_output(
-		data=list(product_states.values()),
+		# data=sorted(filtered_data, key=lambda x: x["clientId"]),
+		data=filtered_data,
 		metadata=COMMAND_METADATA.get("datastore_product-client-state_list"),
 		value_styles=PRODUCT_CLIENT_STATE_VALUE_STYLES,
 	)
 
 
-@product_client_state.command(name="update", short_help="Update client product states.")
+@product_client_state.command(name="update", short_help="Update product states of clients.")
 @dry_run_capable
 def update_product_client_state() -> None:
 	"""
-	Update product states on clients.
+	Update product states of clients.
 	"""
 	data = read_input()
 	if not data:
@@ -171,6 +169,8 @@ def update_product_client_state() -> None:
 			)
 		)
 
+	if not pcs:
+		raise ValueError("No product-client-states found matching the filtering criteria.")
 	if config.dry_run:
 		msg = "Update skipped due to dry run. Here are the product client states that would have been updated:\n"
 	else:

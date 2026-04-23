@@ -12,7 +12,7 @@ from opsicommon.client.opsiservice import ServiceClient
 from opsicommon.objects import OpsiClient
 
 from opsicli.io import read_input_csv
-from tests.utils import run_cli, tmp_clients
+from tests.utils import assert_error_contains, run_cli, tmp_clients
 
 TEST_CLIENTS = [
 	OpsiClient(
@@ -28,11 +28,6 @@ TEST_CLIENTS = [
 		id="pytest-client21.test.tld", description="desc 21", inventoryNumber="inv-0021", created="2024-01-01", lastSeen="2025-06-01"
 	),
 ]
-
-
-def assert_error_contains(stderr: str, expected_parts: tuple[str, ...]) -> None:
-	for part in expected_parts:
-		assert part in stderr, f"Expected {part!r} in stderr, got: {stderr}"
 
 
 @pytest.mark.opsi_service

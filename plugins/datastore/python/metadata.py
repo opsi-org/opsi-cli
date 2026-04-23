@@ -2,10 +2,24 @@
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
-
+from dataclasses import replace
 from datetime import datetime, timezone
 
-from opsicommon.types import forceHardwareAddress, forceHostId, forceIpAddress, forceOpsiHostKey, forceOpsiTimestamp, forceUUIDString
+from opsicommon.types import (
+	forceBool,
+	forceConfigId,
+	forceHardwareAddress,
+	forceHostId,
+	forceIpAddress,
+	forceObjectId,
+	forceOpsiHostKey,
+	forceOpsiTimestamp,
+	forcePackageVersion,
+	forceProductId,
+	forceProductPropertyId,
+	forceProductVersion,
+	forceUUIDString,
+)
 
 from opsicli.io import Attribute, Metadata
 
@@ -102,102 +116,217 @@ CLIENT_METADATA = Metadata(
 	]
 )
 
+object_id = Attribute(
+	id="objectId",
+	description="The ID of the object.",
+	identifier=True,
+	data_type="str",
+	selected=True,
+	validator=lambda val: forceObjectId(val),
+)
+config_id = Attribute(
+	id="configId",
+	description="The ID of the config.",
+	identifier=True,
+	data_type="str",
+	selected=True,
+	validator=lambda val: forceConfigId(val),
+)
+description = Attribute(
+	id="description",
+	description="The description of the state.",
+	identifier=False,
+	data_type="str",
+	selected=False,
+	validator=lambda val: str(val),
+)
+multi_value = Attribute(
+	id="multiValue",
+	description="Indicates if given state accepts multi-values.",
+	identifier=False,
+	data_type="bool",
+	selected=False,
+	validator=lambda val: forceBool(val),
+)
+editable = Attribute(
+	id="editable",
+	description="Indicates if given state is editable.",
+	identifier=False,
+	data_type="bool",
+	selected=False,
+	validator=lambda val: forceBool(val),
+)
+values = Attribute(
+	id="values",
+	description="The current effective value for this state.",
+	identifier=False,
+	data_type="str | bool",
+	selected=True,
+)
+possible_values = Attribute(
+	id="possibleValues",
+	description="Possible values of the state.",
+	identifier=False,
+	data_type="str | bool",
+	selected=False,
+)
+default_values = Attribute(
+	id="defaultValues",
+	description="Default values of the state.",
+	identifier=False,
+	data_type="str | bool",
+	selected=False,
+)
+type = Attribute(
+	id="type",
+	description="The type of the state object. (Bool/Unicode)",
+	identifier=False,
+	data_type="str | bool",
+	selected=False,
+)
+depot_values = Attribute(
+	id="depotValues",
+	description="Depot values of the state.",
+	identifier=False,
+	data_type="str | bool",
+	selected=False,
+)
+client_values = Attribute(
+	id="clientValues",
+	description="Client values of the state.",
+	identifier=False,
+	data_type="str | bool",
+	selected=False,
+)
+origin = Attribute(id="origin", description="Location where the change has been made.", identifier=False, data_type="str", selected=True)
+previous_values = Attribute(
+	id="previousValues",
+	description="Values before change.",
+	identifier=False,
+	data_type="str | bool",
+	selected=True,
+)
+product_id = Attribute(
+	id="productId",
+	description="The ID of the product.",
+	identifier=True,
+	data_type="str",
+	selected=True,
+	validator=lambda val: forceProductId(val),
+)
+property_id = Attribute(
+	id="propertyId",
+	description="The ID of the property.",
+	identifier=True,
+	data_type="str",
+	selected=True,
+	validator=lambda val: forceProductPropertyId(val),
+)
+product_version = Attribute(
+	id="productVersion",
+	description="The product version of the state.",
+	identifier=False,
+	data_type="str",
+	selected=False,
+	validator=lambda val: forceProductVersion(val),
+)
+package_version = Attribute(
+	id="packageVersion",
+	description="The package version of the state.",
+	identifier=False,
+	data_type="str",
+	selected=False,
+	validator=lambda val: forcePackageVersion(val),
+)
+is_default = Attribute(
+	id="isDefault",
+	description="Indicates if values are default.",
+	identifier=False,
+	data_type="str",
+	selected=False,
+	validator=lambda val: forceBool(val),
+)
+depot_id = Attribute(
+	id="depotId",
+	description="The ID of the depotserver.",
+	identifier=False,
+	data_type="str",
+	selected=False,
+	validator=lambda val: forceObjectId(val),
+)
+client_id = Attribute(id="clientId", description="The ID of the client.", identifier=True, data_type="str", selected=True)
+product_type = Attribute(id="productType", description="The type of the product.", identifier=True, data_type="str", selected=True)
+installation_status = Attribute(
+	id="installationStatus",
+	description="The installation status of the product.",
+	identifier=False,
+	data_type="str",
+	selected=True,
+)
+action_request = Attribute(
+	id="actionRequest", description="The action request of the product.", identifier=False, data_type="str", selected=True
+)
+modification_time = Attribute(
+	id="modificationTime",
+	description="The last modification time of the product state.",
+	identifier=False,
+	data_type="datetime",
+	selected=True,
+)
+
+
 COMMAND_METADATA = {
 	"datastore_config-state_list": Metadata(
 		attributes=[
-			Attribute(id="objectId", description="The ID of the object (host).", identifier=False, data_type="str", selected=True),
-			Attribute(id="configId", description="The ID of the config.", identifier=False, data_type="str", selected=True),
-			Attribute(
-				id="default_values",
-				description="Values of given Config.",
-				identifier=False,
-				data_type="str | bool",
-				selected=False,
-			),
-			Attribute(
-				id="depot_values",
-				description="Values of given config state.",
-				identifier=False,
-				data_type="str | bool",
-				selected=False,
-			),
-			Attribute(
-				id="client_values",
-				description="Values of given config state.",
-				identifier=False,
-				data_type="str | bool",
-				selected=False,
-			),
-			Attribute(
-				id="final_values",
-				description="Values of given config state.",
-				identifier=False,
-				data_type="str | bool",
-				selected=True,
-				column_style="green",
-			),
-			Attribute(id="origin", description="Location where the change was made.", identifier=False, data_type="str", selected=True),
+			object_id,
+			config_id,
+			description,
+			multi_value,
+			editable,
+			values,
+			possible_values,
+			default_values,
+			depot_values,
+			client_values,
+			origin,
+			depot_id,
 		]
 	),
+	"datastore_config-state_update": Metadata(attributes=[object_id, config_id, possible_values, previous_values, values]),
 	"datastore_product-property-state_list": Metadata(
 		attributes=[
-			Attribute(id="objectId", description="The ID of the object.", identifier=False, data_type="str", selected=True),
-			Attribute(id="productId", description="The ID of the product.", identifier=False, data_type="str", selected=True),
-			Attribute(id="propertyId", description="The ID of the property.", identifier=False, data_type="str", selected=True),
-			Attribute(
-				id="default_values",
-				description="Values of given property.",
-				identifier=False,
-				data_type="str | bool",
-				selected=False,
-			),
-			Attribute(id="depot_values", description="Values of given property.", identifier=False, data_type="str | bool", selected=False),
-			Attribute(
-				id="client_values", description="Values of given property.", identifier=False, data_type="str | bool", selected=False
-			),
-			Attribute(
-				id="final_values",
-				description="Values of given property.",
-				identifier=False,
-				data_type="str | bool",
-				selected=True,
-				column_style="green",
-			),
-			Attribute(
-				id="origin",
-				description="Location where the change was made.",
-				identifier=False,
-				data_type="str",
-				selected=True,
-			),
+			object_id,
+			product_id,
+			property_id,
+			product_version,
+			package_version,
+			type,
+			description,
+			editable,
+			multi_value,
+			values,
+			is_default,
+			default_values,
+			depot_values,
+			client_values,
+			origin,
+			depot_id,
 		]
 	),
 	"datastore_product-client-state_list": Metadata(
 		attributes=[
-			Attribute(id="clientId", description="The ID of the client.", identifier=True, data_type="str", selected=True),
-			Attribute(id="productId", description="The ID of the product.", identifier=True, data_type="str", selected=True),
-			Attribute(id="productType", description="The type of the product.", identifier=True, data_type="str", selected=True),
-			Attribute(id="productVersion", description="The installed product version.", identifier=False, data_type="str", selected=True),
-			Attribute(id="packageVersion", description="The installed package version.", identifier=False, data_type="str", selected=True),
-			Attribute(
-				id="installationStatus",
-				description="The installation status of the product.",
-				identifier=False,
-				data_type="str",
-				selected=True,
-			),
-			Attribute(
-				id="actionRequest", description="The action request of the product.", identifier=False, data_type="str", selected=True
-			),
-			Attribute(
-				id="modificationTime",
-				description="The last modification time of the product state.",
-				identifier=False,
-				data_type="datetime",
-				selected=True,
-			),
+			client_id,
+			product_id,
+			product_type,
+			replace(product_version, selected=True),
+			replace(package_version, selected=True),
+			installation_status,
+			action_request,
+			modification_time,
 		]
 	),
+	"datastore_product_unlock": Metadata(attributes=[product_id, replace(depot_id, identifier=True)]),
+	"datastore_product_purge": Metadata(attributes=[product_id]),
 	"datastore_client_apply": CLIENT_METADATA,
 	"datastore_client_edit": CLIENT_METADATA,
 	"datastore_client_list": CLIENT_METADATA,

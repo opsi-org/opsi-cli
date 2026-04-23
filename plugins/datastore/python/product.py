@@ -10,71 +10,112 @@ config-states subcommand
 """
 
 import rich_click as click
-from opsicommon.exceptions import BackendMissingDataError
 from opsicommon.logging import get_logger
 
-from opsicli.io import OutputType, console_print
-from opsicli.opsiservice import get_service_connection
+from opsicli.decorators import dry_run_capable, mutually_exclusive
+from opsicli.io import OutputType, console_print, get_separated_entries
+from opsicli.opsiservice import config, get_service_connection
 
-from .common import cli
+from .common import cli, process_where
+from .metadata import COMMAND_METADATA
 
 logger = get_logger("opsicli")
 
 
-@cli.group(name="product", short_help="Configure products.")
+@cli.group(name="product", short_help="Manage products.")
 def product() -> None:
 	"""
-	Configure products.
+	Manage products.
 	"""
 	pass
 
 
 @product.command(name="unlock", short_help="Unlock products on depots.")
 @click.option(
-	"--product-ids",
+	"--where",
 	type=str,
-	default=None,
-	help="Specify the product ID(s) to unlock, using a comma-separated list for multiple entries.",
+	multiple=True,
+	help="Filter products by product and depot ID.",
 )
 @click.option(
-	"--depot-ids",
-	type=str,
-	default=None,
-	help="Specify the target depot ID(s) for product unlocking, using a comma-separated list for multiple entries.",
+	"--all",
+	is_flag=True,
+	help="Unlock every product.",
 )
-def product_unlock(product_ids: str | None = None, depot_ids: str | None = None) -> None:
+@mutually_exclusive("all", "where")
+@dry_run_capable
+def product_unlock(where: tuple[str, ...], all: bool) -> None:
 	"""
 	Remove locks from products on specified depots.
 	"""
 
 	# Helper function, get products, unlock them, update them
 	def unlock_and_update(product_ids: list[str], depot_ids: list[str]) -> None:
+		service_connection = get_service_connection()
 		product_on_depots = service_connection.productOnDepot_getObjects(productId=product_ids, depotId=depot_ids or [])  # type: ignore[attr-defined]
+
+		# empty result
 		if not product_on_depots:
 			logger.error("No such depot(s): %s", depot_ids)
-			raise BackendMissingDataError(f"No such depot(s): {depot_ids}")
+			raise ValueError("No products found matching the filtering criteria.")
 		for product_on_depot in product_on_depots:
 			product_on_depot.locked = False
 		service_connection.productOnDepot_updateObjects(product_on_depots)  # type: ignore[attr-defined]
 
-	service_connection = get_service_connection()
-	product_ids_list = [p.strip() for p in (product_ids or "").split(",") if p.strip()]
-	depot_ids_list = [d.strip() for d in (depot_ids or "").split(",") if d.strip()]
-	unlock_and_update(product_ids_list, depot_ids_list)  # type: ignore[invalid-argument-type]
+	if not all:
+		filter = process_where(where, attributes=COMMAND_METADATA["datastore_product_unlock"].attributes, operation="unlock")
+		filter = {k: (v if v != "*" else None) for k, v in filter.items()}
+	else:
+		filter = {}
+
+	product_ids_list = get_separated_entries(filter.pop("productId", None))
+	depot_ids_list = get_separated_entries(filter.pop("depotId", None))
+
+	if config.dry_run:
+		msg = f"Unlocking skipped due to dry run. Here are the products that would have been unlocked:\n{product_ids_list}"
+	else:
+		unlock_and_update(product_ids_list, depot_ids_list)
+		msg = f"Products unlocked successfully. Here are the unlocked products:\n{product_ids_list}"
+
+	console_print(msg, style="green", output_type=OutputType.MESSAGE)
 
 
 @product.command(name="purge", short_help="Purge metadata related to uninstalled products.")
 @click.option(
-	"--product-ids",
+	"--where",
 	type=str,
-	default=None,
-	help="Specify the product ID(s) to unlock, using a comma-separated list for multiple entries.",
+	multiple=True,
+	help="Filter products by their ID.",
 )
-def product_purge(product_ids: str | None = None) -> None:
+@click.option(
+	"--all",
+	is_flag=True,
+	help="Show every product property state for every client.",
+)
+@dry_run_capable
+@mutually_exclusive("all", "where")
+def product_purge(where: tuple[str, ...], all: bool) -> None:
 	"""
 	Remove metadata associated with uninstalled products, such as installation status and product property states.
 
 	"""
-	product_id_list = [p.strip() for p in (product_ids or "").split(",") if p.strip()]
-	get_service_connection().product_purge(id=product_id_list)  # type: ignore[attr-defined]
-	console_print("Product metadata purged successfully.", output_type=OutputType.MESSAGE)
+	service_connection = get_service_connection()
+
+	if not all:
+		filter = process_where(where, attributes=COMMAND_METADATA["datastore_product_purge"].attributes, operation="purge")
+		filter = {k: (v if v != "*" else "") for k, v in filter.items()}  # process wildcards
+	else:
+		filter = {}
+	product_id_list = service_connection.product_getIdents(get_separated_entries(filter.pop("productId", None)))  # type: ignore[attr-defined]
+
+	# empty result
+	if not product_id_list:
+		raise ValueError("No products found matching the filtering criteria.")
+
+	if config.dry_run:
+		msg = f"Purge skipped due to dry run. Here are the products that would have been purged:\n{product_id_list}"
+	else:
+		msg = f"Products purged successfully. Here are the purged products:\n{product_id_list}"
+		service_connection.product_purge(id=product_id_list)  # type: ignore[attr-defined]
+
+	console_print(msg, style="green", output_type=OutputType.MESSAGE)

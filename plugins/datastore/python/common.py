@@ -2,34 +2,22 @@
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
-
 import re
-from typing import Literal
+from typing import Any, Literal
 
 import rich_click as click
 from opsicommon.logging import get_logger
+from opsicommon.objects import BoolConfig, UnicodeConfig
+from opsicommon.types import forceBoolList
 
 from opsicli.cli_helpers import OPSICLIGroup
-from opsicli.io import Attribute
+from opsicli.io import Attribute, get_separated_entries
 from opsicli.opsiservice import ServiceClient
 
 logger = get_logger("opsicli")
 
 __version__ = "0.1.0"
 __description__ = "This command can be used to manage data and objects"
-
-
-# handle comma separated object-ids
-def get_object_ids(
-	service_connection: ServiceClient,
-	object_ids: str,
-	type: str = "OpsiClient",
-) -> list[str]:
-	object_id_list = [item.strip() for item in object_ids.split(",")]
-	if "all" in object_id_list:
-		host_objects = service_connection.host_getObjects(id=[], type=type)  # type: ignore[attr-defined]
-		return [obj.id for obj in host_objects]
-	return service_connection.host_getIdents(id=object_id_list)  # type: ignore[attr-defined]
 
 
 def create_client_depot_mapping(service_connection: ServiceClient, object_ids: list[str] | None = None) -> dict[str, str]:
@@ -57,9 +45,7 @@ def general_help_for_where(
 	missing_attributes = missing_attributes or []
 
 	general_help = (
-		'Use one or more `[bold]--where "<attribute><operator><value>"[/]` options to define the filter.\n'
-		'If you intentionally do not want to filter by an attribute, use: `[bold]--where "<attribute>=*"[/]`.\n\n'
-		"Available attributes are:\n"
+		'Use one or more `[bold]--where "<attribute><operator><value>"[/]` options to define the filter.\nAvailable attributes are:\n'
 	)
 	max_attr_len = max(len(attr.id) for attr in available_attributes)
 	max_type_len = max(len(str(attr.data_type)) for attr in available_attributes)
@@ -76,10 +62,12 @@ def general_help_for_where(
 	return general_help
 
 
-def process_where(where: tuple[str, ...], *, attributes: list[Attribute], operation: Literal["list", "update"] = "list") -> dict[str, str]:
+def process_where(
+	where: tuple[str, ...], *, attributes: list[Attribute], operation: Literal["list", "update", "unlock", "purge"] = "list"
+) -> dict[str, str]:
 	where = where or tuple()
-	available_attributes = [a.id for a in attributes]
-	condition_pattern = re.compile(r"^([a-zA-Z]+)\s*(<|<=|=|>=|>)\s*(.*)$")
+	condition_pattern = re.compile(r"^([a-zA-Z_]+)\s*(<|<=|=|>=|>)\s*(.*)$")
+	available_attributes_by_id = {attr.id: attr for attr in attributes}
 	general_help = general_help_for_where(available_attributes=attributes)
 
 	filter: dict[str, str] = {}
@@ -94,31 +82,38 @@ def process_where(where: tuple[str, ...], *, attributes: list[Attribute], operat
 				f"{general_help}"
 			)
 		attr, operator, value = match.groups()
-		if attr not in available_attributes:
+		attribute = available_attributes_by_id.get(attr)
+		# validate the attribute
+		if not attribute:
 			raise ValueError(f"Invalid attribute in filter condition: `[bold][red]{attr}[/red]={value}[/]`.\n\n{general_help}")
-		filter[attr] = value
+
+		# combine values if the attribute name is equal // "objectId=jenkins1" "objectId=jenkins2" => {"objectId": "jenkin1, jenkin2"})
+		if attr in filter:
+			filter[attr] = f"{filter[attr]}, {value}"
+		else:
+			filter[attr] = value
 
 	id_attributes = [attr for attr in attributes if attr.identifier]
 	missing_attributes = []
-	if operation == "update":
+	if operation in ("update", "unlock", "purge"):
 		missing_attributes = [attr.id for attr in id_attributes if attr.id not in filter]
 
-	if not filter or (operation == "update" and missing_attributes):
-		general_help = general_help_for_where(
-			available_attributes=attributes, used_attributes=list(filter), missing_attributes=missing_attributes
-		)
-		if not filter:
-			raise ValueError(
-				f"At least one filter condition is required to prevent unintentional retrieval of large amounts of data.\n\n{general_help}"
-			)
-
+	general_help = general_help_for_where(
+		available_attributes=attributes, used_attributes=list(filter), missing_attributes=missing_attributes
+	)
+	if operation == "list" and not filter:
 		raise ValueError(
-			"Incomplete filter for update operation.\n\n"
+			"At least one filter condition is required to prevent unintentional retrieval of large amounts of data.\n"
+			"If you intentionally do not want to filter by an attribute, use: `[bold]--all[/]`.\n\n"
 			f"{general_help}"
-			"\nOn update operations, the filter must contain all identifier attributes.\n"
+		)
+	if (operation == "update" or operation == "unlock") and missing_attributes:
+		raise ValueError(
+			f"Incomplete filter for {operation} operation.\n\n"
+			f"{general_help}"
+			f"\nOn {operation} operations, the filter must contain all identifier attributes.\n"
 			f"Missing required attributes: [bold red]{', '.join(missing_attributes)}[/]"
 		)
-
 	return filter
 
 
@@ -138,14 +133,15 @@ def general_help_for_set(available_attributes: list[Attribute]) -> str:
 
 def process_set(set: tuple[str, ...], *, attributes: list[Attribute]) -> dict[str, str]:
 	set = set or tuple()
-	set_pattern: re.Pattern[str] = re.compile(r"^([a-zA-Z]+)\s*=\s*(.*)$")
-	attributes_by_id = {attr.id: attr for attr in attributes if not attr.identifier}
+	set_pattern: re.Pattern[str] = re.compile(r"^([a-zA -Z]+)\s*=\s*(.*)$")
+	attributes_by_id = {attr.id: attr for attr in attributes if not attr.identifier}  # attributes with identifier shouldn't be changed
 	general_help = general_help_for_set(available_attributes=list(attributes_by_id.values()))
 
 	if not set:
 		raise ValueError(f"No attributes specified to update.\n\n{general_help}")
 
-	updates: dict[str, str] = {}
+	updates: dict[str, str] | dict[str, list[str]] | dict[str, list[bool]] = {}
+
 	for assignment in set:
 		assignment = assignment.strip()
 		match = set_pattern.match(assignment)
@@ -153,18 +149,101 @@ def process_set(set: tuple[str, ...], *, attributes: list[Attribute]) -> dict[st
 			raise ValueError(
 				f"Invalid set statement: `[bold red]{assignment}[/]`.\nExpected format: `[bold]<attribute>=<value>[/]`.\n\n{general_help}"
 			)
-		attr, value = match.groups()
+		attr, value = map(str.strip, match.groups())
 		attribute = attributes_by_id.get(attr)
 		if not attribute:
 			raise ValueError(f"Invalid attribute in set statement: `[bold][red]{attr}[/red]={value}[/]`.\n\n{general_help}")
+
 		if attribute.validator:
 			try:
-				updates[attr] = attribute.validator(value)
+				value = attribute.validator(value)
 			except Exception:
 				raise ValueError(f"Invalid value in set statement: `[bold]{attr}=[red]{value}[/]`.\n\n{general_help}")
+
+		# combine values if the attribute name is equal // "objectId=jenkins1" "objectId=jenkins2" => {"objectId": "jenkin1, jenkin2"})
+		if updates.get(attr):
+			updates[attr] = f"{updates[attr]}, {value}"
 		else:
 			updates[attr] = value
+
 	return updates
+
+
+def validate_against_possible_values(val: str, obj: Any) -> list[str] | list[bool]:
+	values = get_separated_entries(val)
+	possible_values: list[str] = obj.possibleValues if obj else []
+	formatted_possible = "\n".join([f"'{val}'" for val in possible_values]) if possible_values else "Any"
+
+	if isinstance(obj, BoolConfig):
+		if len(values) > 1:
+			raise ValueError(
+				f"Only one value is allowed for: `[bold][blue]{obj.id}[/][/]`. \n[bold]Possible values are:[/] \n\n[green]{formatted_possible}[/green]"
+			)
+		if values[0].lower() not in ["false", "true", "0", "1"]:
+			raise ValueError(f"Possible values for: `[bold][blue]{obj.id}[/][/]` \n\n[green]{formatted_possible}[/green]")
+		return forceBoolList(values)
+
+	if isinstance(obj, UnicodeConfig):
+		if obj.multiValue:
+			if not set(values) <= set(possible_values):
+				raise ValueError(f"Possible values for: `[bold][blue]{obj.id}[/][/]` \n\n[green]{formatted_possible}[/green]")
+		if not obj.multiValue:
+			if len(values) > 1:
+				raise ValueError(
+					f"MultiValues are not allowed for: `[bold][blue]{obj.id}[/][/]` \n[bold]Possible values are[/]: \n\n[green]{formatted_possible}[/green]"
+				)
+			elif values[0] not in possible_values and possible_values != []:
+				raise ValueError(f"Possible values for: `[bold][blue]{obj.id}[/][/]` \n\n[green]{formatted_possible}[/green]")
+		return values
+	return []
+
+
+def filter_by_attributes(data: list[dict[str, Any]], filter: dict[str, str], attributes: list[Attribute]) -> list[dict[str, Any]]:
+	"""
+	Filters a list of dictionaries based on specific attribute values.
+
+	Args:
+	    data: A list of dictionaries representing the records to filter.
+	    filter: A mapping of attribute IDs to the desired string values.
+	    attributes: A list of Attribute objects used to validate filter keys.
+
+	Returns:
+	    A list of dictionaries that match all valid criteria in the filter.
+	"""
+	if not filter:
+		return data
+
+	# Map attribute IDs for O(1) lookup during the filtering loop
+	available_attributes = {attr.id: attr for attr in attributes}
+	filtered_data = []
+
+	for entry in data:
+		match = True
+		for attr in filter:
+			# Skip filters that do not correspond to known attributes
+			if not available_attributes.get(attr):
+				continue
+
+			# Normalize data values to string for comparison.
+			# Lists are joined by commas to match the filter's string format.
+			data_value = entry.get(attr)
+			if isinstance(data_value, list):
+				data_value = ", ".join(str(x) for x in data_value)
+			else:
+				data_value = str(data_value) if data_value is not None else ""
+
+			# Normalize boolean-like filter strings to capitalized format (e.g., "true" -> "True")
+			filter_value = filter[attr]
+			if filter_value in ("false", "true"):
+				filter_value = filter[attr].capitalize()
+
+			# compare
+			if data_value != filter_value:
+				match = False
+				break
+		if match:
+			filtered_data.append(entry)
+	return filtered_data
 
 
 @click.group(cls=OPSICLIGroup, name="datastore", short_help="Manage objects and data")

@@ -11,7 +11,7 @@ import rich_click as click
 from opsicommon.logging import get_logger
 
 from opsicli.config import config
-from opsicli.decorators import dry_run_capable
+from opsicli.decorators import dry_run_capable, mutually_exclusive
 from opsicli.io import OutputType, console_print, get_editor, get_selected_attributes, read_input, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.types import EditFormat, OutputFormat
@@ -74,14 +74,24 @@ def client() -> None:
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter clients.",
+	help="Filter clients by their attributes.",
 )
+@click.option(
+	"--all",
+	is_flag=True,
+	help="Show every client.",
+)
+@mutually_exclusive("all", "where")
 @dry_run_capable
-def list_clients(where: tuple[str, ...]) -> None:
+def list_clients(where: tuple[str, ...], all: bool) -> None:
 	"""
 	View clients.
 	"""
-	filter = process_where(where, attributes=CLIENT_METADATA.attributes)
+	if not all:
+		filter = process_where(where, attributes=CLIENT_METADATA.attributes, operation="list")
+	else:
+		filter = {}
+
 	selected_attributes = get_selected_attributes(attributes=CLIENT_METADATA.attributes, update_selected=True)
 	write_output(
 		data=_get_clients_from_service(filter=filter, attributes=selected_attributes),
@@ -108,7 +118,7 @@ def apply_clients() -> None:
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter clients.",
+	help="Filter clients by their attributes.",
 )
 @dry_run_capable
 def edit_clients(where: tuple[str, ...]) -> None:
@@ -120,7 +130,7 @@ def edit_clients(where: tuple[str, ...]) -> None:
 
 	selected_attributes = get_selected_attributes(attributes=CLIENT_METADATA.attributes, update_selected=True)
 
-	filter = process_where(where, attributes=CLIENT_METADATA.attributes)
+	filter = process_where(where, attributes=CLIENT_METADATA.attributes, operation="update")
 	clients = _get_clients_from_service(filter=filter, attributes=selected_attributes)
 	edit_format = EditFormat.PRETTY_JSON if config.edit_format == EditFormat.AUTO else config.edit_format
 
@@ -150,7 +160,7 @@ def edit_clients(where: tuple[str, ...]) -> None:
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter clients.",
+	help="Filter clients by their attributes.",
 )
 @click.option(
 	"--set",
@@ -161,10 +171,10 @@ def edit_clients(where: tuple[str, ...]) -> None:
 @dry_run_capable
 def update_clients(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	"""
-	Update attributes of clients.
+	Update client attributes.
 	"""
 	filter = process_where(where, attributes=CLIENT_METADATA.attributes, operation="update")
-	updates = process_set(set, attributes=CLIENT_METADATA.attributes)
+	updates: dict[str, str] = process_set(set, attributes=CLIENT_METADATA.attributes)
 
 	selected_attributes = get_selected_attributes(
 		attributes=CLIENT_METADATA.attributes,
@@ -173,6 +183,9 @@ def update_clients(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	)
 
 	clients = _get_clients_from_service(filter=filter, attributes=selected_attributes)
+	if not clients:
+		raise ValueError("No clients found matching the filtering criteria.")
+
 	for client in clients:
 		client.update(updates)
 
