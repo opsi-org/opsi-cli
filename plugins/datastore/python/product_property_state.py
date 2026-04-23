@@ -170,21 +170,20 @@ def list_product_property_state(where: tuple[str, ...]) -> None:
 	)
 	client_states = _update_depot_states(service_connection, final_object_ids, final_product_ids, final_property_ids, depot_states)
 
-	if not client_states:
-		raise ValueError("No product-property-states found matching the filtering criteria.")
-
 	# prepare data for writing output
-	flattened_result: list[dict[str, Any]] = [
+	flattened_list: list[dict[str, Any]] = [
 		product_property_state
 		for product_map in client_states.values()  # objects
 		for property_map in product_map.values()  # products
 		for product_property_state in property_map.values()  # properties
 	]
 
-	filtered_data = filter_by_attributes(flattened_result, filter, attributes)
+	result = filter_by_attributes(flattened_list, filter, attributes)
+	if not result:
+		raise ValueError("No product-property-states found matching the filtering criteria.")
 
 	write_output(
-		data=sorted(filtered_data, key=lambda x: x["objectId"]),
+		data=sorted(result, key=lambda x: x["objectId"]),
 		metadata=metadata,
 		value_styles={"depot": "yellow", "client": "blue"},
 	)

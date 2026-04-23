@@ -195,19 +195,21 @@ def list_config_state(where: tuple[str, ...]) -> None:
 	depot_states = _update_default_states(service_connection, client_to_depot, final_depot_ids, final_config_ids, default_states)
 	client_states = _update_depot_states(service_connection, final_object_ids, final_config_ids, depot_states)
 
-	if not client_states:
-		raise ValueError("No config-states found matching the filtering criteria.")
-
-	# prepare data for writing output
-	flattened_result = [
+	# prepare data for writing output (flattened list)
+	flattened_list = [
 		config_state
 		for config_map in client_states.values()  # objcects
 		for config_state in config_map.values()  # configs
 	]
-	filtered_data = filter_by_attributes(data=flattened_result, attributes=attributes, filter=filter)
+
+	result = filter_by_attributes(data=flattened_list, attributes=attributes, filter=filter)
+
+	# empty result
+	if not result:
+		raise ValueError("No config-states found matching the filtering criteria.")
 
 	write_output(
-		data=sorted(filtered_data, key=lambda x: x["objectId"]),
+		data=sorted(result, key=lambda x: x["objectId"]),
 		metadata=metadata,
 		value_styles={"depot": "yellow", "client": "blue"},
 	)
@@ -246,16 +248,12 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 
 	# get separated Id's from filter
 	object_ids = service_connection.host_getIdents(id=get_separated_entries(filter["objectId"]) if filter["objectId"] != "*" else None)  # type: ignore[attr-defined]
-	if not object_ids:
-		raise ValueError("No clients found to update.")
-
 	config_id = get_separated_entries(filter["configId"])
+
 	if len(config_id) > 1 or "*" in config_id:
 		raise ValueError("Only one configId without wildcard is allowed.")
 
 	config_obj = service_connection.config_getObjects(id=config_id[0])  # type: ignore[attr-defined]
-	if not config_obj:
-		raise ValueError("No config-state found to update.")
 
 	# validate values
 	validated_values = validate_against_possible_values(updates["values"], config_obj[0])
@@ -264,6 +262,7 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	# create config-state objects
 	updated_config_states = _create_config_states(object_ids, config_obj[0].id, validated_values)
 
+	# empty result
 	if not updated_config_states:
 		raise ValueError("No config-states found matching the filtering criteria.")
 

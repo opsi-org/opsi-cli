@@ -116,12 +116,13 @@ def list_product_client_state(where: tuple[str, ...]) -> None:
 			modificationTime=datetime.fromisoformat(f"{poc.modificationTime}Z") if poc.modificationTime else None,
 		)
 
-	if not poc:
-		raise ValueError("No product-client-states found matching the filtering criteria.")
-
 	# filter by remaining attributes
 	result_as_dicts = [asdict(state) for state in product_states.values()]
 	filtered_data = filter_by_attributes(data=result_as_dicts, attributes=metadata.attributes, filter=filter)
+
+	# empty result
+	if not filtered_data:
+		raise ValueError("No product-client-states found matching the filtering criteria.")
 
 	write_output(
 		# data=sorted(filtered_data, key=lambda x: x["clientId"]),

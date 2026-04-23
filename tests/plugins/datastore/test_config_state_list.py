@@ -316,7 +316,7 @@ def _values_to_str(values: str | bool | list[Any] | None) -> str:
 			],
 			[],
 			[],
-			None,
+			("No config-states found matching the filtering criteria.",),
 		),
 		# invalid configId"
 		(
@@ -333,7 +333,7 @@ def _values_to_str(values: str | bool | list[Any] | None) -> str:
 			],
 			[],
 			[],
-			None,
+			("No config-states found matching the filtering criteria.",),
 		),
 		# Missing objectId"
 		(
