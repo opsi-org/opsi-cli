@@ -45,9 +45,7 @@ def general_help_for_where(
 	missing_attributes = missing_attributes or []
 
 	general_help = (
-		'Use one or more `[bold]--where "<attribute><operator><value>"[/]` options to define the filter.\n'
-		"If you intentionally do not want to filter by an attribute, use: `[bold]--all[/]`.\n\n"
-		"Available attributes are:\n"
+		'Use one or more `[bold]--where "<attribute><operator><value>"[/]` options to define the filter.\nAvailable attributes are:\n'
 	)
 	max_attr_len = max(len(attr.id) for attr in available_attributes)
 	max_type_len = max(len(str(attr.data_type)) for attr in available_attributes)
@@ -105,7 +103,9 @@ def process_where(
 	)
 	if operation == "list" and not filter:
 		raise ValueError(
-			f"At least one filter condition is required to prevent unintentional retrieval of large amounts of data.\n\n{general_help}"
+			"At least one filter condition is required to prevent unintentional retrieval of large amounts of data.\n"
+			"If you intentionally do not want to filter by an attribute, use: `[bold]--all[/]`.\n\n"
+			f"{general_help}"
 		)
 	if (operation == "update" or operation == "unlock") and missing_attributes:
 		raise ValueError(
