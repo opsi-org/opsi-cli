@@ -13,7 +13,7 @@ from opsicommon.objects import ProductOnClient
 from opsicommon.types import forceActionRequest, forceInstallationStatus
 
 from opsicli.config import config
-from opsicli.decorators import dry_run_capable
+from opsicli.decorators import dry_run_capable, mutually_exclusive
 from opsicli.io import OutputType, console_print, get_separated_entries, read_input, write_output
 from opsicli.opsiservice import get_service_connection
 
@@ -62,15 +62,23 @@ PRODUCT_CLIENT_STATE_VALUE_STYLES = {
 	multiple=True,
 	help="Filter product-client-states.",
 )
-def list_product_client_state(where: tuple[str, ...]) -> None:
+@click.option(
+	"--all",
+	is_flag=True,
+	help="Show every product state for every client.",
+)
+@mutually_exclusive("where", "all")
+def list_product_client_state(where: tuple[str, ...], all: bool) -> None:
 	"""
 	List all product states or apply filters to narrow the result.
 	"""
 	service_connection = get_service_connection()
 	metadata = COMMAND_METADATA["datastore_product-client-state_list"]
-	filter = process_where(where, attributes=metadata.attributes, operation="list")
-	# process wildcards
-	filter = {k: (v if v != "*" else None) for k, v in filter.items()}
+	if not all:
+		filter = process_where(where, attributes=metadata.attributes, operation="list")
+		filter = {k: (v if v != "*" else "") for k, v in filter.items()}  # process wildcards
+	else:
+		filter = {}
 
 	filter_client_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("clientId", None)), type="OpsiClient")  # type: ignore[attr-defined]
 	filter_product_ids = get_separated_entries(filter.pop("productId", None))

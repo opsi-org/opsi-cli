@@ -12,7 +12,7 @@ config-states subcommand
 import rich_click as click
 from opsicommon.logging import get_logger
 
-from opsicli.decorators import dry_run_capable
+from opsicli.decorators import dry_run_capable, mutually_exclusive
 from opsicli.io import OutputType, console_print, get_separated_entries
 from opsicli.opsiservice import config, get_service_connection
 
@@ -37,8 +37,14 @@ def product() -> None:
 	multiple=True,
 	help="Filter products.",
 )
+@click.option(
+	"--all",
+	is_flag=True,
+	help="Unlock every product.",
+)
+@mutually_exclusive("all", "where")
 @dry_run_capable
-def product_unlock(where: tuple[str, ...]) -> None:
+def product_unlock(where: tuple[str, ...], all: bool) -> None:
 	"""
 	Remove locks from products on specified depots.
 	"""
@@ -56,8 +62,11 @@ def product_unlock(where: tuple[str, ...]) -> None:
 			product_on_depot.locked = False
 		service_connection.productOnDepot_updateObjects(product_on_depots)  # type: ignore[attr-defined]
 
-	filter = process_where(where, attributes=COMMAND_METADATA["datastore_product_unlock"].attributes, operation="unlock")
-	filter = {k: (v if v != "*" else None) for k, v in filter.items()}
+	if not all:
+		filter = process_where(where, attributes=COMMAND_METADATA["datastore_product_unlock"].attributes, operation="unlock")
+		filter = {k: (v if v != "*" else None) for k, v in filter.items()}
+	else:
+		filter = {}
 
 	product_ids_list = get_separated_entries(filter.pop("productId", None))
 	depot_ids_list = get_separated_entries(filter.pop("depotId", None))
@@ -65,7 +74,7 @@ def product_unlock(where: tuple[str, ...]) -> None:
 	if config.dry_run:
 		msg = f"Unlocking skipped due to dry run. Here are the products that would have been unlocked:\n{product_ids_list}"
 	else:
-		unlock_and_update(product_ids_list, depot_ids_list)  # type: ignore[invalid-argument-type]
+		unlock_and_update(product_ids_list, depot_ids_list)
 		msg = f"Products unlocked successfully. Here are the unlocked products:\n{product_ids_list}"
 
 	console_print(msg, style="green", output_type=OutputType.MESSAGE)
@@ -78,17 +87,25 @@ def product_unlock(where: tuple[str, ...]) -> None:
 	multiple=True,
 	help="Filter products.",
 )
+@click.option(
+	"--all",
+	is_flag=True,
+	help="Show every product property state for every client.",
+)
 @dry_run_capable
-def product_purge(where: tuple[str, ...]) -> None:
+@mutually_exclusive("all", "where")
+def product_purge(where: tuple[str, ...], all: bool) -> None:
 	"""
 	Remove metadata associated with uninstalled products, such as installation status and product property states.
 
 	"""
 	service_connection = get_service_connection()
-	filter = process_where(where, attributes=COMMAND_METADATA["datastore_product_purge"].attributes, operation="purge")
-	# process wildcards
-	filter = {k: (v if v != "*" else None) for k, v in filter.items()}
 
+	if not all:
+		filter = process_where(where, attributes=COMMAND_METADATA["datastore_product_purge"].attributes, operation="purge")
+		filter = {k: (v if v != "*" else "") for k, v in filter.items()}  # process wildcards
+	else:
+		filter = {}
 	product_id_list = service_connection.product_getIdents(get_separated_entries(filter.pop("productId", None)))  # type: ignore[attr-defined]
 
 	# empty result

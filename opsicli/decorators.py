@@ -11,6 +11,7 @@ decorators
 
 from functools import wraps
 
+import click
 from opsicommon.logging import get_logger
 
 logger = get_logger("opsicli")
@@ -27,3 +28,17 @@ def dry_run_capable(func):
 		return func(*args, **kwargs)
 
 	return wrapper
+
+
+def mutually_exclusive(*options):
+	def decorator(func):
+		@wraps(func)
+		def wrapper(*args, **kwargs):
+			opt_list = [f"--{opt}" for opt in options if kwargs.get(opt)]
+			if "--all" in opt_list and "--where" in opt_list:
+				raise click.UsageError(f"The options {', '.join(opt_list)} are mutually exclusive.")
+			return func(*args, **kwargs)
+
+		return wrapper
+
+	return decorator

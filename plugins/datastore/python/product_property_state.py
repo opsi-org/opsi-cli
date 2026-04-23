@@ -7,6 +7,7 @@ from typing import Any
 import rich_click as click
 from opsicommon.logging import get_logger
 
+from opsicli.decorators import mutually_exclusive
 from opsicli.io import get_separated_entries, write_output
 from opsicli.opsiservice import ServiceClient, get_service_connection
 
@@ -140,7 +141,13 @@ def product_property_state() -> None:
 	multiple=True,
 	help="Filter product-property-states.",
 )
-def list_product_property_state(where: tuple[str, ...]) -> None:
+@click.option(
+	"--all",
+	is_flag=True,
+	help="Show every product property state for every client.",
+)
+@mutually_exclusive("where", "all")
+def list_product_property_state(where: tuple[str, ...], all: bool) -> None:
 	"""
 	List all product property states or apply filters to narrow the result.
 	"""
@@ -149,10 +156,11 @@ def list_product_property_state(where: tuple[str, ...]) -> None:
 	metadata = COMMAND_METADATA["datastore_product-property-state_list"]
 	attributes = metadata.attributes
 
-	filter = process_where(where, attributes=attributes, operation="list")
-
-	# process wildcards
-	filter = {k: (v if v != "*" else None) for k, v in filter.items()}
+	if not all:
+		filter = process_where(where, attributes=attributes, operation="list")
+		filter = {k: (v if v != "*" else "") for k, v in filter.items()}  # process wildcards
+	else:
+		filter = {}
 
 	# get separated Id's from filter
 	final_object_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("objectId", None)))  # type: ignore[attr-defined]

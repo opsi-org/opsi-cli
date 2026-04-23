@@ -8,7 +8,7 @@ import rich_click as click
 from opsicommon.logging import get_logger
 from opsicommon.objects import Config, ConfigState
 
-from opsicli.decorators import dry_run_capable
+from opsicli.decorators import dry_run_capable, mutually_exclusive
 from opsicli.io import Metadata, OutputType, console_print, get_separated_entries, write_output
 from opsicli.opsiservice import ServiceClient, config, get_service_connection
 
@@ -167,8 +167,14 @@ def config_state() -> None:
 	multiple=True,
 	help="Filter config-states.",
 )
+@click.option(
+	"--all",
+	is_flag=True,
+	help="Show every config-state.",
+)
 @dry_run_capable
-def list_config_state(where: tuple[str, ...]) -> None:
+@mutually_exclusive("where", "all")
+def list_config_state(where: tuple[str, ...], all: bool) -> None:
 	"""
 	List all configuration states or apply filters to narrow the results.
 	"""
@@ -177,10 +183,11 @@ def list_config_state(where: tuple[str, ...]) -> None:
 	metadata = COMMAND_METADATA["datastore_config-state_list"]
 	attributes = metadata.attributes
 
-	filter = process_where(where, attributes=attributes)
-
-	# process wildcards
-	filter = {k: (v if v != "*" else None) for k, v in filter.items()}
+	if not all:
+		filter = process_where(where, attributes=attributes)
+		filter = {k: (v if v != "*" else "") for k, v in filter.items()}  # process wildcards
+	else:
+		filter = {}
 
 	# get separated Id's from filter
 	final_object_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("objectId", None)))  # type: ignore[attr-defined]
@@ -244,19 +251,21 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	attributes_set = attributes[-1:]  # values
 
 	filter = process_where(where, attributes=attributes_where, operation="update")
-	# process wildcards
-	filter = {k: (v if v != "*" else None) for k, v in filter.items()}
-
+	filter = {k: (v if v != "*" else "") for k, v in filter.items()}  # process wildcards
 	updates = process_set(set, attributes=attributes_set)
 
 	# get separated Id's from filter
-	object_ids = service_connection.host_getIdents(id=get_separated_entries(filter["objectId"]) if filter["objectId"] != "*" else None)  # type: ignore[attr-defined]
-	config_id = get_separated_entries(filter["configId"])
+
+	object_ids = service_connection.host_getIdents(  # type: ignore[attr-defined]
+		id=get_separated_entries(filter.get("objectId", None) if filter.get("objectId") != "*" else None)
+	)
+
+	config_id = get_separated_entries(filter.get("configId", None))
 
 	if len(config_id) > 1 or "*" in config_id:
 		raise ValueError("Only one configId without wildcard is allowed.")
 
-	config_obj = service_connection.config_getObjects(id=config_id[0])  # type: ignore[attr-defined]
+	config_obj = service_connection.config_getObjects(id=config_id[0] or [])  # type: ignore[attr-defined]
 
 	# validate values
 	validated_values = validate_against_possible_values(updates["values"], config_obj[0])

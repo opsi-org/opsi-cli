@@ -11,7 +11,7 @@ import rich_click as click
 from opsicommon.logging import get_logger
 
 from opsicli.config import config
-from opsicli.decorators import dry_run_capable
+from opsicli.decorators import dry_run_capable, mutually_exclusive
 from opsicli.io import OutputType, console_print, get_editor, get_selected_attributes, read_input, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.types import EditFormat, OutputFormat
@@ -76,12 +76,21 @@ def client() -> None:
 	multiple=True,
 	help="Filter clients.",
 )
+@click.option(
+	"--all",
+	is_flag=True,
+	help="Show every client.",
+)
+@mutually_exclusive("all", "where")
 @dry_run_capable
-def list_clients(where: tuple[str, ...]) -> None:
+def list_clients(where: tuple[str, ...], all: bool) -> None:
 	"""
 	View clients.
 	"""
-	filter = process_where(where, attributes=CLIENT_METADATA.attributes, operation="list")
+	if not all:
+		filter = process_where(where, attributes=CLIENT_METADATA.attributes, operation="list")
+	else:
+		filter = {}
 
 	selected_attributes = get_selected_attributes(attributes=CLIENT_METADATA.attributes, update_selected=True)
 	write_output(
