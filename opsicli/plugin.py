@@ -217,6 +217,7 @@ def install_plugin(source_dir: Path, plugin_id: str, system: bool = False) -> Pa
 
 def install_python_package(target_dir: Path, package: dict[str, str]) -> None:
 	# These imports take ~0.25s
+	import pip._internal.commands.install
 	from pip._internal.commands.install import InstallCommand
 	from pip._vendor.distlib.scripts import ScriptMaker
 
@@ -227,6 +228,8 @@ def install_python_package(target_dir: Path, package: dict[str, str]) -> None:
 	) -> list:
 		return []
 
+	# Monkeypatch warn_if_run_as_root to ignore warnings, since we use custom package pool anyway
+	pip._internal.commands.install.warn_if_run_as_root = lambda: None  # type: ignore
 	# ScriptMaker is called by pip to create executable python scripts from libraries (i.e. .../bin)
 	# Monkeypatch here to avoid trying to create this (nasty in frozen context)
 	ScriptMaker.make_multiple = monkeypatched_make_multiple  # type: ignore
