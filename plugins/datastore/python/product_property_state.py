@@ -170,6 +170,9 @@ def list_product_property_state(where: tuple[str, ...]) -> None:
 	)
 	client_states = _update_depot_states(service_connection, final_object_ids, final_product_ids, final_property_ids, depot_states)
 
+	if not client_states:
+		raise ValueError("No product-property-states found matching the filtering criteria.")
+
 	# prepare data for writing output
 	flattened_result: list[dict[str, Any]] = [
 		product_property_state

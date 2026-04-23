@@ -172,6 +172,8 @@ def update_clients(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	)
 
 	clients = _get_clients_from_service(filter=filter, attributes=selected_attributes)
+	if not clients:
+		raise ValueError("No clients found matching the filtering criteria.")
 
 	for client in clients:
 		client.update(updates)

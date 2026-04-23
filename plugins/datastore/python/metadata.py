@@ -118,7 +118,7 @@ CLIENT_METADATA = Metadata(
 
 object_id = Attribute(
 	id="objectId",
-	description="The ID of the object (host).",
+	description="The ID of the object.",
 	identifier=True,
 	data_type="str",
 	selected=True,
@@ -126,7 +126,7 @@ object_id = Attribute(
 )
 config_id = Attribute(
 	id="configId",
-	description="The ID of the config-state.",
+	description="The ID of the config.",
 	identifier=True,
 	data_type="str",
 	selected=True,
@@ -134,7 +134,7 @@ config_id = Attribute(
 )
 description = Attribute(
 	id="description",
-	description="The description of given state.",
+	description="The description of the state.",
 	identifier=False,
 	data_type="str",
 	selected=False,
@@ -142,7 +142,7 @@ description = Attribute(
 )
 multi_value = Attribute(
 	id="multiValue",
-	description="Shows if given state accepts multi-values.",
+	description="Indicates if given state accepts multi-values.",
 	identifier=False,
 	data_type="bool",
 	selected=False,
@@ -150,7 +150,7 @@ multi_value = Attribute(
 )
 editable = Attribute(
 	id="editable",
-	description="Shows if given state is editable via configed.",
+	description="Indicates if given state is editable.",
 	identifier=False,
 	data_type="bool",
 	selected=False,
@@ -165,14 +165,14 @@ values = Attribute(
 )
 possible_values = Attribute(
 	id="possibleValues",
-	description="Possible values of given state.",
+	description="Possible values of the state.",
 	identifier=False,
 	data_type="str | bool",
 	selected=False,
 )
 default_values = Attribute(
 	id="defaultValues",
-	description="Default values of given state.",
+	description="Default values of the state.",
 	identifier=False,
 	data_type="str | bool",
 	selected=False,
@@ -186,14 +186,14 @@ type = Attribute(
 )
 depot_values = Attribute(
 	id="depotValues",
-	description="Depot values of given state.",
+	description="Depot values of the state.",
 	identifier=False,
 	data_type="str | bool",
 	selected=False,
 )
 client_values = Attribute(
 	id="clientValues",
-	description="Client values of given state.",
+	description="Client values of the state.",
 	identifier=False,
 	data_type="str | bool",
 	selected=False,
@@ -201,7 +201,7 @@ client_values = Attribute(
 origin = Attribute(id="origin", description="Location where the change has been made.", identifier=False, data_type="str", selected=True)
 previous_values = Attribute(
 	id="previousValues",
-	description="Values befor change.",
+	description="Values before change.",
 	identifier=False,
 	data_type="str | bool",
 	selected=True,
@@ -224,7 +224,7 @@ property_id = Attribute(
 )
 product_version = Attribute(
 	id="productVersion",
-	description="The product version of given state.",
+	description="The product version of the state.",
 	identifier=False,
 	data_type="str",
 	selected=False,
@@ -232,7 +232,7 @@ product_version = Attribute(
 )
 package_version = Attribute(
 	id="packageVersion",
-	description="The package version of given state.",
+	description="The package version of the state.",
 	identifier=False,
 	data_type="str",
 	selected=False,

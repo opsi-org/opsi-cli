@@ -195,6 +195,9 @@ def list_config_state(where: tuple[str, ...]) -> None:
 	depot_states = _update_default_states(service_connection, client_to_depot, final_depot_ids, final_config_ids, default_states)
 	client_states = _update_depot_states(service_connection, final_object_ids, final_config_ids, depot_states)
 
+	if not client_states:
+		raise ValueError("No config-states found matching the filtering criteria.")
+
 	# prepare data for writing output
 	flattened_result = [
 		config_state
@@ -260,5 +263,9 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 
 	# create config-state objects
 	updated_config_states = _create_config_states(object_ids, config_obj[0].id, validated_values)
+
+	if not updated_config_states:
+		raise ValueError("No config-states found matching the filtering criteria.")
+
 	output_data = _create_output_data(config_obj[0], updated_config_states, current_values)
 	_update_database(output_data, updated_config_states, metadata)
