@@ -160,7 +160,7 @@ def edit_clients(where: tuple[str, ...]) -> None:
 @dry_run_capable
 def update_clients(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	"""
-	Update attributes of clients.
+	Update client attributes.
 	"""
 	filter = process_where(where, attributes=CLIENT_METADATA.attributes, operation="update")
 	updates: dict[str, str] = process_set(set, attributes=CLIENT_METADATA.attributes)

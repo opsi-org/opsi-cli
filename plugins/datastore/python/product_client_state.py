@@ -23,10 +23,10 @@ from .metadata import COMMAND_METADATA
 logger = get_logger("opsicli")
 
 
-@cli.group(name="product-client-state", short_help="Product states on clients.")
+@cli.group(name="product-client-state", short_help="Manage product states of clients.")
 def product_client_state() -> None:
 	"""
-	View and change product states on clients.
+	View and change product states of clients.
 	"""
 	pass
 
@@ -55,7 +55,7 @@ PRODUCT_CLIENT_STATE_VALUE_STYLES = {
 }
 
 
-@product_client_state.command(name="list", short_help="List client product states.")
+@product_client_state.command(name="list", short_help="List product states of clients.")
 @click.option(
 	"--where",
 	type=str,
@@ -64,7 +64,7 @@ PRODUCT_CLIENT_STATE_VALUE_STYLES = {
 )
 def list_product_client_state(where: tuple[str, ...]) -> None:
 	"""
-	View product states on clients.
+	List all product states or apply filters to narrow the result.
 	"""
 	service_connection = get_service_connection()
 	metadata = COMMAND_METADATA["datastore_product-client-state_list"]
@@ -127,11 +127,11 @@ def list_product_client_state(where: tuple[str, ...]) -> None:
 	)
 
 
-@product_client_state.command(name="update", short_help="Update client product states.")
+@product_client_state.command(name="update", short_help="Update product states of clients.")
 @dry_run_capable
 def update_product_client_state() -> None:
 	"""
-	Update product states on clients.
+	Update product states of clients.
 	"""
 	data = read_input()
 	if not data:

@@ -21,10 +21,10 @@ from .common import cli
 logger = get_logger("opsicli")
 
 
-@cli.group(name="product", short_help="Configure products.")
+@cli.group(name="product", short_help="Manage products.")
 def product() -> None:
 	"""
-	Configure products.
+	Manage products.
 	"""
 	pass
 

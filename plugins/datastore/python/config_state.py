@@ -152,15 +152,15 @@ def _create_config_states(object_ids: list[str], config_id: str, values: list[st
 	return config_states
 
 
-@cli.group(name="config-state", short_help="Configure config states.")
+@cli.group(name="config-state", short_help="Manage configuration states of clients.")
 def config_state() -> None:
 	"""
-	View and manage config states.
+	View and chnage configuration states of clients.
 	"""
 	pass
 
 
-@config_state.command(name="list", short_help="List all config states or apply filters to narrow the results.")
+@config_state.command(name="list", short_help="List configuration states of clients.")
 @click.option(
 	"--where",
 	type=str,
@@ -170,7 +170,7 @@ def config_state() -> None:
 @dry_run_capable
 def list_config_state(where: tuple[str, ...]) -> None:
 	"""
-	View all configuration states or apply filters to narrow your search.
+	List all configuration states or apply filters to narrow the results.
 	"""
 
 	service_connection = get_service_connection()
@@ -212,13 +212,13 @@ def list_config_state(where: tuple[str, ...]) -> None:
 
 @config_state.command(
 	name="update",
-	short_help="Update an existing config state or create a new one if it doesn't exist. Using or '*' as the object ID will apply the value to all objects.",
+	short_help="Update a configuration state for one or multiple clients.",
 )
 @click.option(
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter config-states with objectId(s) and configId.",
+	help="Filter config-states.",
 )
 @click.option(
 	"--set",
@@ -229,7 +229,7 @@ def list_config_state(where: tuple[str, ...]) -> None:
 @dry_run_capable
 def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	"""
-	Change values of config states.
+	Update a configuration state for one or multiple clients.
 	"""
 
 	service_connection = get_service_connection()

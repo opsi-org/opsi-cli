@@ -125,24 +125,24 @@ def _update_depot_states(
 	return depot_states
 
 
-@cli.group(name="product-property-state", short_help="Configure product property states.")
+@cli.group(name="product-property-state", short_help="Manage product property states of clients.")
 def product_property_state() -> None:
 	"""
-	View and manage product property states.
+	View and (change) product property states of clients.
 	"""
 	pass
 
 
-@product_property_state.command(name="list", short_help="List all product property states or apply filters to narrow the results.")
+@product_property_state.command(name="list", short_help="List product property states of clients.")
 @click.option(
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter the output. ObjectId and ConfigId are required",
+	help="Filter product-property-states.",
 )
 def list_product_property_state(where: tuple[str, ...]) -> None:
 	"""
-	View all product property states or apply filters to narrow your search.
+	List all product property states or apply filters to narrow the result.
 	"""
 
 	service_connection = get_service_connection()
