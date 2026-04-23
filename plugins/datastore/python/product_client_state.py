@@ -69,6 +69,9 @@ def list_product_client_state(where: tuple[str, ...]) -> None:
 	service_connection = get_service_connection()
 	metadata = COMMAND_METADATA["datastore_product-client-state_list"]
 	filter = process_where(where, attributes=metadata.attributes, operation="list")
+	# process wildcards
+	filter = {k: (v if v != "*" else None) for k, v in filter.items()}
+
 	filter_client_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("clientId", None)), type="OpsiClient")  # type: ignore[attr-defined]
 	filter_product_ids = get_separated_entries(filter.pop("productId", None))
 

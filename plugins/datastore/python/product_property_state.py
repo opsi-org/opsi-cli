@@ -152,7 +152,7 @@ def list_product_property_state(where: tuple[str, ...]) -> None:
 	filter = process_where(where, attributes=attributes, operation="list")
 
 	# process wildcards
-	{key: None for key, value in filter.items() if value == "*"}
+	filter = {k: (v if v != "*" else None) for k, v in filter.items()}
 
 	# get separated Id's from filter
 	final_object_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("objectId", None)))  # type: ignore[attr-defined]

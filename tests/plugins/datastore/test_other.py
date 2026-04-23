@@ -37,10 +37,14 @@ def lock_products(admin_service_client: ServiceClient, product_id: str | None = 
 # unlock products with given product-id and depot-id
 def unlock_products(product_ids: list[str] = [], depot_ids: list[str] = []) -> tuple[int, str, str]:
 	args = ["datastore", "product", "unlock"]
-	if product_ids:
-		args += ["--product-ids", ",".join(product_ids)]
-	if depot_ids:
-		args += ["--depot-ids", ",".join(depot_ids)]
+	if product_ids and not depot_ids:
+		args += ["--where", f"productId={','.join(product_ids)}", "--where", "depotId=*"]
+	if depot_ids and not product_ids:
+		args += ["--where", f"depotId={','.join(depot_ids)}", "--where", "productId=*"]
+	if depot_ids and product_ids:
+		args += ["--where", f"productId={','.join(product_ids)}", "--where", f"depotId={','.join(depot_ids)}"]
+	if not depot_ids and not product_ids:
+		args += ["--where", "productId=*", "--where", "depotId=*"]
 	return run_cli(args)
 
 
@@ -106,7 +110,7 @@ def test_wrong_depot_id(admin_service_client: ServiceClient) -> None:
 		verify_lock_status(admin_service_client, is_locked=True)
 		exitcode, _stdout, stderr = unlock_products(depot_ids=["hallo,test"])
 		assert exitcode != 0
-		assert "No such depot(s)" in stderr
+		assert "No products found matching the filtering criteria." in stderr
 
 
 @pytest.mark.opsi_service

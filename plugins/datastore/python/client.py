@@ -82,6 +82,7 @@ def list_clients(where: tuple[str, ...]) -> None:
 	View clients.
 	"""
 	filter = process_where(where, attributes=CLIENT_METADATA.attributes, operation="list")
+
 	selected_attributes = get_selected_attributes(attributes=CLIENT_METADATA.attributes, update_selected=True)
 	write_output(
 		data=_get_clients_from_service(filter=filter, attributes=selected_attributes),

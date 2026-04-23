@@ -180,7 +180,7 @@ def list_config_state(where: tuple[str, ...]) -> None:
 	filter = process_where(where, attributes=attributes)
 
 	# process wildcards
-	{key: None for key, value in filter.items() if value == "*"}
+	filter = {k: (v if v != "*" else None) for k, v in filter.items()}
 
 	# get separated Id's from filter
 	final_object_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("objectId", None)))  # type: ignore[attr-defined]
@@ -244,6 +244,9 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	attributes_set = attributes[-1:]  # values
 
 	filter = process_where(where, attributes=attributes_where, operation="update")
+	# process wildcards
+	filter = {k: (v if v != "*" else None) for k, v in filter.items()}
+
 	updates = process_set(set, attributes=attributes_set)
 
 	# get separated Id's from filter

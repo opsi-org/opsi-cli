@@ -64,7 +64,9 @@ def general_help_for_where(
 	return general_help
 
 
-def process_where(where: tuple[str, ...], *, attributes: list[Attribute], operation: Literal["list", "update"] = "list") -> dict[str, str]:
+def process_where(
+	where: tuple[str, ...], *, attributes: list[Attribute], operation: Literal["list", "update", "unlock", "purge"] = "list"
+) -> dict[str, str]:
 	where = where or tuple()
 	condition_pattern = re.compile(r"^([a-zA-Z_]+)\s*(<|<=|=|>=|>)\s*(.*)$")
 	available_attributes_by_id = {attr.id: attr for attr in attributes}
@@ -95,7 +97,7 @@ def process_where(where: tuple[str, ...], *, attributes: list[Attribute], operat
 
 	id_attributes = [attr for attr in attributes if attr.identifier]
 	missing_attributes = []
-	if operation == "update":
+	if operation in ("update", "unlock", "purge"):
 		missing_attributes = [attr.id for attr in id_attributes if attr.id not in filter]
 
 	general_help = general_help_for_where(
@@ -105,11 +107,11 @@ def process_where(where: tuple[str, ...], *, attributes: list[Attribute], operat
 		raise ValueError(
 			f"At least one filter condition is required to prevent unintentional retrieval of large amounts of data.\n\n{general_help}"
 		)
-	if operation == "update" and missing_attributes:
+	if (operation == "update" or operation == "unlock") and missing_attributes:
 		raise ValueError(
-			"Incomplete filter for update operation.\n\n"
+			f"Incomplete filter for {operation} operation.\n\n"
 			f"{general_help}"
-			"\nOn update operations, the filter must contain all identifier attributes.\n"
+			f"\nOn {operation} operations, the filter must contain all identifier attributes.\n"
 			f"Missing required attributes: [bold red]{', '.join(missing_attributes)}[/]"
 		)
 	return filter
