@@ -644,8 +644,8 @@ class TerminalMessagebusConnection(MessagebusConnection):
 		target = target.lower()
 
 		self.service_client.connect()
-		connected_host_ids = self.service_client.host_getMessagebusConnectedIds()  # type: ignore[attr-defined]
-		depots = self.service_client.host_getObjects(attributes=["id", "type"], type="OpsiDepotserver")  # type: ignore[attr-defined]
+		connected_host_ids = self.service_client.host_getMessagebusConnectedIds()  # ty: ignore[unresolved-attribute]
+		depots = self.service_client.host_getObjects(attributes=["id", "type"], type="OpsiDepotserver")  # ty: ignore[unresolved-attribute]
 		configserver_id = [depot.id for depot in depots if depot.getType() == "OpsiConfigserver"][0]
 		depotserver_ids = [depot.id for depot in depots]
 
@@ -766,11 +766,11 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 		self._lock = Lock()
 
 	def _get_configserver_id(self) -> str:
-		depots = self.service_client.host_getObjects(attributes=[], type="OpsiConfigserver")  # type: ignore[attr-defined]
+		depots = self.service_client.host_getObjects(attributes=[], type="OpsiConfigserver")  # ty: ignore[unresolved-attribute]
 		return depots[0].id
 
 	def _get_channel(self) -> str:
-		connected_host_ids = self.service_client.host_getMessagebusConnectedIds()  # type: ignore[attr-defined]
+		connected_host_ids = self.service_client.host_getMessagebusConnectedIds()  # ty: ignore[unresolved-attribute]
 		configserver_id = self._get_configserver_id()
 		host_id = forceHostId(self.host_id)
 

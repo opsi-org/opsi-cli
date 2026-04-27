@@ -9,6 +9,8 @@ opsi-cli Basic command line interface for opsi
 general configuration
 """
 
+from __future__ import annotations
+
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -17,13 +19,22 @@ import orjson
 from opsicommon.logging import get_logger
 
 from opsicli.config import config
-from opsicli.singelton import Singleton
 
 logger = get_logger("opsicli")
 
 
-class Cache(metaclass=Singleton):
+class Cache:
+	_instance: Cache | None = None
+
+	def __new__(cls) -> Cache:
+		if cls._instance is None:
+			cls._instance = super().__new__(cls)
+		return cls._instance
+
 	def __init__(self) -> None:
+		if getattr(self, "_initialized", False):
+			return
+		self._initialized = True
 		self._cache_file: Path = config.user_lib_dir / "cache.json"
 		self._data: dict[str, Any] = {}
 		self._loaded = False

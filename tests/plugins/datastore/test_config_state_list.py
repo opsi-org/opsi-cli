@@ -420,7 +420,7 @@ def test_config_state_list(
 
 		config_id = [] if config_id == "*" else config_id
 		object_id = [] if object_id == "*" else object_id
-		states = admin_service_client.configState_getObjects(configId=config_id, objectId=object_id)  # type: ignore[attr-defined]
+		states = admin_service_client.configState_getObjects(configId=config_id, objectId=object_id)  # ty: ignore[unresolved-attribute]
 		if expected_output and config_id and object_id:
 			for state, expect in zip(states, expected_values):
 				assert state.__dict__ == expect

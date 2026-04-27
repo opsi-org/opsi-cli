@@ -418,7 +418,7 @@ def test_update_clients(
 			data = read_input_csv(stdout.encode("utf-8"))
 			assert data == expected_output
 
-		hosts = admin_service_client.host_getObjects(id=[c.id for c in TEST_CLIENTS], type="OpsiClient")  # type: ignore[attr-defined]
+		hosts = admin_service_client.host_getObjects(id=[c.id for c in TEST_CLIENTS], type="OpsiClient")  # ty: ignore[unresolved-attribute]
 		for host, expected_host in zip(sorted(hosts, key=lambda h: h.id), expected_values, strict=True):
 			for key, expected_val in expected_host.items():
 				actual_val = getattr(host, key)
@@ -455,7 +455,7 @@ def test_edit_clients(admin_service_client: ServiceClient, dry_run: bool) -> Non
 			)
 
 		assert exit_code == 0
-		hosts = admin_service_client.host_getObjects(id=[c.id for c in TEST_CLIENTS], type="OpsiClient")  # type: ignore[attr-defined]
+		hosts = admin_service_client.host_getObjects(id=[c.id for c in TEST_CLIENTS], type="OpsiClient")  # ty: ignore[unresolved-attribute]
 		for host in hosts:
 			if host.id.startswith("pytest-client1") and not dry_run:
 				assert host.description == "updated description"
@@ -501,7 +501,7 @@ def test_apply_clients(admin_service_client: ServiceClient, dry_run: bool) -> No
 			},
 		]
 
-		hosts = admin_service_client.host_getObjects(id=[c.id for c in TEST_CLIENTS], type="OpsiClient")  # type: ignore[attr-defined]
+		hosts = admin_service_client.host_getObjects(id=[c.id for c in TEST_CLIENTS], type="OpsiClient")  # ty: ignore[unresolved-attribute]
 		hosts_by_id = {host.id: host for host in hosts}
 
 		if dry_run:

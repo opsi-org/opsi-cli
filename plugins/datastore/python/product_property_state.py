@@ -25,7 +25,7 @@ def _get_default_property_states(
 		True if value in ("True", "true", "1") else False if value in ("False", "false", "0") else None for value in bool_attr
 	]
 
-	default_property_objects = service_connection.productProperty_getObjects(  # type: ignore[attr-defined]
+	default_property_objects = service_connection.productProperty_getObjects(  # ty: ignore[unresolved-attribute]
 		productId=product_ids,
 		productVersion=filter.pop("productVersion", None),
 		packageVersion=filter.pop("packageVersion", None),
@@ -72,7 +72,7 @@ def _update_default_states(
 	default_states: dict[str, dict[str, dict[str, dict[str, Any]]]],
 ) -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
 
-	depot_property_states = service_connection.productPropertyState_getObjects(  # type: ignore[attr-defined]
+	depot_property_states = service_connection.productPropertyState_getObjects(  # ty: ignore[unresolved-attribute]
 		objectId=depot_ids, productId=product_ids, propertyId=property_ids
 	)
 
@@ -106,7 +106,7 @@ def _update_depot_states(
 	depot_states: dict[str, dict[str, dict[str, dict[str, Any]]]],
 ) -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
 
-	client_property_states = service_connection.productPropertyState_getObjects(  # type: ignore[attr-defined]
+	client_property_states = service_connection.productPropertyState_getObjects(  # ty: ignore[unresolved-attribute]
 		objectId=object_ids, productId=product_ids, propertyId=property_ids
 	)
 
@@ -163,10 +163,10 @@ def list_product_property_state(where: tuple[str, ...], all: bool) -> None:
 		filter = {}
 
 	# get separated Id's from filter
-	final_object_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("objectId", None)))  # type: ignore[attr-defined]
+	final_object_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("objectId", None)))  # ty: ignore[unresolved-attribute]
 	final_product_ids = get_separated_entries(filter.pop("productId", None))
 	final_property_ids = get_separated_entries(filter.pop("propertyId", None))
-	final_depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # type: ignore[attr-defined]
+	final_depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # ty: ignore[unresolved-attribute]
 
 	# map clients to depots
 	client_to_depot = create_client_depot_mapping(service_connection, final_object_ids)

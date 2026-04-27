@@ -80,7 +80,7 @@ def list_product_client_state(where: tuple[str, ...], all: bool) -> None:
 	else:
 		filter = {}
 
-	filter_client_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("clientId", None)), type="OpsiClient")  # type: ignore[attr-defined]
+	filter_client_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("clientId", None)), type="OpsiClient")  # ty: ignore[unresolved-attribute]
 	filter_product_ids = get_separated_entries(filter.pop("productId", None))
 
 	tmp_list = get_separated_entries(filter.pop("installationStatus", None))
@@ -99,7 +99,7 @@ def list_product_client_state(where: tuple[str, ...], all: bool) -> None:
 	if "none" in filter_action_requests and "not_installed" in filter_installation_statuses:
 		depot_to_clients = get_depot_to_clients(service_connection, filter_client_ids)
 		depot_ids = list(depot_to_clients)
-		for pod in service_connection.productOnDepot_getIdents(returnType="dict", productId=filter_product_ids, depotId=depot_ids):  # type: ignore[attr-defined]
+		for pod in service_connection.productOnDepot_getIdents(returnType="dict", productId=filter_product_ids, depotId=depot_ids):  # ty: ignore[unresolved-attribute]
 			for client_id in depot_to_clients.get(pod["depotId"], []):
 				product_states[f"{client_id};{pod['productId']}"] = ProductClientState(
 					productType=pod["productType"],
@@ -109,7 +109,7 @@ def list_product_client_state(where: tuple[str, ...], all: bool) -> None:
 					actionRequest="none",
 				)
 
-	for poc in service_connection.productOnClient_getObjects(  # type: ignore[attr-defined]
+	for poc in service_connection.productOnClient_getObjects(  # ty: ignore[unresolved-attribute]
 		clientId=filter_client_ids,
 		productId=filter_product_ids or [],
 		installationStatus=filter_installation_statuses,
@@ -175,7 +175,7 @@ def update_product_client_state() -> None:
 		msg = "Update skipped due to dry run. Here are the product client states that would have been updated:\n"
 	else:
 		service_connection = get_service_connection()
-		service_connection.productOnClient_updateObjects(pcs)  # type: ignore[attr-defined]
+		service_connection.productOnClient_updateObjects(pcs)  # ty: ignore[unresolved-attribute]
 		msg = "Product client states updated successfully. Here are the updated states:\n"
 
 	console_print(msg, style="green", output_type=OutputType.MESSAGE)

@@ -177,7 +177,7 @@ class File(Path):
 			path = path.expanduser().absolute()
 			if path.exists() and not path.is_file():
 				raise ValueError(f"Not a file: {path!r}")
-		return path  # type: ignore[return-value]
+		return path  # ty: ignore[invalid-return-type]
 
 	def to_yaml(self) -> str:
 		return str(self)
@@ -190,7 +190,7 @@ class Directory(Path):
 		path = Path(*args, **kwargs).expanduser().absolute()
 		if path.exists() and not path.is_dir():
 			raise ValueError(f"Not a directory: {path!r}")
-		return path  # type: ignore[return-value]
+		return path  # ty: ignore[invalid-return-type]
 
 	def to_yaml(self) -> str:
 		return str(self)

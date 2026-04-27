@@ -165,7 +165,7 @@ def user_is_admin() -> bool:
 	except AttributeError:
 		import ctypes
 
-		return ctypes.windll.shell32.IsUserAnAdmin() != 0  # type: ignore[attr-defined]
+		return ctypes.windll.shell32.IsUserAnAdmin() != 0  # ty: ignore[unresolved-attribute]
 
 
 def evaluate_rpc_dict_result(

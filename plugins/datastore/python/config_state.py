@@ -33,7 +33,7 @@ def _get_default_config_states(
 		True if value in ("True", "true", "1") else False if value in ("False", "false", "0") else None for value in bool_attr
 	]
 
-	default_config_objects = service_connection.config_getObjects(  # type: ignore[attr-defined]
+	default_config_objects = service_connection.config_getObjects(  # ty: ignore[unresolved-attribute]
 		id=config_ids,
 		type=filter.pop("type", None),
 		description=filter.pop("description", None),
@@ -71,7 +71,7 @@ def _update_default_states(
 	default_states: dict[str, dict[str, dict[str, Any]]],
 ) -> dict[str, dict[str, dict[str, Any]]]:
 
-	depot_config_states = service_connection.configState_getObjects(objectId=depot_ids, configId=config_ids)  # type: ignore[attr-defined]
+	depot_config_states = service_connection.configState_getObjects(objectId=depot_ids, configId=config_ids)  # ty: ignore[unresolved-attribute]
 
 	# account for different depots
 	depot_lookup = {(s.objectId, s.configId): s.values for s in depot_config_states}
@@ -100,7 +100,7 @@ def _update_depot_states(
 	depot_states: dict[str, dict[str, dict[str, Any]]],
 ) -> dict[str, dict[str, dict[str, Any]]]:
 
-	client_config_states = service_connection.configState_getObjects(objectId=object_ids, configId=config_ids)  # type: ignore[attr-defined]
+	client_config_states = service_connection.configState_getObjects(objectId=object_ids, configId=config_ids)  # ty: ignore[unresolved-attribute]
 
 	for state in client_config_states:
 		if state.objectId in depot_states and state.configId in depot_states[state.objectId]:
@@ -120,7 +120,7 @@ def _update_database(data: list[dict[str, str]], config_states: list[ConfigState
 		msg = "Update skipped due to dry run. Here are the clients that would have been updated:\n"
 	else:
 		msg = "Config-state updated successfully. Here are the updated clients."
-		service_connection.configState_updateObjects(config_states)  # type: ignore[attr-defined]
+		service_connection.configState_updateObjects(config_states)  # ty: ignore[unresolved-attribute]
 
 	console_print(msg, style="green", output_type=OutputType.MESSAGE)
 	write_output(data=sorted(data, key=lambda x: x["objectId"]), metadata=metadata)
@@ -190,9 +190,9 @@ def list_config_state(where: tuple[str, ...], all: bool) -> None:
 		filter = {}
 
 	# get separated Id's from filter
-	final_object_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("objectId", None)))  # type: ignore[attr-defined]
+	final_object_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("objectId", None)))  # ty: ignore[unresolved-attribute]
 	final_config_ids = get_separated_entries(filter.pop("configId", None))
-	final_depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # type: ignore[attr-defined]
+	final_depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # ty: ignore[unresolved-attribute]
 
 	# get a client to depot mapping
 	client_to_depot = create_client_depot_mapping(service_connection)
@@ -256,7 +256,7 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 
 	# get separated Id's from filter
 
-	object_ids = service_connection.host_getIdents(  # type: ignore[attr-defined]
+	object_ids = service_connection.host_getIdents(  # ty: ignore[unresolved-attribute]
 		id=get_separated_entries(filter.get("objectId", None) if filter.get("objectId") != "*" else None)
 	)
 
@@ -265,11 +265,11 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	if len(config_id) > 1 or "*" in config_id:
 		raise ValueError("Only one configId without wildcard is allowed.")
 
-	config_obj = service_connection.config_getObjects(id=config_id[0] or [])  # type: ignore[attr-defined]
+	config_obj = service_connection.config_getObjects(id=config_id[0] or [])  # ty: ignore[unresolved-attribute]
 
 	# validate values
 	validated_values = validate_against_possible_values(updates["values"], config_obj[0])
-	current_values = service_connection.configState_getValues(config_id, object_ids)  # type: ignore[attr-defined]
+	current_values = service_connection.configState_getValues(config_id, object_ids)  # ty: ignore[unresolved-attribute]
 
 	# create config-state objects
 	updated_config_states = _create_config_states(object_ids, config_obj[0].id, validated_values)

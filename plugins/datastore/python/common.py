@@ -21,13 +21,13 @@ __description__ = "This command can be used to manage data and objects"
 
 
 def create_client_depot_mapping(service_connection: ServiceClient, object_ids: list[str] | None = None) -> dict[str, str]:
-	client_to_depot_objects = service_connection.configState_getClientToDepotserver(clientIds=object_ids or [])  # type: ignore[attr-defined]
+	client_to_depot_objects = service_connection.configState_getClientToDepotserver(clientIds=object_ids or [])  # ty: ignore[unresolved-attribute]
 	# getClientToDepotserver returns [] for a depot_id
 	return {item["clientId"]: item["depotId"] for item in client_to_depot_objects}
 
 
 def get_depot_to_clients(service_connection: ServiceClient, client_ids: list[str] | None = None) -> dict[str, list[str]]:
-	client_to_depot_objects = service_connection.configState_getClientToDepotserver(clientIds=client_ids or [])  # type: ignore[attr-defined]
+	client_to_depot_objects = service_connection.configState_getClientToDepotserver(clientIds=client_ids or [])  # ty: ignore[unresolved-attribute]
 	depot_to_clients: dict[str, list[str]] = {}
 	for item in client_to_depot_objects:
 		depot_id = item["depotId"]

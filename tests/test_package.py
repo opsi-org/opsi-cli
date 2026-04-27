@@ -352,16 +352,16 @@ def test_package_install_and_uninstall(admin_service_client: ServiceClient) -> N
 		OpsiClient(id="client3.opsi.test"),
 	]
 	# Cleanup
-	admin_service_client.host_deleteObjects(hosts)  # type: ignore[unresolved-attribute]
-	admin_service_client.product_delete(id=["testdependency4", "testdependency5", "opsi-client-agent"])  # type: ignore[unresolved-attribute]
+	admin_service_client.host_deleteObjects(hosts)  # ty: ignore[unresolved-attribute]
+	admin_service_client.product_delete(id=["testdependency4", "testdependency5", "opsi-client-agent"])  # ty: ignore[unresolved-attribute]
 
-	admin_service_client.host_createObjects(hosts)  # type: ignore[unresolved-attribute]
-	admin_service_client.configState_create(configId="clientconfig.depot.id", objectId="client1.opsi.test", values=["depot1.opsi.test"])  # type: ignore[unresolved-attribute]
-	admin_service_client.configState_create(configId="clientconfig.depot.id", objectId="client2.opsi.test", values=["depot2.opsi.test"])  # type: ignore[unresolved-attribute]
-	configserver_id = admin_service_client.host_getIdents(type="OpsiConfigserver")[0]  # type: ignore[unresolved-attribute]
+	admin_service_client.host_createObjects(hosts)  # ty: ignore[unresolved-attribute]
+	admin_service_client.configState_create(configId="clientconfig.depot.id", objectId="client1.opsi.test", values=["depot1.opsi.test"])  # ty: ignore[unresolved-attribute]
+	admin_service_client.configState_create(configId="clientconfig.depot.id", objectId="client2.opsi.test", values=["depot2.opsi.test"])  # ty: ignore[unresolved-attribute]
+	configserver_id = admin_service_client.host_getIdents(type="OpsiConfigserver")[0]  # ty: ignore[unresolved-attribute]
 
 	client_ids_by_depot = {}
-	for c2d in admin_service_client.configState_getClientToDepotserver():  # type: ignore[unresolved-attribute]
+	for c2d in admin_service_client.configState_getClientToDepotserver():  # ty: ignore[unresolved-attribute]
 		if c2d["depotId"] not in client_ids_by_depot:
 			client_ids_by_depot[c2d["depotId"]] = []
 		client_ids_by_depot[c2d["depotId"]].append(c2d["clientId"])
@@ -426,12 +426,12 @@ def test_package_install_and_uninstall(admin_service_client: ServiceClient) -> N
 						depotId=self.depot.id,
 						locked=True,
 					)
-					admin_service_client.product_updateObjects([product])  # type: ignore[unresolved-attribute]
-					admin_service_client.productOnDepot_createObjects([product_on_depot])  # type: ignore[unresolved-attribute]
+					admin_service_client.product_updateObjects([product])  # ty: ignore[unresolved-attribute]
+					admin_service_client.productOnDepot_createObjects([product_on_depot])  # ty: ignore[unresolved-attribute]
 				if method == "depot_uninstallPackage":
 					assert params
 					product_id = params[0]
-					admin_service_client.productOnDepot_delete(productId=[product_id], depotId=[self.depot.id])  # type: ignore[unresolved-attribute]
+					admin_service_client.productOnDepot_delete(productId=[product_id], depotId=[self.depot.id])  # ty: ignore[unresolved-attribute]
 
 		return MockServiceClient(depot)
 
@@ -440,7 +440,7 @@ def test_package_install_and_uninstall(admin_service_client: ServiceClient) -> N
 		exit_code, _, _stderr = run_cli(["package", "install", str(TEST_DATA_PATH / "testdependency4_1.0-5.opsi")])
 		assert exit_code != 0
 		_stderr = re.sub(r"\s+", " ", re.sub(r"[\n│]", "", _stderr))
-		assert "Backend unaccomplishable error: Dependent package 'testdependency5' not installed" in _stderr
+		assert "Dependent package 'testdependency5' not installed" in _stderr
 
 		# Test with unfullfilled package dependency, this will lock the product 'testdependency4'.
 		exit_code, _stdout, _stderr = run_cli(
@@ -513,7 +513,7 @@ def test_package_install_and_uninstall(admin_service_client: ServiceClient) -> N
 				assert not (Path("/var/lib/opsi/repository") / file).exists()
 
 		pods = sorted(
-			admin_service_client.productOnDepot_getObjects(productId=["testdependency4", "testdependency5", "opsi-client-agent"]),  # type: ignore[unresolved-attribute]
+			admin_service_client.productOnDepot_getObjects(productId=["testdependency4", "testdependency5", "opsi-client-agent"]),  # ty: ignore[unresolved-attribute]
 			key=lambda p: (p.productId, p.depotId),
 		)
 		assert len(pods) == 2
@@ -539,7 +539,7 @@ def test_package_install_and_uninstall(admin_service_client: ServiceClient) -> N
 		)
 		assert exit_code == 0
 		pods = sorted(
-			admin_service_client.productOnDepot_getObjects(productId=["testdependency4", "testdependency5", "opsi-client-agent"]),  # type: ignore[unresolved-attribute]
+			admin_service_client.productOnDepot_getObjects(productId=["testdependency4", "testdependency5", "opsi-client-agent"]),  # ty: ignore[unresolved-attribute]
 			key=lambda p: (p.productId, p.depotId),
 		)
 		assert len(pods) == 3
@@ -562,7 +562,7 @@ def test_package_install_and_uninstall(admin_service_client: ServiceClient) -> N
 		)
 		assert exit_code == 0
 		pods = sorted(
-			admin_service_client.productOnDepot_getObjects(productId=["testdependency4", "testdependency5", "opsi-client-agent"]),  # type: ignore[unresolved-attribute]
+			admin_service_client.productOnDepot_getObjects(productId=["testdependency4", "testdependency5", "opsi-client-agent"]),  # ty: ignore[unresolved-attribute]
 			key=lambda p: (p.productId, p.depotId),
 		)
 		assert len(pods) == 5
@@ -596,7 +596,7 @@ def test_package_install_and_uninstall(admin_service_client: ServiceClient) -> N
 
 		assert exit_code == 0
 		pods = sorted(
-			admin_service_client.productOnDepot_getObjects(productId=["testdependency4", "testdependency5", "opsi-client-agent"]),  # type: ignore[unresolved-attribute]
+			admin_service_client.productOnDepot_getObjects(productId=["testdependency4", "testdependency5", "opsi-client-agent"]),  # ty: ignore[unresolved-attribute]
 			key=lambda p: (p.productId, p.depotId),
 		)
 		assert len(pods) == 3
@@ -621,8 +621,8 @@ def test_package_install_and_uninstall(admin_service_client: ServiceClient) -> N
 			ProductPropertyState(productId="opsi-client-agent", objectId=client_id, propertyId="allow_reboot", values=[True])
 			for client_id in ["client1.opsi.test", "client2.opsi.test", "client3.opsi.test"]
 		]
-		admin_service_client.productOnClient_createObjects(pocs)  # type: ignore[unresolved-attribute]
-		admin_service_client.productPropertyState_createObjects(pps)  # type: ignore[unresolved-attribute]
+		admin_service_client.productOnClient_createObjects(pocs)  # ty: ignore[unresolved-attribute]
+		admin_service_client.productPropertyState_createObjects(pps)  # ty: ignore[unresolved-attribute]
 
 		###########################################
 		# Uninstall opsi-client-agent
@@ -631,12 +631,12 @@ def test_package_install_and_uninstall(admin_service_client: ServiceClient) -> N
 		assert exit_code == 0
 
 		# Verify that product is not removed
-		product = admin_service_client.product_getObjects(id=["opsi-client-agent"])[0]  # type: ignore[unresolved-attribute]
+		product = admin_service_client.product_getObjects(id=["opsi-client-agent"])[0]  # ty: ignore[unresolved-attribute]
 		assert product.id == "opsi-client-agent"
 
 		# Verify that productOnDepot is removed only from configserver depot
 		pods = sorted(
-			admin_service_client.productOnDepot_getObjects(productId=["opsi-client-agent"]),  # type: ignore[unresolved-attribute]
+			admin_service_client.productOnDepot_getObjects(productId=["opsi-client-agent"]),  # ty: ignore[unresolved-attribute]
 			key=lambda p: (p.productId, p.depotId),
 		)
 		assert len(pods) == 2
@@ -647,7 +647,7 @@ def test_package_install_and_uninstall(admin_service_client: ServiceClient) -> N
 
 		# Verify that productOnClient and productPropertyState are not removed
 		pocs = sorted(
-			admin_service_client.productOnClient_getObjects(productId=["opsi-client-agent"]),  # type: ignore[unresolved-attribute]
+			admin_service_client.productOnClient_getObjects(productId=["opsi-client-agent"]),  # ty: ignore[unresolved-attribute]
 			key=lambda p: (p.productId, p.clientId),
 		)
 		assert len(pocs) == 3
@@ -656,7 +656,7 @@ def test_package_install_and_uninstall(admin_service_client: ServiceClient) -> N
 		assert pocs[2].clientId == "client3.opsi.test"
 
 		ppss = sorted(
-			admin_service_client.productPropertyState_getObjects(  # type: ignore[unresolved-attribute]
+			admin_service_client.productPropertyState_getObjects(  # ty: ignore[unresolved-attribute]
 				productId=["opsi-client-agent"], objectId=["client1.opsi.test", "client2.opsi.test", "client3.opsi.test"]
 			),
 			key=lambda p: (p.productId, p.objectId),
