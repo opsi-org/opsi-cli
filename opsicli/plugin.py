@@ -9,6 +9,8 @@ opsi-cli Basic command line interface for opsi
 plugin handling
 """
 
+from __future__ import annotations
+
 import importlib
 import os
 import re
@@ -27,7 +29,6 @@ from opsicommon.logging import get_logger
 from packaging.version import parse
 
 from opsicli.config import COMPLETION_MODE, config
-from opsicli.singelton import Singleton
 
 logger = get_logger("opsicli")
 
@@ -77,7 +78,7 @@ class OPSICLIPlugin:
 
 class PluginImporter(BuiltinImporter):
 	@classmethod
-	def find_spec(cls, fullname: str, path: None = None, target: None = None) -> ModuleSpec | None:  # type: ignore[override]
+	def find_spec(cls, fullname: str, path: None = None, target: None = None) -> ModuleSpec | None:  # ty: ignore[invalid-method-override]
 		if not fullname.startswith("opsicli.addon"):
 			return None
 		encoded = fullname.split("_", 1)[1]
@@ -88,15 +89,24 @@ class PluginImporter(BuiltinImporter):
 		logger.debug("Searching spec for %s", init_path)
 		if not os.path.exists(init_path):
 			return None
-		return importlib.util.spec_from_file_location(fullname, init_path)  # type: ignore[possibly-missing-attribute]
+		return importlib.util.spec_from_file_location(fullname, init_path)  # ty: ignore[possibly-missing-submodule]
 
 
-sys.meta_path.append(PluginImporter)  # type: ignore[arg-type]
+sys.meta_path.append(PluginImporter)  # ty: ignore[invalid-argument-type]
 
 
-class PluginManager(metaclass=Singleton):
+class PluginManager:
+	_instance: PluginManager | None = None
+
+	def __new__(cls) -> PluginManager:
+		if cls._instance is None:
+			cls._instance = super().__new__(cls)
+		return cls._instance
+
 	def __init__(self) -> None:
-		pass
+		if getattr(self, "_initialized", False):
+			return
+		self._initialized = True
 
 	@classmethod
 	def module_name(cls, plugin_path: Path) -> str:
@@ -229,10 +239,10 @@ def install_python_package(target_dir: Path, package: dict[str, str]) -> None:
 		return []
 
 	# Monkeypatch warn_if_run_as_root to ignore warnings, since we use custom package pool anyway
-	pip._internal.commands.install.warn_if_run_as_root = lambda: None  # type: ignore
+	pip._internal.commands.install.warn_if_run_as_root = lambda: None  # ty: ignore
 	# ScriptMaker is called by pip to create executable python scripts from libraries (i.e. .../bin)
 	# Monkeypatch here to avoid trying to create this (nasty in frozen context)
-	ScriptMaker.make_multiple = monkeypatched_make_multiple  # type: ignore
+	ScriptMaker.make_multiple = monkeypatched_make_multiple  # ty: ignore
 
 	target_dir.mkdir(parents=True, exist_ok=True)
 	logger.info("Installing %r, version %r", package["name"], package["version"])
@@ -267,11 +277,11 @@ def install_dependencies(path: Path, target_dir: Path) -> None:
 		import _frozen_importlib_external
 
 		try:
-			import pyimod02_importers  # type: ignore[import-not-found]
+			import pyimod02_importers  # ty: ignore[unresolved-import]
 		except ImportError:
 			from PyInstaller.loader import pyimod02_importers
 
-		resources._finder_registry[pyimod02_importers.PyiFrozenLoader] = resources._finder_registry[  # type: ignore
+		resources._finder_registry[pyimod02_importers.PyiFrozenLoader] = resources._finder_registry[  # ty: ignore
 			_frozen_importlib_external.SourceFileLoader
 		]
 		logger.debug("Finder registry: %s", resources._finder_registry)

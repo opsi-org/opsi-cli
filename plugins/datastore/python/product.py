@@ -13,7 +13,7 @@ import rich_click as click
 from opsicommon.logging import get_logger
 
 from opsicli.decorators import dry_run_capable, mutually_exclusive
-from opsicli.io import OutputType, console_print, get_separated_entries
+from opsicli.io import OutputType, console_print, get_separated_entries, write_output
 from opsicli.opsiservice import config, get_service_connection
 
 from .common import cli, process_where
@@ -52,7 +52,7 @@ def product_unlock(where: tuple[str, ...], all: bool) -> None:
 	# Helper function, get products, unlock them, update them
 	def unlock_and_update(product_ids: list[str], depot_ids: list[str]) -> None:
 		service_connection = get_service_connection()
-		product_on_depots = service_connection.productOnDepot_getObjects(productId=product_ids, depotId=depot_ids or [])  # type: ignore[attr-defined]
+		product_on_depots = service_connection.productOnDepot_getObjects(productId=product_ids, depotId=depot_ids)  # ty: ignore[unresolved-attribute]
 
 		# empty result
 		if not product_on_depots:
@@ -60,24 +60,30 @@ def product_unlock(where: tuple[str, ...], all: bool) -> None:
 			raise ValueError("No products found matching the filtering criteria.")
 		for product_on_depot in product_on_depots:
 			product_on_depot.locked = False
-		service_connection.productOnDepot_updateObjects(product_on_depots)  # type: ignore[attr-defined]
+		service_connection.productOnDepot_updateObjects(product_on_depots)  # ty: ignore[unresolved-attribute]
 
+	service_connection = get_service_connection()
 	if not all:
 		filter = process_where(where, attributes=COMMAND_METADATA["datastore_product_unlock"].attributes, operation="unlock")
 		filter = {k: (v if v != "*" else None) for k, v in filter.items()}
 	else:
 		filter = {}
 
-	product_ids_list = get_separated_entries(filter.pop("productId", None))
-	depot_ids_list = get_separated_entries(filter.pop("depotId", None))
+	product_idents = service_connection.product_getIdents(id=get_separated_entries(filter.pop("productId", None)))  # ty: ignore[unresolved-attribute]
+	product_ids = [id.split(";")[0] for id in product_idents]
+	depot_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("depotId", None)), type="OpsiDepotserver")  # ty: ignore[unresolved-attribute]
+
+	if not product_ids or not depot_ids:  # empty result
+		raise ValueError("No products found matching the filtering criteria.")
 
 	if config.dry_run:
-		msg = f"Unlocking skipped due to dry run. Here are the products that would have been unlocked:\n{product_ids_list}"
+		msg = "Unlocking skipped due to dry run. Here are the products that would have been unlocked:\n"
 	else:
-		unlock_and_update(product_ids_list, depot_ids_list)
-		msg = f"Products unlocked successfully. Here are the unlocked products:\n{product_ids_list}"
+		unlock_and_update(product_ids, depot_ids)
+		msg = "Products unlocked successfully. Here are the unlocked products:\n"
 
 	console_print(msg, style="green", output_type=OutputType.MESSAGE)
+	write_output(data=product_ids, metadata=COMMAND_METADATA["datastore_product_purge"])
 
 
 @product.command(name="purge", short_help="Purge metadata related to uninstalled products.")
@@ -106,16 +112,17 @@ def product_purge(where: tuple[str, ...], all: bool) -> None:
 		filter = {k: (v if v != "*" else "") for k, v in filter.items()}  # process wildcards
 	else:
 		filter = {}
-	product_id_list = service_connection.product_getIdents(get_separated_entries(filter.pop("productId", None)))  # type: ignore[attr-defined]
-
+	product_idents = service_connection.product_getIdents(get_separated_entries(filter.pop("productId", None)))  # ty: ignore[unresolved-attribute]
+	product_ids = [id.split(";")[0] for id in product_idents]
 	# empty result
-	if not product_id_list:
+	if not product_ids:
 		raise ValueError("No products found matching the filtering criteria.")
 
 	if config.dry_run:
-		msg = f"Purge skipped due to dry run. Here are the products that would have been purged:\n{product_id_list}"
+		msg = "Purge skipped due to dry run. Here are the products that would have been purged:\n"
 	else:
-		msg = f"Products purged successfully. Here are the purged products:\n{product_id_list}"
-		service_connection.product_purge(id=product_id_list)  # type: ignore[attr-defined]
+		msg = "Products purged successfully. Here are the purged products:\n"
+		service_connection.poduct_purge(id=product_ids)  # ty: ignore[unresolved-attribute]
 
 	console_print(msg, style="green", output_type=OutputType.MESSAGE)
+	write_output(data=product_ids, metadata=COMMAND_METADATA["datastore_product_purge"])

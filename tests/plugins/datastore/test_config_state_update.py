@@ -423,7 +423,6 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 			None,
 			(
 				"Incomplete filter for update operation.",
-				"If you intentionally do not want to filter by an attribute",
 				"On update operations, the filter must contain all identifier attributes.",
 				"Missing required attributes: configId",
 			),
@@ -445,7 +444,6 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 			None,
 			(
 				"Incomplete filter for update operation.",
-				"If you intentionally do not want to filter by an attribute",
 				"On update operations, the filter must contain all identifier attributes.",
 				"Missing required attributes: objectId",
 			),
@@ -465,7 +463,6 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 			None,
 			(
 				"Incomplete filter for update operation.",
-				"If you intentionally do not want to filter by an attribute",
 				"Available attributes are:",
 				"objectId",
 				"The ID of the object",
@@ -532,7 +529,7 @@ def test_config_state_update(
 		config_id = next((arg.split("=")[1] for arg in command if arg.startswith("configId=")), None)
 		object_id = next((arg.split("=")[1] for arg in command if arg.startswith("objectId=")), None)
 
-		states = admin_service_client.configState_getObjects(configId=config_id, objectId=object_id)  # type: ignore[attr-defined]
+		states = admin_service_client.configState_getObjects(configId=config_id, objectId=object_id)  # ty: ignore[unresolved-attribute]
 		if expected_output and config_id and object_id:
 			for state, expect in zip(states, expected_values):
 				assert state.__dict__ == expect

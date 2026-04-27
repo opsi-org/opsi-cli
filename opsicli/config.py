@@ -20,8 +20,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Callable
 
-from opsicli.singelton import Singleton
-
 DEFAULT_SESSION_LIFETIME = 900
 COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE" in os.environ
 
@@ -229,7 +227,7 @@ class ConfigItem:
 	def get_values(self, value_only: bool = True, sources: list[ConfigValueSource] | None = None) -> list[Any]:
 		values = [
 			val.value if value_only else val
-			for val in (self._value if self.multiple else [self._value])  # type: ignore[not-iterable]
+			for val in (self._value if self.multiple else [self._value])  # ty: ignore[not-iterable]
 			if isinstance(val, ConfigValue) and (not sources or val.source in sources)
 		]
 		return values
@@ -482,8 +480,18 @@ def get_config_items() -> list[ConfigItem]:
 	return config_items
 
 
-class Config(metaclass=Singleton):
+class Config:
+	_instance: Config | None = None
+
+	def __new__(cls) -> Config:
+		if cls._instance is None:
+			cls._instance = super().__new__(cls)
+		return cls._instance
+
 	def __init__(self) -> None:
+		if getattr(self, "_initialized", False):
+			return
+		self._initialized = True
 		self.reset()
 
 	def reset(self) -> None:
@@ -632,7 +640,7 @@ class Config(metaclass=Singleton):
 		}
 		_args = [str(long_option)] + ([str(kwargs.pop("short_option"))] if "short_option" in kwargs else [])
 		_kwargs.update(kwargs)
-		return click.option(*_args, **_kwargs)  # type: ignore[invalid-argument-type]
+		return click.option(*_args, **_kwargs)  # ty: ignore[invalid-argument-type]
 
 	def process_option(self, ctx: click.Context, param: click.Option, value: Any) -> None:
 		if param.name is None:
@@ -654,7 +662,7 @@ class Config(metaclass=Singleton):
 		except ValueError as err:
 			msg = str(err)
 			if hasattr(err, "errors"):
-				msg = err.errors()[0]["msg"]  # type: ignore[attr-defined]
+				msg = err.errors()[0]["msg"]  # ty: ignore[call-non-callable]
 			raise click.BadParameter(msg, ctx=ctx, param=param) from err
 
 		ctx.default_map = {}

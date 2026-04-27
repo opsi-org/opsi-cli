@@ -59,7 +59,7 @@ def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
 	Manage opsi client actions.
 	"""
 	logger.trace("client-action command group")
-	ctx.obj = ClientActionArgs(**kwargs)  # type: ignore[arg-type]
+	ctx.obj = ClientActionArgs(**kwargs)  # ty: ignore[invalid-argument-type]
 
 
 @cli.command(name="set-action-request", short_help="Set action requests for opsi clients")
@@ -181,7 +181,7 @@ def set_action_request(ctx: click.Context, **kwargs: str | bool) -> None:
 		deprecation_warning("The `--request-type` option is deprecated, please use `--set-action-request` instead.\n")
 		kwargs["set_action_request"] = request_type
 
-	worker.set_action_request(SetActionRequestArgs(**kwargs))  # type: ignore[arg-type]
+	worker.set_action_request(SetActionRequestArgs(**kwargs))  # ty: ignore[invalid-argument-type]
 
 
 @cli.command(name="trigger-event", short_help="Trigger an event for selected clients")
@@ -355,7 +355,7 @@ def process_actions(ctx: click.Context, **kwargs: str | bool | None) -> None:
 	Process action requests for selected clients.
 	"""
 	worker = SetActionRequestWorker(ctx.obj)
-	worker.process_actions(SetActionRequestArgs(**kwargs))  # type: ignore[arg-type]
+	worker.process_actions(SetActionRequestArgs(**kwargs))  # ty: ignore[invalid-argument-type]
 
 
 # This class keeps track of the plugins meta-information

@@ -37,7 +37,7 @@ def emit(*args: Any, **kwargs: Any) -> None:
 	pass
 
 
-LogCaptureHandler.emit = emit  # type: ignore[assignment]
+LogCaptureHandler.emit = emit  # ty: ignore[invalid-assignment]
 
 
 @pytest.fixture(autouse=True)
@@ -68,12 +68,12 @@ def clean_backend() -> None:
 		with service_client.connection(connect_messagebus=False):
 			delete_host_ids = [
 				host.id
-				for host in service_client.host_getObjects(attributes=["id", "type"])  # type: ignore[unresolved-attribute]
+				for host in service_client.host_getObjects(attributes=["id", "type"])  # ty: ignore[unresolved-attribute]
 				if host.getType() != "OpsiConfigserver"
 			]
 			if delete_host_ids:
-				service_client.host_delete(id=delete_host_ids)  # type: ignore[unresolved-attribute]
-			service_client.product_delete(id=[])  # type: ignore[unresolved-attribute]
+				service_client.host_delete(id=delete_host_ids)  # ty: ignore[unresolved-attribute]
+			service_client.product_delete(id=[])  # ty: ignore[unresolved-attribute]
 
 
 def _update_depot_info() -> None:

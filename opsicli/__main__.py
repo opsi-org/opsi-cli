@@ -74,7 +74,7 @@ logger = get_logger("opsicli")
 
 
 # https://click.palletsprojects.com/en/8.1.x/commands/#custom-multi-commands
-class OpsiCLI(click.MultiCommand):  # type: ignore
+class OpsiCLI(click.MultiCommand):  # ty: ignore
 	def main(
 		self,
 		args: Sequence[str] | None = None,
@@ -106,7 +106,7 @@ class OpsiCLI(click.MultiCommand):  # type: ignore
 				err.message = re.sub(r"\[/?metavar\]", "", err.message)
 				formatter = _get_rich_formatter()
 				formatter._console = err_console
-				formatter.config.highlighter = lambda x: x  # type: ignore[assignment]
+				formatter.config.highlighter = lambda x: x  # ty: ignore[invalid-assignment]
 				if issubclass(exc_type, Abort):
 					rich_abort_error()
 				else:
@@ -215,4 +215,4 @@ def main(*args: str, **kwargs: str) -> None:
 	prepare_cli_paths()
 	if config.quiet:
 		logger.debug("Quiet mode enabled, disabling print")
-		builtins.print = quiet_print  # type: ignore[invalid-assignment]
+		builtins.print = quiet_print  # ty: ignore[invalid-assignment]

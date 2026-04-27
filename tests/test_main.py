@@ -18,5 +18,5 @@ from opsicli.__main__ import LogLevel
 )
 def test_log_level(part: str, complete: str | int) -> None:
 	log_level = LogLevel()
-	completion = log_level.shell_complete(None, None, part)  # type: ignore[arg-type]
+	completion = log_level.shell_complete(None, None, part)  # ty: ignore[invalid-argument-type]
 	assert complete == completion.pop().value

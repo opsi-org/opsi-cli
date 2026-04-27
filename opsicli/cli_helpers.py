@@ -129,17 +129,17 @@ def _format_help(command: click.Command, ctx: click.Context, formatter: click.He
 			),
 		)
 
-	rich_click.get_rich_usage = _custom_get_rich_usage  # type: ignore[invalid-assignment]
+	rich_click.get_rich_usage = _custom_get_rich_usage  # ty: ignore[invalid-assignment]
 	orig_get_params = command.get_params
 
 	def _get_non_option_params(current_ctx: click.Context) -> list[click.Parameter]:
 		return [param for param in orig_get_params(current_ctx) if not isinstance(param, click.Option)]
 
-	command.get_params = _get_non_option_params  # type: ignore[invalid-assignment]
+	command.get_params = _get_non_option_params  # ty: ignore[invalid-assignment]
 	try:
 		rich_format_help(command, ctx, formatter)
 	finally:
-		command.get_params = orig_get_params  # type: ignore[invalid-assignment]
+		command.get_params = orig_get_params  # ty: ignore[invalid-assignment]
 
 
 def _get_usage(ctx: click.Context) -> str:

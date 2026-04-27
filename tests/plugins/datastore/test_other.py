@@ -28,10 +28,10 @@ PRODUCT_ID_2 = "pytest-product2"
 # get products from depot and setting locked to 'True' manually
 # update depot with locked products
 def lock_products(admin_service_client: ServiceClient, product_id: str | None = None) -> None:
-	products = admin_service_client.productOnDepot_getObjects(productId=product_id or [])  # type:ignore[attr-defined]
+	products = admin_service_client.productOnDepot_getObjects(productId=product_id or [])  # ty: ignore[unresolved-attribute]
 	for product in products:
 		product.locked = True
-	admin_service_client.productOnDepot_updateObjects(products)  # type:ignore[attr-defined]
+	admin_service_client.productOnDepot_updateObjects(products)  # ty: ignore[unresolved-attribute]
 
 
 # unlock products with given product-id and depot-id
@@ -45,12 +45,13 @@ def unlock_products(product_ids: list[str] = [], depot_ids: list[str] = []) -> t
 		args += ["--where", f"productId={','.join(product_ids)}", "--where", f"depotId={','.join(depot_ids)}"]
 	if not depot_ids and not product_ids:
 		args += ["--where", "productId=*", "--where", "depotId=*"]
+
 	return run_cli(args)
 
 
 # verify the given locked status (e.g. is product.locked = True or False?)
 def verify_lock_status(admin_service_client: ServiceClient, is_locked: bool, product_id: str | None = None) -> None:
-	products = admin_service_client.productOnDepot_getObjects(productId=product_id or [])  # type:ignore[attr-defined]
+	products = admin_service_client.productOnDepot_getObjects(productId=product_id or [])  # ty: ignore[unresolved-attribute]
 	for prod in products:
 		assert prod.locked is is_locked
 
@@ -145,13 +146,13 @@ def _test_product_property_list_stress_test(admin_service_client: ServiceClient)
 			while j < num_products:
 				k = 0
 				while k < num_properties:
-					admin_service_client.productProperty_create(  # type: ignore[unresolved-attribute]
+					admin_service_client.productProperty_create(  # ty: ignore[unresolved-attribute]
 						productId=f"pytest-product{j}",
 						productVersion="1",
 						packageVersion="1",
 						propertyId=f"property{k}",
 					)
-					admin_service_client.productPropertyState_create(  # type: ignore[unresolved-attribute]
+					admin_service_client.productPropertyState_create(  # ty: ignore[unresolved-attribute]
 						productId=f"pytest-product{j}",
 						propertyId=f"property{k}",
 						objectId=f"pytest-client{i}.test.tld",
@@ -338,7 +339,7 @@ def test_update_product_client_state(admin_service_client: ServiceClient) -> Non
 		)
 		assert exit_code == 0
 
-		pocs = admin_service_client.productOnClient_getObjects(  # type: ignore[attr-defined]
+		pocs = admin_service_client.productOnClient_getObjects(  # ty: ignore[unresolved-attribute]
 			clientId=[CLIENT_ID_1, CLIENT_ID_2],
 			productId=[PRODUCT_ID_1, PRODUCT_ID_2],
 		)
