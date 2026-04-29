@@ -207,7 +207,7 @@ def install_plugin(source_dir: Path, plugin_id: str, system: bool = False) -> Pa
 	"""Copy the prepared plugin from tmp to LIB_DIR"""
 	plugin_dir = config.plugin_system_dir if system else config.plugin_user_dir
 	if not plugin_dir.is_dir():
-		raise FileNotFoundError(f"Plugin dir '{plugin_dir}' does not exist")
+		plugin_dir.mkdir(parents=True)
 
 	if not plugin_id:
 		raise ValueError("Attempting to install empty plugin.")

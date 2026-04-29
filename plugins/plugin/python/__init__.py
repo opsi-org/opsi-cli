@@ -13,6 +13,7 @@ import os
 import shutil
 import sys
 import tempfile
+import warnings
 import zipfile
 from pathlib import Path
 
@@ -81,7 +82,9 @@ def add(paths: list[Path], system: bool) -> None:
 			except PermissionError as p_error:
 				logger.error(p_error, exc_info=True)
 				continue
-		console_print(f"Plugin {plugin_id!r} installed into '{path}'.", output_type=OutputType.MESSAGE)
+		with warnings.catch_warnings():  # pip complains about importing something after it "started"
+			warnings.simplefilter("ignore")
+			console_print(f"Plugin {plugin_id!r} installed into '{path}'.", output_type=OutputType.MESSAGE)
 
 
 def complete_plugin_id(ctx: click.Context, param: click.Parameter, incomplete: str) -> list[CompletionItem]:
