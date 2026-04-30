@@ -291,7 +291,7 @@ makeopsipackage:
   artifacts:
     name: controlfile
     paths:
-      - OPSI/control
+      - OPSI/control.toml
 
 .runtest: &runtest |
   version=$(opsi-dev-cli opsi-package get-value productVersion)
