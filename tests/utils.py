@@ -148,7 +148,8 @@ def temp_context() -> Generator[Path, None, None]:
 		with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tempdir:
 			tempdir_path = Path(tempdir)
 			config.color = False
-			config.python_lib_dir = tempdir_path / "lib"
+			config.lib_user_dir = tempdir_path / "user_lib"
+			config.lib_system_dir = tempdir_path / "system_lib"
 			config.plugin_user_dir = tempdir_path / "user_plugins"
 			config.plugin_system_dir = tempdir_path / "system_plugins"
 			yield tempdir_path

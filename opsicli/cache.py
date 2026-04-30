@@ -35,7 +35,7 @@ class Cache:
 		if getattr(self, "_initialized", False):
 			return
 		self._initialized = True
-		self._cache_file: Path = config.user_lib_dir / "cache.json"
+		self._cache_file: Path = config.base_user_dir / "cache.json"
 		self._data: dict[str, Any] = {}
 		self._loaded = False
 		self._modified = False

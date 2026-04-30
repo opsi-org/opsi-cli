@@ -203,21 +203,20 @@ def remove(plugin_id: str) -> None:
 	plugin_object = plugin_manager.load_plugin(plugin_id)
 	if "protected" in plugin_object.flags:
 		raise PermissionError(f"Plugin {plugin_id} has flag 'protected', cannot remove!")
-	path = plugin_object.path
-	found = False
-	for plugin_dir in (config.plugin_user_dir, config.plugin_system_dir):
-		if plugin_dir in path.parents:
-			found = True
-			break
-	if not found:
+	path = plugin_manager.get_plugin_dir(plugin_id)
+	if not path or not path.exists() or not (path.is_relative_to(config.plugin_user_dir) or path.is_relative_to(config.plugin_system_dir)):
 		raise ValueError(f"Attempt to remove plugin from invalid path {path!r} - Stopping.")
 	logger.notice("Removing plugin %s", plugin_id)
 	del plugin_object  # Necessary? windows?
 	logger.debug("Deleting plugin path %s", path)
 	shutil.rmtree(path)
-	if (config.python_lib_dir / plugin_id).exists():
-		logger.debug("Deleting plugin dependencies %s", config.python_lib_dir / plugin_id)
-		shutil.rmtree(config.python_lib_dir / plugin_id)
+	try:
+		lib_path = plugin_manager.get_plugin_lib_dir(plugin_id)
+		if lib_path.exists() and (lib_path.is_relative_to(config.lib_user_dir) or lib_path.is_relative_to(config.lib_system_dir)):
+			logger.debug("Deleting plugin dependencies %s", lib_path)
+			shutil.rmtree(lib_path)
+	except FileNotFoundError:
+		logger.debug("No plugin dependencies for %r", plugin_id)
 	console_print(f"Plugin {plugin_id!r} removed", output_type=OutputType.MESSAGE)
 
 
