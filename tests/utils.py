@@ -179,7 +179,7 @@ def admin_service_config() -> Generator[tuple[str, str, str], None, None]:
 	config.username = username
 	config.password = password
 	try:
-		yield address, username, password
+		yield ServiceClient.normalize_service_address(address)[0], username, password
 	finally:
 		config.service, config.username, config.password = current_values
 

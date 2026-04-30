@@ -102,6 +102,7 @@ def get_service_connection(verify: str | None = None) -> ServiceClient:
 	totp: str | None = None
 	session_cookie = None
 	if address:
+		address = ServiceClient.normalize_service_address(address)[0]
 		session_cookie = cache.get(get_session_cache_key(address, "" if config.sso else username))  # None if previous session expired
 	if session_cookie:
 		logger.info("Reusing session cookie from cache (%s, %s)", address, username)
