@@ -15,7 +15,7 @@ import pytest
 
 from opsicli.cache import cache
 from opsicli.config import config
-from opsicli.opsiservice import get_service_connection
+from opsicli.opsiservice import get_service_connection, get_session_cache_key, reset_service_connection
 
 from .utils import admin_service_config
 
@@ -26,6 +26,11 @@ class MockServiceClient:
 
 	def connect(self) -> None:
 		pass
+
+
+def test_get_session_cache_key() -> None:
+	assert get_session_cache_key("https://testhost:4447", "testuser") == "opsiconfd-session|https://testhost:4447|testuser"
+	assert get_session_cache_key("https://testhost:4447", None) == "opsiconfd-session|https://testhost:4447|"
 
 
 @pytest.mark.opsi_service
@@ -39,15 +44,25 @@ def test_get_service_connection() -> None:
 
 @pytest.mark.opsi_service
 def test_get_service_connection_session_handling() -> None:
-	with admin_service_config():
-		get_service_connection()  # first connection
-		session_cookie1 = cache.get("opsiconfd-session")
+	with admin_service_config() as (address, username, _password):
+		service_client = get_service_connection()  # first connection
+		assert service_client.username == username
+		assert service_client.base_url == address
+
+		session_cookie1 = cache.get(get_session_cache_key(address, username))
 		assert session_cookie1
 
+		reset_service_connection()
 		get_service_connection()  # second connection
-		session_cookie2 = cache.get("opsiconfd-session")
+		session_cookie2 = cache.get(get_session_cache_key(address, username))
 
 		assert session_cookie1 == session_cookie2
+
+		config.username = "other_user"
+		reset_service_connection()
+		with pytest.raises(Exception, match="Unauthorized"):
+			# Username changed, session cookie should not be reused
+			get_service_connection()
 
 
 @pytest.mark.opsi_service
