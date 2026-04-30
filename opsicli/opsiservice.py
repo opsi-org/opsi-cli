@@ -9,6 +9,7 @@ opsi-cli Basic command line interface for opsi
 opsi service
 """
 
+from functools import lru_cache
 from urllib.parse import urlparse
 
 from opsicommon.client.opsiservice import OpsiServiceVerificationError, ServiceClient, ServiceConnectionListener, get_service_client
@@ -23,7 +24,10 @@ from opsicli.config import config
 from opsicli.io import prompt
 
 logger = get_logger("opsicli")
-service_client = None
+
+
+def get_session_cache_key(base_url: str, username: str | None) -> str:
+	return f"opsiconfd-session|{base_url}|{username or ''}"
 
 
 class OpsiCliConnectionListener(ServiceConnectionListener):
@@ -41,7 +45,11 @@ class OpsiCliConnectionListener(ServiceConnectionListener):
 			return
 		logger.debug("Session cookie expires in %d seconds", seconds_left)
 		if seconds_left > 10:
-			cache.set("opsiconfd-session", f"opsiconfd-session={cookie.value}", seconds_left - 10)
+			cache.set(
+				get_session_cache_key(service_client.base_url, "" if config.sso else service_client.username),
+				f"opsiconfd-session={cookie.value}",
+				seconds_left - 10,
+			)
 
 
 def get_depot_connection(depot: OpsiDepotserver) -> ServiceClient:
@@ -71,11 +79,8 @@ def get_depot_connection(depot: OpsiDepotserver) -> ServiceClient:
 	return connection
 
 
+@lru_cache
 def get_service_connection(verify: str | None = None) -> ServiceClient:
-	global service_client
-	if service_client:
-		return service_client
-
 	address: str | None = None
 	username: str | None = None
 	password: str | None = None
@@ -89,20 +94,24 @@ def get_service_connection(verify: str | None = None) -> ServiceClient:
 		else:
 			address = config.service
 
-	totp: str | None = None
-	session_cookie = cache.get("opsiconfd-session")  # None if previous session expired
-	if session_cookie:
-		logger.info("Reusing session cookie from cache")
-	elif not config.sso:
-		if config.username:
-			username = config.username
-		if config.password:
-			password = config.password
+	if config.username:
+		username = config.username
+	if config.password:
+		password = config.password
 
+	totp: str | None = None
+	session_cookie = None
+	if address:
+		address = ServiceClient.normalize_service_address(address)[0]
+		session_cookie = cache.get(get_session_cache_key(address, "" if config.sso else username))  # None if previous session expired
+	if session_cookie:
+		logger.info("Reusing session cookie from cache (%s, %s)", address, username)
+	elif not config.sso:
 		if username and not password and config.interactive:
 			password = str(prompt(f"Please enter the password for {username}@{address}", password=True))
-
-		if config.totp:
+		if config.totp_value:
+			totp = config.totp_value
+		elif config.totp:
 			totp = str(prompt("Enter the TOTP", password=True))
 
 	new_service_client = get_service_client(
@@ -141,5 +150,4 @@ def get_service_connection(verify: str | None = None) -> ServiceClient:
 
 
 def reset_service_connection() -> None:
-	global service_client
-	service_client = None
+	get_service_connection.cache_clear()
