@@ -427,14 +427,17 @@ def get_config_items() -> list[ConfigItem]:
 	]
 
 	if platform.system().lower() == "windows":
-		_user_lib_dir = Path(os.getenv("APPDATA") or ".") / "opsi-cli" / "Local" / "Lib"
+		_user_base_dir = Path(os.getenv("APPDATA") or ".") / "opsi-cli"
+		_system_base_dir = Path("C:\\opsi.org\\opsi-cli")
 	else:
-		_user_lib_dir = Path.home() / ".local" / "lib" / "opsi-cli"
+		_user_base_dir = Path.home() / ".local" / "lib" / "opsi-cli"
+		_system_base_dir = Path("/var/lib/opsi-cli")
 
 	config_items.extend(
 		[
-			ConfigItem(name="user_lib_dir", type=Directory, group="General", default=_user_lib_dir),
-			ConfigItem(name="python_lib_dir", type=Directory, group="General", default=_user_lib_dir / "lib"),
+			ConfigItem(name="base_user_dir", type=Directory, group="General", default=_user_base_dir),
+			ConfigItem(name="lib_user_dir", type=Directory, group="General", default=_user_base_dir / "lib"),
+			ConfigItem(name="lib_system_dir", type=Directory, group="General", default=_system_base_dir / "lib"),
 		]
 	)
 
@@ -443,15 +446,11 @@ def get_config_items() -> list[ConfigItem]:
 	else:
 		_plugin_bundle_dir = Path("plugins").resolve()
 
-	_plugin_system_dir = None
-	if platform.system().lower() == "linux":
-		_plugin_system_dir = Path("/var/lib/opsi-cli/plugins")
-
 	config_items.extend(
 		[
 			ConfigItem(name="plugin_bundle_dir", type=Directory, group="General", default=_plugin_bundle_dir),
-			ConfigItem(name="plugin_system_dir", type=Directory, group="General", default=_plugin_system_dir),
-			ConfigItem(name="plugin_user_dir", type=Directory, group="General", default=_user_lib_dir / "plugins"),
+			ConfigItem(name="plugin_system_dir", type=Directory, group="General", default=_system_base_dir / "plugins"),
+			ConfigItem(name="plugin_user_dir", type=Directory, group="General", default=_user_base_dir / "plugins"),
 		]
 	)
 

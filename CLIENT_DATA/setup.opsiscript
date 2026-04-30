@@ -50,5 +50,6 @@ Switch GetOS
 	Case "macOS"
 		install_macos()
 	EndCase
+	ShellCall("opsi-cli --help")
 EndSwitch
 

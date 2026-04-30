@@ -137,9 +137,22 @@ class PluginManager:
 		return plugin_ids
 
 	def load_plugin_module(self, plugin_dir: Path) -> ModuleType:
-		if (config.python_lib_dir / plugin_dir.name).exists() and str(config.python_lib_dir / plugin_dir.name) not in sys.path:
-			logger.debug("Prepending to sys.path: %s", config.python_lib_dir / plugin_dir.name)
-			sys.path.insert(0, str(config.python_lib_dir / plugin_dir.name))
+		"""
+		Directory structure:
+		<base_dir>/
+		├──	plugins/
+		│   └──	plugin_id/
+		└──	lib/
+		    └──	plugin_id/
+		"""
+		associated_lib_dir = None
+		if plugin_dir.is_relative_to(config.plugin_system_dir):
+			associated_lib_dir = config.lib_system_dir / plugin_dir.name
+		elif plugin_dir.is_relative_to(config.plugin_user_dir):
+			associated_lib_dir = config.lib_user_dir / plugin_dir.name
+		if associated_lib_dir and associated_lib_dir.exists() and str(associated_lib_dir) not in sys.path:
+			logger.debug("Prepending to sys.path: %s", associated_lib_dir)
+			sys.path.insert(0, str(associated_lib_dir))
 		logger.debug("Extracting plugin object from '%s'", plugin_dir)
 		logger.debug("sys.path = %s", sys.path)
 		module_name = self.module_name(plugin_dir)
@@ -160,6 +173,19 @@ class PluginManager:
 				logger.debug("Found plugin %r at '%s'", name, plugin_base_dir / dir_name)
 				return plugin_base_dir / dir_name
 		raise FileNotFoundError(f"Plugin '{name}' not found.")
+
+	def get_plugin_lib_dir(self, name: str) -> Path:
+		dir_name = name.replace("-", "_")
+		for lib_base_dir in (config.lib_system_dir, config.lib_user_dir):
+			if not lib_base_dir:
+				continue
+			if not lib_base_dir.exists():
+				logger.debug("Plugin dependency dir '%s' not found", lib_base_dir)
+				continue
+			if (lib_base_dir / dir_name).exists():
+				logger.debug("Found plugin dependency %r at '%s'", name, lib_base_dir / dir_name)
+				return lib_base_dir / dir_name
+		raise FileNotFoundError(f"Plugin dependencies for '{name}' not found.")
 
 	def load_plugin(self, name: str) -> OPSICLIPlugin:
 		plugin_dir = self.get_plugin_dir(name)
@@ -205,17 +231,18 @@ def prepare_plugin(path: Path, tmpdir: Path) -> str:
 
 def install_plugin(source_dir: Path, plugin_id: str, system: bool = False) -> Path:
 	"""Copy the prepared plugin from tmp to LIB_DIR"""
+	plugin_path_name = plugin_id.replace("-", "_")
 	plugin_dir = config.plugin_system_dir if system else config.plugin_user_dir
+	python_lib_dir = config.lib_user_dir / plugin_path_name if not system else config.lib_system_dir / plugin_path_name
 	if not plugin_dir.is_dir():
-		raise FileNotFoundError(f"Plugin dir '{plugin_dir}' does not exist")
+		plugin_dir.mkdir(parents=True)
 
 	if not plugin_id:
 		raise ValueError("Attempting to install empty plugin.")
 
-	plugin_path_name = plugin_id.replace("-", "_")
-	logger.info("Installing libraries from '%s'", source_dir / "lib")
-	shutil.rmtree(config.python_lib_dir / plugin_path_name, ignore_errors=True)
-	shutil.copytree(source_dir / "lib", config.python_lib_dir / plugin_path_name)
+	logger.info("Installing libraries from '%s' to '%s'", source_dir / "lib", python_lib_dir)
+	shutil.rmtree(python_lib_dir, ignore_errors=True)
+	shutil.copytree(source_dir / "lib", python_lib_dir)
 
 	destination = plugin_dir / plugin_path_name
 	logger.info("Installing plugin from '%s' to '%s'", source_dir / plugin_path_name, destination)

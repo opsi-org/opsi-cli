@@ -35,11 +35,14 @@ def test_install() -> None:
 
 def test_plugin_add() -> None:
 	with temp_context():
-		exit_code, stdout, _stderr = run_cli(["plugin", "add", str(TESTPLUGIN)])
+		exit_code, _stdout, _stderr = run_cli(["-l7", "plugin", "add", str(TESTPLUGIN)])
+		print(_stderr)
+		print(_stdout)
 		assert exit_code == 0
-		exit_code, stdout, _stderr = run_cli(["dummy", "libtest"])
+		exit_code, _stdout, _stderr = run_cli(["-l7", "dummy", "libtest"])
+		print(_stderr)
 		assert exit_code == 0
-		assert "Response" in stdout  # requests.get("https://opsi.org")
+		assert "Response" in _stdout  # requests.get("https://opsi.org")
 
 
 def test_plugin_fail() -> None:

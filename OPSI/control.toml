@@ -1,0 +1,16 @@
+[Package]
+version = "1"
+depends = []
+
+[Product]
+type = "LocalbootProduct"
+id = "opsi-cli"
+name = "opsi-cli"
+description = """Command line interface for opsi (Windows, Linux, MacOS)"""
+version = "4.3.43.1"
+priority = 0
+licenseRequired = false
+productClasses = []
+setupScript = "setup.opsiscript"
+uninstallScript = "uninstall.opsiscript"
+windowsSoftwareIds = []
