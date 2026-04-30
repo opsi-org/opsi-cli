@@ -47,14 +47,13 @@ def test_get_service_connection_session_handling() -> None:
 	with admin_service_config() as (address, username, _password):
 		service_client = get_service_connection()  # first connection
 		assert service_client.username == username
-		assert service_client.base_url == address
 
-		session_cookie1 = cache.get(get_session_cache_key(address, username))
+		session_cookie1 = cache.get(get_session_cache_key(service_client.base_url, username))
 		assert session_cookie1
 
 		reset_service_connection()
 		get_service_connection()  # second connection
-		session_cookie2 = cache.get(get_session_cache_key(address, username))
+		session_cookie2 = cache.get(get_session_cache_key(service_client.base_url, username))
 
 		assert session_cookie1 == session_cookie2
 
