@@ -404,6 +404,12 @@ def get_config_items() -> list[ConfigItem]:
 			description="This flag triggers an interactive prompt to enter TOTP, assuming the password is stored in the configuration.",
 		),
 		ConfigItem(
+			name="totp_value",
+			type=Password,
+			group="opsi service",
+			description="TOTP for opsi service connection. Intended for non-interactive use in scripts.",
+		),
+		ConfigItem(
 			name="sso",
 			type=Bool,
 			group="opsi service",

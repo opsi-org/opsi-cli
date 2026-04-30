@@ -102,7 +102,9 @@ def get_service_connection(verify: str | None = None) -> ServiceClient:
 		if username and not password and config.interactive:
 			password = str(prompt(f"Please enter the password for {username}@{address}", password=True))
 
-		if config.totp:
+		if config.totp_value:
+			totp = config.totp_value
+		elif config.totp:
 			totp = str(prompt("Enter the TOTP", password=True))
 
 	new_service_client = get_service_client(
