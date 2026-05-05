@@ -366,7 +366,7 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 			],
 			None,
 			None,
-			("Only one value is allowed for:", "Possible values are:"),
+			("Only one value is allowed for ", "Possible values are:"),
 		),
 		# UnicodeConfig // wrong value
 		(
@@ -404,7 +404,7 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 			],
 			None,
 			None,
-			("MultiValues are not allowed for:", "Possible values are:"),
+			("MultiValues are not allowed for ", "Possible values are:"),
 		),
 		# Missing configId
 		(

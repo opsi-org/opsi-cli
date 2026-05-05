@@ -160,7 +160,7 @@ def process_set(set: tuple[str, ...], *, attributes: list[Attribute]) -> dict[st
 			except Exception:
 				raise ValueError(f"Invalid value in set statement: `[bold]{attr}=[red]{value}[/]`.\n\n{general_help}")
 
-		# combine values if the attribute name is equal // "objectId=jenkins1" "objectId=jenkins2" => {"objectId": "jenkin1, jenkin2"})
+		# Combine values if the attribute name is equal // "objectId=jenkins1" "objectId=jenkins2" => {"objectId": "jenkin1, jenkin2"})
 		if updates.get(attr):
 			updates[attr] = f"{updates[attr]}, {value}"
 		else:
@@ -169,31 +169,37 @@ def process_set(set: tuple[str, ...], *, attributes: list[Attribute]) -> dict[st
 	return updates
 
 
-def validate_against_possible_values(val: str, obj: Any) -> list[str] | list[bool]:
+def validate_against_possible_values(val: str, obj: BoolConfig | UnicodeConfig) -> list[str] | list[bool]:
 	values = get_separated_entries(val)
-	possible_values: list[str] = obj.possibleValues if obj else []
+	possible_values: list[str] = obj.possibleValues or []
 	formatted_possible = "\n".join([f"'{val}'" for val in possible_values]) if possible_values else "Any"
 
 	if isinstance(obj, BoolConfig):
 		if len(values) > 1:
 			raise ValueError(
-				f"Only one value is allowed for: `[bold][blue]{obj.id}[/][/]`. \n[bold]Possible values are:[/] \n\n[green]{formatted_possible}[/green]"
+				f"Only one value is allowed for `[bold][blue]{obj.id}[/][/]`.\n[bold]Possible values are:[/]\n[green]{formatted_possible}[/green]"
 			)
 		if values[0].lower() not in ["false", "true", "0", "1"]:
-			raise ValueError(f"Possible values for: `[bold][blue]{obj.id}[/][/]` \n\n[green]{formatted_possible}[/green]")
+			raise ValueError(
+				f"Invalid value `{values[0]}` for `[bold][blue]{obj.id}[/][/]`.\n[bold]Possible values are:[/]\n[green]{formatted_possible}[/green]"
+			)
 		return forceBoolList(values)
 
 	if isinstance(obj, UnicodeConfig):
 		if obj.multiValue:
 			if not set(values) <= set(possible_values):
-				raise ValueError(f"Possible values for: `[bold][blue]{obj.id}[/][/]` \n\n[green]{formatted_possible}[/green]")
+				raise ValueError(
+					f"Invalid value(s) `{', '.join(values)}` for `[bold][blue]{obj.id}[/][/]`.\n[bold]Possible values are:[/]\n[green]{formatted_possible}[/green]"
+				)
 		if not obj.multiValue:
 			if len(values) > 1:
 				raise ValueError(
-					f"MultiValues are not allowed for: `[bold][blue]{obj.id}[/][/]` \n[bold]Possible values are[/]: \n\n[green]{formatted_possible}[/green]"
+					f"MultiValues are not allowed for `[bold][blue]{obj.id}[/][/]`.\n[bold]Possible values are:[/]\n[green]{formatted_possible}[/green]"
 				)
-			elif values[0] not in possible_values and possible_values != []:
-				raise ValueError(f"Possible values for: `[bold][blue]{obj.id}[/][/]` \n\n[green]{formatted_possible}[/green]")
+			elif not obj.editable and values[0] not in possible_values and possible_values != []:
+				raise ValueError(
+					f"Invalid value `{values[0]}` for `[bold][blue]{obj.id}[/][/]`.\n[bold]Possible values are:[/]\n[green]{formatted_possible}[/green]"
+				)
 		return values
 	return []
 

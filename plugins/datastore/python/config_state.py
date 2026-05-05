@@ -254,8 +254,7 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	filter = {k: (v if v != "*" else "") for k, v in filter.items()}  # process wildcards
 	updates = process_set(set, attributes=attributes_set)
 
-	# get separated Id's from filter
-
+	# Get separated IDs from filter
 	object_ids = service_connection.host_getIdents(  # ty: ignore[unresolved-attribute]
 		id=get_separated_entries(filter.get("objectId", None) if filter.get("objectId") != "*" else None)
 	)
@@ -267,14 +266,14 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 
 	config_obj = service_connection.config_getObjects(id=config_id[0] or [])  # ty: ignore[unresolved-attribute]
 
-	# validate values
+	# Validate values
 	validated_values = validate_against_possible_values(updates["values"], config_obj[0])
 	current_values = service_connection.configState_getValues(config_id, object_ids)  # ty: ignore[unresolved-attribute]
 
-	# create config-state objects
+	# Create config-state objects
 	updated_config_states = _create_config_states(object_ids, config_obj[0].id, validated_values)
 
-	# empty result
+	# Empty result
 	if not updated_config_states:
 		raise ValueError("No config-states found matching the filtering criteria.")
 
