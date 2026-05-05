@@ -377,7 +377,7 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 				"config-state",
 				"update",
 				"--where",
-				f"configId={TEST_CONFIGS[1].id}",
+				f"configId={TEST_CONFIGS[2].id}",
 				"--where",
 				f"objectId={TEST_CLIENTS[0].id}",
 				"--set",
@@ -404,7 +404,7 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 			],
 			None,
 			None,
-			("MultiValues are not allowed for ", "Possible values are:"),
+			("Multiple values are not allowed for ", "Possible values are:"),
 		),
 		# Missing configId
 		(

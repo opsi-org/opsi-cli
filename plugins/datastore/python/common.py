@@ -172,35 +172,25 @@ def process_set(set: tuple[str, ...], *, attributes: list[Attribute]) -> dict[st
 def validate_against_possible_values(val: str, obj: BoolConfig | UnicodeConfig) -> list[str] | list[bool]:
 	values = get_separated_entries(val)
 	possible_values: list[str] = obj.possibleValues or []
-	formatted_possible = "\n".join([f"'{val}'" for val in possible_values]) if possible_values else "Any"
+	formatted_possible = ""
+	if possible_values:
+		formatted_possible = "\n".join([f"- {val}" for val in possible_values])
+		formatted_possible = f"[bold]Possible values are:[/]\n[green]{formatted_possible}[/green]"
 
 	if isinstance(obj, BoolConfig):
 		if len(values) > 1:
-			raise ValueError(
-				f"Only one value is allowed for `[bold][blue]{obj.id}[/][/]`.\n[bold]Possible values are:[/]\n[green]{formatted_possible}[/green]"
-			)
+			raise ValueError(f"Only one value is allowed for `[bold][blue]{obj.id}[/][/]`.\n{formatted_possible}")
 		if values[0].lower() not in ["false", "true", "0", "1"]:
-			raise ValueError(
-				f"Invalid value `{values[0]}` for `[bold][blue]{obj.id}[/][/]`.\n[bold]Possible values are:[/]\n[green]{formatted_possible}[/green]"
-			)
+			raise ValueError(f"Invalid value `{values[0]}` for `[bold][blue]{obj.id}[/][/]`.\n{formatted_possible}")
 		return forceBoolList(values)
 
-	if isinstance(obj, UnicodeConfig):
-		if obj.multiValue:
-			if not set(values) <= set(possible_values):
-				raise ValueError(
-					f"Invalid value(s) `{', '.join(values)}` for `[bold][blue]{obj.id}[/][/]`.\n[bold]Possible values are:[/]\n[green]{formatted_possible}[/green]"
-				)
-		if not obj.multiValue:
-			if len(values) > 1:
-				raise ValueError(
-					f"MultiValues are not allowed for `[bold][blue]{obj.id}[/][/]`.\n[bold]Possible values are:[/]\n[green]{formatted_possible}[/green]"
-				)
-			elif not obj.editable and values[0] not in possible_values and possible_values != []:
-				raise ValueError(
-					f"Invalid value `{values[0]}` for `[bold][blue]{obj.id}[/][/]`.\n[bold]Possible values are:[/]\n[green]{formatted_possible}[/green]"
-				)
+	elif isinstance(obj, UnicodeConfig):
+		if not obj.multiValue and len(values) > 1:
+			raise ValueError(f"Multiple values are not allowed for `[bold][blue]{obj.id}[/][/]`.\n{formatted_possible}")
+		if not obj.editable and values[0] not in possible_values:
+			raise ValueError(f"Invalid value `{values[0]}` for `[bold][blue]{obj.id}[/][/]`.\n{formatted_possible}")
 		return values
+
 	return []
 
 
