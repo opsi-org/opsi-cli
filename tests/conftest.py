@@ -1,4 +1,4 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -20,8 +20,8 @@ from typing import Any, Generator
 import pytest
 from _pytest.logging import LogCaptureHandler
 from _pytest.nodes import Item
-from opsicommon.client.opsiservice import ServiceClient
-from opsicommon.objects import OpsiConfigserver
+from opsi.opsi.service.client import ServiceClient
+from opsi.opsi.service.model.object import OpsiConfigserver
 from pytest import fixture
 
 from opsicli.cache import cache

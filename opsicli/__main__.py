@@ -1,4 +1,4 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -16,8 +16,8 @@ from typing import Any, Sequence
 
 from click.exceptions import Abort, ClickException
 from click.shell_completion import CompletionItem
-from opsicommon.exceptions import OpsiServiceConnectionError
-from opsicommon.logging import get_logger
+from opsi.exception import OpsiServiceConnectionError
+from opsi.logging import get_logger
 
 from opsicli import __version__, prepare_cli_paths
 from opsicli.cache import cache
@@ -65,10 +65,6 @@ if not COMPLETION_MODE:
 			options.extend(["--help", "--version"])
 		if options:
 			click.rich_click.OPTION_GROUPS["opsi-cli"].append({"name": f"{group} options", "options": options})
-
-	from opsicommon.utils import patch_popen
-
-	patch_popen()
 
 logger = get_logger("opsicli")
 

@@ -1,4 +1,4 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -14,11 +14,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from ipaddress import ip_network
 
-from opsicommon.logging import get_logger
-from opsicommon.objects import Group as GroupObject
-from opsicommon.objects import ObjectToGroup, OpsiClient
-from opsicommon.types import forceActionRequest, forceGroupId, forceHostId, forceNetworkAddress
-from opsicommon.utils import ip_address_in_network
+from opsi.logging import get_logger
+from opsi.network import ip_address_in_network
+from opsi.opsi.service.model.object import Group as GroupObject
+from opsi.opsi.service.model.object import ObjectToGroup, OpsiClient
+from opsi.opsi.service.model.type import to_action_request, to_group_id, to_host_id, to_network_address
 
 from opsicli.io import deprecation_warning, get_separated_entries
 from opsicli.opsiservice import get_service_connection
@@ -47,16 +47,16 @@ class ClientActionArgs:
 		only_online: bool = False,
 	) -> None:
 		self.clients: set[str] = {
-			"all" if client.lower() == "all" else forceHostId(client) for client in get_separated_entries(clients) if client
+			"all" if client.lower() == "all" else to_host_id(client) for client in get_separated_entries(clients) if client
 		}
-		self.client_groups: set[str] = {forceGroupId(group) for group in get_separated_entries(client_groups) if group}
-		self.clients_from_depots: set[str] = {forceHostId(depot) for depot in get_separated_entries(clients_from_depots) if depot}
-		self.ip_addresses: set[str] = {forceNetworkAddress(ip) for ip in get_separated_entries(ip_addresses) if ip}
-		self.exclude_clients: set[str] = {forceHostId(client) for client in get_separated_entries(exclude_clients) if client}
-		self.exclude_client_groups: set[str] = {forceGroupId(group) for group in get_separated_entries(exclude_client_groups) if group}
-		self.exclude_ip_addresses: set[str] = {forceNetworkAddress(ip) for ip in get_separated_entries(exclude_ip_addresses) if ip}
+		self.client_groups: set[str] = {to_group_id(group) for group in get_separated_entries(client_groups) if group}
+		self.clients_from_depots: set[str] = {to_host_id(depot) for depot in get_separated_entries(clients_from_depots) if depot}
+		self.ip_addresses: set[str] = {to_network_address(ip) for ip in get_separated_entries(ip_addresses) if ip}
+		self.exclude_clients: set[str] = {to_host_id(client) for client in get_separated_entries(exclude_clients) if client}
+		self.exclude_client_groups: set[str] = {to_group_id(group) for group in get_separated_entries(exclude_client_groups) if group}
+		self.exclude_ip_addresses: set[str] = {to_network_address(ip) for ip in get_separated_entries(exclude_ip_addresses) if ip}
 		self.where_action_request: set[str] = {
-			forceActionRequest(request) or "none" for request in get_separated_entries(where_action_request) if request
+			to_action_request(request) or "none" for request in get_separated_entries(where_action_request) if request
 		}
 		self.only_online: bool = only_online
 

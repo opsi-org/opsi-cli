@@ -1,4 +1,4 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -31,7 +31,7 @@ else:
 
 from click.core import ParameterSource  # noqa: E402
 from click.shell_completion import CompletionItem, ShellComplete, add_completion_class, split_arg_string  # noqa: E402
-from opsicommon.logging import (  # noqa: E402
+from opsi.logging import (  # noqa: E402
 	DEFAULT_COLORED_FORMAT,
 	DEFAULT_FORMAT,
 	LOG_ESSENTIAL,

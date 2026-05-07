@@ -1,4 +1,4 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -14,9 +14,9 @@ from pathlib import Path
 from threading import Thread
 
 import pytest
-from opsicommon.logging import get_logger, log_context
-from opsicommon.messagebus import CONNECTION_USER_CHANNEL
-from opsicommon.messagebus.message import (
+from opsi.logging import get_logger, log_context
+from opsi.opsi.messagebus import (
+	CONNECTION_USER_CHANNEL,
 	FileChunkMessage,
 	FileDownloadInformationMessage,
 	FileDownloadRequestMessage,

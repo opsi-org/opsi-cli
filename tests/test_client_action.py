@@ -1,4 +1,4 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -15,8 +15,8 @@ from typing import Any, Literal
 from unittest.mock import patch
 
 import pytest
-from opsicommon.client.opsiservice import ServiceClient
-from opsicommon.objects import NetbootProduct, ProductOnClient
+from opsi.opsi.service.client import ServiceClient
+from opsi.opsi.service.model.object import NetbootProduct, ProductOnClient
 
 from plugins.client_action.python.client_action_worker import ClientActionArgs
 
@@ -360,7 +360,7 @@ def test_set_action_request_where(
 			cmd.insert(0, "--dry-run")
 
 		rpcs.clear()
-		with patch("opsicommon.client.opsiservice.ServiceClient.jsonrpc", mock_jsonrpc):
+		with patch("opsi.opsi.service.client.ServiceClient.jsonrpc", mock_jsonrpc):
 			exit_code, stdout, stderr = run_cli(cmd)
 
 		assert exit_code == 0
@@ -788,7 +788,7 @@ def test_process_actions(admin_service_client: ServiceClient) -> None:
 			"hidden",
 		]
 
-		with patch("opsicommon.client.opsiservice.ServiceClient.jsonrpc", mock_jsonrpc):
+		with patch("opsi.opsi.service.client.ServiceClient.jsonrpc", mock_jsonrpc):
 			exit_code, stdout, _ = run_cli(cmd)
 
 		assert exit_code == 0

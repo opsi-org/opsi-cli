@@ -1,4 +1,4 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -8,8 +8,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from opsicommon.client.opsiservice import ServiceClient
-from opsicommon.objects import OpsiClient
+from opsi.opsi.service.client import ServiceClient
+from opsi.opsi.service.model.object import OpsiClient
 
 from opsicli.io import read_input_csv
 from tests.utils import assert_error_contains, run_cli, tmp_clients
@@ -449,7 +449,7 @@ def test_edit_clients(admin_service_client: ServiceClient, dry_run: bool) -> Non
 					client["inventoryNumber"] = "updated inventory number"
 			edit_file.write_text(json.dumps(clients, indent=2), encoding="utf-8")
 
-		with patch("subprocess.run", side_effect=fake_editor):
+		with patch("opsi.process.run_command", side_effect=fake_editor):
 			exit_code, _stdout, _stderr = run_cli(
 				(["--dry-run"] if dry_run else []) + ["--interactive", "datastore", "client", "edit", "--where", "id=*"]
 			)

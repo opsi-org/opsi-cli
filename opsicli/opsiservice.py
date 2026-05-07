@@ -1,4 +1,4 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -12,11 +12,11 @@ opsi service
 from functools import lru_cache
 from urllib.parse import urlparse
 
-from opsicommon.client.opsiservice import OpsiServiceVerificationError, ServiceClient, ServiceConnectionListener, get_service_client
-from opsicommon.exceptions import OpsiServiceAuthenticationError
-from opsicommon.logging import get_logger
-from opsicommon.objects import OpsiDepotserver
-from opsicommon.utils import unix_timestamp
+from opsi.exception import OpsiServiceAuthenticationError, OpsiServiceVerificationError
+from opsi.logging import get_logger
+from opsi.opsi.service.client import ServiceClient, ServiceConnectionListener, get_service_client
+from opsi.opsi.service.model.object import OpsiDepotserver
+from opsi.time import unix_timestamp
 
 from opsicli import __version__
 from opsicli.cache import cache

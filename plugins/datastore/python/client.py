@@ -1,14 +1,14 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
-import subprocess
 from datetime import datetime, timezone
 from tempfile import NamedTemporaryFile
 
 import rich_click as click
-from opsicommon.logging import get_logger
+from opsi.logging import get_logger
+from opsi.process import run_command
 
 from opsicli.config import config
 from opsicli.decorators import dry_run_capable, mutually_exclusive
@@ -142,7 +142,7 @@ def edit_clients(where: tuple[str, ...]) -> None:
 
 		cmd = get_editor() + [str(edit_file.name)]
 		logger.notice("Opening file '%s' with command: %s", edit_file.name, cmd)
-		subprocess.run(cmd)
+		run_command(cmd)
 
 		edited_clients = _get_clients_from_input()
 		changed_clients = [client for client in edited_clients if client not in clients]

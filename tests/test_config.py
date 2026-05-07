@@ -1,4 +1,4 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -132,6 +132,7 @@ def test_read_write_config() -> None:
 
 def test_edit_config() -> None:
 	config = Config()
+
 	with temp_context() as tmp_path:
 		config_file_user = tmp_path / "opsi-cli-user.yaml"
 		config_file_system = tmp_path / "opsi-cli-system.yaml"
@@ -139,12 +140,12 @@ def test_edit_config() -> None:
 		config.config_file_system = config_file_system
 		for system in True, False:
 			config_file = config_file_system if system else config_file_user
-			with patch("subprocess.run") as mock_run:
+			with patch("opsi.process.run_command") as mock_run_command:
 				exit_code, stdout, _stderr = run_cli(["config", "edit"] + (["--system"] if system else []))
 				assert exit_code == 0
 				assert config_file.exists()
-				mock_run.assert_called_once()
-				called_args = mock_run.call_args[0][0]
+				mock_run_command.assert_called_once()
+				called_args = mock_run_command.call_args[0][0]
 				assert str(config_file) in called_args
 
 

@@ -1,4 +1,4 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -13,10 +13,9 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Iterable, Literal
 
-from opsicommon.logging import get_logger
-from opsicommon.objects import Product, ProductGroup, ProductOnClient, ProductOnDepot
-from opsicommon.types import forceActionProgress, forceActionRequest, forceActionResult, forceInstallationStatus
-from opsicommon.utils import timestamp
+from opsi.logging import get_logger
+from opsi.opsi.service.model.object import Product, ProductGroup, ProductOnClient, ProductOnDepot, opsi_timestamp
+from opsi.opsi.service.model.type import to_action_progress, to_action_request, to_action_result, to_installation_status
 from rich.text import Text
 
 from opsicli.config import config
@@ -79,13 +78,13 @@ class SetActionRequestArgs:
 
 	def __post_init__(self) -> None:
 		if self.set_action_request is not None:
-			self.set_action_request = forceActionRequest(self.set_action_request or "none") or "none"
+			self.set_action_request = to_action_request(self.set_action_request or "none") or "none"
 		if self.set_action_progress is not None:
-			self.set_action_progress = forceActionProgress(self.set_action_progress)
+			self.set_action_progress = to_action_progress(self.set_action_progress)
 		if self.set_action_result is not None:
-			self.set_action_result = forceActionResult(self.set_action_result or "none")
+			self.set_action_result = to_action_result(self.set_action_result or "none")
 		if self.set_installation_status is not None:
-			self.set_installation_status = forceInstallationStatus(self.set_installation_status)
+			self.set_installation_status = to_installation_status(self.set_installation_status)
 
 
 class SetActionRequestWorker(ClientActionWorker):
@@ -228,7 +227,7 @@ class SetActionRequestWorker(ClientActionWorker):
 
 		# Remark: action_request="none" instead of None for compatibility with file backend
 		product_on_client.actionRequest = action_request
-		product_on_client.modificationTime = timestamp()
+		product_on_client.modificationTime = opsi_timestamp()
 
 		return [product_on_client]
 
@@ -268,7 +267,7 @@ class SetActionRequestWorker(ClientActionWorker):
 					clientId=client_id,
 					installationStatus="not_installed",
 					actionRequest=None,
-					modificationTime=timestamp(),
+					modificationTime=opsi_timestamp(),
 				)
 				new_pocs.extend(
 					self.set_single_action_request(

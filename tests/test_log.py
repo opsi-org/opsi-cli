@@ -1,4 +1,4 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -11,7 +11,7 @@ import asyncio
 import re
 
 import pytest
-from opsicommon.client.opsiservice import ServiceClient
+from opsi.opsi.service.client import ServiceClient
 
 from opsicli.messagebus import FileTransferMessagebusConnection
 from opsicli.opsiservice import get_service_connection

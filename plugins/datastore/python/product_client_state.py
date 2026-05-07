@@ -1,4 +1,4 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -8,9 +8,9 @@ from datetime import datetime, timezone
 from typing import cast
 
 import rich_click as click
-from opsicommon.logging import get_logger
-from opsicommon.objects import ProductOnClient
-from opsicommon.types import forceActionRequest, forceInstallationStatus
+from opsi.logging import get_logger
+from opsi.opsi.service.model.object import ProductOnClient
+from opsi.opsi.service.model.type import to_action_request, to_installation_status
 
 from opsicli.config import config
 from opsicli.decorators import dry_run_capable, mutually_exclusive
@@ -87,13 +87,13 @@ def list_product_client_state(where: tuple[str, ...], all: bool) -> None:
 	if not tmp_list:
 		filter_installation_statuses = ["installed", "not_installed", "unknown"]
 	else:
-		filter_installation_statuses = [forceInstallationStatus(item) for item in tmp_list]
+		filter_installation_statuses = [to_installation_status(item) for item in tmp_list]
 
 	tmp_list = get_separated_entries(filter.pop("actionRequest", None))
 	if not tmp_list:
 		filter_action_requests = ["setup", "uninstall", "update", "always", "once", "custom", "none"]
 	else:
-		filter_action_requests = [forceActionRequest(item) for item in tmp_list]
+		filter_action_requests = [to_action_request(item) for item in tmp_list]
 
 	product_states: dict[str, ProductClientState] = {}
 	if "none" in filter_action_requests and "not_installed" in filter_installation_statuses:
@@ -163,8 +163,8 @@ def update_product_client_state() -> None:
 				productType=product_state.get("productType"),
 				productVersion=product_state.get("productVersion") or None,
 				packageVersion=product_state.get("packageVersion") or None,
-				installationStatus=forceInstallationStatus(product_state.get("installationStatus") or "not_installed"),
-				actionRequest=forceActionRequest(product_state.get("actionRequest") or "none") or "none",
+				installationStatus=to_installation_status(product_state.get("installationStatus") or "not_installed"),
+				actionRequest=to_action_request(product_state.get("actionRequest") or "none") or "none",
 				modificationTime=modification_time,
 			)
 		)

@@ -1,4 +1,4 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -13,7 +13,6 @@ import os
 import platform
 import re
 import shutil
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -22,8 +21,9 @@ import packaging.version
 import psutil
 import rich_click as click
 from click.shell_completion import get_completion_class
-from opsicommon.logging import get_logger
-from opsicommon.system.info import is_posix, is_windows
+from opsi.logging import get_logger
+from opsi.process import ProcessError, run_command, run_script
+from opsi.system.info import is_posix, is_windows
 from rich.tree import Tree
 
 from opsicli import __version__ as opsi_cli_version
@@ -39,7 +39,6 @@ from opsicli.utils import (
 	download,
 	get_opsi_cli_download_filename,
 	install_binary,
-	retry,
 	user_is_admin,
 )
 
@@ -61,7 +60,7 @@ def get_completion_config_path(shell: str) -> Path:
 	if shell == "zsh":
 		return Path("~/.zshrc").expanduser().resolve()
 	if shell == "powershell":
-		return Path(subprocess.check_output(["powershell", "-ExecutionPolicy", "Bypass", "-NoProfile", "echo $profile"]).decode().strip())
+		return Path(run_script("echo $profile", interpreter="powershell").get_output_text().strip())
 	raise ValueError(f"Shell {shell!r} is not supported.")
 
 
@@ -122,8 +121,8 @@ def get_installed_versions() -> dict[Path, str]:
 		if not binary.exists():
 			continue
 		try:
-			version = subprocess.check_output([str(binary), "--version"]).decode("utf-8").strip().split()[-1]
-		except (subprocess.CalledProcessError, PermissionError):
+			version = run_command([str(binary), "--version"]).get_output_text().strip().split()[-1]
+		except ProcessError:
 			version = "?"
 		installed_versions[binary] = version
 	return installed_versions
@@ -396,25 +395,22 @@ def upgrade(ctx: click.Context, branch: str, source_url: str, location: str, all
 	with tempfile.TemporaryDirectory() as tmpdir_name:
 		tmp_dir = Path(tmpdir_name)
 
-		@retry(retries=2, wait=1.0, exceptions=[OSError, PermissionError, subprocess.CalledProcessError])
-		def download_binary() -> tuple[Path, str]:
-			download_url = f"{source_url}/{branch}/{get_opsi_cli_download_filename()}"
-			console_print(f"Downloading opsi-cli from '{download_url}'.", output_type=OutputType.MESSAGE)
-			with get_progress() as progress:
-				new_binary = download(
-					download_url,
-					tmp_dir,
-					make_executable=True,
-					progress_callback=ProgressCallbackAdapter(progress, "Downloading opsi-cli...").progress_callback,
-				)
-			try:
-				new_version = subprocess.check_output([str(new_binary), "--version"]).decode("utf-8").strip().split()[-1]
-				return new_binary, new_version
-			except subprocess.CalledProcessError as error:
-				logger.error("New binary not working: %s", error)
-				raise
+		download_url = f"{source_url}/{branch}/{get_opsi_cli_download_filename()}"
+		console_print(f"Downloading opsi-cli from '{download_url}'.", output_type=OutputType.MESSAGE)
+		with get_progress() as progress:
+			new_binary = download(
+				download_url,
+				tmp_dir,
+				make_executable=True,
+				progress_callback=ProgressCallbackAdapter(progress, "Downloading opsi-cli...").progress_callback,
+			)
 
-		new_binary, new_version = download_binary()
+		try:
+			new_version = run_command([str(new_binary), "--version"]).get_output_text().strip().split()[-1]
+		except ProcessError as error:
+			logger.error("New binary not working: %s", error)
+			raise
+
 		if packaging.version.parse(new_version) < packaging.version.parse(opsi_cli_version) and not allow_downgrade:
 			logger.error("New version '%s' is older than current version '%s'", new_version, opsi_cli_version)
 			console_print(

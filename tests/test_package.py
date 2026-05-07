@@ -1,4 +1,4 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -14,9 +14,11 @@ from typing import Any, Callable, Optional
 from unittest.mock import patch
 
 import pytest
-from opsicommon.client.opsiservice import DAVFileInfo, ServiceClient
-from opsicommon.logging import get_logger
-from opsicommon.objects import (
+from opsi.logging import get_logger
+from opsi.opsi.package import OpsiPackage
+from opsi.opsi.service.client import ServiceClient
+from opsi.opsi.service.client._service_client import DAVFileInfo
+from opsi.opsi.service.model.object import (
 	LocalbootProduct,
 	NetbootProduct,
 	OpsiClient,
@@ -25,8 +27,7 @@ from opsicommon.objects import (
 	ProductOnDepot,
 	ProductPropertyState,
 )
-from opsicommon.package import OpsiPackage
-from opsicommon.testing.helpers import http_test_server
+from opsi.testing.helper import http_test_server
 
 from plugins.package.python import combine_products
 

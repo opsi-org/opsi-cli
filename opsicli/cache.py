@@ -1,4 +1,4 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 import orjson
-from opsicommon.logging import get_logger
+from opsi.logging import get_logger
 
 from opsicli.config import config
 

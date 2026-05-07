@@ -1,4 +1,4 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -12,11 +12,10 @@ from typing import Literal
 
 import rich_click as click
 from click.shell_completion import CompletionItem
-from opsicommon.logging import get_logger
-from opsicommon.objects import ProductDependency, ProductOnDepot
-from opsicommon.package import OpsiPackage
-from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
-from opsicommon.utils import make_temp_dir
+from opsi.logging import get_logger
+from opsi.opsi.package import OpsiPackage, create_package_md5_file, create_package_zsync_file
+from opsi.opsi.service.model.object import ProductDependency, ProductOnDepot
+from opsi.system.file.temp import TempDir
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.config import config
@@ -246,7 +245,7 @@ def info(packages: list[str]) -> None:
 	Show information about opsi packages.
 	"""
 	data = []
-	with make_temp_dir() as temp_dir:
+	with TempDir() as temp_dir:
 		local_packages = process_local_packages(packages, temp_dir)
 		# path_to_opsipackage maps package paths to OpsiPackage objects (metadata)
 		path_to_opsipackage = map_and_sort_packages(local_packages)
@@ -288,7 +287,7 @@ def extract(package_archive: str, destination_dir: Path, new_product_id: str, ov
 	"""
 	logger.trace("extract package")
 
-	with make_temp_dir() as temp_dir:
+	with TempDir() as temp_dir:
 		local_package = Path(process_local_packages([package_archive], temp_dir)[0])
 
 		destination_dir = destination_dir / local_package.stem
@@ -563,7 +562,7 @@ def install(
 		properties = "ask"
 
 	service_client = get_service_connection()
-	with make_temp_dir() as temp_dir:
+	with TempDir() as temp_dir:
 		local_packages = process_local_packages(packages, temp_dir)
 		# path_to_opsipackage maps package paths to OpsiPackage objects (metadata)
 		path_to_opsipackage = map_and_sort_packages(local_packages)
@@ -764,7 +763,7 @@ def fetch(
 	if not product_on_depot_list:
 		raise click.UsageError(f"No products found on depot '{depot_object.id}'.")
 
-	with make_temp_dir() as temp_dir:
+	with TempDir() as temp_dir:
 		for product_on_depot in product_on_depot_list:
 			opsi_package: OpsiPackage = initialize_opsi_package(service_client, product_on_depot, depot_object.id, properties)
 			generate_control_files(opsi_package, temp_dir)

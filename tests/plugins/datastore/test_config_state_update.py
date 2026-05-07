@@ -1,11 +1,11 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
 
 import pytest
-from opsicommon.client.opsiservice import ServiceClient
-from opsicommon.objects import BoolConfig, ConfigState, OpsiClient, UnicodeConfig
+from opsi.opsi.service.client import ServiceClient
+from opsi.opsi.service.model.object import BoolConfig, ConfigState, OpsiClient, UnicodeConfig
 
 from opsicli.io import read_input_csv
 from tests.utils import assert_error_contains, get_depot_id, run_cli, tmp_clients, tmp_config_states, tmp_configs

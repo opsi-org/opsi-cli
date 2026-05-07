@@ -1,4 +1,4 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -12,12 +12,8 @@ from pathlib import Path
 import requests
 import rich_click as click
 from click.shell_completion import CompletionItem
-from opsicommon.logging import get_logger
-from opsicommon.package.repo_meta import (
-	RepoMetaPackage,
-	RepoMetaPackageCollection,
-	RepoMetaPackageCompatibility,
-)
+from opsi.logging import get_logger
+from opsi.opsi.package import RepoMetaPackage, RepoMetaPackageCollection, RepoMetaPackageCompatibility
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_capable

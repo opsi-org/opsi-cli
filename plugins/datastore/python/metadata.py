@@ -1,24 +1,25 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
+
 from dataclasses import replace
 from datetime import datetime, timezone
 
-from opsicommon.types import (
-	forceBool,
-	forceConfigId,
-	forceHardwareAddress,
-	forceHostId,
-	forceIpAddress,
-	forceObjectId,
-	forceOpsiHostKey,
-	forceOpsiTimestamp,
-	forcePackageVersion,
-	forceProductId,
-	forceProductPropertyId,
-	forceProductVersion,
-	forceUUIDString,
+from opsi.opsi.service.model.type import (
+	to_bool,
+	to_config_id,
+	to_hardware_address,
+	to_host_id,
+	to_ip_address,
+	to_object_id,
+	to_opsi_host_key,
+	to_opsi_timestamp,
+	to_package_version,
+	to_product_id,
+	to_product_property_id,
+	to_product_version,
+	to_uuid_string,
 )
 
 from opsicli.io import Attribute, Metadata
@@ -31,7 +32,7 @@ CLIENT_METADATA = Metadata(
 			identifier=True,
 			data_type="str",
 			selected=True,
-			validator=lambda val: forceHostId(val),
+			validator=lambda val: to_host_id(val),
 		),
 		Attribute(
 			id="opsiHostKey",
@@ -39,7 +40,7 @@ CLIENT_METADATA = Metadata(
 			identifier=False,
 			data_type="str",
 			selected=False,
-			validator=lambda val: forceOpsiHostKey(val),
+			validator=lambda val: to_opsi_host_key(val),
 		),
 		Attribute(
 			id="description",
@@ -63,7 +64,7 @@ CLIENT_METADATA = Metadata(
 			identifier=False,
 			data_type="str",
 			selected=False,
-			validator=lambda val: forceHardwareAddress(val),
+			validator=lambda val: to_hardware_address(val),
 		),
 		Attribute(
 			id="ipAddress",
@@ -71,7 +72,7 @@ CLIENT_METADATA = Metadata(
 			identifier=False,
 			data_type="str",
 			selected=False,
-			validator=lambda val: forceIpAddress(val),
+			validator=lambda val: to_ip_address(val),
 		),
 		Attribute(
 			id="inventoryNumber",
@@ -95,7 +96,7 @@ CLIENT_METADATA = Metadata(
 			identifier=False,
 			data_type="datetime",
 			selected=False,
-			validator=lambda val: forceOpsiTimestamp(datetime.fromisoformat(val).astimezone(timezone.utc).replace(microsecond=0)),
+			validator=lambda val: to_opsi_timestamp(datetime.fromisoformat(val).astimezone(timezone.utc).replace(microsecond=0)),
 		),
 		Attribute(
 			id="lastSeen",
@@ -103,7 +104,7 @@ CLIENT_METADATA = Metadata(
 			identifier=False,
 			data_type="datetime",
 			selected=True,
-			validator=lambda val: forceOpsiTimestamp(datetime.fromisoformat(val).astimezone(timezone.utc).replace(microsecond=0)),
+			validator=lambda val: to_opsi_timestamp(datetime.fromisoformat(val).astimezone(timezone.utc).replace(microsecond=0)),
 		),
 		Attribute(
 			id="systemUUID",
@@ -111,7 +112,7 @@ CLIENT_METADATA = Metadata(
 			identifier=False,
 			data_type="str",
 			selected=False,
-			validator=lambda val: forceUUIDString(val),
+			validator=lambda val: to_uuid_string(val),
 		),
 	]
 )
@@ -122,7 +123,7 @@ object_id = Attribute(
 	identifier=True,
 	data_type="str",
 	selected=True,
-	validator=lambda val: forceObjectId(val),
+	validator=lambda val: to_object_id(val),
 )
 config_id = Attribute(
 	id="configId",
@@ -130,7 +131,7 @@ config_id = Attribute(
 	identifier=True,
 	data_type="str",
 	selected=True,
-	validator=lambda val: forceConfigId(val),
+	validator=lambda val: to_config_id(val),
 )
 description = Attribute(
 	id="description",
@@ -146,7 +147,7 @@ multi_value = Attribute(
 	identifier=False,
 	data_type="bool",
 	selected=False,
-	validator=lambda val: forceBool(val),
+	validator=lambda val: to_bool(val),
 )
 editable = Attribute(
 	id="editable",
@@ -154,7 +155,7 @@ editable = Attribute(
 	identifier=False,
 	data_type="bool",
 	selected=False,
-	validator=lambda val: forceBool(val),
+	validator=lambda val: to_bool(val),
 )
 values = Attribute(
 	id="values",
@@ -212,7 +213,7 @@ product_id = Attribute(
 	identifier=True,
 	data_type="str",
 	selected=True,
-	validator=lambda val: forceProductId(val),
+	validator=lambda val: to_product_id(val),
 )
 property_id = Attribute(
 	id="propertyId",
@@ -220,7 +221,7 @@ property_id = Attribute(
 	identifier=True,
 	data_type="str",
 	selected=True,
-	validator=lambda val: forceProductPropertyId(val),
+	validator=lambda val: to_product_property_id(val),
 )
 product_version = Attribute(
 	id="productVersion",
@@ -228,7 +229,7 @@ product_version = Attribute(
 	identifier=False,
 	data_type="str",
 	selected=False,
-	validator=lambda val: forceProductVersion(val),
+	validator=lambda val: to_product_version(val),
 )
 package_version = Attribute(
 	id="packageVersion",
@@ -236,7 +237,7 @@ package_version = Attribute(
 	identifier=False,
 	data_type="str",
 	selected=False,
-	validator=lambda val: forcePackageVersion(val),
+	validator=lambda val: to_package_version(val),
 )
 is_default = Attribute(
 	id="isDefault",
@@ -244,7 +245,7 @@ is_default = Attribute(
 	identifier=False,
 	data_type="str",
 	selected=False,
-	validator=lambda val: forceBool(val),
+	validator=lambda val: to_bool(val),
 )
 depot_id = Attribute(
 	id="depotId",
@@ -252,7 +253,7 @@ depot_id = Attribute(
 	identifier=False,
 	data_type="str",
 	selected=False,
-	validator=lambda val: forceObjectId(val),
+	validator=lambda val: to_object_id(val),
 )
 client_id = Attribute(id="clientId", description="The ID of the client.", identifier=True, data_type="str", selected=True)
 product_type = Attribute(id="productType", description="The type of the product.", identifier=True, data_type="str", selected=True)

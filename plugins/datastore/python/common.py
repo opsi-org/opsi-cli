@@ -1,14 +1,15 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
+
 import re
 from typing import Any, Literal
 
 import rich_click as click
-from opsicommon.logging import get_logger
-from opsicommon.objects import BoolConfig, UnicodeConfig
-from opsicommon.types import forceBoolList
+from opsi.logging import get_logger
+from opsi.opsi.service.model.object import BoolConfig, UnicodeConfig
+from opsi.opsi.service.model.type import to_bool_list
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.io import Attribute, get_separated_entries
@@ -182,7 +183,7 @@ def validate_against_possible_values(val: str, obj: BoolConfig | UnicodeConfig) 
 			raise ValueError(f"Only one value is allowed for `[bold][blue]{obj.id}[/][/]`.\n{formatted_possible}")
 		if values[0].lower() not in ["false", "true", "0", "1"]:
 			raise ValueError(f"Invalid value `{values[0]}` for `[bold][blue]{obj.id}[/][/]`.\n{formatted_possible}")
-		return forceBoolList(values)
+		return to_bool_list(values)
 
 	elif isinstance(obj, UnicodeConfig):
 		if not obj.multiValue and len(values) > 1:

@@ -2,7 +2,7 @@ project:
   licenses:
     - license: AGPL-3.0-only
       header: |
-        opsi-cli is part of the device management solution opsi http://www.opsi.org
+        opsi-cli is part of the device management solution OPSI http://www.opsi.org
         Copyright (c) 2021-{year} uib GmbH <info@uib.de>
         All rights reserved.
         License: {license}
@@ -27,7 +27,8 @@ pyinstaller:
   collect_submodules:
     - opsicli
     - urllib3
-    - opsicommon.package
+    - opsi
+    - opsi.opsi
     - code
   extra_args:
     - --exclude-module=tkinter

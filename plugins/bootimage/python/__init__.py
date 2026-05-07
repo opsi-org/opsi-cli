@@ -1,4 +1,4 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -8,8 +8,8 @@ template for opsi-cli plugins
 """
 
 import rich_click as click
-from opsicommon.logging import get_logger
-from opsicommon.objects import BoolConfig, Config, ConfigState, UnicodeConfig
+from opsi.logging import get_logger
+from opsi.opsi.service.model.object import BoolConfig, Config, ConfigState, UnicodeConfig
 from purecrypt import Crypt, Method
 
 from opsicli.cli_helpers import OPSICLIGroup

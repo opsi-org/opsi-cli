@@ -1,4 +1,4 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -13,9 +13,11 @@ from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import urlparse
 
-from opsicommon.client.opsiservice import ServiceClient
-from opsicommon.logging import get_logger
-from opsicommon.objects import (
+from opsi.archive import extract_archive
+from opsi.logging import get_logger
+from opsi.opsi.package import OpsiPackage, create_package_md5_file, create_package_zsync_file
+from opsi.opsi.service.client import ServiceClient
+from opsi.opsi.service.model.object import (
 	BoolProductProperty,
 	OpsiDepotserver,
 	Product,
@@ -23,12 +25,9 @@ from opsicommon.objects import (
 	ProductOnClient,
 	ProductOnDepot,
 	ProductProperty,
+	opsi_timestamp,
 )
-from opsicommon.package import OpsiPackage
-from opsicommon.package.archive import extract_archive
-from opsicommon.package.associated_files import create_package_md5_file, create_package_zsync_file
-from opsicommon.types import forceHostIdList
-from opsicommon.utils import timestamp
+from opsi.opsi.service.model.type import to_host_id_list
 
 from opsicli.io import OutputType, console_print, get_progress, get_separated_entries, prompt, write_output
 from opsicli.opsiservice import get_depot_connection
@@ -51,7 +50,7 @@ def get_depot_objects(service_client: ServiceClient, depots: str) -> list[OpsiDe
 	depot_filter: dict[str, str | list[str]] = (
 		{"type": "OpsiDepotserver"}
 		if depots == "all"
-		else {"id": forceHostIdList([depot.lower() for depot in get_separated_entries(depots)])}
+		else {"id": to_host_id_list([depot.lower() for depot in get_separated_entries(depots)])}
 		if depots
 		else {"type": "OpsiConfigserver"}
 	)
@@ -593,7 +592,7 @@ def set_action_request(
 	else:
 		for poc in product_on_clients:
 			poc.actionRequest = action_request
-			poc.modificationTime = timestamp()
+			poc.modificationTime = opsi_timestamp()
 		service_client.jsonrpc("productOnClient_updateObjects", [product_on_clients])
 
 

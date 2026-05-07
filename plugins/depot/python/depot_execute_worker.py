@@ -1,4 +1,4 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -9,8 +9,8 @@ opsi-cli basic command line interface for opsi
 depot_execute_worker
 """
 
-from opsicommon.logging import get_logger
-from opsicommon.types import forceHostId
+from opsi.logging import get_logger
+from opsi.opsi.service.model.type import to_host_id
 
 from opsicli.config import config
 from opsicli.io import OutputType, console_print, get_separated_entries
@@ -37,7 +37,7 @@ class DepotExecuteWorker:
 		if "all" in depots:
 			result = {entry.id for entry in self.service.jsonrpc("host_getObjects", [[], {"type": "OpsiDepotserver"}])}
 		elif depots:
-			result.update(forceHostId(entry.strip()) for entry in get_separated_entries(depots))
+			result.update(to_host_id(entry.strip()) for entry in get_separated_entries(depots))
 
 		if not result:
 			raise NoDepotsSelected("No depots selected")

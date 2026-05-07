@@ -1,4 +1,4 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -24,11 +24,14 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
+import opsi
 from click import Command
-from opsicommon.logging import get_logger
+from opsi.logging import get_logger
 from packaging.version import parse
 
 from opsicli.config import COMPLETION_MODE, config
+
+sys.modules["opsicommon"] = opsi
 
 logger = get_logger("opsicli")
 
@@ -323,7 +326,7 @@ def install_dependencies(path: Path, target_dir: Path) -> None:
 		# candidates: python libraries (like requests, magic)
 		candidates = pipreqs.get_pkg_names(pipreqs.get_all_imports(path))
 		# dependencies: python package names (like Requests, python_magic)
-		# this failes for packages not available at pypi.python.org (like opsicommon) -> those are ignored	TODO
+		# this failes for packages not available at pypi.python.org (like opsi) -> those are ignored	TODO
 		dependencies = pipreqs.get_imports_info(candidates, pypi_server="https://pypi.python.org/pypi/")  # proxy possible
 		pipreqs.generate_requirements_file(path / "requirements.txt", dependencies, symbol=">=")
 

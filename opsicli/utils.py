@@ -1,4 +1,4 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -19,14 +19,13 @@ import shutil
 import stat
 import string
 import sys
-import time
 from collections import defaultdict
 from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Type
+from typing import TYPE_CHECKING, Any, Callable, Iterator
 
-from opsicommon.logging import get_logger, use_logging_config
+from opsi.logging import get_logger, use_logging_config
 
 if sys.platform == "win32":
 	import win32console
@@ -279,40 +278,6 @@ def install_binary(source: Path | str, destination: Path | str) -> None:
 		except Exception as err:
 			# Windows does not allow to delete a file that is in use
 			logger.debug("Failed to delete backup '%s': %s", backup_path, err)
-
-
-def retry(
-	retries: int = 3, wait: float = 0, exceptions: Iterable[Type[Exception]] | None = None, caught_exceptions: list[Exception] | None = None
-) -> Callable:
-	"""
-	Decorator to retry a function.
-	:param retries: Number of retries
-	:param wait: Time to wait between retries
-	:param exceptions: Exception to catch, if None catch all exceptions
-	"""
-	attempts = 1 + retries
-
-	def decorator(func: Callable) -> Callable:
-		def wrapper(*args: Any, **kwargs: Any) -> Any:
-			for attempt in range(1, attempts + 1):
-				try:
-					return func(*args, **kwargs)
-				except Exception as exc:
-					logger.warning("Attempt %d of %d failed with [%s] %s", attempt, attempts, exc.__class__.__name__, exc)
-					if attempt == attempts:
-						logger.debug("No retry because the maximum number of %d attempts has been reached", attempts)
-						raise
-					if exceptions and not any(isinstance(exc, exc_type) for exc_type in exceptions):
-						logger.debug("No retry because excetion type %s is not in %s", exc.__class__.__name__, exceptions)
-						raise
-					if caught_exceptions is not None:
-						caught_exceptions.append(exc)
-					if wait > 0:
-						time.sleep(wait)
-
-		return wrapper
-
-	return decorator
 
 
 def create_nested_dict(items: list[object], attributes: list[str]) -> dict:

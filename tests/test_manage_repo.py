@@ -1,4 +1,4 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -11,8 +11,8 @@ import shutil
 from pathlib import Path
 
 import pytest
-import zstandard
-from opsicommon.utils import json_decode, msgpack_decode
+from opsi.compression import decompress
+from opsi.serialization import json_decode, msgpack_decode
 
 from .utils import run_cli
 
@@ -22,8 +22,7 @@ TEST_REPO = Path() / "tests" / "test_data" / "repository"
 def read_metafile(file: Path) -> dict:
 	bdata = file.read_bytes()
 	if ".zstd" in file.suffixes:
-		decompressor = zstandard.ZstdDecompressor()
-		bdata = decompressor.decompress(bdata)
+		bdata = decompress(bdata, "zstd")
 	data = msgpack_decode(bdata) if ".msgpack" in file.suffixes else json_decode(bdata)
 	return data
 

@@ -1,4 +1,4 @@
-# opsi-cli is part of the device management solution opsi http://www.opsi.org
+# opsi-cli is part of the device management solution OPSI http://www.opsi.org
 # Copyright (c) 2021-2026 uib GmbH <info@uib.de>
 # All rights reserved.
 # License: AGPL-3.0-only
@@ -23,11 +23,9 @@ from types import FrameType
 from typing import Any, Callable, Generator, Literal
 from uuid import uuid4
 
-from opsicommon.client.opsiservice import MessagebusListener
-from opsicommon.logging import get_logger
-from opsicommon.logging.constants import DEBUG
-from opsicommon.messagebus import CONNECTION_USER_CHANNEL
-from opsicommon.messagebus.message import (
+from opsi.logging import DEBUG, get_logger
+from opsi.opsi.messagebus import (
+	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionEventMessage,
 	ChannelSubscriptionRequestMessage,
 	FileChunkMessage,
@@ -54,8 +52,9 @@ from opsicommon.messagebus.message import (
 	TerminalOpenRequestMessage,
 	TerminalResizeRequestMessage,
 )
-from opsicommon.system.info import is_windows
-from opsicommon.types import forceHostId
+from opsi.opsi.service.client import MessagebusListener
+from opsi.opsi.service.model.type import to_host_id
+from opsi.system.info import is_windows
 from rich.color import Color
 from rich.text import Text
 
@@ -653,7 +652,7 @@ class TerminalMessagebusConnection(MessagebusConnection):
 		logger.debug("Configserver ID: %s", configserver_id)
 		logger.debug("Depotserver IDs: %s", depotserver_ids)
 
-		host_id = forceHostId(configserver_id if target == "configserver" else target)
+		host_id = to_host_id(configserver_id if target == "configserver" else target)
 		if host_id != configserver_id and host_id not in connected_host_ids:
 			raise ConnectionError(f"Host {host_id} is currently not connected to messagebus")
 
@@ -772,7 +771,7 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 	def _get_channel(self) -> str:
 		connected_host_ids = self.service_client.host_getMessagebusConnectedIds()  # ty: ignore[unresolved-attribute]
 		configserver_id = self._get_configserver_id()
-		host_id = forceHostId(self.host_id)
+		host_id = to_host_id(self.host_id)
 
 		if host_id != configserver_id and host_id not in connected_host_ids:
 			raise ConnectionError(f"Host {host_id} is currently not connected to messagebus")
