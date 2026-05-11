@@ -914,7 +914,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/a6/91/86a6eac449ddfae23
 
 [[package]]
 name = "opsi-cli"
-version = "4.3.44.0"
+version = "4.3.44.1"
 source = { editable = "." }
 dependencies = [
     { name = "annotated-types" },

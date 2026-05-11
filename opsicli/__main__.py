@@ -166,7 +166,9 @@ def quiet_print(*args: Any, **kwargs: Any) -> None:
 
 @click.command(cls=OpsiCLI)
 @click.version_option(f"{__version__}", message="opsi-cli version %(version)s")
-@config.get_click_option("config_file_system", is_eager=True, expose_value=False)
+@config.get_click_option(
+	"config_file_system", is_eager=True, expose_value=False, click_type=click.Path(dir_okay=False, exists=False, readable=False)
+)
 @config.get_click_option("config_file_user", is_eager=True, expose_value=False)
 @config.get_click_option("log_file")
 @config.get_click_option("log_level_file")

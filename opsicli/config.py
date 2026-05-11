@@ -18,7 +18,7 @@ from copy import deepcopy
 from dataclasses import InitVar, asdict, dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 DEFAULT_SESSION_LIFETIME = 900
 COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE" in os.environ
@@ -55,6 +55,9 @@ from opsicli.types import (  # noqa: E402
 	OutputFormat,
 	Password,
 )
+
+if TYPE_CHECKING:
+	from click.types import ParamType
 
 if platform.system().lower() == "windows":
 	_POWERSHELL_SOURCE = """\
@@ -640,15 +643,16 @@ class Config:
 			stderr_format=DEFAULT_COLORED_FORMAT if self.color else DEFAULT_FORMAT,
 		)
 
-	def get_click_option(self, name: str, **kwargs: str | bool) -> Callable:
+	def get_click_option(self, name: str, **kwargs: str | bool | ParamType) -> Callable:
 		config_item = self._config[name]
 		long_option = kwargs.pop("long_option", None)
 		if long_option is None:
 			long_option = f"--{name.replace('_', '-')}"
 			if isinstance(config_item.type, Bool):
 				long_option = f"{long_option}/--no-{long_option.lstrip('--')}"
+
 		_kwargs = {
-			"type": getattr(config_item.type, "click_type", config_item.type),
+			"type": kwargs.pop("click_type", getattr(config_item.type, "click_type", config_item.type)),
 			"callback": self.process_option,
 			"metavar": name.upper(),
 			"envvar": f"OPSICLI_{name.upper()}",
