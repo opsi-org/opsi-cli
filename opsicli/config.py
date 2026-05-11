@@ -536,8 +536,21 @@ class Config:
 
 		for file_type in ("config_file_system", "config_file_user"):
 			config_file = getattr(self, file_type, None)
-			if not config_file or not config_file.exists():
+			if not config_file:
 				continue
+
+			try:
+				with open(config_file, "r"):
+					pass
+			except PermissionError:
+				if file_type == "config_file_user":
+					raise
+				logger.info("No permission to read config file %s, skipping", config_file)
+				continue
+			except FileNotFoundError:
+				logger.info("Config file %s not found, skipping", config_file)
+				continue
+
 			source = ConfigValueSource.CONFIG_FILE_SYSTEM if file_type == "config_file_system" else ConfigValueSource.CONFIG_FILE_USER
 			data = YAML().load(config_file.read_text(encoding="utf-8")) or {}
 			for key, value in data.items():
