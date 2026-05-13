@@ -232,6 +232,15 @@ def prepare_plugin(path: Path, tmpdir: Path) -> str:
 	return plugin_id
 
 
+def set_plugin_permissions(path: Path) -> None:
+	# set rights 775 for path and all subdirs/files to allow usage by non-admin users on linux using pathlib iterdir
+	for path in Path(path).iterdir():
+		if path.is_dir():
+			path.chmod(0o775)
+		else:
+			path.chmod(0o664)
+
+
 def install_plugin(source_dir: Path, plugin_id: str, system: bool = False) -> Path:
 	"""Copy the prepared plugin from tmp to LIB_DIR"""
 	plugin_path_name = plugin_id.replace("-", "_")
@@ -246,12 +255,14 @@ def install_plugin(source_dir: Path, plugin_id: str, system: bool = False) -> Pa
 	logger.info("Installing libraries from '%s' to '%s'", source_dir / "lib", python_lib_dir)
 	shutil.rmtree(python_lib_dir, ignore_errors=True)
 	shutil.copytree(source_dir / "lib", python_lib_dir)
+	set_plugin_permissions(python_lib_dir)
 
 	destination = plugin_dir / plugin_path_name
 	logger.info("Installing plugin from '%s' to '%s'", source_dir / plugin_path_name, destination)
 	if destination.exists():
 		shutil.rmtree(destination)
 	shutil.copytree(source_dir / plugin_path_name, destination)
+	set_plugin_permissions(destination)
 	return destination
 
 

@@ -38,7 +38,7 @@ from opsicli.plugin import (
 
 from .metadata import COMMAND_METADATA
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 
 logger = get_logger("opsicli")
 
