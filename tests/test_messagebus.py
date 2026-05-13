@@ -156,26 +156,36 @@ def test_wait_for_event(with_data: bool) -> None:
 
 
 @pytest.mark.opsi_service
-@pytest.mark.parametrize("installation_status", ["installed", "not_installed"])
-@pytest.mark.parametrize("success", [True, False])
-def test_wait_for_installation(installation_status: str, success: bool) -> None:
+@pytest.mark.parametrize(
+	"installation_status, action_result",
+	[
+		("installed", "successful"),
+		("not_installed", "failed"),
+		("installed", None),
+	],
+)
+def test_wait_for_installation(installation_status: str, action_result: str | None) -> None:
+	# action_result == None => timeout
 	class FakeInstallationThread(Thread):
 		def run(self) -> None:
 			with log_context({"instance": "FakeInstallationThread"}):
 				with get_admin_service_client() as client:
 					time.sleep(7)
-					client.jsonrpc(
-						"productOnClient_updateObjects",
-						params=[
-							{
-								"clientId": "client1.test.tld",
-								"productId": "testproduct",
-								"actionResult": "successful" if success else "failed",
-								"installationStatus": installation_status if success else "unknown",
-								"productType": "LocalbootProduct",
-							}
-						],
-					)
+					if action_result is None:
+						time.sleep(5)
+					else:
+						client.jsonrpc(
+							"productOnClient_updateObjects",
+							params=[
+								{
+									"clientId": "client1.test.tld",
+									"productId": "testproduct",
+									"actionResult": action_result,
+									"installationStatus": installation_status,
+									"productType": "LocalbootProduct",
+								}
+							],
+						)
 
 	with admin_service_config():
 		with get_service_connection() as connection:
@@ -196,8 +206,10 @@ def test_wait_for_installation(installation_status: str, success: bool) -> None:
 					"10",
 				]
 				exit_code, _stdout, _stderr = run_cli(cmd)
+				if action_result is None:
+					assert "Timed out after waiting" in _stderr
 				cht.join()
-				assert exit_code == 0 if success else 1
+				assert exit_code == 0 if action_result == "successful" else 1
 
 
 @pytest.mark.opsi_service
