@@ -18,7 +18,6 @@ import random
 import shutil
 import stat
 import string
-import subprocess
 import sys
 from collections import defaultdict
 from contextlib import contextmanager
@@ -27,6 +26,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Iterator
 
 from opsi.logging import get_logger, use_logging_config
+from opsi.process import run_command
 
 if sys.platform == "win32":
 	import win32console
@@ -277,10 +277,10 @@ def install_binary(source: Path | str, destination: Path | str) -> None:
 		users_sid = "*S-1-5-32-545"
 
 		# Ensure users can traverse/read this directory
-		subprocess.run(["icacls", str(destination.parent), "/grant", f"{users_sid}:(RX)"], check=True)
+		run_command(["icacls", str(destination.parent), "/grant", f"{users_sid}:(RX)"])
 
 		# Ensure users can execute/read the binary itself
-		subprocess.run(["icacls", str(destination), "/grant", f"{users_sid}:(RX)"], check=True)
+		run_command(["icacls", str(destination), "/grant", f"{users_sid}:(RX)"])
 
 	if backup_path:
 		try:
