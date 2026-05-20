@@ -18,6 +18,7 @@ import random
 import shutil
 import stat
 import string
+import subprocess
 import sys
 from collections import defaultdict
 from contextlib import contextmanager
@@ -271,6 +272,15 @@ def install_binary(source: Path | str, destination: Path | str) -> None:
 
 	if sys.platform in ("linux", "darwin"):
 		os.chmod(destination, 0o755)
+	elif sys.platform == "win32":
+		# Builtin Users SID (locale-independent)
+		users_sid = "*S-1-5-32-545"
+
+		# Ensure users can traverse/read this directory
+		subprocess.run(["icacls", str(destination.parent), "/grant", f"{users_sid}:(RX)"], check=True)
+
+		# Ensure users can execute/read the binary itself
+		subprocess.run(["icacls", str(destination), "/grant", f"{users_sid}:(RX)"], check=True)
 
 	if backup_path:
 		try:
