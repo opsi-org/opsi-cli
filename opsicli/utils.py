@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Iterator
 
 from opsi.logging import get_logger, use_logging_config
+from opsi.process import run_command
 
 if sys.platform == "win32":
 	import win32console
@@ -271,6 +272,15 @@ def install_binary(source: Path | str, destination: Path | str) -> None:
 
 	if sys.platform in ("linux", "darwin"):
 		os.chmod(destination, 0o755)
+	elif sys.platform == "win32":
+		# Builtin Users SID (locale-independent)
+		users_sid = "*S-1-5-32-545"
+
+		# Ensure users can traverse/read this directory
+		run_command(["icacls", str(destination.parent), "/grant", f"{users_sid}:(RX)"])
+
+		# Ensure users can execute/read the binary itself
+		run_command(["icacls", str(destination), "/grant", f"{users_sid}:(RX)"])
 
 	if backup_path:
 		try:
