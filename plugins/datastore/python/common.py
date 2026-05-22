@@ -64,7 +64,7 @@ def general_help_for_where(
 
 
 def process_where(
-	where: tuple[str, ...], *, attributes: list[Attribute], operation: Literal["list", "update", "unlock", "purge"] = "list"
+	where: tuple[str, ...], *, attributes: list[Attribute], operation: Literal["list", "update", "unlock", "purge", "delete"] = "list"
 ) -> dict[str, str]:
 	where = where or tuple()
 	condition_pattern = re.compile(r"^([a-zA-Z_]+)\s*(<|<=|=|>=|>)\s*(.*)$")
@@ -96,7 +96,7 @@ def process_where(
 
 	id_attributes = [attr for attr in attributes if attr.identifier]
 	missing_attributes = []
-	if operation in ("update", "unlock", "purge"):
+	if operation in ("update", "unlock", "purge", "delete"):
 		missing_attributes = [attr.id for attr in id_attributes if attr.id not in filter]
 
 	general_help = general_help_for_where(
@@ -108,7 +108,7 @@ def process_where(
 			"If you intentionally do not want to filter by an attribute, use: `[bold]--all[/]`.\n\n"
 			f"{general_help}"
 		)
-	if (operation == "update" or operation == "unlock") and missing_attributes:
+	if missing_attributes:
 		raise ValueError(
 			f"Incomplete filter for {operation} operation.\n\n"
 			f"{general_help}"
@@ -201,7 +201,7 @@ def filter_by_attributes(data: list[dict[str, Any]], filter: dict[str, str], att
 
 	Args:
 	    data: A list of dictionaries representing the records to filter.
-	    filter: A mapping of attribute IDs to the desired string values.
+	    filter: A mapping of attribute-value pairs.
 	    attributes: A list of Attribute objects used to validate filter keys.
 
 	Returns:

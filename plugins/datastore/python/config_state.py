@@ -280,3 +280,42 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 
 	output_data = _create_output_data(config_obj[0], updated_config_states, current_values)
 	_update_database(output_data, updated_config_states, metadata)
+
+
+@config_state.command(
+	name="delete",
+	short_help="Update a configuration state for one or multiple clients.",
+)
+@click.option(
+	"--where",
+	type=str,
+	multiple=True,
+	help="Filter config-states by their attributes.",
+)
+@dry_run_capable
+def delete_config_state(
+	where: tuple[str, ...],
+) -> None:
+	"""
+	Update a configuration state for one or multiple clients.
+	"""
+	service_connection = get_service_connection()
+	metadata = COMMAND_METADATA["datastore_config-state_delete"]
+	filter = process_where(where, attributes=metadata.attributes, operation="delete")
+
+	if config.dry_run:
+		msg = "Deleting Config States skipped due to dry run. Here are the Config States that would have been deleted:\n"
+	else:
+		msg = "Deleted Config States successfully. Here are the deleted clients."
+		service_connection.configState_delete(cobjectId=filter["objectId"], configId=filter["configId"])  # ty: ignore[unresolved-attribute]
+
+	config_states = service_connection.configState_getObjects(objectId=filter["objectId"], configId=filter["configId"])  # ty: ignore[unresolved-attribute]
+	config_states_dict = [config.__dict__ for config in config_states]
+	if filter.get("values"):
+		config_states_dict = filter_by_attributes(config_states_dict, filter, metadata.attributes)
+
+	console_print(msg, style="green", output_type=OutputType.MESSAGE)
+	write_output(
+		data=sorted(config_states_dict, key=lambda x: x["objectId"]),
+		metadata=metadata,
+	)
