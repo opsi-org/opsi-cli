@@ -14,24 +14,24 @@ Two adjustment are needed for public development and contribution.
 1. Remove the `extra-index-url` from the `tool.uv` section:
 
 ```toml
-# before
+# Before
 [tool.uv]
 extra-index-url = [ "https://pypi.uib.gmbh/simple",]
 index-strategy = "unsafe-best-match"
 package = true
 
-# after
+# After
 [tool.uv]
 index-strategy = "unsafe-best-match"
 package = true
 ```
 
-2. Add the pip source repository for `python-opsi-common`
+2. Add the pip source repository for `python-opsi`
 
 ```toml
-# add anywhere in the pyproject.toml
+# Add anywhere in the pyproject.toml
 [tool.uv.sources]
-python-opsi-common = { git = "https://github.com/opsi-org/python-opsi-common.git" }
+python-opsi = { git = "https://github.com/opsi-org/python-opsi.git" }
 ```
 
 ### Setup virtual environment using `uv`
@@ -43,9 +43,9 @@ uv sync
 ### Run `opsi-cli` commands
 
 ```shell
-uv run python run-opsicli --help
+uv run opsi-cli --help
 # or
-uv run python run-opsicli client-action reboot
+uv run opsi-cli client-action reboot
 ```
 
 ### Commit changes
