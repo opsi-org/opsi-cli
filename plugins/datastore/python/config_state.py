@@ -114,7 +114,7 @@ def _update_depot_states(
 	return depot_states
 
 
-def _update_database(data: list[dict[str, str]], config_states: list[ConfigState], metadata: Metadata) -> None:
+def _update_database(data: list[dict[str, str | list[Any]]], config_states: list[ConfigState], metadata: Metadata) -> None:
 	service_connection = get_service_connection()
 
 	if config.dry_run:
@@ -129,16 +129,16 @@ def _update_database(data: list[dict[str, str]], config_states: list[ConfigState
 
 def _create_output_data(
 	config_obj: Config, config_states: list[ConfigState], current_values: dict[str, dict[str, str]]
-) -> list[dict[str, str]]:
-	updated_data = []
+) -> list[dict[str, str | list[Any]]]:
+	updated_data: list[dict[str, str | list[Any]]] = []
 	for state in config_states:
 		updated_data.append(
 			{
 				"objectId": state.objectId,
 				"configId": state.configId,
-				"possibleValues": config_obj.possibleValues,
+				"possibleValues": config_obj.possibleValues or [],
 				"previousValues": current_values[state.objectId][state.configId],
-				"values": state.values,
+				"values": state.values or [],
 			}
 		)
 	return updated_data
