@@ -101,9 +101,12 @@ def get_service_connection(verify: str | None = None) -> ServiceClient:
 
 	totp: str | None = None
 	session_cookie = None
+	session_cache_key = None
 	if address:
 		address = ServiceClient.normalize_service_address(address)[0]
-		session_cookie = cache.get(get_session_cache_key(address, "" if config.sso else username))  # None if previous session expired
+		session_cache_key = get_session_cache_key(address, "" if config.sso else username)
+		if session_cache_key:  # None if previous session expired
+			session_cookie = cache.get(session_cache_key) or None
 	if session_cookie:
 		logger.info("Reusing session cookie from cache (%s, %s)", address, username)
 	elif not config.sso:
@@ -123,6 +126,7 @@ def get_service_connection(verify: str | None = None) -> ServiceClient:
 		user_agent=f"opsi-cli/{__version__}",
 		session_lifetime=config.session_lifetime,
 		session_cookie=session_cookie,
+		keep_session_on_disconnect=True,
 		jsonrpc_create_methods=True,
 		jsonrpc_create_objects=True,
 		auto_connect=False,
@@ -133,10 +137,10 @@ def get_service_connection(verify: str | None = None) -> ServiceClient:
 	try:
 		new_service_client.connect()
 	except OpsiServiceAuthenticationError:
-		if not session_cookie:
+		if not session_cache_key:
 			raise
 		logger.warning("Authentication failed with session cookie, trying again without it")
-		cache.delete("opsiconfd-session", store=True)
+		cache.delete(session_cache_key, store=True)
 		return get_service_connection(verify=verify)
 	except OpsiServiceVerificationError as err:
 		if new_service_client.ca_cert_file and new_service_client.ca_cert_file.exists():
