@@ -58,10 +58,12 @@ def test_get_service_connection_session_handling() -> None:
 
 		assert session_cookie1 == session_cookie2
 
+		# Change username, session cookie should not be reused
 		config.username = "other_user"
 		reset_service_connection()
+		assert cache.get(get_session_cache_key(address, config.username)) is None
+
 		with pytest.raises(Exception, match="Unauthorized"):
-			# Username changed, session cookie should not be reused
 			get_service_connection()
 
 

@@ -12,7 +12,7 @@ opsi service
 from functools import lru_cache
 from urllib.parse import urlparse
 
-from opsi.exception import OpsiServiceAuthenticationError, OpsiServiceVerificationError
+from opsi.exception import OpsiServiceAuthenticationError, OpsiServicePermissionError, OpsiServiceVerificationError
 from opsi.logging import get_logger
 from opsi.opsi.service.client import ServiceClient, ServiceConnectionListener, get_service_client
 from opsi.opsi.service.model.object import OpsiDepotserver
@@ -80,7 +80,7 @@ def get_depot_connection(depot: OpsiDepotserver) -> ServiceClient:
 
 
 @lru_cache
-def get_service_connection(verify: str | None = None) -> ServiceClient:
+def get_service_connection(verify: str | None = None, attempt: int = 1) -> ServiceClient:
 	address: str | None = None
 	username: str | None = None
 	password: str | None = None
@@ -136,12 +136,13 @@ def get_service_connection(verify: str | None = None) -> ServiceClient:
 	new_service_client.register_connection_listener(OpsiCliConnectionListener())
 	try:
 		new_service_client.connect()
-	except OpsiServiceAuthenticationError:
-		if not session_cache_key:
+	except (OpsiServiceAuthenticationError, OpsiServicePermissionError) as err:
+		logger.debug("Authentication failed: %s", err)
+		if not session_cache_key or attempt > 1:
 			raise
 		logger.warning("Authentication failed with session cookie, trying again without it")
-		cache.delete(session_cache_key, store=True)
-		return get_service_connection(verify=verify)
+		cache.delete(name=session_cache_key, store=True)
+		return get_service_connection(verify=verify, attempt=attempt + 1)
 	except OpsiServiceVerificationError as err:
 		if new_service_client.ca_cert_file and new_service_client.ca_cert_file.exists():
 			raise OpsiServiceVerificationError(
