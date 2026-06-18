@@ -889,9 +889,9 @@ def test_config_state_update(
 @pytest.mark.parametrize(
 	"command, expected_output, expected_error",
 	(
-		# one objectId, one configId
+		# Case 1: Successful deletion.
+		# A valid clientId and a valid configId are provided.
 		(
-			# COMMAND
 			[
 				"--sort-by",
 				"objectId",
@@ -903,7 +903,6 @@ def test_config_state_update(
 				"--where",
 				f"objectId={TEST_CLIENTS[0].id}",
 			],
-			# EXPECTED OUTPUT
 			[
 				{
 					"objectId": TEST_CONFIG_STATES[0].objectId,
@@ -912,8 +911,48 @@ def test_config_state_update(
 					"origin": "client",
 				},
 			],
-			# EXPECTED ERROR
 			None,
+		),
+		# Case 2: Validation Error - Missing objectId in filter.
+		# The delete operation requires all identifier attributes according to process_where.
+		(
+			[
+				"datastore",
+				"config-state",
+				"delete",
+				"--where",
+				f"configId={TEST_CONFIGS[0].id}",
+			],
+			None,
+			("Incomplete filter for delete operation", "Missing required attributes: objectId"),
+		),
+		# Case 3: Validation Error - Missing configId in filter.
+		# The delete operation requires all identifier attributes according to process_where.
+		(
+			[
+				"datastore",
+				"config-state",
+				"delete",
+				"--where",
+				f"objectId={TEST_CLIENTS[0].id}",
+			],
+			None,
+			("Incomplete filter for delete operation", "Missing required attributes: configId"),
+		),
+		# Case 4: No Match Error - Filter criteria match non-existent data.
+		# Ensuring that the command aborts correctly with a clear error message instead of failing silently.
+		(
+			[
+				"datastore",
+				"config-state",
+				"delete",
+				"--where",
+				"configId=non.existent.config.id",
+				"--where",
+				f"objectId={TEST_CLIENTS[0].id}",
+			],
+			None,
+			("No config-states found matching the filtering criteria.",),
 		),
 	),
 )

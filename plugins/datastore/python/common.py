@@ -167,7 +167,6 @@ def process_where(
 			f"\nOn {operation} operations, the filter must contain all identifier attributes.\n"
 			f"Missing required attributes: [bold red]{', '.join(missing_attributes)}[/]"
 		)
-	filter = {k: (v if v != "*" else "") for k, v in filter.items()}  # process wildcards
 	return filter
 
 
