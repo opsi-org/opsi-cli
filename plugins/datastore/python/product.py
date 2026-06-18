@@ -112,7 +112,7 @@ def product_purge(where: tuple[str, ...], all: bool) -> None:
 		filter = {k: (v if v != "*" else "") for k, v in filter.items()}  # process wildcards
 	else:
 		filter = {}
-	product_idents = service_connection.product_getIdents(get_separated_entries(filter.pop("productId", None)))  # ty: ignore[unresolved-attribute]
+	product_idents = service_connection.product_getIdents(get_separated_entries(filter.pop("productId", None)))  # type: ignore[unresolved-attribute]
 	product_ids = [id.split(";")[0] for id in product_idents]
 	# empty result
 	if not product_ids:
@@ -122,7 +122,7 @@ def product_purge(where: tuple[str, ...], all: bool) -> None:
 		msg = "Purge skipped due to dry run. Here are the products that would have been purged:\n"
 	else:
 		msg = "Products purged successfully. Here are the purged products:\n"
-		service_connection.poduct_purge(id=product_ids)  # ty: ignore[unresolved-attribute]
+		service_connection.product_purge(id=product_ids)  # type: ignore[unresolved-attribute]
 
 	console_print(msg, style="green", output_type=OutputType.MESSAGE)
 	write_output(data=product_ids, metadata=COMMAND_METADATA["datastore_product_purge"])

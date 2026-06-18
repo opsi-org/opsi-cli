@@ -109,7 +109,7 @@ def _update_depot_states(
 			target = depot_states[state.objectId][state.configId]
 			target["clientValues"] = state.values
 			target["origin"] = "client"
-			if target["defaultValues"] != state:
+			if target["defaultValues"] != state.values:
 				target["values"] = state.values
 
 	return depot_states
