@@ -58,10 +58,12 @@ def test_get_service_connection_session_handling() -> None:
 
 		assert session_cookie1 == session_cookie2
 
+		# Change username, session cookie should not be reused
 		config.username = "other_user"
 		reset_service_connection()
+		assert cache.get(get_session_cache_key(address, config.username)) is None
+
 		with pytest.raises(Exception, match="Unauthorized"):
-			# Username changed, session cookie should not be reused
 			get_service_connection()
 
 
@@ -70,14 +72,15 @@ def test_get_service_connection_session_expired() -> None:
 	with admin_service_config():
 		session_lifetime = 1
 		session_cookie = "aDummySessionCookie"
-		cache.set("opsiconfd-session", f"opsiconfd-session={session_cookie}", session_lifetime)
+		session_cache_key = get_session_cache_key(config.service, config.username)
+		cache.set(session_cache_key, f"opsiconfd-session={session_cookie}", session_lifetime)
 
 		wait_time = session_lifetime + 1
 		time.sleep(wait_time)
 		connection = get_service_connection()
 		assert connection
 
-		session_cookie_new = cache.get("opsiconfd-session")
+		session_cookie_new = cache.get(session_cache_key)
 
 		assert session_cookie_new != session_cookie
 

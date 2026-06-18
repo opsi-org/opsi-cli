@@ -169,10 +169,10 @@ def list_product_property_state(where: tuple[str, ...], all: bool) -> None:
 		filter = {}
 
 	# get separated Id's from filter
-	final_object_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("objectId", None)))  # type: ignore[unresolved-attribute]
+	final_object_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("objectId", None)))  # ty: ignore[unresolved-attribute]
 	final_product_ids = get_separated_entries(filter.pop("productId", None))
 	final_property_ids = get_separated_entries(filter.pop("propertyId", None))
-	final_depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # type: ignore[unresolved-attribute]
+	final_depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # ty: ignore[unresolved-attribute]
 
 	# map clients to depots
 	client_to_depot = create_client_depot_mapping(service_connection, final_object_ids)

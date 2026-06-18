@@ -73,7 +73,7 @@ def _update_default_states(
 	default_states: dict[str, dict[str, dict[str, Any]]],
 ) -> dict[str, dict[str, dict[str, Any]]]:
 
-	depot_config_states = service_connection.configState_getObjects(objectId=depot_ids, configId=config_ids)  # type: ignore[unresolved-attribute]
+	depot_config_states = service_connection.configState_getObjects(objectId=depot_ids, configId=config_ids)  # ty: ignore[unresolved-attribute]
 
 	# account for different depots
 	depot_lookup = {(s.objectId, s.configId): s.values for s in depot_config_states}
@@ -102,7 +102,7 @@ def _update_depot_states(
 	depot_states: dict[str, dict[str, dict[str, Any]]],
 ) -> dict[str, dict[str, dict[str, Any]]]:
 
-	client_config_states = service_connection.configState_getObjects(objectId=object_ids, configId=config_ids)  # type: ignore[unresolved-attribute]
+	client_config_states = service_connection.configState_getObjects(objectId=object_ids, configId=config_ids)  # ty: ignore[unresolved-attribute]
 
 	for state in client_config_states:
 		if state.objectId in depot_states and state.configId in depot_states[state.objectId]:
@@ -115,11 +115,11 @@ def _update_depot_states(
 	return depot_states
 
 
-def _update_database(data: list[dict[str, str]], config_states: list[ConfigState], metadata: Metadata) -> None:
+def _update_database(data: list[dict[str, str | list[Any]]], config_states: list[ConfigState], metadata: Metadata) -> None:
 	service_connection = get_service_connection()
 
 	if not config.dry_run:
-		service_connection.configState_updateObjects(config_states)  # type: ignore[unresolved-attribute]
+		service_connection.configState_updateObjects(config_states)  # ty: ignore[unresolved-attribute]
 
 	console_print(get_msg(), style="green", output_type=OutputType.MESSAGE)
 	write_output(data=sorted(data, key=lambda x: x["objectId"]), metadata=metadata)
@@ -127,16 +127,16 @@ def _update_database(data: list[dict[str, str]], config_states: list[ConfigState
 
 def _create_output_data(
 	config_obj: Config, config_states: list[ConfigState], current_values: dict[str, dict[str, str]]
-) -> list[dict[str, str]]:
-	updated_data = []
+) -> list[dict[str, str | list[Any]]]:
+	updated_data: list[dict[str, str | list[Any]]] = []
 	for state in config_states:
 		updated_data.append(
 			{
 				"objectId": state.objectId,
 				"configId": state.configId,
-				"possibleValues": config_obj.possibleValues,
+				"possibleValues": config_obj.possibleValues or [],
 				"previousValues": current_values[state.objectId][state.configId],
-				"values": state.values,
+				"values": state.values or [],
 			}
 		)
 	return updated_data

@@ -40,7 +40,7 @@ def _get_clients_from_input() -> list[dict[str, str | datetime | None]]:
 def _get_clients_from_service(filter: dict[str, str], attributes: list[str]) -> list[dict[str, str | datetime | None]]:
 	service_connection = get_service_connection()
 	clients = []
-	for client in service_connection.host_getObjects(attributes=attributes, type="OpsiClient", **filter):  # type: ignore[unresolved-attribute]
+	for client in service_connection.host_getObjects(attributes=attributes, type="OpsiClient", **filter):  # ty: ignore[unresolved-attribute]
 		client_hash = {attr: val for attr, val in client.to_hash().items() if attr in ("id", "type") or attr in attributes}
 		for time_field in ["created", "lastSeen"]:
 			if val := client_hash.get(time_field):
@@ -52,7 +52,7 @@ def _get_clients_from_service(filter: dict[str, str], attributes: list[str]) -> 
 def _update_clients(clients: list[dict[str, str | datetime | None]]) -> None:
 	if not config.dry_run:
 		service_connection = get_service_connection()
-		service_connection.host_updateObjects(clients)  # type: ignore[unresolved-attribute]
+		service_connection.host_updateObjects(clients)  # ty: ignore[unresolved-attribute]
 
 	console_print(get_msg("clients"), style="green", output_type=OutputType.MESSAGE)
 	write_output(data=clients, metadata=CLIENT_METADATA)

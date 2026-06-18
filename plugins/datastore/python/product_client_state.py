@@ -177,7 +177,7 @@ def apply_product_client_state() -> None:
 		msg = "Update skipped due to dry run. Here are the product client states that would have been updated:\n"
 	else:
 		service_connection = get_service_connection()
-		service_connection.productOnClient_updateObjects(pcs)  # type: ignore[unresolved-attribute]
+		service_connection.productOnClient_updateObjects(pcs)  # ty: ignore[unresolved-attribute]
 		msg = "Product client states updated successfully. Here are the updated states:\n"
 
 	console_print(msg, style="green", output_type=OutputType.MESSAGE)

@@ -53,7 +53,7 @@ def product_unlock(where: tuple[str, ...], all: bool) -> None:
 	# Helper function, get products, unlock them, update them
 	def unlock_and_update(product_ids: list[str], depot_ids: list[str]) -> None:
 		service_connection = get_service_connection()
-		product_on_depots = service_connection.productOnDepot_getObjects(productId=product_ids, depotId=depot_ids)  # type: ignore[unresolved-attribute]
+		product_on_depots = service_connection.productOnDepot_getObjects(productId=product_ids, depotId=depot_ids)  # ty: ignore[unresolved-attribute]
 
 		# empty result
 		if not product_on_depots:
@@ -61,7 +61,7 @@ def product_unlock(where: tuple[str, ...], all: bool) -> None:
 			raise ValueError("No products found matching the filtering criteria.")
 		for product_on_depot in product_on_depots:
 			product_on_depot.locked = False
-		service_connection.productOnDepot_updateObjects(product_on_depots)  # type: ignore[unresolved-attribute]
+		service_connection.productOnDepot_updateObjects(product_on_depots)  # ty: ignore[unresolved-attribute]
 
 	service_connection = get_service_connection()
 	if not all:
@@ -70,9 +70,9 @@ def product_unlock(where: tuple[str, ...], all: bool) -> None:
 	else:
 		filter = {}
 
-	product_idents = service_connection.product_getIdents(id=get_separated_entries(filter.pop("productId", None)))  # type: ignore[unresolved-attribute]
+	product_idents = service_connection.product_getIdents(id=get_separated_entries(filter.pop("productId", None)))  # ty: ignore[unresolved-attribute]
 	product_ids = [id.split(";")[0] for id in product_idents]
-	depot_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("depotId", None)), type="OpsiDepotserver")  # type: ignore[unresolved-attribute]
+	depot_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("depotId", None)), type="OpsiDepotserver")  # ty: ignore[unresolved-attribute]
 
 	if not product_ids or not depot_ids:  # empty result
 		raise ValueError("No products found matching the filtering criteria.")
@@ -113,7 +113,7 @@ def product_purge(where: tuple[str, ...], all: bool) -> None:
 		filter = {k: (v if v != "*" else "") for k, v in filter.items()}  # process wildcards
 	else:
 		filter = {}
-	product_idents = service_connection.product_getIdents(get_separated_entries(filter.pop("productId", None)))  # type: ignore[unresolved-attribute]
+	product_idents = service_connection.product_getIdents(get_separated_entries(filter.pop("productId", None)))  # ty: ignore[unresolved-attribute]
 	product_ids = [id.split(";")[0] for id in product_idents]
 	# empty result
 	if not product_ids:
@@ -123,7 +123,7 @@ def product_purge(where: tuple[str, ...], all: bool) -> None:
 		msg = "Purge skipped due to dry run. Here are the products that would have been purged:\n"
 	else:
 		msg = "Products purged successfully. Here are the purged products:\n"
-		service_connection.product_purge(id=product_ids)  # type: ignore[unresolved-attribute]
+		service_connection.product_purge(id=product_ids)  # ty: ignore[unresolved-attribute]
 
 	console_print(msg, style="green", output_type=OutputType.MESSAGE)
 	write_output(data=product_ids, metadata=COMMAND_METADATA["datastore_product_purge"])
