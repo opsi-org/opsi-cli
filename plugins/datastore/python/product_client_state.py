@@ -17,7 +17,7 @@ from opsicli.decorators import dry_run_capable, mutually_exclusive
 from opsicli.io import OutputType, console_print, get_separated_entries, read_input, write_output
 from opsicli.opsiservice import get_service_connection
 
-from .common import cli, filter_by_attributes, get_depot_to_clients, process_where
+from .common import cli, filter_by_attribute_values, get_depot_to_clients, process_where
 from .metadata import COMMAND_METADATA
 
 logger = get_logger("opsicli")
@@ -129,7 +129,7 @@ def list_product_client_state(where: tuple[str, ...], all: bool) -> None:
 
 	# filter by remaining attributes
 	result_as_dicts = [asdict(state) for state in product_states.values()]
-	filtered_data = filter_by_attributes(data=result_as_dicts, attributes=metadata.attributes, filter=filter)
+	filtered_data = filter_by_attribute_values(data=result_as_dicts, attributes=metadata.attributes, filter=filter)
 
 	# empty result
 	if not filtered_data:

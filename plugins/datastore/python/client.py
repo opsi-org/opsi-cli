@@ -16,7 +16,7 @@ from opsicli.io import OutputType, console_print, get_editor, get_selected_attri
 from opsicli.opsiservice import get_service_connection
 from opsicli.types import EditFormat, OutputFormat
 
-from .common import cli, process_set, process_where
+from .common import cli, get_msg, process_set, process_where
 from .metadata import CLIENT_METADATA
 
 logger = get_logger("opsicli")
@@ -50,14 +50,11 @@ def _get_clients_from_service(filter: dict[str, str], attributes: list[str]) -> 
 
 
 def _update_clients(clients: list[dict[str, str | datetime | None]]) -> None:
-	if config.dry_run:
-		msg = "Update skipped due to dry run. Here are the clients that would have been updated:\n"
-	else:
+	if not config.dry_run:
 		service_connection = get_service_connection()
 		service_connection.host_updateObjects(clients)  # ty: ignore[unresolved-attribute]
-		msg = "Clients updated successfully. Here are the updated clients:\n"
 
-	console_print(msg, style="green", output_type=OutputType.MESSAGE)
+	console_print(get_msg("clients"), style="green", output_type=OutputType.MESSAGE)
 	write_output(data=clients, metadata=CLIENT_METADATA)
 
 
@@ -107,7 +104,7 @@ def apply_clients() -> None:
 	"""
 	clients = _get_clients_from_input()
 	if not clients:
-		raise ValueError("No input data provided for updating clients. Please set --input-file.")
+		raise ValueError(get_msg("clients", "no_input"))
 
 	get_selected_attributes(attributes=CLIENT_METADATA.attributes, fallback_attributes=list(clients[0]), update_selected=True)
 	_update_clients(clients)

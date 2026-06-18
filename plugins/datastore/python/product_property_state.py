@@ -12,7 +12,7 @@ from opsicli.decorators import mutually_exclusive
 from opsicli.io import get_separated_entries, write_output
 from opsicli.opsiservice import ServiceClient, get_service_connection
 
-from .common import cli, create_client_depot_mapping, filter_by_attributes, process_where
+from .common import cli, create_client_depot_mapping, filter_by_attribute_values, get_msg, process_where
 from .metadata import COMMAND_METADATA
 
 logger = get_logger("opsicli")
@@ -187,9 +187,9 @@ def list_product_property_state(where: tuple[str, ...], all: bool) -> None:
 		for product_property_state in property_map.values()  # properties
 	]
 
-	result = filter_by_attributes(flattened_list, filter, attributes)
+	result = filter_by_attribute_values(flattened_list, filter, attributes)
 	if not result:
-		raise ValueError("No product-property-states found matching the filtering criteria.")
+		raise ValueError(get_msg("product property states", "no_match"))
 
 	write_output(
 		data=sorted(result, key=lambda x: x["objectId"]),
