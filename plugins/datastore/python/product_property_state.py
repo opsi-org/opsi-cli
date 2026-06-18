@@ -127,30 +127,35 @@ def _update_depot_states(
 	return depot_states
 
 
-@cli.group(name="product-property-state", short_help="Manage product property states of clients.")
+@cli.group(name="product-property-state", short_help="Manage properties assigned to software products.")
 def product_property_state() -> None:
 	"""
-	View and (change) product property states of clients.
+	View custom software package configurations (like silent install flags, custom configuration URLs, or serial keys).
 	"""
 	pass
 
 
-@product_property_state.command(name="list", short_help="List product property states of clients.")
+@product_property_state.command(name="list", short_help="List customized product property values assigned to clients or depots.")
 @click.option(
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter product-property-states by their attributes.",
+	help="Filter by specific software packages, properties, or host names (e.g., --where 'productId=firefox' --where 'propertyId=disable_telemetry').",
 )
 @click.option(
 	"--all",
 	is_flag=True,
-	help="Show every product property state for every client.",
+	help="Show all software product property assignments, skipping filters completely.",
 )
 @mutually_exclusive("where", "all")
 def list_product_property_state(where: tuple[str, ...], all: bool) -> None:
 	"""
-	List all product property states or apply filters to narrow the result.
+	Display custom properties assigned to software products.
+
+	The output resolves OPSI's product property inheritance layer, showing if a state is coming from:
+	- The package's default value configuration
+	- A depot-server wide adjustment
+	- An explicit client-specific installation parameter override
 	"""
 
 	service_connection = get_service_connection()
@@ -164,10 +169,10 @@ def list_product_property_state(where: tuple[str, ...], all: bool) -> None:
 		filter = {}
 
 	# get separated Id's from filter
-	final_object_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("objectId", None)))  # ty: ignore[unresolved-attribute]
+	final_object_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("objectId", None)))  # type: ignore[unresolved-attribute]
 	final_product_ids = get_separated_entries(filter.pop("productId", None))
 	final_property_ids = get_separated_entries(filter.pop("propertyId", None))
-	final_depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # ty: ignore[unresolved-attribute]
+	final_depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # type: ignore[unresolved-attribute]
 
 	# map clients to depots
 	client_to_depot = create_client_depot_mapping(service_connection, final_object_ids)

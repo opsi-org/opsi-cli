@@ -40,7 +40,7 @@ def _get_clients_from_input() -> list[dict[str, str | datetime | None]]:
 def _get_clients_from_service(filter: dict[str, str], attributes: list[str]) -> list[dict[str, str | datetime | None]]:
 	service_connection = get_service_connection()
 	clients = []
-	for client in service_connection.host_getObjects(attributes=attributes, type="OpsiClient", **filter):  # ty: ignore[unresolved-attribute]
+	for client in service_connection.host_getObjects(attributes=attributes, type="OpsiClient", **filter):  # type: ignore[unresolved-attribute]
 		client_hash = {attr: val for attr, val in client.to_hash().items() if attr in ("id", "type") or attr in attributes}
 		for time_field in ["created", "lastSeen"]:
 			if val := client_hash.get(time_field):
@@ -52,37 +52,42 @@ def _get_clients_from_service(filter: dict[str, str], attributes: list[str]) -> 
 def _update_clients(clients: list[dict[str, str | datetime | None]]) -> None:
 	if not config.dry_run:
 		service_connection = get_service_connection()
-		service_connection.host_updateObjects(clients)  # ty: ignore[unresolved-attribute]
+		service_connection.host_updateObjects(clients)  # type: ignore[unresolved-attribute]
 
 	console_print(get_msg("clients"), style="green", output_type=OutputType.MESSAGE)
 	write_output(data=clients, metadata=CLIENT_METADATA)
 
 
-@cli.group(name="client", short_help="OPSI client related commands.")
+@cli.group(name="client", short_help="Manage OPSI clients.")
 def client() -> None:
 	"""
-	View and change clients
+	View, modify, or add client host-records in the OPSI backend database.
 	"""
 	pass
 
 
-@client.command(name="list", short_help="List clients.")
+@client.command(name="list", short_help="List registered clients.")
 @click.option(
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter clients by their attributes.",
+	help="Filter criteria matching OPSI host fields (e.g., --where 'hardwareAddress=00:1c:*' or --where 'description=*accounting*').",
 )
 @click.option(
 	"--all",
 	is_flag=True,
-	help="Show every client.",
+	help="Show all clients, ignoring any filters.",
 )
 @mutually_exclusive("all", "where")
 @dry_run_capable
 def list_clients(where: tuple[str, ...], all: bool) -> None:
 	"""
-	View clients.
+	Query the datastore and display OPSI client host records.
+
+	[bold]Examples:[/]
+	  opsi-cli datastore client list --where "id=*.domain.local"
+	  opsi-cli datastore client list --where "ipAddress=192.168.1.*"
+	  opsi-cli datastore client list --all
 	"""
 	if not all:
 		filter = process_where(where, attributes=CLIENT_METADATA.attributes, operation="list")
@@ -96,11 +101,12 @@ def list_clients(where: tuple[str, ...], all: bool) -> None:
 	)
 
 
-@client.command(name="apply", short_help="Apply changes to clients.")
+@client.command(name="apply", short_help="Bulk import or modify clients using a JSON/YAML file.")
 @dry_run_capable
 def apply_clients() -> None:
 	"""
-	Apply changes to clients.
+	Create new client hosts or update existing client settings in bulk by piping a
+	JSON or YAML file containing client definitions via standard input (stdin) or using '--input-file'.
 	"""
 	clients = _get_clients_from_input()
 	if not clients:
@@ -110,17 +116,19 @@ def apply_clients() -> None:
 	_update_clients(clients)
 
 
-@client.command(name="edit", short_help="Edit clients.")
+@client.command(name="edit", short_help="Open and edit client attributes inside a terminal text editor.")
 @click.option(
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter clients by their attributes.",
+	help="Filter query to select which client host configurations to pull into the editor (e.g., --where 'id=win10-*').",
 )
 @dry_run_capable
 def edit_clients(where: tuple[str, ...]) -> None:
 	"""
-	Edit clients.
+	Fetch matching OPSI client definitions and automatically open them in a temporary text
+	file using your default system text editor (e.g., nano, vim, notepad). Saving and closing
+	the file will instantly write those modifications back to the OPSI database.
 	"""
 	if not config.interactive:
 		raise ValueError("Editing is not possible in non-interactive mode.")
@@ -152,23 +160,27 @@ def edit_clients(where: tuple[str, ...]) -> None:
 		_update_clients(changed_clients)
 
 
-@client.command(name="update", short_help="Update client attributes.")
+@client.command(name="update", short_help="Directly update specific host fields on targeted clients.")
 @click.option(
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter clients by their attributes.",
+	help="Filter expression to match target client hosts (e.g., --where 'id=pc-*').",
 )
 @click.option(
 	"--set",
 	type=str,
 	multiple=True,
-	help="Set client attributes.",
+	help="The host field and the new value to write into it (e.g., --set 'description=Updated Desktop' or --set 'opsiHostKey=1234abcd...').",
 )
 @dry_run_capable
 def update_clients(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	"""
-	Update client attributes.
+	Modify specific backend host parameters directly on one or more OPSI clients.
+
+	[bold]Examples:[/]
+	  opsi-cli datastore client update --where "id=test-client.local" --set "notes=Assigned to Testing Team"
+	  opsi-cli datastore client update --where "hardwareAddress=bc:5f:f4:*" --set "description=New Batch Laptops"
 	"""
 	filter = process_where(where, attributes=CLIENT_METADATA.attributes, operation="update")
 	updates: dict[str, str] = process_set(set, attributes=CLIENT_METADATA.attributes)

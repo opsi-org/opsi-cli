@@ -23,10 +23,10 @@ from .metadata import COMMAND_METADATA
 logger = get_logger("opsicli")
 
 
-@cli.group(name="product-client-state", short_help="Manage product states of clients.")
+@cli.group(name="product-client-state", short_help="Manage product installation states and action requests on clients.")
 def product_client_state() -> None:
 	"""
-	View and change product states of clients.
+	View or trigger software installation statuses, setup switches, and uninstall commands on OPSI client hosts.
 	"""
 	pass
 
@@ -55,22 +55,23 @@ PRODUCT_CLIENT_STATE_VALUE_STYLES = {
 }
 
 
-@product_client_state.command(name="list", short_help="List product states of clients.")
+@product_client_state.command(name="list", short_help="List what software products are installed or pending actions on clients.")
 @click.option(
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter product-client-states by their attributes.",
+	help="Filter states by fields like productId, clientHostName, installationStatus, or pendingAction (e.g., --where 'actionRequest=setup' or --where 'installationStatus=failed').",
 )
 @click.option(
 	"--all",
 	is_flag=True,
-	help="Show every product state for every client.",
+	help="Show installation status records for every product on every client host across the network.",
 )
 @mutually_exclusive("where", "all")
 def list_product_client_state(where: tuple[str, ...], all: bool) -> None:
 	"""
-	List all product states or apply filters to narrow the result.
+	Query the client software deployment grid to review which packages are currently 'installed',
+	which have active action requests pending (like 'setup', 'uninstall', 'update'), and which installations 'failed'.
 	"""
 	service_connection = get_service_connection()
 	metadata = COMMAND_METADATA["datastore_product-client-state_list"]
@@ -143,11 +144,12 @@ def list_product_client_state(where: tuple[str, ...], all: bool) -> None:
 	)
 
 
-@product_client_state.command(name="update", short_help="Update product states of clients.")
+@product_client_state.command(name="update", short_help="Batch update client product action requests via file input or stdin.")
 @dry_run_capable
-def update_product_client_state() -> None:
+def apply_product_client_state() -> None:
 	"""
-	Update product states of clients.
+	Set software action requests in bulk (such as setting an on-demand 'setup' or 'uninstall' flag
+	for specific packages on targeted client hosts) by piping a structured dataset into this command via stdin or a file.
 	"""
 	data = read_input()
 	if not data:
@@ -175,7 +177,7 @@ def update_product_client_state() -> None:
 		msg = "Update skipped due to dry run. Here are the product client states that would have been updated:\n"
 	else:
 		service_connection = get_service_connection()
-		service_connection.productOnClient_updateObjects(pcs)  # ty: ignore[unresolved-attribute]
+		service_connection.productOnClient_updateObjects(pcs)  # type: ignore[unresolved-attribute]
 		msg = "Product client states updated successfully. Here are the updated states:\n"
 
 	console_print(msg, style="green", output_type=OutputType.MESSAGE)

@@ -73,7 +73,7 @@ def _update_default_states(
 	default_states: dict[str, dict[str, dict[str, Any]]],
 ) -> dict[str, dict[str, dict[str, Any]]]:
 
-	depot_config_states = service_connection.configState_getObjects(objectId=depot_ids, configId=config_ids)  # ty: ignore[unresolved-attribute]
+	depot_config_states = service_connection.configState_getObjects(objectId=depot_ids, configId=config_ids)  # type: ignore[unresolved-attribute]
 
 	# account for different depots
 	depot_lookup = {(s.objectId, s.configId): s.values for s in depot_config_states}
@@ -102,7 +102,7 @@ def _update_depot_states(
 	depot_states: dict[str, dict[str, dict[str, Any]]],
 ) -> dict[str, dict[str, dict[str, Any]]]:
 
-	client_config_states = service_connection.configState_getObjects(objectId=object_ids, configId=config_ids)  # ty: ignore[unresolved-attribute]
+	client_config_states = service_connection.configState_getObjects(objectId=object_ids, configId=config_ids)  # type: ignore[unresolved-attribute]
 
 	for state in client_config_states:
 		if state.objectId in depot_states and state.configId in depot_states[state.objectId]:
@@ -119,7 +119,7 @@ def _update_database(data: list[dict[str, str]], config_states: list[ConfigState
 	service_connection = get_service_connection()
 
 	if not config.dry_run:
-		service_connection.configState_updateObjects(config_states)  # ty: ignore[unresolved-attribute]
+		service_connection.configState_updateObjects(config_states)  # type: ignore[unresolved-attribute]
 
 	console_print(get_msg(), style="green", output_type=OutputType.MESSAGE)
 	write_output(data=sorted(data, key=lambda x: x["objectId"]), metadata=metadata)
@@ -188,23 +188,28 @@ def config_state() -> None:
 	pass
 
 
-@config_state.command(name="list", short_help="List configuration states of clients.")
+@config_state.command(name="list", short_help="View global, depot and client-specific configuration values.")
 @click.option(
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter config-states by their attributes.",
+	help="Filter configuration values by ID or client (e.g., --where 'configId=opsi.pc_proto*' or --where 'objectId=client1.domain.local').",
 )
 @click.option(
 	"--all",
 	is_flag=True,
-	help="Show every config-state.",
+	help="Show every configuration state across the whole OPSI environment.",
 )
 @dry_run_capable
 @mutually_exclusive("where", "all")
 def list_config_state(where: tuple[str, ...], all: bool) -> None:
 	"""
-	List all configuration states or apply filters to narrow the results.
+	Display configuration state entries assigned to hosts.
+
+	The output resolves the OPSI inheritance loop, clearly showing whether a setting is coming from:
+	- System-wide defaults (Global Configs)
+	- Depot server overrides (Depot Config-States)
+	- Client host specific values (Client Config-States)
 	"""
 
 	result = _fetch_and_filter_config_states(where, all_flag=all)
@@ -221,24 +226,25 @@ def list_config_state(where: tuple[str, ...], all: bool) -> None:
 
 @config_state.command(
 	name="update",
-	short_help="Update a configuration state for one or multiple clients.",
+	short_help="Set or override a configuration state value for a client or depot server.",
 )
 @click.option(
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter config-states by their attributes.",
+	help="Specify the target hosts and the configuration state (e.g., --where 'objectId=host1.local.*' --where 'configId=clientconfig.dhcp.filename').",
 )
 @click.option(
 	"--set",
 	type=str,
 	multiple=True,
-	help="Set value(s) of the config-state.",
+	help="The new value to assign to that configuration state entry (e.g., --set 'values=pxelinux.cfg').",
 )
 @dry_run_capable
 def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	"""
-	Update a configuration state for one or multiple clients.
+	Force an explicit configuration state value override for one or multiple client hosts or depot server.
+	The assigned string must match the allowed data types (such as boolean strings 'true'/'false' or valid list arrays).
 	"""
 
 	service_connection = get_service_connection()
@@ -279,20 +285,21 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 
 @config_state.command(
 	name="delete",
-	short_help="Delete a configuration state for one or multiple clients.",
+	short_help="Delete one or multiple configuration states from a client or depot.",
 )
 @click.option(
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter configuration states by their attributes.",
+	help="Specify the target clients or depots and the configuration states to wipe out (e.g., --where 'objectId=host1.local' --where 'configId=clientconfig.windows.domain').",
 )
 @dry_run_capable
 def delete_config_state(
 	where: tuple[str, ...],
 ) -> None:
 	"""
-	Delete configuration states for one or multiple clients.
+	Delete explicit client-level or depot-level configuration states.
+	Once deleted, the target hosts will immediately revert to inheriting their settings from the depot server or global defaults.
 	"""
 	service_connection = get_service_connection()
 	metadata = COMMAND_METADATA["datastore_config-state_delete"]
