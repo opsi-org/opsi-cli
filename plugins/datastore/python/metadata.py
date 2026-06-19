@@ -327,7 +327,7 @@ COMMAND_METADATA = {
 			modification_time,
 		]
 	),
-	"datastore_product_unlock": Metadata(attributes=[product_id, replace(depot_id, identifier=True)]),
+	"datastore_product_unlock": Metadata(attributes=[product_id, depot_id]),
 	"datastore_product_purge": Metadata(attributes=[product_id]),
 	"datastore_client_apply": CLIENT_METADATA,
 	"datastore_client_edit": CLIENT_METADATA,

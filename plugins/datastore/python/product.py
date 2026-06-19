@@ -22,6 +22,22 @@ from .metadata import COMMAND_METADATA
 logger = get_logger("opsicli")
 
 
+# Helper function, get products, unlock them, update them
+def _unlock_and_update(product_ids: list[str], depot_ids: list[str]) -> None:
+	service_connection = get_service_connection()
+	product_on_depots = service_connection.productOnDepot_getObjects(productId=product_ids, depotId=depot_ids)  # ty: ignore[unresolved-attribute]
+
+	# empty result
+	if not product_on_depots:
+		logger.error("No such depot(s): %s", depot_ids)
+		raise ValueError("No products found matching the filtering criteria.")
+	# unlock
+	for product_on_depot in product_on_depots:
+		product_on_depot.locked = False
+	# update
+	service_connection.productOnDepot_updateObjects(product_on_depots)  # ty: ignore[unresolved-attribute]
+
+
 @cli.group(name="product", short_help="Manage local OPSI software products and repository states.")
 def product() -> None:
 	"""
@@ -35,7 +51,7 @@ def product() -> None:
 	"--where",
 	type=str,
 	multiple=True,
-	help="Target a specific product and depot to unlock (e.g., --where 'productId=firefox' --where 'depotId=depot1.domain.local').",
+	help="Target a specific product and depot to unlock (e.g., --where 'productId=firefox' --where 'depotId=*.domain.local').",
 )
 @click.option(
 	"--all",
@@ -49,20 +65,6 @@ def product_unlock(where: tuple[str, ...], all: bool) -> None:
 	Remove locks from OPSI product packages on your depot servers.
 	This allows stuck or interrupted package distributions to resume.
 	"""
-
-	# Helper function, get products, unlock them, update them
-	def unlock_and_update(product_ids: list[str], depot_ids: list[str]) -> None:
-		service_connection = get_service_connection()
-		product_on_depots = service_connection.productOnDepot_getObjects(productId=product_ids, depotId=depot_ids)  # ty: ignore[unresolved-attribute]
-
-		# empty result
-		if not product_on_depots:
-			logger.error("No such depot(s): %s", depot_ids)
-			raise ValueError("No products found matching the filtering criteria.")
-		for product_on_depot in product_on_depots:
-			product_on_depot.locked = False
-		service_connection.productOnDepot_updateObjects(product_on_depots)  # ty: ignore[unresolved-attribute]
-
 	service_connection = get_service_connection()
 	if not all:
 		filter = process_where(where, attributes=COMMAND_METADATA["datastore_product_unlock"].attributes, operation="unlock")
@@ -80,11 +82,11 @@ def product_unlock(where: tuple[str, ...], all: bool) -> None:
 	if config.dry_run:
 		msg = "Unlocking skipped due to dry run. Here are the products that would have been unlocked:\n"
 	else:
-		unlock_and_update(product_ids, depot_ids)
+		_unlock_and_update(product_ids, depot_ids)
 		msg = "Products unlocked successfully. Here are the unlocked products:\n"
 
 	console_print(msg, style="green", output_type=OutputType.MESSAGE)
-	write_output(data=product_ids, metadata=COMMAND_METADATA["datastore_product_purge"])
+	write_output(data=product_ids, metadata=COMMAND_METADATA["datastore_product_unlock"])
 
 
 @product.command(name="purge", short_help="Completely purge backend database traces of uninstalled products.")
