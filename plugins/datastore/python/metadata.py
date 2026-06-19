@@ -294,6 +294,7 @@ COMMAND_METADATA = {
 		]
 	),
 	"datastore_config-state_update": Metadata(attributes=[object_id, config_id, possible_values, previous_values, values]),
+	"datastore_config-state_delete": Metadata(attributes=[object_id, config_id]),
 	"datastore_product-property-state_list": Metadata(
 		attributes=[
 			object_id,

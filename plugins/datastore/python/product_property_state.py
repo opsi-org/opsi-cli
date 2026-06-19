@@ -12,7 +12,7 @@ from opsicli.decorators import mutually_exclusive
 from opsicli.io import get_separated_entries, write_output
 from opsicli.opsiservice import ServiceClient, get_service_connection
 
-from .common import cli, create_client_depot_mapping, filter_by_attributes, process_where
+from .common import cli, create_client_depot_mapping, filter_by_attribute_values, get_msg, process_where
 from .metadata import COMMAND_METADATA
 
 logger = get_logger("opsicli")
@@ -127,30 +127,35 @@ def _update_depot_states(
 	return depot_states
 
 
-@cli.group(name="product-property-state", short_help="Manage product property states of clients.")
+@cli.group(name="product-property-state", short_help="Manage properties assigned to software products.")
 def product_property_state() -> None:
 	"""
-	View and (change) product property states of clients.
+	View custom software package configurations (like silent install flags, custom configuration URLs, or serial keys).
 	"""
 	pass
 
 
-@product_property_state.command(name="list", short_help="List product property states of clients.")
+@product_property_state.command(name="list", short_help="List customized product property values assigned to clients or depots.")
 @click.option(
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter product-property-states by their attributes.",
+	help="Filter by specific software packages, properties, or host names (e.g., --where 'productId=firefox' --where 'propertyId=disable_telemetry').",
 )
 @click.option(
 	"--all",
 	is_flag=True,
-	help="Show every product property state for every client.",
+	help="Show all software product property assignments, skipping filters completely.",
 )
 @mutually_exclusive("where", "all")
 def list_product_property_state(where: tuple[str, ...], all: bool) -> None:
 	"""
-	List all product property states or apply filters to narrow the result.
+	Display custom properties assigned to software products.
+
+	The output resolves OPSI's product property inheritance layer, showing if a state is coming from:
+	- The package's default value configuration
+	- A depot-server wide adjustment
+	- An explicit client-specific installation parameter override
 	"""
 
 	service_connection = get_service_connection()
@@ -187,9 +192,9 @@ def list_product_property_state(where: tuple[str, ...], all: bool) -> None:
 		for product_property_state in property_map.values()  # properties
 	]
 
-	result = filter_by_attributes(flattened_list, filter, attributes)
+	result = filter_by_attribute_values(flattened_list, filter, attributes)
 	if not result:
-		raise ValueError("No product-property-states found matching the filtering criteria.")
+		raise ValueError(get_msg("product property states", "no_match"))
 
 	write_output(
 		data=sorted(result, key=lambda x: x["objectId"]),

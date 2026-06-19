@@ -12,6 +12,7 @@ from opsi.opsi.service.model.object import BoolConfig, UnicodeConfig
 from opsi.opsi.service.model.type import to_bool_list
 
 from opsicli.cli_helpers import OPSICLIGroup
+from opsicli.config import config
 from opsicli.io import Attribute, get_separated_entries
 from opsicli.opsiservice import ServiceClient
 
@@ -19,6 +20,57 @@ logger = get_logger("opsicli")
 
 __version__ = "0.1.0"
 __description__ = "This command can be used to manage data and objects"
+
+
+OPERATION_MATADATA = {
+	"delete": {"action": "Deleting", "result": "deleted"},
+	"update": {"action": "Updating", "result": "updated"},
+	"apply": {"action": "Applying changes to", "result": "changed"},
+	"edit": {"action": "Editing", "result": "edited"},
+}
+MESSAGE_TEMPLATES_ERROR = {
+	"no_match": "No {object_name}s found matching the filtering criteria.",
+	"no_input": "No input data provided for updating {object_name}s. Please set --input-file.",
+}
+
+MESSAGE_TEMPLATE = "{action} {{object_name}}s was successful. Here are the {result} {{object_name}}s."
+MESSAGE_TEMPLATE_DRY_RUN = (
+	"{action} {{object_name}}s skipped due to dry run.\nHere are the {{object_name}}s that would have been {result}:\n"
+)
+
+
+def get_msg(object_name: str | None = None, event: str | None = None) -> str:
+	ctx = click.get_current_context()
+
+	# get last command e.g. (list, apply, edit, ...)
+	if event is None:
+		event = ctx.command.name
+		if event is None:
+			raise ValueError("Could not determine event name from Click context.")
+
+	# get second to last command e.g (config-state, client, product, ...)
+	if object_name is None:
+		parent_ctx = ctx.parent
+		if parent_ctx and getattr(parent_ctx, "command", None):
+			object_name = parent_ctx.command.name
+		else:
+			raise ValueError("Could not determine object_name from parent Click context.")
+
+	# early return if error message
+	if event in MESSAGE_TEMPLATES_ERROR:
+		return MESSAGE_TEMPLATES_ERROR[event].format(object_name=object_name)
+
+	# build the message dynamically
+	meta = OPERATION_MATADATA.get(event)
+	if not meta:
+		raise ValueError(f"No valid event given: {event}")
+
+	if config.dry_run:
+		msg = MESSAGE_TEMPLATE_DRY_RUN.format(action=meta["action"], result=meta["result"])
+	else:
+		msg = MESSAGE_TEMPLATE.format(action=meta["action"], result=meta["result"])
+
+	return msg.format(object_name=object_name)
 
 
 def create_client_depot_mapping(service_connection: ServiceClient, object_ids: list[str] | None = None) -> dict[str, str]:
@@ -64,7 +116,7 @@ def general_help_for_where(
 
 
 def process_where(
-	where: tuple[str, ...], *, attributes: list[Attribute], operation: Literal["list", "update", "unlock", "purge"] = "list"
+	where: tuple[str, ...], *, attributes: list[Attribute], operation: Literal["list", "update", "unlock", "purge", "delete"] = "list"
 ) -> dict[str, str]:
 	where = where or tuple()
 	condition_pattern = re.compile(r"^([a-zA-Z_]+)\s*(<|<=|=|>=|>)\s*(.*)$")
@@ -96,7 +148,7 @@ def process_where(
 
 	id_attributes = [attr for attr in attributes if attr.identifier]
 	missing_attributes = []
-	if operation in ("update", "unlock", "purge"):
+	if operation in ("update", "unlock", "purge", "delete"):
 		missing_attributes = [attr.id for attr in id_attributes if attr.id not in filter]
 
 	general_help = general_help_for_where(
@@ -108,7 +160,7 @@ def process_where(
 			"If you intentionally do not want to filter by an attribute, use: `[bold]--all[/]`.\n\n"
 			f"{general_help}"
 		)
-	if (operation == "update" or operation == "unlock") and missing_attributes:
+	if missing_attributes:
 		raise ValueError(
 			f"Incomplete filter for {operation} operation.\n\n"
 			f"{general_help}"
@@ -195,13 +247,13 @@ def validate_against_possible_values(val: str, obj: BoolConfig | UnicodeConfig) 
 	return []
 
 
-def filter_by_attributes(data: list[dict[str, Any]], filter: dict[str, str], attributes: list[Attribute]) -> list[dict[str, Any]]:
+def filter_by_attribute_values(data: list[dict[str, Any]], filter: dict[str, str], attributes: list[Attribute]) -> list[dict[str, Any]]:
 	"""
 	Filters a list of dictionaries based on specific attribute values.
 
 	Args:
 	    data: A list of dictionaries representing the records to filter.
-	    filter: A mapping of attribute IDs to the desired string values.
+	    filter: A mapping of attribute-value pairs.
 	    attributes: A list of Attribute objects used to validate filter keys.
 
 	Returns:
@@ -212,27 +264,27 @@ def filter_by_attributes(data: list[dict[str, Any]], filter: dict[str, str], att
 
 	# Map attribute IDs for O(1) lookup during the filtering loop
 	available_attributes = {attr.id: attr for attr in attributes}
+
+	# Normalize boolean-like filter strings to capitalized format (e.g., "true" -> "True")
+	prepared_filter = {}
+	for attr, val in filter.items():
+		# Skip filters that do not correspond to known attributes
+		if attr in available_attributes:
+			prepared_filter[attr] = val.capitalize() if val in ("false", "true") else val
+
 	filtered_data = []
 
 	for entry in data:
 		match = True
-		for attr in filter:
-			# Skip filters that do not correspond to known attributes
-			if not available_attributes.get(attr):
-				continue
+		for attr, filter_value in prepared_filter.items():
+			data_value = entry.get(attr)
 
 			# Normalize data values to string for comparison.
 			# Lists are joined by commas to match the filter's string format.
-			data_value = entry.get(attr)
 			if isinstance(data_value, list):
 				data_value = ", ".join(str(x) for x in data_value)
 			else:
 				data_value = str(data_value) if data_value is not None else ""
-
-			# Normalize boolean-like filter strings to capitalized format (e.g., "true" -> "True")
-			filter_value = filter[attr]
-			if filter_value in ("false", "true"):
-				filter_value = filter[attr].capitalize()
 
 			# compare
 			if data_value != filter_value:

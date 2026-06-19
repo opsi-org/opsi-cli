@@ -22,31 +22,32 @@ from .metadata import COMMAND_METADATA
 logger = get_logger("opsicli")
 
 
-@cli.group(name="product", short_help="Manage products.")
+@cli.group(name="product", short_help="Manage local OPSI software products and repository states.")
 def product() -> None:
 	"""
-	Manage products.
+	Unlock locked software products or clean up tracking data for uninstalled OPSI packages.
 	"""
 	pass
 
 
-@product.command(name="unlock", short_help="Unlock products on depots.")
+@product.command(name="unlock", short_help="Unlock locked software products on specific depot servers.")
 @click.option(
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter products by product and depot ID.",
+	help="Target a specific product and depot to unlock (e.g., --where 'productId=firefox' --where 'depotId=depot1.domain.local').",
 )
 @click.option(
 	"--all",
 	is_flag=True,
-	help="Unlock every product.",
+	help="Unlock all products across every single depot server globally.",
 )
 @mutually_exclusive("all", "where")
 @dry_run_capable
 def product_unlock(where: tuple[str, ...], all: bool) -> None:
 	"""
-	Remove locks from products on specified depots.
+	Remove locks from OPSI product packages on your depot servers.
+	This allows stuck or interrupted package distributions to resume.
 	"""
 
 	# Helper function, get products, unlock them, update them
@@ -86,24 +87,24 @@ def product_unlock(where: tuple[str, ...], all: bool) -> None:
 	write_output(data=product_ids, metadata=COMMAND_METADATA["datastore_product_purge"])
 
 
-@product.command(name="purge", short_help="Purge metadata related to uninstalled products.")
+@product.command(name="purge", short_help="Completely purge backend database traces of uninstalled products.")
 @click.option(
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter products by their ID.",
+	help="Filter by specific OPSI product IDs to purge (e.g., --where 'productId=old-java-package').",
 )
 @click.option(
 	"--all",
 	is_flag=True,
-	help="Show every product property state for every client.",
+	help="Wipe historical data for all products that are no longer installed anywhere or present on any depot server.",
 )
 @dry_run_capable
 @mutually_exclusive("all", "where")
 def product_purge(where: tuple[str, ...], all: bool) -> None:
 	"""
-	Remove metadata associated with uninstalled products, such as installation status and product property states.
-
+	Run database garbage collection to permanently delete old installation records and product property assignments
+	for software products that have been uninstalled and removed from your OPSI server.
 	"""
 	service_connection = get_service_connection()
 
@@ -122,7 +123,7 @@ def product_purge(where: tuple[str, ...], all: bool) -> None:
 		msg = "Purge skipped due to dry run. Here are the products that would have been purged:\n"
 	else:
 		msg = "Products purged successfully. Here are the purged products:\n"
-		service_connection.poduct_purge(id=product_ids)  # ty: ignore[unresolved-attribute]
+		service_connection.product_purge(id=product_ids)  # ty: ignore[unresolved-attribute]
 
 	console_print(msg, style="green", output_type=OutputType.MESSAGE)
 	write_output(data=product_ids, metadata=COMMAND_METADATA["datastore_product_purge"])
