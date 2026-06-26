@@ -202,7 +202,7 @@ class TestProductUnlock:
 			exit_code, _stdout, _stderr = run_cli(args)
 
 			assert exit_code == 0
-			assert "Unlocking skipped due to dry run" in _stderr
+			assert "Unlocking products skipped due to dry run" in _stderr
 			assert PRODUCT_ID_1 in _stdout
 			_verify_lock_status(admin_service_client, is_locked=True, product_id=PRODUCT_ID_1)
 
