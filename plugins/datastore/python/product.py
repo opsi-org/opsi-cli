@@ -17,7 +17,7 @@ from opsicli.io import OutputType, console_print, get_separated_entries, write_o
 from opsicli.opsiservice import config, get_service_connection
 from opsicli.utils import LazyHelp
 
-from .common import cli, general_help_for_invalid_value_in_filter_condition, process_where
+from .common import cli, general_help_for_invalid_value_in_filter_condition, get_msg, process_where
 from .metadata import COMMAND_METADATA
 
 logger = get_logger("opsicli")
@@ -102,13 +102,10 @@ def product_unlock(where: tuple[str, ...], all: bool) -> None:
 	if not final_product_ids:
 		raise ValueError("No products found matching the filtering criteria.")
 
-	if config.dry_run:
-		msg = "Unlocking skipped due to dry run. Here are the products that would have been unlocked:\n"
-	else:
+	if not config.dry_run:
 		_unlock_and_update(final_product_ids, final_depot_ids)
-		msg = "Products unlocked successfully. Here are the unlocked products:\n"
 
-	console_print(msg, style="green", output_type=OutputType.MESSAGE)
+	console_print(get_msg(), style="green", output_type=OutputType.MESSAGE)
 	write_output(data=final_product_ids, metadata=COMMAND_METADATA["datastore_product_unlock"])
 
 

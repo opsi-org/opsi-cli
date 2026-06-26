@@ -27,6 +27,7 @@ OPERATION_MATADATA = {
 	"update": {"action": "Updating", "result": "updated"},
 	"apply": {"action": "Applying changes to", "result": "changed"},
 	"edit": {"action": "Editing", "result": "edited"},
+	"unlock": {"action": "Unlocking", "result": "unlocked"},
 }
 MESSAGE_TEMPLATES_ERROR = {
 	"no_match": "No {object_name}s found matching the filtering criteria.",
