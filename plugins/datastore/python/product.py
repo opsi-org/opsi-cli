@@ -43,10 +43,6 @@ def _unlock_and_update(product_ids: list[str], depot_ids: list[str]) -> None:
 	service_connection = get_service_connection()
 	product_on_depots = service_connection.productOnDepot_getObjects(productId=product_ids, depotId=depot_ids)  # ty: ignore[unresolved-attribute]
 
-	# empty result
-	if not product_on_depots:
-		logger.error("No such depot(s): %s", depot_ids)
-		raise ValueError("No products found matching the filtering criteria.")
 	# unlock
 	for product_on_depot in product_on_depots:
 		product_on_depot.locked = False
@@ -94,10 +90,6 @@ def product_unlock(where: tuple[str, ...], all: bool) -> None:
 	product_idents = service_connection.productOnDepot_getIdents(productId=product_ids, depotId=final_depot_ids)  # ty: ignore[unresolved-attribute]
 	final_product_ids = [id.split(";")[0] for id in product_idents]
 
-	# empty result
-	if not final_product_ids:
-		raise ValueError("No products found matching the filtering criteria.")
-
 	# wrong depotId
 	if not final_depot_ids and filter:
 		raise ValueError(
@@ -106,6 +98,10 @@ def product_unlock(where: tuple[str, ...], all: bool) -> None:
 			)
 		)
 
+	# empty result
+	if not final_product_ids:
+		raise ValueError("No products found matching the filtering criteria.")
+
 	if config.dry_run:
 		msg = "Unlocking skipped due to dry run. Here are the products that would have been unlocked:\n"
 	else:
@@ -113,7 +109,7 @@ def product_unlock(where: tuple[str, ...], all: bool) -> None:
 		msg = "Products unlocked successfully. Here are the unlocked products:\n"
 
 	console_print(msg, style="green", output_type=OutputType.MESSAGE)
-	write_output(data=product_idents, metadata=COMMAND_METADATA["datastore_product_unlock"])
+	write_output(data=final_product_ids, metadata=COMMAND_METADATA["datastore_product_unlock"])
 
 
 @product.command(name="purge", short_help="Completely purge backend database traces of uninstalled products.")
