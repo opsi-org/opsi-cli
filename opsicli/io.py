@@ -412,7 +412,12 @@ def get_selected_attributes(
 	return selected_attributes
 
 
-def write_output_table(data: Any, metadata: Metadata, value_styles: dict[str, str] | None = None) -> None:
+def write_output_table(
+	data: Any,
+	metadata: Metadata,
+	value_styles: dict[str, str] | None = None,
+	return_table_obj: bool | None = None,
+) -> Table | None:
 	attributes = config.attributes or []
 	table = Table(box=box.ROUNDED, show_header=config.header, show_lines=False)
 	row_ids = []
@@ -435,6 +440,10 @@ def write_output_table(data: Any, metadata: Metadata, value_styles: dict[str, st
 				table.add_row(*[to_string(el, bool_format="true_false_symbols", value_styles=value_styles) for el in row])
 			else:
 				table.add_row(*[to_string(row, bool_format="true_false_symbols", value_styles=value_styles)])
+
+	if return_table_obj:
+		return table
+
 	with output_file_str() as file:
 		console = get_console(output_type=OutputType.DATA, file=file)
 		console.print(table)
@@ -549,7 +558,8 @@ def write_output(
 	default_output_format: OutputFormat | None = None,
 	value_styles: dict[str, str] | None = None,
 	force_newline: bool = False,
-) -> None:
+	return_table_obj: bool | None = None,
+) -> None | Table:
 	if output_file_is_stdout() and config.quiet:
 		logger.debug("Quiet mode enabled, skipping output")
 		return
@@ -589,6 +599,8 @@ def write_output(
 
 	if output_format == OutputFormat.TABLE:
 		assert metadata
+		if return_table_obj:
+			return write_output_table(data, metadata, value_styles, return_table_obj=return_table_obj)
 		write_output_table(data, metadata, value_styles)
 	elif output_format == OutputFormat.CSV:
 		assert metadata

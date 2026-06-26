@@ -222,6 +222,18 @@ def process_set(set: tuple[str, ...], *, attributes: list[Attribute]) -> dict[st
 	return updates
 
 
+def general_help_for_invalid_value_in_filter_condition(available_values: list[str], attribute: str, value: str | list[str]) -> str:
+	help_msg = f"""Invalid value in filter condition: '[bold]{attribute}=[red]{value}[/][/]'.\n
+The specified {attribute} was not found. Please use one or multiple of the available {attribute}'s
+listed below, or use wildcards (e.g. 'depotId=*test*' or 'depotId=*.local')
+to filter the list."
+\nAvailable {attribute}'s are:
+"""
+	for id in available_values:
+		help_msg += f"[bold cyan]  {id}\n"
+	return help_msg
+
+
 def validate_against_possible_values(val: str, obj: BoolConfig | UnicodeConfig) -> list[str] | list[bool]:
 	values = get_separated_entries(val)
 	possible_values: list[str] = obj.possibleValues or []

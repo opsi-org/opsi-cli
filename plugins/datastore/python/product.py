@@ -16,10 +16,25 @@ from opsicli.decorators import dry_run_capable, mutually_exclusive
 from opsicli.io import OutputType, console_print, get_separated_entries, write_output
 from opsicli.opsiservice import config, get_service_connection
 
-from .common import cli, process_where
+from .common import cli, general_help_for_invalid_value_in_filter_condition, process_where
 from .metadata import COMMAND_METADATA
 
 logger = get_logger("opsicli")
+
+
+def _get_dynamic_unlock_help_text() -> str:
+
+	service_connection = get_service_connection()
+	available_depot_ids = service_connection.host_getIdents(id=[], type="OpsiDepotserver")  # type: ignore
+
+	help_msg = """Remove locks from OPSI product packages on your depot servers.
+This allows stuck or interrupted package distributions to resume.
+
+Available depotId's are:
+"""
+	for id in available_depot_ids:
+		help_msg += f"[bold cyan]  {id}\n"
+	return help_msg
 
 
 # Helper function, get products, unlock them, update them
@@ -46,7 +61,9 @@ def product() -> None:
 	pass
 
 
-@product.command(name="unlock", short_help="Unlock locked software products on specific depot servers.")
+@product.command(
+	name="unlock", help=_get_dynamic_unlock_help_text(), short_help="Unlock locked software products on specific depot servers."
+)
 @click.option(
 	"--where",
 	type=str,
@@ -61,32 +78,41 @@ def product() -> None:
 @mutually_exclusive("all", "where")
 @dry_run_capable
 def product_unlock(where: tuple[str, ...], all: bool) -> None:
-	"""
-	Remove locks from OPSI product packages on your depot servers.
-	This allows stuck or interrupted package distributions to resume.
-	"""
 	service_connection = get_service_connection()
-	if not all:
-		filter = process_where(where, attributes=COMMAND_METADATA["datastore_product_unlock"].attributes, operation="unlock")
-		filter = {k: (v if v != "*" else None) for k, v in filter.items()}
+	available_depot_ids = service_connection.host_getIdents(id=[], type="OpsiDepotserver")  # ty: ignore[unresolved-attribute]
+	if all:
+		product_ids = []
+		depot_ids = []
+		filter = None
 	else:
-		filter = {}
+		filter = process_where(where, attributes=COMMAND_METADATA["datastore_product_unlock"].attributes, operation="unlock")
+		product_ids = get_separated_entries(filter.get("productId", None))
+		depot_ids = get_separated_entries(filter.get("depotId", None))
 
-	product_idents = service_connection.product_getIdents(id=get_separated_entries(filter.pop("productId", None)))  # ty: ignore[unresolved-attribute]
-	product_ids = [id.split(";")[0] for id in product_idents]
-	depot_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("depotId", None)), type="OpsiDepotserver")  # ty: ignore[unresolved-attribute]
+	product_idents = service_connection.product_getIdents(id=product_ids)  # ty: ignore[unresolved-attribute]
+	final_product_ids = [id.split(";")[0] for id in product_idents]
+	final_depot_ids = service_connection.host_getIdents(id=depot_ids, type="OpsiDepotserver")  # ty: ignore[unresolved-attribute]
 
-	if not product_ids or not depot_ids:  # empty result
+	# empty result
+	if not final_product_ids:
 		raise ValueError("No products found matching the filtering criteria.")
+
+	# wrong depotId
+	if not final_depot_ids and filter:
+		raise ValueError(
+			general_help_for_invalid_value_in_filter_condition(
+				available_values=available_depot_ids, attribute="depotId", value=filter.get("depotId", "")
+			)
+		)
 
 	if config.dry_run:
 		msg = "Unlocking skipped due to dry run. Here are the products that would have been unlocked:\n"
 	else:
-		_unlock_and_update(product_ids, depot_ids)
+		_unlock_and_update(final_product_ids, final_depot_ids)
 		msg = "Products unlocked successfully. Here are the unlocked products:\n"
 
 	console_print(msg, style="green", output_type=OutputType.MESSAGE)
-	write_output(data=product_ids, metadata=COMMAND_METADATA["datastore_product_unlock"])
+	write_output(data=final_product_ids, metadata=COMMAND_METADATA["datastore_product_unlock"])
 
 
 @product.command(name="purge", short_help="Completely purge backend database traces of uninstalled products.")
