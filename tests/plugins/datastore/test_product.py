@@ -73,10 +73,10 @@ def _lock_products_by_installing_broken_package() -> None:
 
 
 class TestProductUnlock:
-	# unlock one product
+	# unlock single product
 	@staticmethod
 	@pytest.mark.opsi_service
-	def test_product_unlock_single_id(admin_service_client: ServiceClient) -> None:
+	def test_unlock_single_product(admin_service_client: ServiceClient) -> None:
 		with tmp_product(admin_service_client, PRODUCT_ID_1):
 			_lock_products_manually(admin_service_client, product_id=PRODUCT_ID_1)
 			_verify_lock_status(admin_service_client, is_locked=True)
@@ -89,12 +89,12 @@ class TestProductUnlock:
 	# unlock multiple products
 	@staticmethod
 	@pytest.mark.opsi_service
-	def test_product_unlock_multiple_ids(admin_service_client: ServiceClient) -> None:
+	def test_unlock_multiple_products(admin_service_client: ServiceClient) -> None:
 		with tmp_product(admin_service_client, PRODUCT_ID_1), tmp_product(admin_service_client, PRODUCT_ID_2):
 			_lock_products_manually(admin_service_client)
 			_verify_lock_status(admin_service_client, is_locked=True)
 			_unlock_products_with_cli(
-				filter=["--where", "productId=gimp2, test2, pytest-product1, pytest-product2, opsi-client-agent"],
+				filter=["--where", f"productId={PRODUCT_ID_1}, {PRODUCT_ID_2}"],
 				expected_output=[PRODUCT_ID_1, PRODUCT_ID_2],
 			)
 			_verify_lock_status(admin_service_client, is_locked=False)
@@ -102,7 +102,7 @@ class TestProductUnlock:
 	# unlock products after failed package installation
 	@staticmethod
 	@pytest.mark.opsi_service
-	def test_product_unlock_after_failed_installation(admin_service_client: ServiceClient) -> None:
+	def test_unlock_after_failed_installation(admin_service_client: ServiceClient) -> None:
 		with tmp_product(admin_service_client, PRODUCT_ID_1), tmp_product(admin_service_client, PRODUCT_ID_2):
 			_lock_products_by_installing_broken_package()
 			_verify_lock_status(
@@ -116,29 +116,34 @@ class TestProductUnlock:
 			)
 			_verify_lock_status(admin_service_client, is_locked=False, product_id="gimp2")
 
-	# test correct error handling when using a wrong depotId
+	# test wrong depotId
 	@staticmethod
 	@pytest.mark.opsi_service
-	def test_product_unlock_wrong_depot_id_error(admin_service_client: ServiceClient) -> None:
-		with tmp_product(admin_service_client, PRODUCT_ID_1), tmp_product(admin_service_client, PRODUCT_ID_2):
-			_lock_products_manually(admin_service_client)
-			_verify_lock_status(admin_service_client, is_locked=True)
-			_unlock_products_with_cli(
-				filter=["--where", "depotId=hello,test", "--where", "productId=*"],
-				expected_error=[
-					"Invalid value in filter condition:",
-					"depotId=hello,test",
-					"The specified depotId was not found.",
-					"Please use one or multiple of the available depotId's",
-					"Available depotId's are:",
-					f"{get_depot_id(admin_service_client)}",
-				],
-			)
+	def test_wrong_depot_id(admin_service_client: ServiceClient) -> None:
+		_unlock_products_with_cli(
+			filter=["--where", "depotId=hello,test", "--where", "productId=*"],
+			expected_error=[
+				"Invalid value in filter condition:",
+				"depotId=hello,test",
+				"The specified depotId was not found.",
+				"Please use one or multiple of the available depotId's",
+				"Available depotId's are:",
+				f"{get_depot_id(admin_service_client)}",
+			],
+		)
+
+	# wrong product_id
+	@staticmethod
+	@pytest.mark.opsi_service
+	def test_wrong_product_id() -> None:
+		_unlock_products_with_cli(
+			filter=["--where", "productId=non-existent-product-123"], expected_error=["No products found matching the filtering criteria."]
+		)
 
 	# test if product unlock defaults correctly when no depotId is given
 	@staticmethod
 	@pytest.mark.opsi_service
-	def test_product_unlcok_defaults_correctly(admin_service_client: ServiceClient) -> None:
+	def test_no_depot_id(admin_service_client: ServiceClient) -> None:
 		with tmp_product(admin_service_client, PRODUCT_ID_1), tmp_product(admin_service_client, PRODUCT_ID_2):
 			_lock_products_manually(admin_service_client)
 			_verify_lock_status(admin_service_client, is_locked=True)
@@ -151,7 +156,7 @@ class TestProductUnlock:
 	# test --all flag
 	@staticmethod
 	@pytest.mark.opsi_service
-	def test_product_unlock_all(admin_service_client: ServiceClient) -> None:
+	def test_all_flag(admin_service_client: ServiceClient) -> None:
 		with (
 			tmp_product(admin_service_client, PRODUCT_ID_1),
 			tmp_product(admin_service_client, PRODUCT_ID_2),
@@ -163,6 +168,41 @@ class TestProductUnlock:
 				expected_output=[PRODUCT_ID_1, PRODUCT_ID_2],
 			)
 			_verify_lock_status(admin_service_client, is_locked=False)
+
+	# test unlocking unlocked product
+	@staticmethod
+	@pytest.mark.opsi_service
+	def test_unlock_already_unlocked(admin_service_client: ServiceClient) -> None:
+		with tmp_product(admin_service_client, PRODUCT_ID_1):
+			_verify_lock_status(admin_service_client, is_locked=False, product_id=PRODUCT_ID_1)
+			_unlock_products_with_cli(
+				filter=["--where", f"productId={PRODUCT_ID_1}"],
+				expected_output=[PRODUCT_ID_1],
+			)
+			_verify_lock_status(admin_service_client, is_locked=False, product_id=PRODUCT_ID_1)
+
+	# dry run:  no products should be unlocked
+	@staticmethod
+	@pytest.mark.opsi_service
+	def test_unlock_dry_run(admin_service_client: ServiceClient, capsys) -> None:
+		with tmp_product(admin_service_client, PRODUCT_ID_1):
+			_lock_products_manually(admin_service_client, product_id=PRODUCT_ID_1)
+			args = ["--dry-run", "datastore", "product", "unlock", "--where", f"productId={PRODUCT_ID_1}"]
+			exit_code, _stdout, _stderr = run_cli(args)
+
+			assert exit_code == 0
+			assert "Unlocking skipped due to dry run" in _stderr
+			assert PRODUCT_ID_1 in _stdout
+			_verify_lock_status(admin_service_client, is_locked=True, product_id=PRODUCT_ID_1)
+
+	# no products on depot
+	@staticmethod
+	@pytest.mark.opsi_service
+	def test_unlock_on_empty_system(admin_service_client: ServiceClient) -> None:
+		_unlock_products_with_cli(
+			filter=["--where", "productId=non-existent-product"],
+			expected_error=["No products found matching the filtering criteria."],
+		)
 
 
 # ===================================(PRODUCT-CLIENT-STATE LIST || TESTS)============================================
