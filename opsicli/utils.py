@@ -53,6 +53,17 @@ class ProgressCallbackAdapter:
 		self.progress.update(self.task_id, completed=completed)
 
 
+class LazyHelp:
+	def __init__(self, func):
+		self.func = func
+
+	def __str__(self):
+		try:
+			return self.func()
+		except Exception:
+			return "Failed to load help text dynamically"
+
+
 def random_string(length: int) -> str:
 	letters = string.ascii_letters + string.digits
 	return "".join(random.choice(letters) for _ in range(length))
