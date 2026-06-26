@@ -38,7 +38,7 @@ Available depotId's are:
 	return help_msg
 
 
-# Helper function, get products, unlock them, update them
+# Helper function: get products -> unlock them -> update them
 def _unlock_and_update(product_ids: list[str], depot_ids: list[str]) -> None:
 	service_connection = get_service_connection()
 	product_on_depots = service_connection.productOnDepot_getObjects(productId=product_ids, depotId=depot_ids)  # ty: ignore[unresolved-attribute]
@@ -90,9 +90,9 @@ def product_unlock(where: tuple[str, ...], all: bool) -> None:
 		product_ids = get_separated_entries(filter.get("productId", None))
 		depot_ids = get_separated_entries(filter.get("depotId", None))
 
-	product_idents = service_connection.product_getIdents(id=product_ids)  # ty: ignore[unresolved-attribute]
-	final_product_ids = [id.split(";")[0] for id in product_idents]
 	final_depot_ids = service_connection.host_getIdents(id=depot_ids, type="OpsiDepotserver")  # ty: ignore[unresolved-attribute]
+	product_idents = service_connection.productOnDepot_getIdents(productId=product_ids, depotId=final_depot_ids)  # ty: ignore[unresolved-attribute]
+	final_product_ids = [id.split(";")[0] for id in product_idents]
 
 	# empty result
 	if not final_product_ids:
@@ -113,7 +113,7 @@ def product_unlock(where: tuple[str, ...], all: bool) -> None:
 		msg = "Products unlocked successfully. Here are the unlocked products:\n"
 
 	console_print(msg, style="green", output_type=OutputType.MESSAGE)
-	write_output(data=final_product_ids, metadata=COMMAND_METADATA["datastore_product_unlock"])
+	write_output(data=product_idents, metadata=COMMAND_METADATA["datastore_product_unlock"])
 
 
 @product.command(name="purge", short_help="Completely purge backend database traces of uninstalled products.")
