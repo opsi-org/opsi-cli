@@ -16,7 +16,15 @@ from pathlib import Path
 from typing import Generator, Sequence
 
 from click.testing import CliRunner
-from opsi.opsi.service.model.object import BoolConfig, ConfigState, LocalbootProduct, OpsiClient, Product, ProductOnDepot, UnicodeConfig
+from opsi.opsi.service.model.object import (
+	BoolConfig,
+	ConfigState,
+	LocalbootProduct,
+	OpsiClient,
+	Product,
+	ProductOnDepot,
+	UnicodeConfig,
+)
 
 from opsicli.__main__ import main
 from opsicli.config import config
