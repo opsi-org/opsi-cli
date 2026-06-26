@@ -9,7 +9,8 @@ from pathlib import Path
 import pytest
 from opsi.opsi.service.client import ServiceClient
 
-from tests.utils import run_cli, stdout_into_list, tmp_client, tmp_product
+from tests.conftest import admin_service_client
+from tests.utils import get_depot_id, run_cli, stdout_into_list, tmp_client, tmp_product
 
 CLIENT_ID_1 = "pytest-client1.test.tld"
 CLIENT_ID_2 = "pytest-client2.test.tld"
@@ -17,6 +18,7 @@ CLIENT_ID_2 = "pytest-client2.test.tld"
 PRODUCT_ID_1 = "pytest-product1"
 PRODUCT_ID_2 = "pytest-product2"
 
+DEPOT_ID = get_depot_id(admin_service_client)
 
 # ===============
 # HELP FUNCTIONS
@@ -132,7 +134,7 @@ class TestProductUnlock:
 					"The specified depotId was not found.",
 					"Please use one or multiple of the available depotId's",
 					"Available depotId's are:",
-					"opsi.opsi.test",
+					f"{DEPOT_ID}",
 				],
 			)
 
