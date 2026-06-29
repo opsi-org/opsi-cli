@@ -15,12 +15,17 @@ from opsi.logging import get_logger
 from opsicli.decorators import dry_run_capable, mutually_exclusive
 from opsicli.io import OutputType, console_print, get_separated_entries, write_output
 from opsicli.opsiservice import config, get_service_connection
-from opsicli.utils import LazyHelp
 
 from .common import cli, general_help_for_invalid_value_in_filter_condition, get_msg, process_where
 from .metadata import COMMAND_METADATA
 
 logger = get_logger("opsicli")
+
+
+class DynamicHelpCommand(click.Command):
+	def get_help(self, ctx):
+		self.help = _get_dynamic_unlock_help_text()
+		return super().get_help(ctx)
 
 
 def _get_dynamic_unlock_help_text() -> str:
@@ -58,9 +63,7 @@ def product() -> None:
 	pass
 
 
-@product.command(
-	name="unlock", help=LazyHelp(_get_dynamic_unlock_help_text), short_help="Unlock locked software products on specific depot servers."
-)
+@product.command(name="unlock", short_help="Unlock locked software products on specific depot servers.")
 @click.option(
 	"--where",
 	type=str,
