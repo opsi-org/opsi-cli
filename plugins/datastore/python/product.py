@@ -100,7 +100,7 @@ def product_unlock(where: tuple[str, ...], all: bool) -> None:
 
 	# empty result
 	if not final_product_ids:
-		raise ValueError("No products found matching the filtering criteria.")
+		raise ValueError(get_msg(event="no_match"))
 
 	if not config.dry_run:
 		_unlock_and_update(final_product_ids, final_depot_ids)
