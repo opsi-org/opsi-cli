@@ -125,7 +125,8 @@ class TestProductUnlock:
 			expected_error=[
 				"Invalid value in filter condition",
 				"The specified",
-				"was not foundPlease use one or multiple",
+				"was not found",
+				"Please use one or multiple",
 				"available depotId's",
 				f"{get_depot_id(admin_service_client)}",
 			],
