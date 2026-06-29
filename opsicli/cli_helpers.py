@@ -132,7 +132,10 @@ def _format_help(command: click.Command, ctx: click.Context, formatter: click.He
 		)
 
 		if command.name == "unlock" and orig_help:
-			console.print(rich_click.Padding(renderable=rich_click.Text.from_markup(text=orig_help), pad=(0, 1)))
+			from plugins.datastore.python.product import _get_dynamic_unlock_help_text
+
+			dynamic_text = _get_dynamic_unlock_help_text()
+			console.print(rich_click.Padding(renderable=rich_click.Text.from_markup(text=dynamic_text), pad=(0, 1)))
 
 	rich_click.get_rich_usage = _custom_get_rich_usage  # ty: ignore[invalid-assignment]
 	orig_get_params = command.get_params

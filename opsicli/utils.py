@@ -63,6 +63,9 @@ class LazyHelp:
 		except Exception:
 			return "Failed to load help text dynamically"
 
+	def __iter__(self):
+		return iter(str(self))
+
 
 def random_string(length: int) -> str:
 	letters = string.ascii_letters + string.digits
