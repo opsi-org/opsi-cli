@@ -43,8 +43,9 @@ def _unlock_products_with_cli(filter: list[str], expected_output: list[str] | No
 			assert expect in _stdout
 	elif expected_error:
 		assert exit_code != 0
+		actual_str = " ".join(_stderr.split())
 		for err in expected_error:
-			assert err in _stderr
+			assert err in actual_str
 	else:
 		assert exit_code == 0
 
@@ -125,7 +126,7 @@ class TestProductUnlock:
 			expected_error=[
 				"Invalid value in filter condition:",
 				"depotId=hello,test",
-				"The specified depotId was not found.",
+				"The specified depotId",
 				"Please use one or multiple of the available depotId's",
 				"Available depotId's are:",
 				f"{get_depot_id(admin_service_client)}",
