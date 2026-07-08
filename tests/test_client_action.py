@@ -563,6 +563,58 @@ def test_where_action_request(admin_service_client: ServiceClient, where_action_
 
 
 @pytest.mark.opsi_service
+def test_set_action_request_where_outdated_keeps_matching_action_request(admin_service_client: ServiceClient) -> None:
+	with (
+		tmp_client(admin_service_client, CLIENT1),
+		tmp_product(admin_service_client, PRODUCT1) as product1,
+	):
+		# outdated product on client with already set actionRequest=setup
+		poc = ProductOnClient(
+			clientId=CLIENT1,
+			productId=product1.id,
+			productType=product1.getType(),
+			productVersion="0",
+			packageVersion="0",
+			installationStatus="installed",
+			actionRequest="setup",
+			actionResult="",
+		)
+		admin_service_client.jsonrpc("productOnClient_createObjects", params=[[poc]])
+
+		poc_before = admin_service_client.jsonrpc(
+			"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1], "productId": [PRODUCT1]}]
+		)[0]
+		modification_time_before = poc_before.modificationTime
+
+		# where-outdated keeps already matching actionRequest untouched but includes it in summary output
+		cmd = [
+			"--output-format",
+			"json",
+			"client-action",
+			"--clients",
+			CLIENT1,
+			"set-action-request",
+			"--where-outdated",
+			"--products",
+			PRODUCT1,
+		]
+		exit_code, stdout, stderr = run_cli(cmd)
+		assert exit_code == 0
+		data = json.loads(stdout)
+		assert len(data) == 1
+		assert data[0]["clientId"] == CLIENT1
+		assert data[0]["productId"] == PRODUCT1
+		assert data[0]["actionRequest"] == "setup"
+		assert "No action requests were changed. Here are the matching ProductOnClient objects:" in " ".join(stderr.split())
+
+		poc_after = admin_service_client.jsonrpc(
+			"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1], "productId": [PRODUCT1]}]
+		)[0]
+		assert poc_after.actionRequest == "setup"
+		assert poc_after.modificationTime == modification_time_before
+
+
+@pytest.mark.opsi_service
 def test_set_action_request_excludes(admin_service_client: ServiceClient) -> None:
 	with (
 		tmp_client(admin_service_client, CLIENT1),
