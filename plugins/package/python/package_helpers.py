@@ -645,16 +645,14 @@ def initialize_opsi_package(
 	opsi_package.product_properties = product_properties
 	opsi_package.product_dependencies = product_dependencies
 
-	property_default_values = {
-		product_property.propertyId: product_property.defaultValues or [] for product_property in opsi_package.product_properties
-	}
+	properties_dict = {product_property.propertyId: product_property for product_property in opsi_package.product_properties}
 	if properties == "keep":
 		for product_property_state in service_client.jsonrpc(
 			"productPropertyState_getObjects",
 			[[], {"productId": opsi_package.product.id, "objectId": depot_id}],
 		):
-			property_default_values[product_property_state.propertyId] = product_property_state.values or []
-
+			properties_dict[product_property_state.propertyId].defaultValues = product_property_state.values or []
+		opsi_package.product_properties = list(properties_dict.values())
 	elif properties == "ask":
 		update_product_property_defaults_interactively({Path(product_on_depot.productId): opsi_package})  # using a  dummy path as key
 
