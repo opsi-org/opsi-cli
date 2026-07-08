@@ -200,10 +200,8 @@ class SetActionRequestWorker(ClientActionWorker):
 				product_on_client.clientId,
 				product_on_client.actionRequest,
 			)
-			# Existing actionRequests are left untouched
-			if product_on_client.actionRequest != action_request:
-				return []
-			# If the actionRequest is the same as the one we want to set, return the object for further processing
+			# Existing actionRequests are left untouched unless force=True
+			return []
 
 		if (
 			action_request
@@ -293,6 +291,7 @@ class SetActionRequestWorker(ClientActionWorker):
 		if args.uninstall_where_only_uninstall:
 			logger.notice("Uninstalling products (where installed): %s", self.products_with_only_uninstall)
 
+		reported_pocs: dict[str, dict[str, ProductOnClient]] = defaultdict(lambda: dict())
 		new_pocs: dict[str, dict[str, ProductOnClient]] = defaultdict(lambda: dict())
 		if (
 			args.where_failed
@@ -319,7 +318,7 @@ class SetActionRequestWorker(ClientActionWorker):
 					logger.error("Skipping check of %s %s (product not available on depot)", poc.clientId, poc.productId)
 					continue
 
-				add_pocs = []
+				add_pocs: list[ProductOnClient] = []
 				if args.uninstall_where_only_uninstall and poc.productId in self.products_with_only_uninstall:
 					add_pocs = self.set_single_action_request(poc, action_request="uninstall", force=True)
 				elif args.where_failed and poc.actionResult == "failed":
@@ -339,9 +338,13 @@ class SetActionRequestWorker(ClientActionWorker):
 					and poc.installationStatus == "installed"
 					and f"{poc.productVersion}-{poc.packageVersion}" != available
 				):
-					add_pocs = self.set_single_action_request(poc, action_request=args.set_action_request)
+					if poc.actionRequest == args.set_action_request:
+						reported_pocs[poc.clientId][poc.productId] = poc
+					else:
+						add_pocs = self.set_single_action_request(poc, action_request=args.set_action_request)
 				for add_poc in add_pocs:
 					new_pocs[add_poc.clientId][add_poc.productId] = add_poc
+					reported_pocs[add_poc.clientId][add_poc.productId] = add_poc
 
 			modified_clients = list(new_pocs)
 			if args.setup_on_action and modified_clients:
@@ -352,6 +355,8 @@ class SetActionRequestWorker(ClientActionWorker):
 				):
 					if add_poc.productId not in new_pocs[add_poc.clientId]:
 						new_pocs[add_poc.clientId][add_poc.productId] = add_poc
+					if add_poc.productId not in reported_pocs[add_poc.clientId]:
+						reported_pocs[add_poc.clientId][add_poc.productId] = add_poc
 
 		# If neither where_failed nor where_outdated nor uninstall_where_only_uninstall nor where_not_installed is set, set action request for every selected client
 		else:
@@ -361,23 +366,31 @@ class SetActionRequestWorker(ClientActionWorker):
 				self.clients, self.product_ids, action_request=args.set_action_request, force=True
 			):
 				new_pocs[add_poc.clientId][add_poc.productId] = add_poc
+				reported_pocs[add_poc.clientId][add_poc.productId] = add_poc
 
-		if not new_pocs:
+		if not reported_pocs:
 			msg = "No action requests to set."
 			logger.notice(msg)
 			console_print(f"{msg}\n", output_type=OutputType.MESSAGE)
 			return
+
+		result_pocs: list[ProductOnClient] = []
+		for client_id in sorted(reported_pocs):
+			for product_id in sorted(reported_pocs[client_id]):
+				result_pocs.append(reported_pocs[client_id][product_id])
 
 		update_pocs: list[ProductOnClient] = []
 		for client_id in sorted(new_pocs):
 			for product_id in sorted(new_pocs[client_id]):
 				update_pocs.append(new_pocs[client_id][product_id])
 
+		logger.trace("ProductOnClient objects selected for output: %s", result_pocs)
 		logger.trace("New ProductOnClient objects to update: %s", update_pocs)
 
-		logger.debug("Adding dependent product actions")
-		update_pocs = self.service.jsonrpc("productOnClient_addDependencies", [update_pocs])
-		logger.trace("New ProductOnClient objects to update with added dependencies: %s", update_pocs)
+		if update_pocs:
+			logger.debug("Adding dependent product actions")
+			update_pocs = self.service.jsonrpc("productOnClient_addDependencies", [update_pocs])
+			logger.trace("New ProductOnClient objects to update with added dependencies: %s", update_pocs)
 
 		if args.set_action_progress is not None or args.set_action_result is not None or args.set_installation_status is not None:
 			for product_on_client in update_pocs:
@@ -388,12 +401,16 @@ class SetActionRequestWorker(ClientActionWorker):
 				if args.set_installation_status is not None:
 					product_on_client.setInstallationStatus(args.set_installation_status)
 
-		if not config.dry_run:
+		if update_pocs and not config.dry_run:
 			logger.debug("Updating ProductOnClient objects")
 			self.service.jsonrpc("productOnClient_updateObjects", [update_pocs])
 
-		msg = f"Action requests {'would ' if config.dry_run else ''}have been set"
-		if args.process:
+		if update_pocs:
+			msg = f"Action requests {'would ' if config.dry_run else ''}have been set"
+		else:
+			msg = "No action requests were changed"
+
+		if args.process and update_pocs:
 			msg += f" and processing {'would have been started' if config.dry_run else 'was started'}"
 			if not config.dry_run:
 				logger.debug("Processing action requests")
@@ -405,7 +422,8 @@ class SetActionRequestWorker(ClientActionWorker):
 					)
 					logger.debug("Result of hostControl_processActionRequests: %s", res)
 
-		console_print(f"{msg}. Here are the updated ProductOnClient objects:\n", style="green", output_type=OutputType.MESSAGE)
+		summary_kind = "updated" if update_pocs else "matching"
+		console_print(f"{msg}. Here are the {summary_kind} ProductOnClient objects:\n", style="green", output_type=OutputType.MESSAGE)
 
 		write_output(
 			data=[
@@ -417,7 +435,7 @@ class SetActionRequestWorker(ClientActionWorker):
 					"actionResult": poc.actionResult,
 					"installationStatus": poc.installationStatus,
 				}
-				for poc in update_pocs
+				for poc in result_pocs
 			],
 			metadata=COMMAND_METADATA["client-action_set-action-request"],
 		)
