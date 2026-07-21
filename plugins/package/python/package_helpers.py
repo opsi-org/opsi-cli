@@ -58,7 +58,7 @@ def get_depot_objects(service_client: ServiceClient, depots: str) -> list[OpsiDe
 
 
 @lru_cache(maxsize=100)
-def get_product_on_depot_objects(service_client: ServiceClient, depot_list: tuple) -> list[dict]:
+def get_product_on_depot_objects(service_client: ServiceClient, depot_list: tuple) -> list[ProductOnDepot]:
 	"""
 	This function makes a JSON-RPC call to the "productOnDepot_getObjects" with the depot list.
 	"""

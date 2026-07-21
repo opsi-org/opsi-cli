@@ -647,7 +647,7 @@ def complete_installed_products(ctx: click.Context, param: click.Parameter, inco
 	depots = ctx.params.get("depots", "all")
 	depot_list = [depot.id for depot in get_depot_objects(get_service_connection(), depots)]
 	installed_packages = get_product_on_depot_objects(service_client, tuple(depot_list))
-	suggestions = [CompletionItem(pod["productId"]) for pod in installed_packages if pod["productId"].startswith(incomplete)]
+	suggestions = [CompletionItem(pod.productId) for pod in installed_packages if pod.productId.startswith(incomplete)]
 	return suggestions[:MAX_RESULTS]
 
 

@@ -97,6 +97,11 @@ class OpsiCLI(click.MultiCommand):  # ty: ignore
 				err = ClickException(str(err))
 			err.message += additional_info
 
+			if COMPLETION_MODE:
+				# rich / get_console is not available in completion mode
+				print(f"Error: {err.message}", file=sys.stderr)
+				sys.exit(err.exit_code)
+
 			err_console = get_console(output_type=OutputType.ERROR_MESSAGE)
 			if config.color:
 				err.message = re.sub(r"\[/?metavar\]", "", err.message)
