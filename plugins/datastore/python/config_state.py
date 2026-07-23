@@ -14,7 +14,6 @@ from opsicli.io import Metadata, OutputType, console_print, get_separated_entrie
 from opsicli.opsiservice import ServiceClient, config, get_service_connection
 from plugins.datastore.data.help_texts import CONFIG_STATE_HELP as info
 from plugins.datastore.data.messages import Error, Status
-from plugins.datastore.data.metadata import COMMAND_METADATA
 
 from .common import (
 	cli,
@@ -24,6 +23,7 @@ from .common import (
 	process_where,
 	validate_against_possible_values,
 )
+from .metadata import COMMAND_METADATA
 
 logger = get_logger("opsicli")
 

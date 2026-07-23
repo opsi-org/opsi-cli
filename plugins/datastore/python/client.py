@@ -17,9 +17,9 @@ from opsicli.opsiservice import get_service_connection
 from opsicli.types import EditFormat, OutputFormat
 from plugins.datastore.data.help_texts import CLIENT_HELP as info
 from plugins.datastore.data.messages import Error, Status
-from plugins.datastore.data.metadata import CLIENT_METADATA
 
 from .common import cli, process_set, process_where
+from .metadata import CLIENT_METADATA
 
 logger = get_logger("opsicli")
 
