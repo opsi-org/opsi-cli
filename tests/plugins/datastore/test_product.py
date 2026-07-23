@@ -317,7 +317,7 @@ def test_list_product_client_state(admin_service_client: ServiceClient) -> None:
 
 
 @pytest.mark.opsi_service
-def test_update_product_client_state(admin_service_client: ServiceClient) -> None:
+def test_apply_product_client_state(admin_service_client: ServiceClient) -> None:
 	with (
 		tmp_client(admin_service_client, CLIENT_ID_1),
 		tmp_client(admin_service_client, CLIENT_ID_2),
@@ -351,7 +351,7 @@ def test_update_product_client_state(admin_service_client: ServiceClient) -> Non
 				"csv",
 				"datastore",
 				"product-client-state",
-				"update",
+				"apply",
 			],
 			stdin=[json.dumps(update_data)],
 		)

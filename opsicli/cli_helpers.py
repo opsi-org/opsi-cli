@@ -98,7 +98,6 @@ def _format_help(command: click.Command, ctx: click.Context, formatter: click.He
 		_config_loaded = True
 
 	console = get_console(output_type=OutputType.DATA)
-	orig_help = command.help
 	_render_option_sections(ctx, formatter, console)
 
 	custom_usage = command.get_usage(ctx)
@@ -118,7 +117,6 @@ def _format_help(command: click.Command, ctx: click.Context, formatter: click.He
 		if usage_str.lower().startswith("usage:"):
 			usage_str = usage_str[len("usage:") :].strip()
 
-		# print original usage text
 		console.print(
 			rich_click.Padding(
 				rich_click.Columns(
@@ -131,12 +129,6 @@ def _format_help(command: click.Command, ctx: click.Context, formatter: click.He
 			),
 		)
 
-		if command.name == "unlock" and orig_help:
-			from plugins.datastore.python.product import _get_dynamic_unlock_help_text
-
-			dynamic_text = _get_dynamic_unlock_help_text()
-			console.print(rich_click.Padding(renderable=rich_click.Text.from_markup(text=dynamic_text), pad=(0, 1)))
-
 	rich_click.get_rich_usage = _custom_get_rich_usage  # ty: ignore[invalid-assignment]
 	orig_get_params = command.get_params
 
@@ -145,16 +137,9 @@ def _format_help(command: click.Command, ctx: click.Context, formatter: click.He
 
 	command.get_params = _get_non_option_params  # ty: ignore[invalid-assignment]
 
-	# hide
-	orig_help = command.help
-	if command.name == "unlock":
-		command.help = ""
-
 	try:
 		rich_format_help(command, ctx, formatter)
 	finally:
-		# restore original help
-		command.help = orig_help
 		command.get_params = orig_get_params  # ty: ignore[invalid-assignment]
 
 

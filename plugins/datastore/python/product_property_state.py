@@ -11,9 +11,11 @@ from opsi.logging import get_logger
 from opsicli.decorators import mutually_exclusive
 from opsicli.io import get_separated_entries, write_output
 from opsicli.opsiservice import ServiceClient, get_service_connection
+from plugins.datastore.data.help_texts import PRODUCT_PROPERTY_STATE_HELP as info
+from plugins.datastore.data.messages import Error
+from plugins.datastore.data.metadata import COMMAND_METADATA
 
-from .common import cli, create_client_depot_mapping, filter_by_attribute_values, get_msg, process_where
-from .metadata import COMMAND_METADATA
+from .common import cli, create_client_depot_mapping, filter_by_attribute_values, process_where
 
 logger = get_logger("opsicli")
 
@@ -120,43 +122,27 @@ def _update_depot_states(
 			):
 				target = depot_states[object_id][state.productId][state.propertyId]
 				target["depotValues"] = state.values
-				target["origin"] = "depot"
+				target["origin"] = "client"
 				if target["defaultValues"] != state.values:
 					target["values"] = state.values
 
 	return depot_states
 
 
-@cli.group(name="product-property-state", short_help="Manage properties assigned to software products.")
+@cli.group(name="product-property-state", short_help=info.GENERAL.short, help=info.GENERAL.long)
 def product_property_state() -> None:
-	"""
-	View custom software package configurations (like silent install flags, custom configuration URLs, or serial keys).
-	"""
 	pass
 
 
-@product_property_state.command(name="list", short_help="List customized product property values assigned to clients or depots.")
-@click.option(
-	"--where",
-	type=str,
-	multiple=True,
-	help="Filter by specific software packages, properties, or host names (e.g., --where 'productId=firefox' --where 'propertyId=disable_telemetry').",
-)
+@product_property_state.command(name="list", short_help=info.LIST.short, help=info.LIST.long)
+@click.option("--where", type=str, multiple=True, help=info.LIST.where)
 @click.option(
 	"--all",
 	is_flag=True,
-	help="Show all software product property assignments, skipping filters completely.",
+	help=info.LIST.all,
 )
 @mutually_exclusive("where", "all")
 def list_product_property_state(where: tuple[str, ...], all: bool) -> None:
-	"""
-	Display custom properties assigned to software products.
-
-	The output resolves OPSI's product property inheritance layer, showing if a state is coming from:
-	- The package's default value configuration
-	- A depot-server wide adjustment
-	- An explicit client-specific installation parameter override
-	"""
 
 	service_connection = get_service_connection()
 	metadata = COMMAND_METADATA["datastore_product-property-state_list"]
@@ -194,7 +180,7 @@ def list_product_property_state(where: tuple[str, ...], all: bool) -> None:
 
 	result = filter_by_attribute_values(flattened_list, filter, attributes)
 	if not result:
-		raise ValueError(get_msg("product property states", "no_match"))
+		raise ValueError(Error.no_match())
 
 	write_output(
 		data=sorted(result, key=lambda x: x["objectId"]),

@@ -12,66 +12,15 @@ from opsi.opsi.service.model.object import BoolConfig, UnicodeConfig
 from opsi.opsi.service.model.type import to_bool_list
 
 from opsicli.cli_helpers import OPSICLIGroup
-from opsicli.config import config
 from opsicli.io import Attribute, get_separated_entries
 from opsicli.opsiservice import ServiceClient
+from plugins.datastore.data.help_texts import DATASTORE_HELP as info
+from plugins.datastore.data.messages import Error, Help
 
 logger = get_logger("opsicli")
 
 __version__ = "0.1.0"
 __description__ = "This command can be used to manage data and objects"
-
-
-OPERATION_MATADATA = {
-	"delete": {"action": "Deleting", "result": "deleted"},
-	"update": {"action": "Updating", "result": "updated"},
-	"apply": {"action": "Applying changes to", "result": "changed"},
-	"edit": {"action": "Editing", "result": "edited"},
-	"unlock": {"action": "Unlocking", "result": "unlocked"},
-}
-MESSAGE_TEMPLATES_ERROR = {
-	"no_match": "No {object_name}s found matching the filtering criteria.",
-	"no_input": "No input data provided for updating {object_name}s. Please set --input-file.",
-}
-
-MESSAGE_TEMPLATE = "{action} {{object_name}}s was successful. Here are the {result} {{object_name}}s."
-MESSAGE_TEMPLATE_DRY_RUN = (
-	"{action} {{object_name}}s skipped due to dry run.\nHere are the {{object_name}}s that would have been {result}:\n"
-)
-
-
-def get_msg(object_name: str | None = None, event: str | None = None) -> str:
-	ctx = click.get_current_context()
-
-	# get last command e.g. (list, apply, edit, ...)
-	if event is None:
-		event = ctx.command.name
-		if event is None:
-			raise ValueError("Could not determine event name from Click context.")
-
-	# get second to last command e.g (config-state, client, product, ...)
-	if object_name is None:
-		parent_ctx = ctx.parent
-		if parent_ctx and getattr(parent_ctx, "command", None):
-			object_name = parent_ctx.command.name
-		else:
-			raise ValueError("Could not determine object_name from parent Click context.")
-
-	# early return if error message
-	if event in MESSAGE_TEMPLATES_ERROR:
-		return MESSAGE_TEMPLATES_ERROR[event].format(object_name=object_name)
-
-	# build the message dynamically
-	meta = OPERATION_MATADATA.get(event)
-	if not meta:
-		raise ValueError(f"No valid event given: {event}")
-
-	if config.dry_run:
-		msg = MESSAGE_TEMPLATE_DRY_RUN.format(action=meta["action"], result=meta["result"])
-	else:
-		msg = MESSAGE_TEMPLATE.format(action=meta["action"], result=meta["result"])
-
-	return msg.format(object_name=object_name)
 
 
 def create_client_depot_mapping(service_connection: ServiceClient, object_ids: list[str] | None = None) -> dict[str, str]:
@@ -92,54 +41,24 @@ def get_depot_to_clients(service_connection: ServiceClient, client_ids: list[str
 	return depot_to_clients
 
 
-def general_help_for_where(
-	available_attributes: list[Attribute], used_attributes: list[str] | None = None, missing_attributes: list[str] | None = None
-) -> str:
-	used_attributes = used_attributes or []
-	missing_attributes = missing_attributes or []
-
-	general_help = (
-		'Use one or more `[bold]--where "<attribute><operator><value>"[/]` options to define the filter.\nAvailable attributes are:\n'
-	)
-	max_attr_len = max(len(attr.id) for attr in available_attributes)
-	max_type_len = max(len(str(attr.data_type)) for attr in available_attributes)
-	for attr in available_attributes:
-		color = "white"
-		if attr.id in missing_attributes:
-			color = "red"
-		elif attr.id in used_attributes:
-			color = "green"
-		elif attr.identifier:
-			color = "cyan"
-		type_str = f"({str(attr.data_type)})".ljust(max_type_len + 2)
-		general_help += f"  [bold {color}]{attr.id.ljust(max_attr_len)}[/]  {type_str}  {attr.description}\n"
-	return general_help
-
-
 def process_where(
 	where: tuple[str, ...], *, attributes: list[Attribute], operation: Literal["list", "update", "unlock", "purge", "delete"] = "list"
 ) -> dict[str, str]:
 	where = where or tuple()
 	condition_pattern = re.compile(r"^([a-zA-Z_]+)\s*(<|<=|=|>=|>)\s*(.*)$")
 	available_attributes_by_id = {attr.id: attr for attr in attributes}
-	general_help = general_help_for_where(available_attributes=attributes)
-
+	general_help = Help.general_where(available_attributes=attributes)
 	filter: dict[str, str] = {}
 	for condition in where:
 		condition = condition.strip()
 		match = condition_pattern.match(condition)
 		if not match:
-			raise ValueError(
-				f"Invalid filter condition: `[bold red]{condition}[/]`.\n"
-				f"Expected format: `[bold]<attribute><operator><value>[/]`.\n"
-				"Valid operators are: `[bold]=[/]`, `[bold]<[/]`, `[bold]<=[/]`, `[bold]>[/]`, `[bold]>=[/]`.\n\n"
-				f"{general_help}"
-			)
+			raise ValueError(Error.invalid_condition_where(condition, general_help))
 		attr, operator, value = match.groups()
 		attribute = available_attributes_by_id.get(attr)
 		# validate the attribute
 		if not attribute:
-			raise ValueError(f"Invalid attribute in filter condition: `[bold][red]{attr}[/red]={value}[/]`.\n\n{general_help}")
+			raise ValueError(Error.invalid_attribute_where(attr, value, general_help))
 
 		# combine values if the attribute name is equal // "objectId=jenkins1" "objectId=jenkins2" => {"objectId": "jenkin1, jenkin2"})
 		if attr in filter:
@@ -152,47 +71,24 @@ def process_where(
 	if operation in ("update", "unlock", "purge", "delete"):
 		missing_attributes = [attr.id for attr in id_attributes if attr.id not in filter]
 
-	general_help = general_help_for_where(
-		available_attributes=attributes, used_attributes=list(filter), missing_attributes=missing_attributes
-	)
+	general_help = Help.general_where(available_attributes=attributes, used_attributes=list(filter), missing_attributes=missing_attributes)
 	if operation == "list" and not filter:
-		raise ValueError(
-			"At least one filter condition is required to prevent unintentional retrieval of large amounts of data.\n"
-			"If you intentionally do not want to filter by an attribute, use: `[bold]--all[/]`.\n\n"
-			f"{general_help}"
-		)
+		raise ValueError(Error.missing_where(general_help))
+
 	if missing_attributes:
-		raise ValueError(
-			f"Incomplete filter for {operation} operation.\n\n"
-			f"{general_help}"
-			f"\nOn {operation} operations, the filter must contain all identifier attributes.\n"
-			f"Missing required attributes: [bold red]{', '.join(missing_attributes)}[/]"
-		)
+		missing_attr_str = ", ".join(missing_attributes)
+		raise ValueError(Error.missing_attribute(operation, missing_attr_str, general_help))
 	return filter
-
-
-def general_help_for_set(available_attributes: list[Attribute]) -> str:
-	general_help = 'Use one or more `[bold]--set "<attribute>=<value>"[/]` options to define the attributes to update.\n\n'
-	if not available_attributes:
-		return general_help
-
-	general_help += "Available attributes are:\n"
-	max_attr_len = max(len(attr.id) for attr in available_attributes)
-	max_type_len = max(len(str(attr.data_type)) for attr in available_attributes)
-	for attr in available_attributes:
-		type_str = f"({str(attr.data_type)})".ljust(max_type_len + 2)
-		general_help += f"  [bold white]{attr.id.ljust(max_attr_len)}[/]  {type_str}  {attr.description}\n"
-	return general_help
 
 
 def process_set(set: tuple[str, ...], *, attributes: list[Attribute]) -> dict[str, str]:
 	set = set or tuple()
 	set_pattern: re.Pattern[str] = re.compile(r"^([a-zA -Z]+)\s*=\s*(.*)$")
 	attributes_by_id = {attr.id: attr for attr in attributes if not attr.identifier}  # attributes with identifier shouldn't be changed
-	general_help = general_help_for_set(available_attributes=list(attributes_by_id.values()))
+	general_help = Help.general_set(available_attributes=list(attributes_by_id.values()))
 
 	if not set:
-		raise ValueError(f"No attributes specified to update.\n\n{general_help}")
+		raise ValueError(Error.missing_set(general_help))
 
 	updates: dict[str, str] | dict[str, list[str]] | dict[str, list[bool]] = {}
 
@@ -200,19 +96,17 @@ def process_set(set: tuple[str, ...], *, attributes: list[Attribute]) -> dict[st
 		assignment = assignment.strip()
 		match = set_pattern.match(assignment)
 		if not match:
-			raise ValueError(
-				f"Invalid set statement: `[bold red]{assignment}[/]`.\nExpected format: `[bold]<attribute>=<value>[/]`.\n\n{general_help}"
-			)
+			raise ValueError(Error.invalid_condition_set(assignment, general_help))
 		attr, value = map(str.strip, match.groups())
 		attribute = attributes_by_id.get(attr)
 		if not attribute:
-			raise ValueError(f"Invalid attribute in set statement: `[bold][red]{attr}[/red]={value}[/]`.\n\n{general_help}")
+			raise ValueError(Error.invalid_attribute_set(attr, value, general_help))
 
 		if attribute.validator:
 			try:
 				value = attribute.validator(value)
 			except Exception:
-				raise ValueError(f"Invalid value in set statement: `[bold]{attr}=[red]{value}[/]`.\n\n{general_help}")
+				raise ValueError(Error.invalid_value_set(attr, value, general_help))
 
 		# Combine values if the attribute name is equal // "objectId=jenkins1" "objectId=jenkins2" => {"objectId": "jenkin1, jenkin2"})
 		if updates.get(attr):
@@ -221,18 +115,6 @@ def process_set(set: tuple[str, ...], *, attributes: list[Attribute]) -> dict[st
 			updates[attr] = value
 
 	return updates
-
-
-def general_help_for_invalid_value_in_filter_condition(available_values: list[str], attribute: str, value: str | list[str]) -> str:
-	help_msg = f"""Invalid value in filter condition: '[bold]{attribute}=[red]{value}[/][/]'.\n
-The specified {attribute} was not found. Please use one or multiple of the available {attribute}'s
-listed below, or use wildcards (e.g. 'depotId=*test*' or 'depotId=*.local')
-to filter the list."
-\nAvailable {attribute}'s are:
-"""
-	for id in available_values:
-		help_msg += f"[bold cyan]  {id}\n"
-	return help_msg
 
 
 def validate_against_possible_values(val: str, obj: BoolConfig | UnicodeConfig) -> list[str] | list[bool]:
@@ -308,7 +190,7 @@ def filter_by_attribute_values(data: list[dict[str, Any]], filter: dict[str, str
 	return filtered_data
 
 
-@click.group(cls=OPSICLIGroup, name="datastore", short_help="Manage objects and data")
+@click.group(cls=OPSICLIGroup, name="datastore", short_help=info.GENERAL.short)
 @click.version_option(__version__, message="datastore plugin, version %(version)s")
 @click.pass_context
 def cli(ctx: click.Context, **kwargs: str | bool | None) -> None:
