@@ -135,6 +135,7 @@ PRODUCT_HELP = CommandHelp(
 			"Unlock software products locked on specific depot servers.\n\n"
 			"[bold]Examples:[/]\n"
 			"opsi-cli datastore product unlock --where 'productId=firefox'"
+			"opsi-cli datastore product unlock --where 'productId=win*'"
 		),
 		where="Target product and depot (e.g., --where 'productId=firefox').",
 		all="Unlock all products across all depots globally.",
