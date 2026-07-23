@@ -120,23 +120,19 @@ def process_set(set: tuple[str, ...], *, attributes: list[Attribute]) -> dict[st
 def validate_against_possible_values(val: str, obj: BoolConfig | UnicodeConfig) -> list[str] | list[bool]:
 	values = get_separated_entries(val)
 	possible_values: list[str] = obj.possibleValues or []
-	formatted_possible = ""
-	if possible_values:
-		formatted_possible = "\n".join([f"- {val}" for val in possible_values])
-		formatted_possible = f"[bold]Possible values are:[/]\n[green]{formatted_possible}[/green]"
 
 	if isinstance(obj, BoolConfig):
 		if len(values) > 1:
-			raise ValueError(f"Only one value is allowed for `[bold][blue]{obj.id}[/][/]`.\n{formatted_possible}")
+			raise ValueError(Error.validation_bool_single(obj.id, possible_values))
 		if values[0].lower() not in ["false", "true", "0", "1"]:
-			raise ValueError(f"Invalid value `{values[0]}` for `[bold][blue]{obj.id}[/][/]`.\n{formatted_possible}")
+			raise ValueError(Error.validation_bool_invalid(values[0], obj.id, possible_values))
 		return to_bool_list(values)
 
 	elif isinstance(obj, UnicodeConfig):
 		if not obj.multiValue and len(values) > 1:
-			raise ValueError(f"Multiple values are not allowed for `[bold][blue]{obj.id}[/][/]`.\n{formatted_possible}")
+			raise ValueError(Error.validation_unicode_multi(obj.id, possible_values))
 		if not obj.editable and values[0] not in possible_values:
-			raise ValueError(f"Invalid value `{values[0]}` for `[bold][blue]{obj.id}[/][/]`.\n{formatted_possible}")
+			raise ValueError(Error.validation_unicode_invalid(values[0], obj.id, possible_values))
 		return values
 
 	return []

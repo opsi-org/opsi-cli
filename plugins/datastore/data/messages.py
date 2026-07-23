@@ -30,6 +30,8 @@ class StatusTemplates:
 class ErrorTemplates:
 	NO_MATCH = "No {object_name}s found matching the filtering criteria."
 	NO_INPUT = "No input data provided for updating {object_name}s. Please set --input-file."
+	NOT_INTERACTIVE = "Editing is not possible in non-interactive mode."
+
 	INVALID_CONDITION_WHERE = (
 		"Invalid filter condition: `[bold red]{condition}[/]`.\n"
 		"Expected format: `[bold]<attribute><operator><value>[/]`.\n"
@@ -49,6 +51,7 @@ class ErrorTemplates:
 	INVALID_VALUE_SET = "Invalid value in set statement: '[bold]{attribute}=[red]{value}[/][/]'.\n\n {general_help}"
 	INVALID_ATTRIBUTE_WHERE = "Invalid attribute in filter condition: `[bold][red]{attr}[/red]={value}[/]`.\n\n{general_help}"
 	INVALID_ATTRIBUTE_SET = "Invalid attribute in set statement: `[bold][red]{attr}[/red]={value}[/]`.\n\n{general_help}"
+
 	MISSING_ATTRIBUTE = (
 		"Incomplete filter for {operation} operation.\n\n"
 		"{general_help}\n"
@@ -61,6 +64,11 @@ class ErrorTemplates:
 		"{general_help}"
 	)
 	MISSING_SET = "No attributes specified to update.\n\n{general_help}"
+
+	VAL_BOOL_SINGLE = "Only one value is allowed for `[bold][blue]{obj_id}[/][/]`.\n{formatted_possible}"
+	VAL_BOOL_INVALID = "Invalid value `[bold red]{value}[/]` for `[bold][blue]{obj_id}[/][/]`.\n{formatted_possible}"
+	VAL_UNICODE_MULTI = "Multiple values are not allowed for `[bold][blue]{obj_id}[/][/]`.\n{formatted_possible}"
+	VAL_UNICODE_INVALID = "Invalid value `[bold red]{value}[/]` for `[bold][blue]{obj_id}[/][/]`.\n{formatted_possible}"
 
 
 class HelpTemplates:
@@ -98,6 +106,13 @@ def _get_runtime_info() -> tuple[str, str, Verb]:
 	verb = OPERATION_VERB_MAP.get(cmd, Verb(doing="Processing", done="processed"))  # Fallback
 
 	return obj, cmd, verb
+
+
+def _format_possible_values(possible_values: list[str] | None) -> str:
+	if not possible_values:
+		return ""
+	formatted = "\n".join([f"  {val}" for val in possible_values])
+	return f"\n[bold]Possible values are:[/]\n[green]{formatted}[/green]"
 
 
 # lazy loading because the context does not exist until a cli command is called
@@ -143,6 +158,9 @@ class Error:
 	def no_input() -> str:
 		return ErrorTemplates.NO_INPUT.format(object_name=ctx.obj)
 
+	def not_interactive() -> str:
+		return ErrorTemplates.NOT_INTERACTIVE
+
 	def invalid_value_where(available_values: list[str], attribute: str, value: str | list[str]) -> str:
 		help_msg = ErrorTemplates.INVALID_VALUE_WHERE.format(attribute=attribute, value=value)
 		for entry in available_values:
@@ -172,6 +190,22 @@ class Error:
 
 	def missing_set(general_help: str) -> str:
 		return ErrorTemplates.MISSING_SET.format(general_help=general_help)
+
+	def validation_bool_single(obj_id: str, possible_values: list[str] | None) -> str:
+		formatted_possible = _format_possible_values(possible_values)
+		return ErrorTemplates.VAL_BOOL_SINGLE.format(obj_id=obj_id, formatted_possible=formatted_possible)
+
+	def validation_bool_invalid(value: str, obj_id: str, possible_values: list[str] | None) -> str:
+		formatted_possible = _format_possible_values(possible_values)
+		return ErrorTemplates.VAL_BOOL_INVALID.format(value=value, obj_id=obj_id, formatted_possible=formatted_possible)
+
+	def validation_unicode_multi(obj_id: str, possible_values: list[str] | None) -> str:
+		formatted_possible = _format_possible_values(possible_values)
+		return ErrorTemplates.VAL_UNICODE_MULTI.format(obj_id=obj_id, formatted_possible=formatted_possible)
+
+	def validation_unicode_invalid(value: str, obj_id: str, possible_values: list[str] | None) -> str:
+		formatted_possible = _format_possible_values(possible_values)
+		return ErrorTemplates.VAL_UNICODE_INVALID.format(value=value, obj_id=obj_id, formatted_possible=formatted_possible)
 
 
 @static_methods
