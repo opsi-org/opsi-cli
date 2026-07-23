@@ -116,7 +116,7 @@ def apply_clients() -> None:
 @dry_run_capable
 def edit_clients(where: tuple[str, ...]) -> None:
 	if not config.interactive:
-		raise ValueError("Editing is not possible in non-interactive mode.")
+		raise ValueError(Error.not_interactive())
 
 	selected_attributes = get_selected_attributes(attributes=CLIENT_METADATA.attributes, update_selected=True)
 
