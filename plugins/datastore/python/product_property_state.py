@@ -13,9 +13,9 @@ from opsicli.io import get_separated_entries, write_output
 from opsicli.opsiservice import ServiceClient, get_service_connection
 from plugins.datastore.data.help_texts import PRODUCT_PROPERTY_STATE_HELP as info
 from plugins.datastore.data.messages import Error
-from plugins.datastore.data.metadata import COMMAND_METADATA
 
 from .common import cli, create_client_depot_mapping, filter_by_attribute_values, process_where
+from .metadata import COMMAND_METADATA
 
 logger = get_logger("opsicli")
 

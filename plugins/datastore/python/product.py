@@ -17,9 +17,9 @@ from opsicli.io import OutputType, console_print, get_separated_entries, write_o
 from opsicli.opsiservice import config, get_service_connection
 from plugins.datastore.data.help_texts import PRODUCT_HELP as info
 from plugins.datastore.data.messages import Error, Status
-from plugins.datastore.data.metadata import COMMAND_METADATA
 
 from .common import cli, process_where
+from .metadata import COMMAND_METADATA
 
 logger = get_logger("opsicli")
 
