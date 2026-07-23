@@ -42,3 +42,11 @@ def mutually_exclusive(*options):
 		return wrapper
 
 	return decorator
+
+
+# add @staticmethod to every function in the decorated class
+def static_methods(cls):
+	for name, attr in list(cls.__dict__.items()):
+		if callable(attr) and not name.startswith("_"):
+			setattr(cls, name, staticmethod(attr))
+	return cls

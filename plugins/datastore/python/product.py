@@ -15,32 +15,13 @@ from opsi.logging import get_logger
 from opsicli.decorators import dry_run_capable, mutually_exclusive
 from opsicli.io import OutputType, console_print, get_separated_entries, write_output
 from opsicli.opsiservice import config, get_service_connection
+from plugins.datastore.data.help_texts import PRODUCT_HELP as info
+from plugins.datastore.data.messages import Error, Status
+from plugins.datastore.data.metadata import COMMAND_METADATA
 
-from .common import cli, general_help_for_invalid_value_in_filter_condition, get_msg, process_where
-from .metadata import COMMAND_METADATA
+from .common import cli, process_where
 
 logger = get_logger("opsicli")
-
-
-class DynamicHelpCommand(click.Command):
-	def get_help(self, ctx):
-		self.help = _get_dynamic_unlock_help_text()
-		return super().get_help(ctx)
-
-
-def _get_dynamic_unlock_help_text() -> str:
-
-	service_connection = get_service_connection()
-	available_depot_ids = service_connection.host_getIdents(id=[], type="OpsiDepotserver")  # ty: ignore[unresolved-attribute]
-
-	help_msg = """Remove locks from OPSI product packages on your depot servers.
-This allows stuck or interrupted package distributions to resume.
-
-Available depotId's are:
-"""
-	for id in available_depot_ids:
-		help_msg += f"[bold cyan]  {id}\n"
-	return help_msg
 
 
 # Helper function: get products -> unlock them -> update them
@@ -55,25 +36,22 @@ def _unlock_and_update(product_ids: list[str], depot_ids: list[str]) -> None:
 	service_connection.productOnDepot_updateObjects(product_on_depots)  # ty: ignore[unresolved-attribute]
 
 
-@cli.group(name="product", short_help="Manage local OPSI software products and repository states.")
+@cli.group(name="product", short_help=info.GENERAL.short, help=info.GENERAL.long)
 def product() -> None:
-	"""
-	Unlock locked software products or clean up tracking data for uninstalled OPSI packages.
-	"""
 	pass
 
 
-@product.command(name="unlock", short_help="Unlock locked software products on specific depot servers.")
+@product.command(name="unlock", short_help=info.UNLOCK.short, help=info.UNLOCK.long)
 @click.option(
 	"--where",
 	type=str,
 	multiple=True,
-	help="Target a specific product and depot to unlock (e.g., --where 'productId=firefox' --where 'depotId=*.domain.local').",
+	help=info.UNLOCK.where,
 )
 @click.option(
 	"--all",
 	is_flag=True,
-	help="Unlock all products across every single depot server globally.",
+	help=info.UNLOCK.all,
 )
 @mutually_exclusive("all", "where")
 @dry_run_capable
@@ -93,44 +71,36 @@ def product_unlock(where: tuple[str, ...], all: bool) -> None:
 	product_idents = service_connection.productOnDepot_getIdents(productId=product_ids, depotId=final_depot_ids)  # ty: ignore[unresolved-attribute]
 	final_product_ids = [id.split(";")[0] for id in product_idents]
 
-	# wrong depotId
+	# help for wrong depotId
 	if not final_depot_ids and filter:
 		raise ValueError(
-			general_help_for_invalid_value_in_filter_condition(
-				available_values=available_depot_ids, attribute="depotId", value=filter.get("depotId", "")
-			)
+			Error.invalid_value_where(available_values=available_depot_ids, attribute="depotId", value=filter.get("depotId", ""))
 		)
 
 	# empty result
 	if not final_product_ids:
-		raise ValueError(get_msg(event="no_match"))
+		raise ValueError(Error.no_match())
 
 	if not config.dry_run:
 		_unlock_and_update(final_product_ids, final_depot_ids)
+		msg = Status.success()
+	else:
+		msg = Status.dry_run()
 
-	console_print(get_msg(), style="green", output_type=OutputType.MESSAGE)
+	console_print(msg, style="green", output_type=OutputType.MESSAGE)
 	write_output(data=final_product_ids, metadata=COMMAND_METADATA["datastore_product_unlock"])
 
 
-@product.command(name="purge", short_help="Completely purge backend database traces of uninstalled products.")
-@click.option(
-	"--where",
-	type=str,
-	multiple=True,
-	help="Filter by specific OPSI product IDs to purge (e.g., --where 'productId=old-java-package').",
-)
+@product.command(name="purge", short_help=info.PURGE.short, help=info.PURGE.long)
+@click.option("--where", type=str, multiple=True, help=info.PURGE.where)
 @click.option(
 	"--all",
 	is_flag=True,
-	help="Wipe historical data for all products that are no longer installed anywhere or present on any depot server.",
+	help=info.PURGE.all,
 )
 @dry_run_capable
 @mutually_exclusive("all", "where")
 def product_purge(where: tuple[str, ...], all: bool) -> None:
-	"""
-	Run database garbage collection to permanently delete old installation records and product property assignments
-	for software products that have been uninstalled and removed from your OPSI server.
-	"""
 	service_connection = get_service_connection()
 
 	if not all:
@@ -142,12 +112,12 @@ def product_purge(where: tuple[str, ...], all: bool) -> None:
 	product_ids = [id.split(";")[0] for id in product_idents]
 	# empty result
 	if not product_ids:
-		raise ValueError("No products found matching the filtering criteria.")
+		raise ValueError(Error.no_match())
 
 	if config.dry_run:
-		msg = "Purge skipped due to dry run. Here are the products that would have been purged:\n"
+		msg = Status.dry_run()
 	else:
-		msg = "Products purged successfully. Here are the purged products:\n"
+		msg = Status.success()
 		service_connection.product_purge(id=product_ids)  # ty: ignore[unresolved-attribute]
 
 	console_print(msg, style="green", output_type=OutputType.MESSAGE)
