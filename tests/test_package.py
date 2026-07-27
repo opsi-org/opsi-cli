@@ -30,9 +30,10 @@ from opsi.opsi.service.model.object import (
 from opsi.testing.helper import http_test_server
 
 from plugins.package.python import combine_products
+from plugins.package.python.package_helpers import get_clients_from_depot, get_product_on_clients
 
 from .conftest import get_admin_service_client
-from .utils import run_cli, tmp_product
+from .utils import run_cli, tmp_clients, tmp_product
 
 TEST_DATA_PATH = Path("tests/test_data/plugins/package")
 
@@ -752,11 +753,51 @@ def test_package_installation_from_urls() -> None:
 
 
 @pytest.mark.opsi_service
-def test_package_installation_with_action_request_setup() -> None:
-	exit_code, _, _ = run_cli(["package", "install", str(TEST_DATA_PATH / "testdependency5_2-0.opsi"), "--setup-where-installed"])
+def test_package_installation_with_action_request_setup(admin_service_client: ServiceClient) -> None:
+	admin_service_client.connect()
+	client_id = "pytest-setup-client.opsi.test"
+	other_product_id = "pytest-other-product"
+
+	# The lru_caches in package_helpers persist across run_cli invocations within this process
+	get_clients_from_depot.cache_clear()
+	get_product_on_clients.cache_clear()
+
+	# gimp2_1.0-1.opsi contains a setup script, which is required for --setup-where-installed
+	exit_code, _, _ = run_cli(["package", "install", str(TEST_DATA_PATH / "gimp2_1.0-1.opsi")])
 	assert exit_code == 0
 
-	exit_code, _, _ = run_cli(["package", "uninstall", "testdependency5"])
+	with tmp_clients(admin_service_client, [OpsiClient(id=client_id)]), tmp_product(admin_service_client, other_product_id):
+		# Mark both products as installed on the client (client without depot assignment belongs to the configserver)
+		pocs = [
+			ProductOnClient(
+				clientId=client_id,
+				productId="gimp2",
+				productType="LocalbootProduct",
+				installationStatus="installed",
+				actionRequest="none",
+			),
+			ProductOnClient(
+				clientId=client_id,
+				productId=other_product_id,
+				productType="LocalbootProduct",
+				installationStatus="installed",
+				actionRequest="none",
+			),
+		]
+		admin_service_client.jsonrpc("productOnClient_createObjects", params=[pocs])
+
+		exit_code, _, _ = run_cli(["package", "install", str(TEST_DATA_PATH / "gimp2_1.0-1.opsi"), "--force", "--setup-where-installed"])
+		assert exit_code == 0
+
+		action_requests = {
+			poc.productId: poc.actionRequest
+			for poc in admin_service_client.jsonrpc("productOnClient_getObjects", [[], {"clientId": client_id}])
+		}
+		# Only the product installed from the package may receive the setup action request
+		assert action_requests["gimp2"] == "setup"
+		assert action_requests[other_product_id] in (None, "none")
+
+	exit_code, _, _ = run_cli(["package", "uninstall", "gimp2"])
 	assert exit_code == 0
 
 
