@@ -81,7 +81,10 @@ def list_product_client_state(where: tuple[str, ...], all: bool) -> None:
 	else:
 		filter = {}
 
-	filter_client_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("clientId", None)), type="OpsiClient")  # ty: ignore[unresolved-attribute]
+	requested_client_ids = get_separated_entries(filter.pop("clientId", None))
+	filter_client_ids = service_connection.host_getIdents(id=requested_client_ids, type="OpsiClient")  # ty: ignore[unresolved-attribute]
+	if requested_client_ids and not filter_client_ids:
+		raise ValueError(f"No clients found matching the supplied clientId filter: {', '.join(requested_client_ids)}.")
 	filter_product_ids = get_separated_entries(filter.pop("productId", None))
 
 	tmp_list = get_separated_entries(filter.pop("installationStatus", None))

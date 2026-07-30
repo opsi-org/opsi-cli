@@ -7,10 +7,12 @@ import json
 import time
 from contextlib import ExitStack
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 from opsi.opsi.service.client import ServiceClient
 
+from plugins.datastore.python.product_client_state import list_product_client_state
 from tests.utils import run_cli, stdout_into_list, tmp_client, tmp_product
 
 CLIENT_ID_1 = "pytest-client1.test.tld"
@@ -188,6 +190,18 @@ def _test_product_property_list_stress_test(admin_service_client: ServiceClient)
 
 
 # ===================================(PRODUCT-CLIENT-STATE LIST || TESTS)============================================
+def test_list_product_client_state_nonexistent_client() -> None:
+	service_client = MagicMock()
+	service_client.host_getIdents.return_value = []
+
+	with patch("plugins.datastore.python.product_client_state.get_service_connection", return_value=service_client):
+		with pytest.raises(ValueError, match="No clients found matching the supplied clientId filter: nonexistent.test.invalid"):
+			list_product_client_state.callback(("clientId=nonexistent.test.invalid",), False)
+
+	service_client.productOnDepot_getIdents.assert_not_called()
+	service_client.productOnClient_getObjects.assert_not_called()
+
+
 @pytest.mark.opsi_service
 def test_list_product_client_state(admin_service_client: ServiceClient) -> None:
 	with (
