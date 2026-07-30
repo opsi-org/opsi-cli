@@ -12,13 +12,14 @@ import json
 import re
 from pathlib import Path
 from typing import Any, Literal
-from unittest.mock import patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 from opsi.opsi.service.client import ServiceClient
 from opsi.opsi.service.model.object import NetbootProduct, ProductOnClient
 
-from plugins.client_action.python.client_action_worker import ClientActionArgs
+from plugins.client_action.python.client_action_worker import ClientActionArgs, ClientActionWorker, NoClientsSelected
+from plugins.client_action.python.set_action_request_worker import SetActionRequestWorker
 
 from .utils import run_cli, tmp_client, tmp_host_group, tmp_product, tmp_product_group
 
@@ -83,6 +84,32 @@ def test_ClientActionArgs() -> None:
 		ClientActionArgs(exclude_ip_addresses="invalid_ip")
 	with pytest.raises(ValueError):
 		ClientActionArgs(where_action_request="invalid_request")
+
+
+def test_where_action_request_does_not_expand_empty_client_selection() -> None:
+	service_client = MagicMock()
+	empty_group = MagicMock(id="empty-group", parentGroupId=None)
+	service_client.jsonrpc.side_effect = [[], [empty_group], []]
+
+	with patch("plugins.client_action.python.client_action_worker.get_service_connection", return_value=service_client):
+		with pytest.raises(NoClientsSelected, match="No clients selected"):
+			ClientActionWorker(ClientActionArgs(client_groups="empty-group", where_action_request="setup"), default_all=False)
+
+	assert (
+		call("productOnClient_getIdents", ["tuple", {"clientId": [], "actionRequest": ["setup"]}])
+		not in service_client.jsonrpc.call_args_list
+	)
+
+
+def test_empty_product_group_does_not_select_all_products() -> None:
+	worker = SetActionRequestWorker.__new__(SetActionRequestWorker)
+	worker.service = MagicMock()
+	worker.service.jsonrpc.side_effect = [[MagicMock(id="empty-group")], []]
+
+	with pytest.raises(ValueError, match="does not contain any products"):
+		worker.determine_products(product_groups_string="empty-group")
+
+	assert call("product_getObjects", [[], {"type": "LocalbootProduct", "id": None}]) not in worker.service.jsonrpc.call_args_list
 
 
 @pytest.mark.opsi_service

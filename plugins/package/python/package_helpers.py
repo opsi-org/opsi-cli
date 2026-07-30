@@ -193,6 +193,8 @@ def check_locked_products(
 	"""
 	Checks if the packages are locked on the depots and raises an error if any are found.
 	"""
+	if not depot_objects:
+		raise ValueError("No depots found matching the supplied depot selection.")
 	product_list = [opsi_package.product.id for opsi_package in path_to_opsipackage_dict.values()]
 	depot_id_list = [depot.id for depot in depot_objects]
 	locked_products = service_client.jsonrpc(

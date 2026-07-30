@@ -16,6 +16,7 @@ from opsi.opsi.service.client import ServiceClient
 from opsi.opsi.service.model.object import Product, ProductOnClient, ProductOnDepot, ProductProperty, ProductPropertyState
 
 from plugins.package.python.package_helpers import (
+	check_locked_products,
 	handle_action_request,
 	initialize_opsi_package,
 	map_and_sort_packages,
@@ -23,6 +24,15 @@ from plugins.package.python.package_helpers import (
 )
 
 TEST_DATA_PATH = Path("tests/test_data/plugins/package")
+
+
+def test_check_locked_products_rejects_empty_depot_selection() -> None:
+	service_client = MagicMock()
+
+	with pytest.raises(ValueError, match="No depots found"):
+		check_locked_products(service_client, [], {})
+
+	service_client.jsonrpc.assert_not_called()
 
 
 def test_map_and_sort_packages() -> None:

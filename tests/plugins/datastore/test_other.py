@@ -202,6 +202,19 @@ def test_list_product_client_state_nonexistent_client() -> None:
 	service_client.productOnClient_getObjects.assert_not_called()
 
 
+def test_list_product_client_state_without_depot_mapping_skips_depot_products() -> None:
+	service_client = MagicMock()
+	service_client.host_getIdents.return_value = [CLIENT_ID_1]
+	service_client.configState_getClientToDepotserver.return_value = []
+	service_client.productOnClient_getObjects.return_value = []
+
+	with patch("plugins.datastore.python.product_client_state.get_service_connection", return_value=service_client):
+		with pytest.raises(ValueError, match="No product-client-states found matching the filtering criteria"):
+			list_product_client_state.callback((f"clientId={CLIENT_ID_1}",), False)
+
+	service_client.productOnDepot_getIdents.assert_not_called()
+
+
 @pytest.mark.opsi_service
 def test_list_product_client_state(admin_service_client: ServiceClient) -> None:
 	with (

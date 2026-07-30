@@ -149,6 +149,8 @@ class ClientActionWorker:
 					self.clients.update(self.client_ids_from_depot(depot))
 
 		if args.where_action_request:
+			if not self.clients:
+				raise NoClientsSelected("No clients selected")
 			self.clients = {
 				poc[2]
 				for poc in self.service.jsonrpc(

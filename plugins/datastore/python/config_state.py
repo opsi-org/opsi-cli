@@ -161,7 +161,10 @@ def _fetch_and_filter_config_states(where: tuple[str, ...], all_flag: bool, no_d
 	else:
 		filter_dict = {}
 
-	final_object_ids = service_connection.host_getIdents(id=get_separated_entries(filter_dict.pop("objectId", None)))  # ty: ignore[unresolved-attribute]
+	requested_object_ids = get_separated_entries(filter_dict.pop("objectId", None))
+	final_object_ids = service_connection.host_getIdents(id=requested_object_ids)  # ty: ignore[unresolved-attribute]
+	if requested_object_ids and not final_object_ids:
+		raise ValueError(f"No clients found matching the supplied objectId filter: {', '.join(requested_object_ids)}.")
 	final_config_ids = get_separated_entries(filter_dict.pop("configId", None))
 	final_depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # ty: ignore[unresolved-attribute]
 
@@ -257,9 +260,10 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	updates = process_set(set, attributes=attributes_set)
 
 	# Get separated IDs from filter
-	object_ids = service_connection.host_getIdents(  # ty: ignore[unresolved-attribute]
-		id=get_separated_entries(filter.get("objectId", None) if filter.get("objectId") != "*" else None)
-	)
+	requested_object_ids = get_separated_entries(filter.get("objectId", None) if filter.get("objectId") != "*" else None)
+	object_ids = service_connection.host_getIdents(id=requested_object_ids)  # ty: ignore[unresolved-attribute]
+	if requested_object_ids and not object_ids:
+		raise ValueError(f"No clients found matching the supplied objectId filter: {', '.join(requested_object_ids)}.")
 
 	config_id = get_separated_entries(filter.get("configId", None))
 

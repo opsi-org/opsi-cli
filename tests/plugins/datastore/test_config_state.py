@@ -4,12 +4,14 @@
 # License: AGPL-3.0-only
 
 from typing import Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 from opsi.opsi.service.client import ServiceClient
 from opsi.opsi.service.model.object import BoolConfig, ConfigState, OpsiClient, UnicodeConfig
 
 from opsicli.io import read_input_csv
+from plugins.datastore.python.config_state import _fetch_and_filter_config_states, update_config_state
 from tests.utils import assert_error_contains, get_depot_id, run_cli, tmp_clients, tmp_config_states, tmp_configs
 
 TEST_CLIENTS: list[OpsiClient] = [
@@ -76,6 +78,30 @@ TEST_CONFIG_STATES: list[ConfigState] = [
 		values=TEST_CONFIGS[1].defaultValues,
 	),
 ]
+
+
+def test_config_state_list_unmatched_object_id_stops_before_unfiltered_rpcs() -> None:
+	service_client = MagicMock()
+	service_client.host_getIdents.return_value = []
+
+	with patch("plugins.datastore.python.config_state.get_service_connection", return_value=service_client):
+		with pytest.raises(ValueError, match="No clients found matching the supplied objectId filter"):
+			_fetch_and_filter_config_states(("objectId=nonexistent.test.invalid",), all_flag=False)
+
+	service_client.config_getObjects.assert_not_called()
+	service_client.configState_getObjects.assert_not_called()
+
+
+def test_config_state_update_unmatched_object_id_stops_before_unfiltered_rpcs() -> None:
+	service_client = MagicMock()
+	service_client.host_getIdents.return_value = []
+
+	with patch("plugins.datastore.python.config_state.get_service_connection", return_value=service_client):
+		with pytest.raises(ValueError, match="No clients found matching the supplied objectId filter"):
+			update_config_state.callback(("objectId=nonexistent.test.invalid", "configId=opsi.check.enabled"), ("values=true",))
+
+	service_client.config_getObjects.assert_not_called()
+	service_client.configState_getValues.assert_not_called()
 
 
 def _values_to_str(values: str | bool | list[Any] | None) -> str:
@@ -316,7 +342,7 @@ def _values_to_str(values: str | bool | list[Any] | None) -> str:
 			],
 			[],
 			[],
-			("No config-states found matching the filtering criteria.",),
+			("No clients found matching the supplied objectId filter: invalid.",),
 		),
 		# invalid configId"
 		(

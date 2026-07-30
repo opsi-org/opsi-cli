@@ -103,15 +103,16 @@ def list_product_client_state(where: tuple[str, ...], all: bool) -> None:
 	if "none" in filter_action_requests and "not_installed" in filter_installation_statuses:
 		depot_to_clients = get_depot_to_clients(service_connection, filter_client_ids)
 		depot_ids = list(depot_to_clients)
-		for pod in service_connection.productOnDepot_getIdents(returnType="dict", productId=filter_product_ids, depotId=depot_ids):  # ty: ignore[unresolved-attribute]
-			for client_id in depot_to_clients.get(pod["depotId"], []):
-				product_states[f"{client_id};{pod['productId']}"] = ProductClientState(
-					productType=pod["productType"],
-					productId=pod["productId"],
-					clientId=client_id,
-					installationStatus="not_installed",
-					actionRequest="none",
-				)
+		if depot_ids:
+			for pod in service_connection.productOnDepot_getIdents(returnType="dict", productId=filter_product_ids, depotId=depot_ids):  # ty: ignore[unresolved-attribute]
+				for client_id in depot_to_clients.get(pod["depotId"], []):
+					product_states[f"{client_id};{pod['productId']}"] = ProductClientState(
+						productType=pod["productType"],
+						productId=pod["productId"],
+						clientId=client_id,
+						installationStatus="not_installed",
+						actionRequest="none",
+					)
 
 	for poc in service_connection.productOnClient_getObjects(  # ty: ignore[unresolved-attribute]
 		clientId=filter_client_ids,

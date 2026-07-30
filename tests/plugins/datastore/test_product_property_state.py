@@ -3,9 +3,12 @@
 # All rights reserved.
 # License: AGPL-3.0-only
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 from opsi.opsi.service.client import ServiceClient
 
+from plugins.datastore.python.product_property_state import list_product_property_state
 from tests.utils import run_cli, stdout_into_list, tmp_client, tmp_product
 
 CLIENT_ID_1 = "pytest-client1.test.tld"
@@ -15,6 +18,18 @@ PRODUCT_ID_1 = "pytest-product1"
 PRODUCT_ID_2 = "pytest-product2"
 PROPERTY_ID_1 = "property1"
 PROPERTY_ID_2 = "property2"
+
+
+def test_product_property_state_unmatched_object_id_stops_before_unfiltered_rpcs() -> None:
+	service_client = MagicMock()
+	service_client.host_getIdents.return_value = []
+
+	with patch("plugins.datastore.python.product_property_state.get_service_connection", return_value=service_client):
+		with pytest.raises(ValueError, match="No clients found matching the supplied objectId filter"):
+			list_product_property_state.callback(("objectId=nonexistent.test.invalid",), False)
+
+	service_client.productProperty_getObjects.assert_not_called()
+	service_client.productPropertyState_getObjects.assert_not_called()
 
 
 @pytest.mark.opsi_service

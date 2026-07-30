@@ -169,7 +169,10 @@ def list_product_property_state(where: tuple[str, ...], all: bool) -> None:
 		filter = {}
 
 	# get separated Id's from filter
-	final_object_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("objectId", None)))  # ty: ignore[unresolved-attribute]
+	requested_object_ids = get_separated_entries(filter.pop("objectId", None))
+	final_object_ids = service_connection.host_getIdents(id=requested_object_ids)  # ty: ignore[unresolved-attribute]
+	if requested_object_ids and not final_object_ids:
+		raise ValueError(f"No clients found matching the supplied objectId filter: {', '.join(requested_object_ids)}.")
 	final_product_ids = get_separated_entries(filter.pop("productId", None))
 	final_property_ids = get_separated_entries(filter.pop("propertyId", None))
 	final_depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # ty: ignore[unresolved-attribute]

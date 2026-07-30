@@ -11,7 +11,7 @@ import re
 import shutil
 from pathlib import Path
 from typing import Any, Callable, Optional
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from opsi.logging import get_logger
@@ -29,7 +29,7 @@ from opsi.opsi.service.model.object import (
 )
 from opsi.testing.helper import http_test_server
 
-from plugins.package.python import combine_products
+from plugins.package.python import combine_products, complete_installed_products
 from plugins.package.python.package_helpers import get_clients_from_depot, get_product_on_clients
 
 from .conftest import get_admin_service_client
@@ -72,6 +72,21 @@ CONTROL_TOML = BASE_CONTROL_TOML.format("Test Product", PRODUCT_VERSION)
 CONTROL_TOML_CUSTOM = BASE_CONTROL_TOML.format("Test Product Custom Config", NEW_PRODUCT_VERSION)
 
 logger = get_logger("opsi-cli-test")
+
+
+def test_complete_installed_products_unmatched_depot_does_not_query_all_depots() -> None:
+	ctx = MagicMock()
+	ctx.params = {"depots": "nonexistent.test.invalid"}
+	service_client = MagicMock()
+
+	with (
+		patch("plugins.package.python.get_service_connection", return_value=service_client),
+		patch("plugins.package.python.get_depot_objects", return_value=[]),
+		patch("plugins.package.python.get_product_on_depot_objects") as get_products,
+	):
+		assert complete_installed_products(ctx, MagicMock(), "") == []
+
+	get_products.assert_not_called()
 
 
 @pytest.fixture

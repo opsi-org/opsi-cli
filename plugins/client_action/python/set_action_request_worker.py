@@ -160,6 +160,8 @@ class SetActionRequestWorker(ClientActionWorker):
 				exclude_products.extend(self.product_ids_from_group(group))
 
 		logger.info("List of excluded products: %s", exclude_products)
+		if (products_string or product_groups_string) and not products:
+			raise ValueError("The specified product selection does not contain any products.")
 
 		product_objects: list[Product] = self.service.jsonrpc(
 			"product_getObjects", [[], {"type": None if include_netboot else "LocalbootProduct", "id": products or None}]
