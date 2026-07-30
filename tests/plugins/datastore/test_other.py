@@ -196,7 +196,7 @@ def test_list_product_client_state_nonexistent_client() -> None:
 
 	with patch("plugins.datastore.python.product_client_state.get_service_connection", return_value=service_client):
 		with pytest.raises(ValueError, match="No clients found matching the supplied clientId filter: nonexistent.test.invalid"):
-			list_product_client_state.callback(("clientId=nonexistent.test.invalid",), False)
+			list_product_client_state.callback(("clientId=nonexistent.test.invalid",), False)  # ty: ignore[call-non-callable]
 
 	service_client.productOnDepot_getIdents.assert_not_called()
 	service_client.productOnClient_getObjects.assert_not_called()
@@ -210,7 +210,7 @@ def test_list_product_client_state_without_depot_mapping_skips_depot_products() 
 
 	with patch("plugins.datastore.python.product_client_state.get_service_connection", return_value=service_client):
 		with pytest.raises(ValueError, match="No product-client-states found matching the filtering criteria"):
-			list_product_client_state.callback((f"clientId={CLIENT_ID_1}",), False)
+			list_product_client_state.callback((f"clientId={CLIENT_ID_1}",), False)  # ty: ignore[call-non-callable]
 
 	service_client.productOnDepot_getIdents.assert_not_called()
 

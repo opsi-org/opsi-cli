@@ -26,7 +26,7 @@ def test_product_property_state_unmatched_object_id_stops_before_unfiltered_rpcs
 
 	with patch("plugins.datastore.python.product_property_state.get_service_connection", return_value=service_client):
 		with pytest.raises(ValueError, match="No clients found matching the supplied objectId filter"):
-			list_product_property_state.callback(("objectId=nonexistent.test.invalid",), False)
+			list_product_property_state.callback(("objectId=nonexistent.test.invalid",), False)  # ty: ignore[call-non-callable]
 
 	service_client.productProperty_getObjects.assert_not_called()
 	service_client.productPropertyState_getObjects.assert_not_called()
