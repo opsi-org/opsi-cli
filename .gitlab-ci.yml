@@ -33,9 +33,9 @@ pytest-windows:
   script:
     - $Env:UV_PYTHON_INSTALL_DIR = "c:\\uv\\python"
     - $Env:UV_CACHE_DIR = "c:\\uv\\cache"
-    - $Env:UV_PYTHON = "3.14-x86"
+    - $Env:UV_PYTHON = "3.14-x86_64"
     - $Env:UV_PYTHON_PREFERENCE = "only-managed"
-    - $Env:RUSTUP_TOOLCHAIN = "stable-i686-pc-windows-msvc"
+    - $Env:RUSTUP_TOOLCHAIN = "stable-x86_64-pc-windows-msvc"
     - uv sync --frozen
     - uv run pytest --tb=short -x -o junit_family=xunit2 --junitxml=testreport_windows.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - Rename-Item -Path .coverage -NewName coverage_windows
