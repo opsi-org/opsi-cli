@@ -1,6 +1,6 @@
 [project]
 name = "opsi-cli"
-version = "4.3.44.9"
+version = "4.3.44.10"
 description = "opsi command line interface"
 readme = "README.md"
 license = "AGPL-3.0-only"
