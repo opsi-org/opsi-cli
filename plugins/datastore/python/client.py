@@ -39,7 +39,7 @@ def _get_clients_from_input() -> list[dict[str, str | datetime | None]]:
 	return clients
 
 
-def _get_clients_from_service(filter: dict[str, str], attributes: list[str]) -> list[dict[str, str | datetime | None]]:
+def _get_clients_from_service(filter: dict[str, str | list[str]], attributes: list[str]) -> list[dict[str, str | datetime | None]]:
 	service_connection = get_service_connection()
 	clients = []
 	for client in service_connection.host_getObjects(attributes=attributes, type="OpsiClient", **filter):  # ty: ignore[unresolved-attribute]
@@ -160,8 +160,8 @@ def edit_clients(where: tuple[str, ...]) -> None:
 )
 @dry_run_capable
 def update_clients(where: tuple[str, ...], set: tuple[str, ...]) -> None:
-	filter = process_where(where, attributes=CLIENT_METADATA.attributes, operation="update")
-	updates: dict[str, str] = process_set(set, attributes=CLIENT_METADATA.attributes)
+	filter: dict[str, str | list[str]] = process_where(where, attributes=CLIENT_METADATA.attributes, operation="update")
+	updates: dict[str, str | list[str]] = process_set(set, attributes=CLIENT_METADATA.attributes)
 
 	selected_attributes = get_selected_attributes(
 		attributes=CLIENT_METADATA.attributes,

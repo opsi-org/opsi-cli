@@ -8,11 +8,17 @@ from typing import Any, Literal
 
 import rich_click as click
 from opsi.logging import get_logger
-from opsi.opsi.service.model.object import BoolConfig, UnicodeConfig
-from opsi.opsi.service.model.type import to_bool_list
+from opsi.opsi.service.model.object import (
+	BoolConfig,
+	BoolProductProperty,
+	UnicodeConfig,
+	UnicodeProductProperty,
+)
+from opsi.opsi.service.model.type import to_bool_list, to_string_list
 
 from opsicli.cli_helpers import OPSICLIGroup
-from opsicli.io import Attribute, get_separated_entries
+from opsicli.config import config
+from opsicli.io import Attribute, OutputType, console_print, get_separated_entries
 from opsicli.opsiservice import ServiceClient
 from plugins.datastore.data.help_texts import DATASTORE_HELP as info
 from plugins.datastore.data.messages import Error, Help
@@ -21,6 +27,47 @@ logger = get_logger("opsicli")
 
 __version__ = "0.1.0"
 __description__ = "This command can be used to manage data and objects"
+
+
+def _parse_value(raw_val: str, operator: str) -> str | list[str]:
+	raw_val: str = raw_val.strip()
+	has_separator: bool = config.input_separator in raw_val
+	separate_input_enabled: bool = not (config.no_input_separation)
+
+	if has_separator:
+		console_print(Help.multiple_values_input(), output_type=OutputType.MESSAGE)
+
+	if has_separator and separate_input_enabled:
+		if operator != "=":
+			raise ValueError(Error.invalid_operator_for_type_list(operator))
+		return get_separated_entries(value=raw_val)
+
+	if operator == "=":
+		return raw_val
+
+	return operator + raw_val
+
+
+def _append_value(current: str | list[str], new: str | list[str]) -> list[str]:
+	if isinstance(current, str):
+		current = [current]
+	if isinstance(new, str):
+		new = [new]
+
+	return current + new
+
+
+def _validate_input(
+	attribute: Attribute, value: str | list[str], updates: dict[str, str | list[str]], general_help: str
+) -> str | list[str]:
+
+	if attribute.validator:
+		try:
+			value = attribute.validator(value)
+		except Exception:
+			raise ValueError(Error.invalid_value_set(attribute.id, str(value), general_help))
+
+	return value
 
 
 def create_client_depot_mapping(service_connection: ServiceClient, object_ids: list[str] | None = None) -> dict[str, str]:
@@ -43,26 +90,28 @@ def get_depot_to_clients(service_connection: ServiceClient, client_ids: list[str
 
 def process_where(
 	where: tuple[str, ...], *, attributes: list[Attribute], operation: Literal["list", "update", "unlock", "purge", "delete"] = "list"
-) -> dict[str, str]:
+) -> dict[str, str | list[str]]:
 	where = where or tuple()
 	condition_pattern = re.compile(r"^([a-zA-Z_]+)\s*(<|<=|=|>=|>)\s*(.*)$")
 	available_attributes_by_id = {attr.id: attr for attr in attributes}
 	general_help = Help.general_where(available_attributes=attributes)
-	filter: dict[str, str] = {}
+	filter: dict[str, str | list[str]] = {}
+
 	for condition in where:
 		condition = condition.strip()
 		match = condition_pattern.match(condition)
 		if not match:
 			raise ValueError(Error.invalid_condition_where(condition, general_help))
+
 		attr, operator, value = match.groups()
 		attribute = available_attributes_by_id.get(attr)
-		# validate the attribute
-		if not attribute:
-			raise ValueError(Error.invalid_attribute_where(attr, value, general_help))
+		value = _parse_value(value, operator)
 
-		# combine values if the attribute name is equal // "objectId=jenkins1" "objectId=jenkins2" => {"objectId": "jenkin1, jenkin2"})
+		if not attribute:
+			raise ValueError(Error.invalid_attribute_where(attr, str(value), general_help))
+
 		if attr in filter:
-			filter[attr] = f"{filter[attr]}, {value}"
+			filter[attr] = _append_value(filter[attr], value)
 		else:
 			filter[attr] = value
 
@@ -78,19 +127,20 @@ def process_where(
 	if missing_attributes:
 		missing_attr_str = ", ".join(missing_attributes)
 		raise ValueError(Error.missing_attribute(operation, missing_attr_str, general_help))
+
 	return filter
 
 
-def process_set(set: tuple[str, ...], *, attributes: list[Attribute]) -> dict[str, str]:
+def process_set(set: tuple[str, ...], *, attributes: list[Attribute]) -> dict[str, str | list[str]]:
 	set = set or tuple()
 	set_pattern: re.Pattern[str] = re.compile(r"^([a-zA -Z]+)\s*=\s*(.*)$")
-	attributes_by_id = {attr.id: attr for attr in attributes if not attr.identifier}  # attributes with identifier shouldn't be changed
+	attributes_by_id = {attr.id: attr for attr in attributes if not attr.identifier}  # identifying attributes shouldn't be changed
 	general_help = Help.general_set(available_attributes=list(attributes_by_id.values()))
 
 	if not set:
 		raise ValueError(Error.missing_set(general_help))
 
-	updates: dict[str, str] | dict[str, list[str]] | dict[str, list[bool]] = {}
+	updates: dict[str, str | list[str]] = {}
 
 	for assignment in set:
 		assignment = assignment.strip()
@@ -99,46 +149,43 @@ def process_set(set: tuple[str, ...], *, attributes: list[Attribute]) -> dict[st
 			raise ValueError(Error.invalid_condition_set(assignment, general_help))
 		attr, value = map(str.strip, match.groups())
 		attribute = attributes_by_id.get(attr)
+		value = _parse_value(value, operator="=")
+
 		if not attribute:
-			raise ValueError(Error.invalid_attribute_set(attr, value, general_help))
+			raise ValueError(Error.invalid_attribute_set(attr, str(value), general_help))
 
-		if attribute.validator:
-			try:
-				value = attribute.validator(value)
-			except Exception:
-				raise ValueError(Error.invalid_value_set(attr, value, general_help))
+		validated_value = _validate_input(attribute, value, updates, general_help)
 
-		# Combine values if the attribute name is equal // "objectId=jenkins1" "objectId=jenkins2" => {"objectId": "jenkin1, jenkin2"})
-		if updates.get(attr):
-			updates[attr] = f"{updates[attr]}, {value}"
+		if attr in updates:
+			updates[attr] = _append_value(updates[attr], validated_value)
 		else:
-			updates[attr] = value
+			updates[attr] = validated_value
 
 	return updates
 
 
-def validate_against_possible_values(val: str, obj: BoolConfig | UnicodeConfig) -> list[str] | list[bool]:
-	values = get_separated_entries(val)
+def validate_against_possible_values(
+	val: str | list[str], obj: BoolConfig | BoolProductProperty | UnicodeConfig | UnicodeProductProperty
+) -> list[str] | list[bool]:
 	possible_values: list[str] = obj.possibleValues or []
 
-	if isinstance(obj, BoolConfig):
-		if len(values) > 1:
-			raise ValueError(Error.validation_bool_single(obj.id, possible_values))
-		if values[0].lower() not in ["false", "true", "0", "1"]:
-			raise ValueError(Error.validation_bool_invalid(values[0], obj.id, possible_values))
-		return to_bool_list(values)
-
-	elif isinstance(obj, UnicodeConfig):
-		if not obj.multiValue and len(values) > 1:
-			raise ValueError(Error.validation_unicode_multi(obj.id, possible_values))
-		if not obj.editable and values[0] not in possible_values:
-			raise ValueError(Error.validation_unicode_invalid(values[0], obj.id, possible_values))
-		return values
-
-	return []
+	if isinstance(obj, BoolConfig | BoolProductProperty):
+		if not isinstance(val, str):
+			raise ValueError(Error.not_a_single_value(val, obj))
+		if val.lower() not in ["false", "true", "0", "1"]:
+			raise ValueError(Error.not_a_possible_value(val, obj))
+		return to_bool_list(val)
+	else:
+		if not isinstance(val, str) and not obj.multiValue:
+			raise ValueError(Error.not_a_single_value(val, obj))
+		if not obj.editable and val not in possible_values:
+			raise ValueError(Error.not_a_possible_value(val, obj))
+		return to_string_list(val)
 
 
-def filter_by_attribute_values(data: list[dict[str, Any]], filter: dict[str, str], attributes: list[Attribute]) -> list[dict[str, Any]]:
+def filter_by_attribute_values(
+	data: list[dict[str, Any]], filter: dict[str, str | list[str]], attributes: list[Attribute]
+) -> list[dict[str, Any]]:
 	"""
 	Filters a list of dictionaries based on specific attribute values.
 

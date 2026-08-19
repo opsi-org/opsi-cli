@@ -9,7 +9,7 @@ import rich_click as click
 from opsi.logging import get_logger
 
 from opsicli.decorators import mutually_exclusive
-from opsicli.io import get_separated_entries, write_output
+from opsicli.io import write_output
 from opsicli.opsiservice import ServiceClient, get_service_connection
 from plugins.datastore.data.help_texts import PRODUCT_PROPERTY_STATE_HELP as info
 from plugins.datastore.data.messages import Error
@@ -21,7 +21,11 @@ logger = get_logger("opsicli")
 
 
 def _get_default_property_states(
-	service_connection: ServiceClient, object_ids: list[str], product_ids: list[str], property_ids: list[str], filter: dict[str, str]
+	service_connection: ServiceClient,
+	object_ids: str | list[str],
+	product_ids: str | list[str],
+	property_ids: str | list[str],
+	filter: dict[str, str | list[str]],
 ) -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
 	bool_attr = [filter.pop("multiValue", None), filter.pop("editable", None)]
 	normalized_bool_attr = [
@@ -69,9 +73,9 @@ def _get_default_property_states(
 def _update_default_states(
 	service_connection: ServiceClient,
 	client_to_depot: dict[str, str],
-	depot_ids: list[str],
-	product_ids: list[str],
-	property_ids: list[str],
+	depot_ids: str | list[str],
+	product_ids: str | list[str],
+	property_ids: str | list[str],
 	default_states: dict[str, dict[str, dict[str, dict[str, Any]]]],
 ) -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
 
@@ -103,9 +107,9 @@ def _update_default_states(
 
 def _update_depot_states(
 	service_connection: ServiceClient,
-	object_ids: list[str],
-	product_ids: list[str],
-	property_ids: list[str],
+	object_ids: str | list[str],
+	product_ids: str | list[str],
+	property_ids: str | list[str],
 	depot_states: dict[str, dict[str, dict[str, dict[str, Any]]]],
 ) -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
 
@@ -150,25 +154,24 @@ def list_product_property_state(where: tuple[str, ...], all: bool) -> None:
 
 	if not all:
 		filter = process_where(where, attributes=attributes, operation="list")
-		filter = {k: (v if v != "*" else "") for k, v in filter.items()}  # process wildcards
 	else:
-		filter = {}
+		filter: dict[str, str | list[str]] = {}
 
 	# get separated Id's from filter
-	final_object_ids = service_connection.host_getIdents(id=get_separated_entries(filter.pop("objectId", None)))  # ty: ignore[unresolved-attribute]
-	final_product_ids = get_separated_entries(filter.pop("productId", None))
-	final_property_ids = get_separated_entries(filter.pop("propertyId", None))
-	final_depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # ty: ignore[unresolved-attribute]
+	object_ids = service_connection.host_getIdents(id=filter.pop("objectId", None))  # ty: ignore[unresolved-attribute]
+	product_ids: str | list[str] = filter.pop("productId", [])
+	property_ids: str | list[str] = filter.pop("propertyId", [])
+	depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # ty: ignore[unresolved-attribute]
 
 	# map clients to depots
-	client_to_depot = create_client_depot_mapping(service_connection, final_object_ids)
+	client_to_depot = create_client_depot_mapping(service_connection, object_ids)
 
 	# get default states and update them
-	default_states = _get_default_property_states(service_connection, final_object_ids, final_product_ids, final_property_ids, filter)
-	depot_states = _update_default_states(
-		service_connection, client_to_depot, final_depot_ids, final_product_ids, final_property_ids, default_states
+	default_states: dict[str, dict[str, dict[str, dict[str, Any]]]] = _get_default_property_states(
+		service_connection, object_ids, product_ids, property_ids, filter
 	)
-	client_states = _update_depot_states(service_connection, final_object_ids, final_product_ids, final_property_ids, depot_states)
+	depot_states = _update_default_states(service_connection, client_to_depot, depot_ids, product_ids, property_ids, default_states)
+	client_states = _update_depot_states(service_connection, object_ids, product_ids, property_ids, depot_states)
 
 	# prepare data for writing output
 	flattened_list: list[dict[str, Any]] = [

@@ -8,7 +8,7 @@ from typing import Literal
 import pytest
 
 from opsicli.io import Attribute
-from plugins.datastore.python.common import process_set, process_where
+from plugins.datastore.python.common import _append_value, _parse_value, process_set, process_where
 
 
 @pytest.mark.parametrize(
@@ -25,7 +25,7 @@ from plugins.datastore.python.common import process_set, process_where
 			("id = client1.test.invalid", "name >= test-client"),
 			[Attribute(id="id", identifier=True), Attribute(id="name")],
 			"update",
-			{"id": "client1.test.invalid", "name": "test-client"},
+			{"id": "client1.test.invalid", "name": ">=test-client"},
 			None,
 		),
 		(
@@ -141,3 +141,75 @@ def test_process_set(
 		return
 
 	assert process_set(set_values, attributes=attributes) == expected
+
+
+@pytest.mark.parametrize(
+	("current_values", "new_values", "expected"),
+	(
+		# str + str
+		(
+			"val_1",
+			"val_2",
+			["val_1", "val_2"],
+		),
+		# str + list[str]
+		(
+			"val_1",
+			["val_2", "val_3"],
+			["val_1", "val_2", "val_3"],
+		),
+		# list[str] + str
+		(
+			["val_1", "val_3"],
+			"val_2",
+			["val_1", "val_3", "val_2"],
+		),
+		# list[str] + list[str]
+		(
+			["val_1", "val_3"],
+			["val_2", "val_4"],
+			["val_1", "val_3", "val_2", "val_4"],
+		),
+	),
+)
+def test_append_value(
+	current_values: str | list[str],
+	new_values: str | list[str],
+	expected: list[str],
+) -> None:
+
+	assert _append_value(current_values, new_values) == expected
+
+
+@pytest.mark.parametrize(
+	("raw_val", "operator", "expected", "hint", "error"),
+	(
+		# single values
+		("val", "=", "val", None, None),
+		("val", "<=", "<=val", None, None),
+		("val", "<", "<val", None, None),
+		("val", ">", ">val", None, None),
+		("val", ">=", ">=val", None, None),
+		("val", "=", "val", None, None),
+		("val", "<=", "<=val", None, None),
+		("val", "<", "<val", None, None),
+		("val", ">", ">val", None, None),
+		("val", ">=", ">=val", None, None),
+		# multiple values
+		("val1, val2", "=", ["val1", "val2"], None, None),
+		("val1, val2", "<=", ["<=val1", "<=val2"], None, True),
+	),
+)
+def test_parse_value(raw_val: str, operator: str, expected: str | list[str], hint: bool | None, error: bool | None, capsys) -> None:
+
+	if error:
+		with pytest.raises(ValueError):
+			_parse_value(raw_val, operator)
+	else:
+		assert _parse_value(raw_val, operator) == expected
+		captured = capsys.readouterr()
+		err = captured.err
+		if hint:
+			assert "Your input contains a comma" in err
+			assert "If this is a single value and not a list, use the `--no-input-separation`." in err
+			assert "To use a different list separator" in err

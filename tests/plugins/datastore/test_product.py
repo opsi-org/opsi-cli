@@ -94,7 +94,7 @@ class TestProductUnlock:
 			_lock_products_manually(admin_service_client)
 			_verify_lock_status(admin_service_client, is_locked=True)
 			_unlock_products_with_cli(
-				filter=["--where", f"productId={PRODUCT_ID_1}, {PRODUCT_ID_2}"],
+				filter=["--where", f"productId={PRODUCT_ID_1}", "--where", f"productId={PRODUCT_ID_2}"],
 				expected_output=[PRODUCT_ID_1, PRODUCT_ID_2],
 			)
 			_verify_lock_status(admin_service_client, is_locked=False)
@@ -148,7 +148,7 @@ class TestProductUnlock:
 			_lock_products_manually(admin_service_client)
 			_verify_lock_status(admin_service_client, is_locked=True)
 			_unlock_products_with_cli(
-				filter=["--where", f"productId={PRODUCT_ID_1}, {PRODUCT_ID_2}"],
+				filter=["--where", f"productId={PRODUCT_ID_1}", "--where", f"productId={PRODUCT_ID_2}"],
 				expected_output=[PRODUCT_ID_1, PRODUCT_ID_2],
 			)
 			_verify_lock_status(admin_service_client, is_locked=False)

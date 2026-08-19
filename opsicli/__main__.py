@@ -12,7 +12,8 @@ Main command
 import builtins
 import re
 import sys
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from click.exceptions import Abort, ClickException
 from click.shell_completion import CompletionItem
@@ -183,6 +184,7 @@ def quiet_print(*args: Any, **kwargs: Any) -> None:
 @config.get_click_option("edit_format")
 @config.get_click_option("editor")
 @config.get_click_option("input_separator")
+@config.get_click_option("no_input_separation", is_flag=True)
 @config.get_click_option("metadata", long_option="--metadata/--no-metadata")
 @config.get_click_option("header", long_option="--header/--no-header")
 @config.get_click_option("timezone", help=f"{config.get_description('timezone')}")
