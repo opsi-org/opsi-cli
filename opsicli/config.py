@@ -14,11 +14,12 @@ from __future__ import annotations
 import os
 import platform
 import sys
+from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import InitVar, asdict, dataclass
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 DEFAULT_SESSION_LIFETIME = 900
 COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE" in os.environ
@@ -29,9 +30,9 @@ if COMPLETION_MODE:
 else:
 	import rich_click as click
 
-from click.core import ParameterSource  # noqa: E402
-from click.shell_completion import CompletionItem, ShellComplete, add_completion_class, split_arg_string  # noqa: E402
-from opsi.logging import (  # noqa: E402
+from click.core import ParameterSource
+from click.shell_completion import CompletionItem, ShellComplete, add_completion_class, split_arg_string
+from opsi.logging import (
 	DEFAULT_COLORED_FORMAT,
 	DEFAULT_FORMAT,
 	LOG_ESSENTIAL,
@@ -40,9 +41,9 @@ from opsi.logging import (  # noqa: E402
 	logging_config,
 	secret_filter,
 )
-from ruamel.yaml import YAML  # noqa: E402
+from ruamel.yaml import YAML
 
-from opsicli.types import (  # noqa: E402
+from opsicli.types import (
 	Attributes,
 	Bool,
 	Directory,
@@ -252,7 +253,7 @@ class ConfigItem:
 		return dict_
 
 	def __repr__(self) -> str:
-		return f"<ConfigItem name={self.name!r}, default={self.default}, value={repr(self.value)}>"
+		return f"<ConfigItem name={self.name!r}, default={self.default}, value={self.value!r}>"
 
 
 def get_config_items() -> list[ConfigItem]:
@@ -278,14 +279,14 @@ def get_config_items() -> list[ConfigItem]:
 			type=OutputFormat,
 			group="IO",
 			default=OutputFormat.AUTO.value,
-			description=f"Set output format. Possible values are: {str(OutputFormat.possible_values_for_description)}.",
+			description=f"Set output format. Possible values are: {OutputFormat.possible_values_for_description!s}.",
 		),
 		ConfigItem(
 			name="edit_format",
 			type=EditFormat,
 			group="IO",
 			default=EditFormat.AUTO.value,
-			description=f"Set edit format. Possible values are: {str(EditFormat.possible_values_for_description)}.",
+			description=f"Set edit format. Possible values are: {EditFormat.possible_values_for_description!s}.",
 		),
 		ConfigItem(
 			name="output_file",
@@ -323,6 +324,15 @@ def get_config_items() -> list[ConfigItem]:
 			description=(
 				"Separator for multiple input values. "
 				"This is used when multiple values are provided as a single string, for example in environment variables or config files. "
+			),
+		),
+		ConfigItem(
+			name="no_input_separation",
+			type=Bool,
+			group="IO",
+			default=False,
+			description=(
+				"Do not separate the input. Default is set to `false`. The separator can be configured using '--input-separator' (defaults to ',')."
 			),
 		),
 		ConfigItem(

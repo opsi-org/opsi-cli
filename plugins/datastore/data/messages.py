@@ -1,6 +1,15 @@
 from dataclasses import dataclass
 
 import click
+from opsi.opsi.service.model.object import (
+	BoolConfig,
+	BoolProductProperty,
+	UnicodeConfig,
+	UnicodeProductProperty,
+)
+from rich.console import Console
+from rich.panel import Panel
+from rich.theme import Theme
 
 from opsicli.decorators import static_methods
 from opsicli.io import Attribute
@@ -20,6 +29,30 @@ OPERATION_VERB_MAP = {
 	"unlock": Verb(doing="Unlocking", done="unlocked"),
 }
 
+custom_theme = Theme(
+	{
+		"json.key": "bold blue",
+		"json.str": "bold green",
+		"json.number": "bold green",
+		"json.bool_true": "bold green",
+		"json.bool_false": "bold red",
+		"json.null": "bold green",
+	}
+)
+
+
+def _get_formatted_value_and_object(
+	value: str | list[str], obj: BoolConfig | BoolProductProperty | UnicodeConfig | UnicodeProductProperty
+) -> tuple[str, str]:
+	formatted_value = ", ".join(value) if isinstance(value, list) else value
+
+	console = Console(theme=custom_theme, color_system="truecolor")
+	with console.capture() as capture:
+		console.print_json(data=obj.__dict__)
+	ansi_json_str = capture.get()
+
+	return (formatted_value, ansi_json_str)
+
 
 class StatusTemplates:
 	SUCCESS = "{action} {object_name}s was successful. Here are the {result} {object_name}s."
@@ -30,8 +63,16 @@ class StatusTemplates:
 class ErrorTemplates:
 	NO_MATCH = "No {object_name}s found matching the filtering criteria."
 	NO_INPUT = "No input data provided for updating {object_name}s. Please set --input-file."
+	NO_LISTS = "Invalid format for '{attribute}': Lists are not supported for this field."
 	NOT_INTERACTIVE = "Editing is not possible in non-interactive mode."
-
+	INVALID_OPERATOR_FOR_TYPE_LIST = (
+		"Invalid operator `[red bold]{operator}[/]` for lists.\n\n"
+		"[bold]Option 1:[/] Use `[bold blue]=[/]` and prepend operators directly to the values.\n"
+		"[bold]Option 2:[/] Use multiple `<attribute><operator><value>` statements.\n\n"
+		"[bold]Examples:[/bold]\n"
+		'  [dim]1. --where[/dim] [bold]"attribute[blue]=[/][green]<=[/]value[dim],[/][green]>=[/]value"[/]\n'
+		'  [dim]2. --where[/dim] [bold]"attribute[green]<=[/]value"[/]  [dim]--where[/dim] [bold]"attribute[green]>=[/]value"[/]'
+	)
 	INVALID_CONDITION_WHERE = (
 		"Invalid filter condition: `[bold red]{condition}[/]`.\n"
 		"Expected format: `[bold]<attribute><operator><value>[/]`.\n"
@@ -64,11 +105,8 @@ class ErrorTemplates:
 		"{general_help}"
 	)
 	MISSING_SET = "No attributes specified to update.\n\n{general_help}"
-
-	VAL_BOOL_SINGLE = "Only one value is allowed for `[bold][blue]{obj_id}[/][/]`.\n{formatted_possible}"
-	VAL_BOOL_INVALID = "Invalid value `[bold red]{value}[/]` for `[bold][blue]{obj_id}[/][/]`.\n{formatted_possible}"
-	VAL_UNICODE_MULTI = "Multiple values are not allowed for `[bold][blue]{obj_id}[/][/]`.\n{formatted_possible}"
-	VAL_UNICODE_INVALID = "Invalid value `[bold red]{value}[/]` for `[bold][blue]{obj_id}[/][/]`.\n{formatted_possible}"
+	NOT_A_SINGLE_VALUE = "Multiple values `[bold red]{value}[/]` are not allowed for the given [bold][blue]{obj_type}[/][/]:\n\n{obj}"
+	NOT_A_POSSIBLE_VALUE = "Invalid value `[bold red]{value}[/]` for the given [bold][blue]{obj_type}[/][/]:\n\n{obj}"
 
 
 class HelpTemplates:
@@ -76,6 +114,11 @@ class HelpTemplates:
 		'Use one or more `[bold]--where "<attribute><operator><value>"[/]` options to define the filter.\n\nAvailable attributes are:\n'
 	)
 	GENERAL_SET = 'Use one or more `[bold]--set "<attribute>=<value>"[/]` options to define the attributes to update.\n\n'
+	MULTIPLE_VALUES_INPUT = (
+		"Your input contains a comma `[bold yellow],[/]`.\n\n"
+		"If this is a single value and not a list, use the `[bold yellow]--no-input-separation[/]` flag.\n"
+		"To use a different list separator, set `[bold][yellow]--input-separator[/] <separator>[/]`"
+	)
 
 
 def _get_operation_context() -> tuple[str, str]:
@@ -93,8 +136,8 @@ def _get_operation_context() -> tuple[str, str]:
 	if object_name is None or command_name is None:
 		raise ValueError(
 			"Incomplete context data found:\n"
-			f"  object_name={repr(object_name)}\n"
-			f"  command_name={repr(command_name)}\n\n"
+			f"  object_name={object_name!r}\n"
+			f"  command_name={command_name!r}\n\n"
 			"Verify that the Click command structure is correctly defined."
 		)
 	return object_name, command_name
@@ -161,6 +204,12 @@ class Error:
 	def not_interactive() -> str:
 		return ErrorTemplates.NOT_INTERACTIVE
 
+	def no_lists(attribute: str) -> str:
+		return ErrorTemplates.NO_LISTS.format(attribute=attribute)
+
+	def invalid_operator_for_type_list(operator: str) -> str:
+		return ErrorTemplates.INVALID_OPERATOR_FOR_TYPE_LIST.format(operator=operator)
+
 	def invalid_value_where(available_values: list[str], attribute: str, value: str | list[str]) -> str:
 		help_msg = ErrorTemplates.INVALID_VALUE_WHERE.format(attribute=attribute, value=value)
 		for entry in available_values:
@@ -191,21 +240,20 @@ class Error:
 	def missing_set(general_help: str) -> str:
 		return ErrorTemplates.MISSING_SET.format(general_help=general_help)
 
-	def validation_bool_single(obj_id: str, possible_values: list[str] | None) -> str:
-		formatted_possible = _format_possible_values(possible_values)
-		return ErrorTemplates.VAL_BOOL_SINGLE.format(obj_id=obj_id, formatted_possible=formatted_possible)
+	def not_a_single_value(
+		value: str | list[str],
+		obj: BoolConfig | BoolProductProperty | UnicodeConfig | UnicodeProductProperty,
+	) -> str:
 
-	def validation_bool_invalid(value: str, obj_id: str, possible_values: list[str] | None) -> str:
-		formatted_possible = _format_possible_values(possible_values)
-		return ErrorTemplates.VAL_BOOL_INVALID.format(value=value, obj_id=obj_id, formatted_possible=formatted_possible)
+		formatted_value, ansi_json_str = _get_formatted_value_and_object(value, obj)
+		return ErrorTemplates.NOT_A_SINGLE_VALUE.format(value=formatted_value, obj_type=type(obj).__name__, obj=ansi_json_str)
 
-	def validation_unicode_multi(obj_id: str, possible_values: list[str] | None) -> str:
-		formatted_possible = _format_possible_values(possible_values)
-		return ErrorTemplates.VAL_UNICODE_MULTI.format(obj_id=obj_id, formatted_possible=formatted_possible)
-
-	def validation_unicode_invalid(value: str, obj_id: str, possible_values: list[str] | None) -> str:
-		formatted_possible = _format_possible_values(possible_values)
-		return ErrorTemplates.VAL_UNICODE_INVALID.format(value=value, obj_id=obj_id, formatted_possible=formatted_possible)
+	def not_a_possible_value(
+		value: str | list[str],
+		obj: BoolConfig | BoolProductProperty | UnicodeConfig | UnicodeProductProperty,
+	) -> str:
+		formatted_value, ansi_json_str = _get_formatted_value_and_object(value, obj)
+		return ErrorTemplates.NOT_A_POSSIBLE_VALUE.format(value=formatted_value, obj_type=type(obj).__name__, obj=ansi_json_str)
 
 
 @static_methods
@@ -228,7 +276,7 @@ class Help:
 				color = "green"
 			elif attr.identifier:
 				color = "cyan"
-			type_str = f"({str(attr.data_type)})".ljust(max_type_len + 2)
+			type_str = f"({attr.data_type!s})".ljust(max_type_len + 2)
 			general_help += f"  [bold {color}]{attr.id.ljust(max_attr_len)}[/]  {type_str}  {attr.description}\n"
 		return general_help
 
@@ -241,6 +289,9 @@ class Help:
 		max_attr_len = max(len(attr.id) for attr in available_attributes)
 		max_type_len = max(len(str(attr.data_type)) for attr in available_attributes)
 		for attr in available_attributes:
-			type_str = f"({str(attr.data_type)})".ljust(max_type_len + 2)
+			type_str = f"({attr.data_type!s})".ljust(max_type_len + 2)
 			general_help += f"  [bold white]{attr.id.ljust(max_attr_len)}[/]  {type_str}  {attr.description}\n"
 		return general_help
+
+	def multiple_values_input() -> str:
+		return Panel.fit(HelpTemplates.MULTIPLE_VALUES_INPUT, title="[yellow]Hint", border_style="yellow", title_align="left")

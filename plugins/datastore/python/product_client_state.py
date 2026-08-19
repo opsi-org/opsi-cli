@@ -4,7 +4,7 @@
 # License: AGPL-3.0-only
 
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import cast
 
 import rich_click as click
@@ -14,7 +14,7 @@ from opsi.opsi.service.model.type import to_action_request, to_installation_stat
 
 from opsicli.config import config
 from opsicli.decorators import dry_run_capable, mutually_exclusive
-from opsicli.io import OutputType, console_print, get_separated_entries, read_input, write_output
+from opsicli.io import OutputType, console_print, read_input, write_output
 from opsicli.opsiservice import get_service_connection
 from plugins.datastore.data.help_texts import PRODUCT_CLIENT_STATE_HELP as info
 from plugins.datastore.data.messages import Error, Status
@@ -67,23 +67,21 @@ def list_product_client_state(where: tuple[str, ...], all: bool) -> None:
 	metadata = COMMAND_METADATA["datastore_product-client-state_list"]
 	if not all:
 		filter = process_where(where, attributes=metadata.attributes, operation="list")
-		filter = {k: (v if v != "*" else "") for k, v in filter.items()}  # process wildcards
 	else:
 		filter = {}
 
-	requested_client_ids = get_separated_entries(filter.pop("clientId", None))
-	filter_client_ids = service_connection.host_getIdents(id=requested_client_ids, type="OpsiClient")  # ty: ignore[unresolved-attribute]
-	if requested_client_ids and not filter_client_ids:
-		raise ValueError(f"No clients found matching the supplied clientId filter: {', '.join(requested_client_ids)}.")
-	filter_product_ids = get_separated_entries(filter.pop("productId", None))
+	filter_client_ids = service_connection.host_getIdents(id=filter.pop("clientId", None), type="OpsiClient")  # ty: ignore[unresolved-attribute]
+	filter_product_ids = filter.pop("productId", None)
 
-	tmp_list = get_separated_entries(filter.pop("installationStatus", None))
+	tmp_list = filter.pop("intallationStatus", None)
+	tmp_list = [tmp_list] if isinstance(tmp_list, str) else tmp_list
 	if not tmp_list:
 		filter_installation_statuses = ["installed", "not_installed", "unknown"]
 	else:
 		filter_installation_statuses = [to_installation_status(item) for item in tmp_list]
 
-	tmp_list = get_separated_entries(filter.pop("actionRequest", None))
+	tmp_list = filter.pop("actionRequest", None)
+	tmp_list = [tmp_list] if isinstance(tmp_list, str) else tmp_list
 	if not tmp_list:
 		filter_action_requests = ["setup", "uninstall", "update", "always", "once", "custom", "none"]
 	else:
@@ -146,7 +144,7 @@ def apply_product_client_state() -> None:
 		raise ValueError(Error.no_input())
 
 	pcs = []
-	modification_time = datetime.now(tz=timezone.utc).replace(microsecond=0)
+	modification_time = datetime.now(tz=UTC).replace(microsecond=0)
 	for product_state in data:
 		pcs.append(
 			ProductClientState(

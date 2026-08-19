@@ -10,7 +10,7 @@ from opsi.logging import get_logger
 from opsi.opsi.service.model.object import Config, ConfigState
 
 from opsicli.decorators import dry_run_capable, mutually_exclusive
-from opsicli.io import Metadata, OutputType, console_print, get_separated_entries, write_output
+from opsicli.io import Metadata, OutputType, console_print, write_output
 from opsicli.opsiservice import ServiceClient, config, get_service_connection
 from plugins.datastore.data.help_texts import CONFIG_STATE_HELP as info
 from plugins.datastore.data.messages import Error, Status
@@ -18,7 +18,6 @@ from plugins.datastore.data.messages import Error, Status
 from .common import (
 	cli,
 	create_client_depot_mapping,
-	filter_by_attribute_values,
 	process_set,
 	process_where,
 	validate_against_possible_values,
@@ -29,7 +28,7 @@ logger = get_logger("opsicli")
 
 
 def _get_default_config_states(
-	service_connection: ServiceClient, object_ids: list[str], config_ids: list[str], filter: dict[str, str]
+	service_connection: ServiceClient, object_ids: str | list[str], config_ids: str | list[str], filter: dict[str, str | list[str]]
 ) -> dict[str, dict[str, dict[str, Any]]]:
 	bool_attr = [filter.pop("multiValue", None), filter.pop("editable", None)]
 	normalized_bool_attr = [
@@ -69,8 +68,8 @@ def _get_default_config_states(
 def _update_default_states(
 	service_connection: ServiceClient,
 	client_to_depot: dict[str, str],
-	depot_ids: list[str],
-	config_ids: list[str],
+	depot_ids: str | list[str],
+	config_ids: str | list[str],
 	default_states: dict[str, dict[str, dict[str, Any]]],
 ) -> dict[str, dict[str, dict[str, Any]]]:
 
@@ -98,8 +97,8 @@ def _update_default_states(
 
 def _update_depot_states(
 	service_connection: ServiceClient,
-	object_ids: list[str],
-	config_ids: list[str],
+	object_ids: str | list[str],
+	config_ids: str | list[str],
 	depot_states: dict[str, dict[str, dict[str, Any]]],
 ) -> dict[str, dict[str, dict[str, Any]]]:
 
@@ -159,32 +158,30 @@ def _fetch_and_filter_config_states(where: tuple[str, ...], all_flag: bool, no_d
 	service_connection = get_service_connection()
 	attributes = COMMAND_METADATA["datastore_config-state_list"].attributes
 
+	filter: dict[str, str | list[str]] = {}
 	if not all_flag:
-		filter_dict = process_where(where, attributes=attributes)
-		filter_dict = {k: (v if v != "*" else "") for k, v in filter_dict.items()}
-	else:
-		filter_dict = {}
+		filter = process_where(where, attributes=attributes)
 
-	requested_object_ids = get_separated_entries(filter_dict.pop("objectId", None))
-	final_object_ids = service_connection.host_getIdents(id=requested_object_ids)  # ty: ignore[unresolved-attribute]
-	if requested_object_ids and not final_object_ids:
-		raise ValueError(f"No clients found matching the supplied objectId filter: {', '.join(requested_object_ids)}.")
-	final_config_ids = get_separated_entries(filter_dict.pop("configId", None))
-	final_depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # ty: ignore[unresolved-attribute]
+	object_ids = service_connection.host_getIdents(id=filter.pop("objectId", None))  # ty: ignore[unresolved-attribute]
+	config_ids = service_connection.config_getIdents(id=filter.pop("configId", None))  # ty: ignore[unresolved-attribute]
+	depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # ty: ignore[unresolved-attribute]
+
+	if not (object_ids and config_ids):
+		raise ValueError(Error.no_match())
 
 	client_to_depot = create_client_depot_mapping(service_connection)
-	default_states = _get_default_config_states(service_connection, final_object_ids, final_config_ids, filter_dict)
-	depot_states = _update_default_states(service_connection, client_to_depot, final_depot_ids, final_config_ids, default_states)
-	client_states = _update_depot_states(service_connection, final_object_ids, final_config_ids, depot_states)
+	default_states = _get_default_config_states(service_connection, object_ids, config_ids, filter)
+	depot_states = _update_default_states(service_connection, client_to_depot, depot_ids, config_ids, default_states)
+	client_states = _update_depot_states(service_connection, object_ids, config_ids, depot_states)
 
 	flattened_list = [config_state for config_map in client_states.values() for config_state in config_map.values()]
 
-	result = filter_by_attribute_values(data=flattened_list, attributes=attributes, filter=filter_dict)
+	# result = filter_by_attribute_values(data=flattened_list, attributes=attributes, filter=filter)
 
 	if no_defaults:
-		result = [entry for entry in result if entry.get("origin") != "default"]
+		flattened_list = [entry for entry in flattened_list if entry.get("origin") != "default"]
 
-	return result
+	return flattened_list
 
 
 @cli.group(name="config-state", short_help=info.GENERAL.short, help=info.GENERAL.long)
@@ -203,9 +200,6 @@ def config_state() -> None:
 @mutually_exclusive("where", "all")
 def list_config_state(where: tuple[str, ...], all: bool) -> None:
 	result = _fetch_and_filter_config_states(where, all_flag=all)
-
-	if not result:
-		raise ValueError(Error.no_match())
 
 	write_output(
 		data=sorted(result, key=lambda x: x["objectId"]),
@@ -234,30 +228,27 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	updates = process_set(set, attributes=attributes_set)
 
 	# Get separated IDs from filter
-	requested_object_ids = get_separated_entries(filter.get("objectId", None) if filter.get("objectId") != "*" else None)
-	object_ids = service_connection.host_getIdents(id=requested_object_ids)  # ty: ignore[unresolved-attribute]
-	if requested_object_ids and not object_ids:
-		raise ValueError(f"No clients found matching the supplied objectId filter: {', '.join(requested_object_ids)}.")
+	object_ids = service_connection.host_getIdents(id=filter.get("objectId", None))  # ty: ignore[unresolved-attribute]
 
-	config_id = get_separated_entries(filter.get("configId", None))
+	config_id = filter.get("configId", None)
 
-	if len(config_id) > 1 or "*" in config_id:
+	if not isinstance(config_id, str):
 		raise ValueError("Only one configId without wildcard is allowed.")
-
-	config_obj = service_connection.config_getObjects(id=config_id[0] or [])  # ty: ignore[unresolved-attribute]
+	else:
+		config_obj = service_connection.config_getObjects(id=config_id)[0]  # ty: ignore[unresolved-attribute]
 
 	# Validate values
-	validated_values = validate_against_possible_values(updates["values"], config_obj[0])
+	validated_values = validate_against_possible_values(updates["values"], config_obj)
 	current_values = service_connection.configState_getValues(config_id, object_ids)  # ty: ignore[unresolved-attribute]
 
 	# Create config-state objects
-	updated_config_states = _create_config_states(object_ids, config_obj[0].id, validated_values)
+	updated_config_states = _create_config_states(object_ids, config_id, validated_values)
 
 	# Empty result
 	if not updated_config_states:
 		raise ValueError(Error.no_match())
 
-	output_data = _create_output_data(config_obj[0], updated_config_states, current_values)
+	output_data = _create_output_data(config_obj, updated_config_states, current_values)
 	_update_database(output_data, updated_config_states, metadata)
 
 

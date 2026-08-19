@@ -723,7 +723,7 @@ def test_config_state_list(
 			],
 			None,
 			None,
-			("Possible values for:"),
+			("Invalid value `wrong` for the given"),
 		),
 		# BoolConfig // multiple values
 		(
@@ -742,7 +742,7 @@ def test_config_state_list(
 			],
 			None,
 			None,
-			("Only one value is allowed for ", "Possible values are:"),
+			("Multiple values `wrong, more_wrong`", "are not allowed for the given BoolConfig:"),
 		),
 		# UnicodeConfig // wrong value
 		(
@@ -761,7 +761,7 @@ def test_config_state_list(
 			],
 			None,
 			None,
-			("Possible values for:"),
+			("Invalid value `wrong` for the given"),
 		),
 		# UnicodeConfig // not multiValue
 		(
@@ -780,7 +780,7 @@ def test_config_state_list(
 			],
 			None,
 			None,
-			("Multiple values are not allowed for ", "Possible values are:"),
+			("Multiple values `bonidepot.uib.local, bonifax.uib.local`", "are not allowed for the given UnicodeConfig:"),
 		),
 		# Missing configId
 		(

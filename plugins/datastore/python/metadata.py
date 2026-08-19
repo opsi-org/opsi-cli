@@ -243,7 +243,7 @@ is_default = Attribute(
 	id="isDefault",
 	description="Indicates if values are default.",
 	identifier=False,
-	data_type="str",
+	data_type="bool",
 	selected=False,
 	validator=lambda val: to_bool(val),
 )
