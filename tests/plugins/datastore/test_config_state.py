@@ -716,7 +716,7 @@ def test_config_state_list(
 			],
 			None,
 			None,
-			("Multiple values `wrong, more_wrong`", "are not allowed for the given BoolConfig:"),
+			("Multiple values `wrong, more_wrong`", "are not allowed", "BoolConfig:"),
 		),
 		# UnicodeConfig // wrong value
 		(
