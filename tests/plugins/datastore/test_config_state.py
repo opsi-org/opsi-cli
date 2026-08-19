@@ -780,7 +780,7 @@ def test_config_state_list(
 			],
 			None,
 			None,
-			("Multiple values `bonidepot.uib.local, bonifax.uib.local`", "are not allowed for the given UnicodeConfig:"),
+			("Multiple values `bonidepot.uib.local, bonifax.uib.local`", "are not allowed", "UnicodeConfig:"),
 		),
 		# Missing configId
 		(
