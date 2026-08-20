@@ -10,11 +10,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from opsi.opsi.service.client import ServiceClient
 
-<<<<<<< HEAD
 from plugins.datastore.python.product_client_state import list_product_client_state
 from tests.conftest import admin_service_client
-=======
->>>>>>> [fix] Determine depotId in expected_error
 from tests.utils import get_depot_id, run_cli, stdout_into_list, tmp_client, tmp_product
 
 CLIENT_ID_1 = "pytest-client1.test.tld"
@@ -23,11 +20,8 @@ CLIENT_ID_2 = "pytest-client2.test.tld"
 PRODUCT_ID_1 = "pytest-product1"
 PRODUCT_ID_2 = "pytest-product2"
 
-<<<<<<< HEAD
 DEPOT_ID = get_depot_id(admin_service_client())
 
-=======
->>>>>>> [fix] Determine depotId in expected_error
 # ===============
 # HELP FUNCTIONS
 # ===============
