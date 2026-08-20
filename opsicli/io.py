@@ -563,11 +563,11 @@ def write_output(
 
 	if output_format in (OutputFormat.TABLE, OutputFormat.CSV, OutputFormat.KEY_VALUE):
 		stt = get_structure_type(data)
-		if stt == dict:
+		if stt is dict:
 			data = [data]
 			stt = list[dict]
 		if not metadata:
-			if stt == list:
+			if stt is list:
 				metadata = Metadata(attributes=[Attribute(id="value0")])
 			elif stt == list[list]:
 				metadata = Metadata(attributes=[Attribute(id=f"value{idx}") for idx in range(len(data[0]))])
