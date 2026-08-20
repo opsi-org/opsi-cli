@@ -231,11 +231,8 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 
 	# Get separated IDs from filter
 	object_ids = service_connection.host_getIdents(id=filter.get("objectId", None))  # ty: ignore[unresolved-attribute]
-<<<<<<< HEAD
 	if not object_ids:
 		raise ValueError(f"No clients found matching the supplied objectId filter: {filter['objectId']}.")
-=======
->>>>>>> 338d3da87e31c2d0286fa05770afc733c2b13ae0
 
 	config_id = filter.get("configId", None)
 
