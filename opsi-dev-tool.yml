@@ -58,4 +58,4 @@ jenkins-test:
   PRODUCTS: opsi-cli,opsi-cli,opsi-cli,opsi-cli,opsi-cli
   SNAPSHOT: patched
   PROPERTIES: {}
-  SYSTEMS: winx64,winx86,linux,macos
+  SYSTEMS: winx64,linux,macos
