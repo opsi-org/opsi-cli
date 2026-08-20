@@ -12,13 +12,14 @@ import json
 import re
 from pathlib import Path
 from typing import Any, Literal
-from unittest.mock import patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 from opsi.opsi.service.client import ServiceClient
 from opsi.opsi.service.model.object import NetbootProduct, ProductOnClient
 
-from plugins.client_action.python.client_action_worker import ClientActionArgs
+from plugins.client_action.python.client_action_worker import ClientActionArgs, ClientActionWorker, NoClientsSelected
+from plugins.client_action.python.set_action_request_worker import SetActionRequestWorker
 
 from .utils import run_cli, tmp_client, tmp_host_group, tmp_product, tmp_product_group
 
@@ -83,6 +84,32 @@ def test_ClientActionArgs() -> None:
 		ClientActionArgs(exclude_ip_addresses="invalid_ip")
 	with pytest.raises(ValueError):
 		ClientActionArgs(where_action_request="invalid_request")
+
+
+def test_where_action_request_does_not_expand_empty_client_selection() -> None:
+	service_client = MagicMock()
+	empty_group = MagicMock(id="empty-group", parentGroupId=None)
+	service_client.jsonrpc.side_effect = [[], [empty_group], []]
+
+	with patch("plugins.client_action.python.client_action_worker.get_service_connection", return_value=service_client):
+		with pytest.raises(NoClientsSelected, match="No clients selected"):
+			ClientActionWorker(ClientActionArgs(client_groups="empty-group", where_action_request="setup"), default_all=False)
+
+	assert (
+		call("productOnClient_getIdents", ["tuple", {"clientId": [], "actionRequest": ["setup"]}])
+		not in service_client.jsonrpc.call_args_list
+	)
+
+
+def test_empty_product_group_does_not_select_all_products() -> None:
+	worker = SetActionRequestWorker.__new__(SetActionRequestWorker)
+	worker.service = MagicMock()
+	worker.service.jsonrpc.side_effect = [[MagicMock(id="empty-group")], []]
+
+	with pytest.raises(ValueError, match="does not contain any products"):
+		worker.determine_products(product_groups_string="empty-group")
+
+	assert call("product_getObjects", [[], {"type": "LocalbootProduct", "id": None}]) not in worker.service.jsonrpc.call_args_list
 
 
 @pytest.mark.opsi_service
@@ -560,6 +587,58 @@ def test_where_action_request(admin_service_client: ServiceClient, where_action_
 		print(data)
 		client_ids = {item["clientId"] for item in data}
 		assert client_ids == expected_client_ids
+
+
+@pytest.mark.opsi_service
+def test_set_action_request_where_outdated_keeps_matching_action_request(admin_service_client: ServiceClient) -> None:
+	with (
+		tmp_client(admin_service_client, CLIENT1),
+		tmp_product(admin_service_client, PRODUCT1) as product1,
+	):
+		# outdated product on client with already set actionRequest=setup
+		poc = ProductOnClient(
+			clientId=CLIENT1,
+			productId=product1.id,
+			productType=product1.getType(),
+			productVersion="0",
+			packageVersion="0",
+			installationStatus="installed",
+			actionRequest="setup",
+			actionResult="",
+		)
+		admin_service_client.jsonrpc("productOnClient_createObjects", params=[[poc]])
+
+		poc_before = admin_service_client.jsonrpc(
+			"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1], "productId": [PRODUCT1]}]
+		)[0]
+		modification_time_before = poc_before.modificationTime
+
+		# where-outdated keeps already matching actionRequest untouched but includes it in summary output
+		cmd = [
+			"--output-format",
+			"json",
+			"client-action",
+			"--clients",
+			CLIENT1,
+			"set-action-request",
+			"--where-outdated",
+			"--products",
+			PRODUCT1,
+		]
+		exit_code, stdout, stderr = run_cli(cmd)
+		assert exit_code == 0
+		data = json.loads(stdout)
+		assert len(data) == 1
+		assert data[0]["clientId"] == CLIENT1
+		assert data[0]["productId"] == PRODUCT1
+		assert data[0]["actionRequest"] == "setup"
+		assert "No action requests were changed. Here are the matching ProductOnClient objects:" in " ".join(stderr.split())
+
+		poc_after = admin_service_client.jsonrpc(
+			"productOnClient_getObjects", params=[[], {"clientId": [CLIENT1], "productId": [PRODUCT1]}]
+		)[0]
+		assert poc_after.actionRequest == "setup"
+		assert poc_after.modificationTime == modification_time_before
 
 
 @pytest.mark.opsi_service

@@ -58,7 +58,7 @@ def get_depot_objects(service_client: ServiceClient, depots: str) -> list[OpsiDe
 
 
 @lru_cache(maxsize=100)
-def get_product_on_depot_objects(service_client: ServiceClient, depot_list: tuple) -> list[dict]:
+def get_product_on_depot_objects(service_client: ServiceClient, depot_list: tuple) -> list[ProductOnDepot]:
 	"""
 	This function makes a JSON-RPC call to the "productOnDepot_getObjects" with the depot list.
 	"""
@@ -193,6 +193,8 @@ def check_locked_products(
 	"""
 	Checks if the packages are locked on the depots and raises an error if any are found.
 	"""
+	if not depot_objects:
+		raise ValueError("No depots found matching the supplied depot selection.")
 	product_list = [opsi_package.product.id for opsi_package in path_to_opsipackage_dict.values()]
 	depot_id_list = [depot.id for depot in depot_objects]
 	locked_products = service_client.jsonrpc(
@@ -645,16 +647,14 @@ def initialize_opsi_package(
 	opsi_package.product_properties = product_properties
 	opsi_package.product_dependencies = product_dependencies
 
-	property_default_values = {
-		product_property.propertyId: product_property.defaultValues or [] for product_property in opsi_package.product_properties
-	}
+	properties_dict = {product_property.propertyId: product_property for product_property in opsi_package.product_properties}
 	if properties == "keep":
 		for product_property_state in service_client.jsonrpc(
 			"productPropertyState_getObjects",
 			[[], {"productId": opsi_package.product.id, "objectId": depot_id}],
 		):
-			property_default_values[product_property_state.propertyId] = product_property_state.values or []
-
+			properties_dict[product_property_state.propertyId].defaultValues = product_property_state.values or []
+		opsi_package.product_properties = list(properties_dict.values())
 	elif properties == "ask":
 		update_product_property_defaults_interactively({Path(product_on_depot.productId): opsi_package})  # using a  dummy path as key
 

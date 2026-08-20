@@ -20,10 +20,11 @@ import stat
 import string
 import sys
 from collections import defaultdict
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Iterator
+from typing import TYPE_CHECKING, Any
 
 from opsi.logging import get_logger, use_logging_config
 from opsi.process import run_command
@@ -66,7 +67,7 @@ def encrypt(cleartext: str) -> str:
 	for num, char in enumerate(cleartext):
 		key_c = key[num % len(key)]
 		cipher += chr((ord(char) + ord(key_c)) % 256)
-	return "{crypt}" + base64.urlsafe_b64encode(f"{key}:{cipher}".encode("utf-8")).decode("ascii")
+	return "{crypt}" + base64.urlsafe_b64encode(f"{key}:{cipher}".encode()).decode("ascii")
 
 
 def decrypt(cipher: str) -> str:
@@ -221,7 +222,7 @@ def get_opsi_cli_download_filename() -> str:
 	system = platform.system().lower()
 	machine = platform.machine().lower()
 	if system == "windows":
-		return "opsi-cli-windows-x86.exe"
+		return "opsi-cli-windows-x86_64.exe"
 	if system == "linux":
 		if machine == "aarch64":
 			return "opsi-cli-linux-arm64.run"

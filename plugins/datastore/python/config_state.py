@@ -162,8 +162,10 @@ def _fetch_and_filter_config_states(where: tuple[str, ...], all_flag: bool, no_d
 	if not all_flag:
 		filter = process_where(where, attributes=attributes)
 
-	object_ids = service_connection.host_getIdents(id=filter.pop("objectId", None))  # ty: ignore[unresolved-attribute]
-	config_ids = service_connection.config_getIdents(id=filter.pop("configId", None))  # ty: ignore[unresolved-attribute]
+	object_ids = service_connection.host_getIdents(id=filter.get("objectId", None))  # ty: ignore[unresolved-attribute]
+	if not object_ids:
+		raise ValueError(f"No clients found matching the supplied objectId filter: {filter['objectId']}.")
+	config_ids = service_connection.config_getIdents(id=filter.get("configId", None))  # ty: ignore[unresolved-attribute]
 	depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # ty: ignore[unresolved-attribute]
 
 	if not (object_ids and config_ids):
@@ -229,6 +231,8 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 
 	# Get separated IDs from filter
 	object_ids = service_connection.host_getIdents(id=filter.get("objectId", None))  # ty: ignore[unresolved-attribute]
+	if not object_ids:
+		raise ValueError(f"No clients found matching the supplied objectId filter: {filter['objectId']}.")
 
 	config_id = filter.get("configId", None)
 

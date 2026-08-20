@@ -10,16 +10,29 @@ test_package_helpers.py is a test file for the helpers functions used in the pac
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 from opsi.opsi.package import OpsiPackage
-from opsi.opsi.service.model.object import Product, ProductOnClient
+from opsi.opsi.service.client import ServiceClient
+from opsi.opsi.service.model.object import Product, ProductOnClient, ProductOnDepot, ProductProperty, ProductPropertyState
 
 from plugins.package.python.package_helpers import (
+	check_locked_products,
 	handle_action_request,
+	initialize_opsi_package,
 	map_and_sort_packages,
 	update_product_property_defaults_interactively,
 )
 
 TEST_DATA_PATH = Path("tests/test_data/plugins/package")
+
+
+def test_check_locked_products_rejects_empty_depot_selection() -> None:
+	service_client = MagicMock()
+
+	with pytest.raises(ValueError, match="No depots found"):
+		check_locked_products(service_client, [], {})
+
+	service_client.jsonrpc.assert_not_called()
 
 
 def test_map_and_sort_packages() -> None:
@@ -131,3 +144,43 @@ def test_handle_action_request() -> None:
 			]
 		],
 	)
+
+
+@pytest.mark.parametrize("properties", ["keep", "package"])
+def test_initialize_opsi_package(properties) -> None:
+	"""
+	Test the initialize_opsi_package function.
+	"""
+
+	def mock_jsonrpc(self, method: str, params: list | None = None) -> list:
+		if method == "productProperty_getObjects":
+			return [
+				ProductProperty(
+					productId="opsi-client-agent",
+					propertyId="allow_reboot",
+					defaultValues=[True],
+					editable=False,
+					productVersion="4.3.9.2",
+					packageVersion="2",
+				)
+			]
+		if method == "productPropertyState_getObjects":
+			return [ProductPropertyState(productId="opsi-client-agent", propertyId="allow_reboot", values=[False], objectId="foo.bar.baz")]
+		return [Product("dummy", productVersion="1.0", packageVersion="1")]
+
+	pod = ProductOnDepot(
+		productId="opsi-client-agent",
+		productType="LocalbootProduct",
+		productVersion="4.3.9.2",
+		packageVersion="2",
+		depotId="foo.bar.baz",
+	)
+	service_client = ServiceClient()
+	with patch("plugins.package.python.package_helpers.ServiceClient.jsonrpc", mock_jsonrpc):
+		opsi_package = initialize_opsi_package(service_client, pod, "foo.bar.baz", properties=properties)
+	if properties == "keep":
+		assert opsi_package.product_properties[0].propertyId == "allow_reboot"
+		assert opsi_package.product_properties[0].defaultValues == [False]
+	elif properties == "package":
+		assert opsi_package.product_properties[0].propertyId == "allow_reboot"
+		assert opsi_package.product_properties[0].defaultValues == [True]

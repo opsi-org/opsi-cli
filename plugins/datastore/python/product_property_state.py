@@ -14,7 +14,7 @@ from opsicli.opsiservice import ServiceClient, get_service_connection
 from plugins.datastore.data.help_texts import PRODUCT_PROPERTY_STATE_HELP as info
 from plugins.datastore.data.messages import Error
 
-from .common import cli, create_client_depot_mapping, filter_by_attribute_values, process_where
+from .common import cli, create_client_depot_mapping, process_where
 from .metadata import COMMAND_METADATA
 
 logger = get_logger("opsicli")
@@ -158,9 +158,12 @@ def list_product_property_state(where: tuple[str, ...], all: bool) -> None:
 		filter: dict[str, str | list[str]] = {}
 
 	# get separated Id's from filter
-	object_ids = service_connection.host_getIdents(id=filter.pop("objectId", None))  # ty: ignore[unresolved-attribute]
-	product_ids: str | list[str] = filter.pop("productId", [])
-	property_ids: str | list[str] = filter.pop("propertyId", [])
+	object_ids = service_connection.host_getIdents(id=filter.get("objectId", None))  # ty: ignore[unresolved-attribute]
+	if not object_ids:
+		raise ValueError(f"No clients found matching the supplied objectId filter: {filter['objectId']}.")
+
+	product_ids: str | list[str] = filter.get("productId", [])
+	property_ids: str | list[str] = filter.get("propertyId", [])
 	depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # ty: ignore[unresolved-attribute]
 
 	# map clients to depots
@@ -174,14 +177,13 @@ def list_product_property_state(where: tuple[str, ...], all: bool) -> None:
 	client_states = _update_depot_states(service_connection, object_ids, product_ids, property_ids, depot_states)
 
 	# prepare data for writing output
-	flattened_list: list[dict[str, Any]] = [
+	result: list[dict[str, Any]] = [
 		product_property_state
 		for product_map in client_states.values()  # objects
 		for property_map in product_map.values()  # products
 		for product_property_state in property_map.values()  # properties
 	]
 
-	result = filter_by_attribute_values(flattened_list, filter, attributes)
 	if not result:
 		raise ValueError(Error.no_match())
 

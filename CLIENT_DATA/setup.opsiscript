@@ -3,7 +3,7 @@ requiredOpsiScriptVersion >= "4.12.4.35"
 
 DefFunc install_windows() : void
 	Message "installing opsi-cli on windows"
-	ShellCall('"%ScriptPath%\opsi-cli-windows-x86.exe" -l 7 self install --location=system')
+	ShellCall('"%ScriptPath%\opsi-cli-windows-x86_64.exe" -l 7 self install --location=system')
 	if not(GetLastExitcode = "0")
 		LogError "opsi-cli self install failed"
 		IsFatalError "opsi-cli self install failed"
