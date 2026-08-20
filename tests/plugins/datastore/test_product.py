@@ -11,6 +11,10 @@ import pytest
 from opsi.opsi.service.client import ServiceClient
 
 from plugins.datastore.python.product_client_state import list_product_client_state
+<<<<<<< HEAD:tests/plugins/datastore/test_product.py
+=======
+from tests.conftest import admin_service_client
+>>>>>>> 338d3da87e31c2d0286fa05770afc733c2b13ae0:tests/plugins/datastore/test_product.py
 from tests.utils import get_depot_id, run_cli, stdout_into_list, tmp_client, tmp_product
 
 CLIENT_ID_1 = "pytest-client1.test.tld"
