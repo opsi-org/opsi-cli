@@ -3,7 +3,7 @@ requiredOpsiScriptVersion >= "4.12.4.35"
 
 DefFunc uninstall_windows() : void
 	Message "uninstalling opsi-cli on windows"
-	ShellCall('"%ScriptPath%\opsi-cli-windows-x86.exe" -l 6 self uninstall --location=system')
+	ShellCall('"%ScriptPath%\opsi-cli-windows-x86_64.exe" -l 6 self uninstall --location=system')
 	if not(GetLastExitcode = "0") or fileexists("c:\opsi.org\opsi-cli\opsi-cli.exe")
 		LogError "opsi-cli self uninstall failed"
 		IsFatalError "opsi-cli self uninstall failed"
