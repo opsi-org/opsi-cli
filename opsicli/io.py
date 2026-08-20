@@ -303,9 +303,9 @@ def prompt(
 	:return: The input from the user
 	"""
 	cls: type[Prompt | IntPrompt | FloatPrompt] = Prompt
-	if return_type == int:
+	if return_type is int:
 		cls = IntPrompt
-	elif return_type == float:
+	elif return_type is float:
 		cls = FloatPrompt
 	return cls.ask(
 		prompt=text,
