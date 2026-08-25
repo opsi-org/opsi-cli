@@ -220,6 +220,7 @@ def test_list_product_client_state_nonexistent_client() -> None:
 	service_client.productOnClient_getObjects.assert_not_called()
 
 
+@pytest.mark.opsi_service
 def test_list_product_client_state_without_depot_mapping_skips_depot_products() -> None:
 	service_client = MagicMock()
 	service_client.host_getIdents.return_value = [CLIENT_ID_1]
