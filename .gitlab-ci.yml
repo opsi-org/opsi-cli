@@ -179,6 +179,7 @@ linux-arm64-pyinstaller:
     - uv python install
     # PBS release 20260718 added hardening flags to sysconfig CFLAGS which GCC 6 on deb9 does not support
     - find "$(uv python dir)" -name "_sysconfigdata_*.py" -exec sed -i 's/-fstack-clash-protection//g' {} +
+    - uv pip install --only-binary=pyzmq pyzmq
     - uv sync --frozen
     - uv run opsi-dev-cli -l info pyinstaller build
     - ./ziplaunch/ziplaunch dist/opsicli ./ziplaunch_data/ziplaunch.ini opsi-cli
