@@ -1,8 +1,5 @@
 image: docker.uib.gmbh/opsi/dev/pybuilder:deb9
 
-variables:
-  UV_ONLY_BINARY: "pyzmq"
-
 stages:
   - test_python
   - build

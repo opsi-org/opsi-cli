@@ -59,6 +59,7 @@ opsi-cli = "opsicli.__main__:main"
 extra-index-url = ["https://pypi.uib.gmbh/simple"]
 index-strategy = "unsafe-best-match"
 package = true
+constraint-dependencies = ["pyzmq<27"]
 
 [tool.ruff]
 line-length = 140
