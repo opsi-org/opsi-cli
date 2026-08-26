@@ -1,5 +1,8 @@
 image: docker.uib.gmbh/opsi/dev/pybuilder:deb9
 
+variables:
+  UV_ONLY_BINARY: "pyzmq"
+
 stages:
   - test_python
   - build
@@ -88,7 +91,6 @@ pytest-linux:
     - uv python install
     # PBS release 20260718 added hardening flags to sysconfig CFLAGS which GCC 6 on deb9 does not support
     - find "$(uv python dir)" -name "_sysconfigdata_*.py" -exec sed -i 's/-fstack-clash-protection//g' {} +
-    - uv pip install --only-binary=pyzmq pyzmq
     - uv sync --frozen
     - uv run pytest --tb=short -x -o junit_family=xunit2 --junitxml=testreport_linux.xml --cov-append --cov opsicli --cov plugins --cov-report term --cov-report xml -v tests
     - mv .coverage coverage_linux
