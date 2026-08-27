@@ -4,7 +4,7 @@
 # License: AGPL-3.0-only
 
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from opsi.opsi.service.model.type import (
 	to_bool,
@@ -96,7 +96,7 @@ CLIENT_METADATA = Metadata(
 			identifier=False,
 			data_type="datetime",
 			selected=False,
-			validator=lambda val: to_opsi_timestamp(datetime.fromisoformat(val).astimezone(timezone.utc).replace(microsecond=0)),
+			validator=lambda val: to_opsi_timestamp(datetime.fromisoformat(val).astimezone(UTC).replace(microsecond=0)),
 		),
 		Attribute(
 			id="lastSeen",
@@ -104,7 +104,7 @@ CLIENT_METADATA = Metadata(
 			identifier=False,
 			data_type="datetime",
 			selected=True,
-			validator=lambda val: to_opsi_timestamp(datetime.fromisoformat(val).astimezone(timezone.utc).replace(microsecond=0)),
+			validator=lambda val: to_opsi_timestamp(datetime.fromisoformat(val).astimezone(UTC).replace(microsecond=0)),
 		),
 		Attribute(
 			id="systemUUID",

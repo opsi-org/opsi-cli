@@ -74,8 +74,7 @@ def client_logs(client: str, path: Path) -> None:
 	response = service_client.get(f"/file-transfer/{result.get('file_id')}", raw_response=True)
 	console_print(f"Writing log archive at {path}")
 	with open(path, "wb") as file_handle:
-		for chunk in response.iter_content(chunk_size=8192):
-			file_handle.write(chunk)
+		file_handle.writelines(response.iter_content(chunk_size=8192))
 
 
 class SupportPlugin(OPSICLIPlugin):

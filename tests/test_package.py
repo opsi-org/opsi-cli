@@ -9,8 +9,9 @@ test_package.py is a test file for the package plugin.
 
 import re
 import shutil
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -114,8 +115,8 @@ def test_product_source(tmp_path: Path, request: pytest.FixtureRequest) -> Path:
 
 def create_dir_and_write_files(
 	dir_path: Path,
-	control_file_content: Optional[str] = None,
-	control_toml_content: Optional[str] = None,
+	control_file_content: str | None = None,
+	control_toml_content: str | None = None,
 ) -> None:
 	dir_path.mkdir(parents=True, exist_ok=True)
 	if control_file_content is not None:

@@ -12,9 +12,8 @@ def test_get_runtime_info_edge_cases():
 	# No parent context
 	parent_cmd = click.Command(name="client")
 	parent_ctx = click.Context(parent_cmd)
-	with parent_ctx:
-		with pytest.raises(RuntimeError, match="needs to be called within a Click sub-command"):
-			_get_runtime_info()
+	with parent_ctx, pytest.raises(RuntimeError, match="needs to be called within a Click sub-command"):
+		_get_runtime_info()
 
 	# wrong or incomplete context
 	parent_cmd_unnamed = click.Command(name=None)
@@ -22,6 +21,5 @@ def test_get_runtime_info_edge_cases():
 	child_cmd_unnamed = click.Command(name="update")
 	child_ctx_unnamed = click.Context(child_cmd_unnamed, parent=parent_ctx_unnamed)
 
-	with child_ctx_unnamed:
-		with pytest.raises(ValueError, match="Incomplete context data found"):
-			_get_runtime_info()
+	with child_ctx_unnamed, pytest.raises(ValueError, match="Incomplete context data found"):
+		_get_runtime_info()

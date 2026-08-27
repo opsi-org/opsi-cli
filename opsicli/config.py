@@ -30,9 +30,9 @@ if COMPLETION_MODE:
 else:
 	import rich_click as click
 
-from click.core import ParameterSource  # noqa: E402
-from click.shell_completion import CompletionItem, ShellComplete, add_completion_class, split_arg_string  # noqa: E402
-from opsi.logging import (  # noqa: E402
+from click.core import ParameterSource
+from click.shell_completion import CompletionItem, ShellComplete, add_completion_class, split_arg_string
+from opsi.logging import (
 	DEFAULT_COLORED_FORMAT,
 	DEFAULT_FORMAT,
 	LOG_ESSENTIAL,
@@ -41,9 +41,9 @@ from opsi.logging import (  # noqa: E402
 	logging_config,
 	secret_filter,
 )
-from ruamel.yaml import YAML  # noqa: E402
+from ruamel.yaml import YAML
 
-from opsicli.types import (  # noqa: E402
+from opsicli.types import (
 	Attributes,
 	Bool,
 	Directory,

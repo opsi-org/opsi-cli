@@ -9,7 +9,6 @@ test_config
 
 import sys
 from pathlib import Path
-from typing import Type
 from unittest.mock import patch
 
 import pytest
@@ -43,7 +42,7 @@ def test_config_item_defaults(default: str | None, value: int | None, expected: 
 		("invalid", None, ValueError),
 	),
 )
-def test_config_item_log_level(value: str | int | None, expected: int | None, exception: Type[Exception] | None) -> None:
+def test_config_item_log_level(value: str | int | None, expected: int | None, exception: type[Exception] | None) -> None:
 	item = ConfigItem(name="log_level_file", type=LogLevel)
 	if exception:
 		with pytest.raises(exception):

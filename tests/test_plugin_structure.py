@@ -98,7 +98,7 @@ def test_metadata_naming() -> None:
 
 		# get metadata names
 		if hasattr(module, "COMMAND_METADATA"):
-			data = getattr(module, "COMMAND_METADATA")
+			data = module.COMMAND_METADATA
 			metadata_keys = data.keys()
 			functions_keys = functions.keys()
 

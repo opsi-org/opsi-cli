@@ -3,7 +3,7 @@
 # All rights reserved.
 # License: AGPL-3.0-only
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from tempfile import NamedTemporaryFile
 
 import rich_click as click
@@ -34,7 +34,7 @@ def _get_clients_from_input() -> list[dict[str, str | datetime | None]]:
 		client["type"] = "OpsiClient"
 		for time_field in ["created", "lastSeen"]:
 			if value := client.get(time_field):
-				client[time_field] = datetime.fromisoformat(value).astimezone(timezone.utc).replace(microsecond=0)
+				client[time_field] = datetime.fromisoformat(value).astimezone(UTC).replace(microsecond=0)
 		clients.append(client)
 	return clients
 

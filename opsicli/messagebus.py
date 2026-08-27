@@ -16,11 +16,12 @@ import selectors
 import shutil
 import sys
 import time
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from threading import Event, Lock
 from types import FrameType
-from typing import Any, Callable, Generator, Literal
+from typing import Any, Literal
 from uuid import uuid4
 
 from opsi.logging import DEBUG, get_logger
@@ -145,7 +146,7 @@ class MessagebusConnection(MessagebusListener):
 				self.channel_subscription_events.pop(c, None)
 
 	@contextmanager
-	def connection(self) -> Generator[MessagebusConnection, None, None]:
+	def connection(self) -> Generator[MessagebusConnection]:
 		try:
 			with self.register(self.service_client.messagebus):
 				self.service_client.connect_messagebus()
@@ -843,9 +844,9 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 				else:
 					await asyncio.wait_for(self._download_complete_event.wait(), timeout=5)
 				if self._error:
-					logger.error(f"Error: {str(self._error)}")
+					logger.error(f"Error: {self._error!s}")
 					raise self._error
-			except asyncio.TimeoutError:
+			except TimeoutError:
 				logger.info("Download complete event timed out")
 				self.abort_file_download()
 			finally:

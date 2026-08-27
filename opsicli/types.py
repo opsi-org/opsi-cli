@@ -15,7 +15,7 @@ import os
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Type
+from typing import Any
 from urllib.parse import urlparse
 
 from opsicli.config import COMPLETION_MODE, DEFAULT_SESSION_LIFETIME
@@ -121,14 +121,14 @@ class Attributes(list):
 class Bool:
 	click_type = bool
 
-	def __new__(cls: Type[Bool], value: Any) -> bool:
+	def __new__(cls: type[Bool], value: Any) -> bool:
 		if isinstance(value, str):
 			value = value.lower() in ("1", "true", "yes")
 		return bool(value)
 
 
 class OPSIServiceUrl(str):
-	def __new__(cls: Type[OPSIServiceUrl], value: str) -> OPSIServiceUrl:
+	def __new__(cls: type[OPSIServiceUrl], value: str) -> OPSIServiceUrl:
 		value = str(value)
 		if "://" not in value:
 			value = f"https://{value}"
@@ -141,14 +141,14 @@ class OPSIServiceUrl(str):
 
 
 class OPSIServiceUrlOrServiceName(str):
-	def __new__(cls: Type[OPSIServiceUrlOrServiceName], value: str) -> OPSIServiceUrl | str:
+	def __new__(cls: type[OPSIServiceUrlOrServiceName], value: str) -> OPSIServiceUrl | str:
 		if value.startswith("http://") or value.startswith("https://"):
 			return OPSIServiceUrl(value)
 		return value
 
 
 class Password(str):
-	def __new__(cls: Type[Password], value: str | None) -> Password:
+	def __new__(cls: type[Password], value: str | None) -> Password:
 		return super().__new__(cls, value or "")
 
 	def __repr__(self) -> str:
@@ -171,7 +171,7 @@ class File(Path):
 	def cwd(cls) -> Path:
 		return Path(os.getcwd())
 
-	def __new__(cls: Type[File], *args: Any, **kwargs: Any) -> Type[Path]:
+	def __new__(cls: type[File], *args: Any, **kwargs: Any) -> type[Path]:
 		path = Path(*args, **kwargs)
 		if str(path) != "-":
 			path = path.expanduser().absolute()
@@ -186,7 +186,7 @@ class File(Path):
 class Directory(Path):
 	click_type = click.Path(file_okay=False)
 
-	def __new__(cls: Type[Directory], *args: Any, **kwargs: Any) -> Type[Path]:
+	def __new__(cls: type[Directory], *args: Any, **kwargs: Any) -> type[Path]:
 		path = Path(*args, **kwargs).expanduser().absolute()
 		if path.exists() and not path.is_dir():
 			raise ValueError(f"Not a directory: {path!r}")

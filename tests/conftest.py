@@ -12,10 +12,11 @@ from __future__ import annotations
 import builtins
 import os
 import platform
+from collections.abc import Generator
 from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any
 
 import pytest
 from _pytest.logging import LogCaptureHandler
@@ -64,16 +65,15 @@ def reset_service_client() -> None:
 def clean_backend() -> None:
 	if not _opsi_service_available():
 		return
-	with get_admin_service_client() as service_client:
-		with service_client.connection(connect_messagebus=False):
-			delete_host_ids = [
-				host.id
-				for host in service_client.host_getObjects(attributes=["id", "type"])  # ty: ignore[unresolved-attribute]
-				if host.getType() != "OpsiConfigserver"
-			]
-			if delete_host_ids:
-				service_client.host_delete(id=delete_host_ids)  # ty: ignore[unresolved-attribute]
-			service_client.product_delete(id=[])  # ty: ignore[unresolved-attribute]
+	with get_admin_service_client() as service_client, service_client.connection(connect_messagebus=False):
+		delete_host_ids = [
+			host.id
+			for host in service_client.host_getObjects(attributes=["id", "type"])  # ty: ignore[unresolved-attribute]
+			if host.getType() != "OpsiConfigserver"
+		]
+		if delete_host_ids:
+			service_client.host_delete(id=delete_host_ids)  # ty: ignore[unresolved-attribute]
+		service_client.product_delete(id=[])  # ty: ignore[unresolved-attribute]
 
 
 def _update_depot_info() -> None:
@@ -144,7 +144,7 @@ def _opsi_service_available() -> bool:
 
 
 @contextmanager
-def get_admin_service_client(user_agent: str | None = None) -> Generator[ServiceClient, None, None]:
+def get_admin_service_client(user_agent: str | None = None) -> Generator[ServiceClient]:
 	address, username, password = admin_service_connection_params()
 	service_client = ServiceClient(
 		address=address,
@@ -160,7 +160,7 @@ def get_admin_service_client(user_agent: str | None = None) -> Generator[Service
 
 
 @contextmanager
-def get_host_service_client(hostname: str, key: str) -> Generator[ServiceClient, None, None]:
+def get_host_service_client(hostname: str, key: str) -> Generator[ServiceClient]:
 	address, _, _ = admin_service_connection_params()
 	service_client = ServiceClient(
 		address=address,
@@ -175,6 +175,6 @@ def get_host_service_client(hostname: str, key: str) -> Generator[ServiceClient,
 
 
 @fixture()
-def admin_service_client() -> Generator[ServiceClient, None, None]:
+def admin_service_client() -> Generator[ServiceClient]:
 	with get_admin_service_client() as service_client:
 		yield service_client

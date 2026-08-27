@@ -92,7 +92,7 @@ def download_package(url: str, temp_dir: Path) -> str:
 			download_with_progress(url + ext, temp_dir)
 	elif any(
 		filename.endswith(ext)
-		for ext in {".tar", ".gz", ".gzip", ".bz2", ".bzip2", ".zstd", ".cpio", ".tar.gz", ".tgz", ".tar.bz2", ".tbz", ".tar.xz", ".txz"}
+		for ext in (".tar", ".gz", ".gzip", ".bz2", ".bzip2", ".zstd", ".cpio", ".tar.gz", ".tgz", ".tar.bz2", ".tbz", ".tar.xz", ".txz")
 	):
 		extract_dir = temp_dir / f"extract_{filename}"
 		with get_progress() as progress:

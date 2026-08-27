@@ -11,10 +11,11 @@ messagebus plugin
 
 import sys
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from threading import Event
-from typing import Any, BinaryIO, Generator, Literal
+from typing import Any, BinaryIO, Literal
 
 import rich_click as click
 from opsi.logging import get_logger
@@ -181,7 +182,7 @@ class FileDownloadMessagebusConnection(MessagebusConnection):
 
 	def download_file(self, client: str, source: PureWindowsPath | PurePosixPath, destination: Path, follow: bool = False) -> None:
 		@contextmanager
-		def stdout() -> Generator[BinaryIO, None, None]:
+		def stdout() -> Generator[BinaryIO]:
 			yield sys.stdout.buffer
 
 		with self.connection():
@@ -258,7 +259,7 @@ class FileUploadMessagebusConnection(MessagebusConnection):
 
 	def upload_file(self, client: str, source: Path, destination: PureWindowsPath | PurePosixPath) -> str:
 		@contextmanager
-		def stdin() -> Generator[BinaryIO, None, None]:
+		def stdin() -> Generator[BinaryIO]:
 			yield sys.stdin.buffer
 
 		with self.connection():
