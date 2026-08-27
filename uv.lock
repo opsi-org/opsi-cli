@@ -6,9 +6,6 @@ resolution-markers = [
     "python_full_version < '3.14'",
 ]
 
-[manifest]
-constraints = [{ name = "pyzmq", specifier = "<27" }]
-
 [[package]]
 name = "aiofiles"
 version = "25.1.0"

@@ -82,7 +82,7 @@ pytest-linux:
   before_script:
     - for trynum in $(seq 1 30); do curl --insecure https://opsiconfd:4447 && break; sleep 6; done
   script:
-    - export UV_PYTHON="3.14-x86_64"
+    - export UV_PYTHON="3.13-x86_64"
     - export UV_PYTHON_PREFERENCE="only-managed"
     - uv self update
     - uv python install
@@ -112,7 +112,7 @@ lint-pytest:
     - job: pytest-linux
       artifacts: true
   script:
-    - export UV_PYTHON="3.14-x86_64"
+    - export UV_PYTHON="3.13-x86_64"
     - export UV_PYTHON_PREFERENCE="only-managed"
     - uv self update
     - uv python install
@@ -142,7 +142,7 @@ linux-x64-pyinstaller:
     - export LC_ALL=C.UTF-8
     - curl -sS "${OPSIDEVTOOLS_INSTALLER_URL_LINUX_X64}" | sh
     - opsi-dev-cli binary pull ziplaunch
-    - export UV_PYTHON="3.14-x86_64"
+    - export UV_PYTHON="3.13-x86_64"
     - export UV_PYTHON_PREFERENCE="only-managed"
     - uv self update
     - uv python install
@@ -173,7 +173,7 @@ linux-arm64-pyinstaller:
     - export LC_ALL=C.UTF-8
     - curl -sS "${OPSIDEVTOOLS_INSTALLER_URL_LINUX_ARM64}" | sh
     - opsi-dev-cli binary pull ziplaunch
-    - export UV_PYTHON="3.14-aarch64"
+    - export UV_PYTHON="3.13-aarch64"
     - export UV_PYTHON_PREFERENCE="only-managed"
     - uv self update
     - uv python install
