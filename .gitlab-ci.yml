@@ -12,7 +12,7 @@ pytest-darwin:
     - catalina-x64
   script:
     - export ZIPLAUNCHER_CLEAN_TMP=true
-    - export UV_PYTHON="3.14-x86_64"
+    - export UV_PYTHON="3.13-x86_64"
     - export UV_PYTHON_PREFERENCE="only-managed"
     - uv self update
     - uv sync --frozen
@@ -33,7 +33,7 @@ pytest-windows:
   script:
     - $Env:UV_PYTHON_INSTALL_DIR = "c:\\uv\\python"
     - $Env:UV_CACHE_DIR = "c:\\uv\\cache"
-    - $Env:UV_PYTHON = "3.14-x86_64"
+    - $Env:UV_PYTHON = "3.13-x86_64"
     - $Env:UV_PYTHON_PREFERENCE = "only-managed"
     - $Env:RUSTUP_TOOLCHAIN = "stable-x86_64-pc-windows-msvc"
     - uv sync --frozen
@@ -201,7 +201,7 @@ macos-x64-pyinstaller:
     - catalina-x64
   script:
     - export LC_ALL=en_US.UTF-8
-    - export UV_PYTHON="3.14-x86_64"
+    - export UV_PYTHON="3.13-x86_64"
     - export UV_PYTHON_PREFERENCE="only-managed"
     - uv self update
     - uv sync --frozen
@@ -246,7 +246,7 @@ windows-x86_64-pyinstaller:
     - $Env:UV_PYTHON_INSTALL_DIR = "c:\\uv\\python"
     - $Env:UV_CACHE_DIR = "c:\\uv\\cache"
     - $Env:UV_PYTHON_PREFERENCE = "only-managed"
-    - $Env:UV_PYTHON = "3.14-x86_64"
+    - $Env:UV_PYTHON = "3.13-x86_64"
     - $Env:RUSTUP_TOOLCHAIN = "stable-x86_64-pc-windows-msvc"
     - uv sync --frozen
     # Get opsi-dev-tool
