@@ -228,7 +228,7 @@ def test_list_product_client_state_without_depot_mapping_skips_depot_products() 
 	service_client.productOnClient_getObjects.return_value = []
 
 	with patch("plugins.datastore.python.product_client_state.get_service_connection", return_value=service_client):
-		exit_code, stdout, stderr = run_cli(["datastore", "product-client-state", "list", "--where", f"clientId={CLIENT_ID_1}"])
+		exit_code, _stdout, stderr = run_cli(["datastore", "product-client-state", "list", "--where", f"clientId={CLIENT_ID_1}"])
 		assert exit_code != 0
 		assert "No clients found" in stderr
 		assert "supplied clientId filter:" in stderr

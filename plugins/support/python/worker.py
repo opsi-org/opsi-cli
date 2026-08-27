@@ -24,7 +24,7 @@ def category_health_check(category: str) -> list[dict[str, Any]]:
 	service_data = get_service_connection().jsonrpc("service_healthCheck")
 	data = []
 	for entry in service_data:
-		if not entry["check"]["id"] == category:
+		if entry["check"]["id"] != category:
 			continue
 		data.append({"id": status_color_id(entry), "details": f"[bold white]{entry['message']}[/bold white]"})
 		for partial in entry["partial_results"]:

@@ -19,7 +19,7 @@ from copy import deepcopy
 from dataclasses import InitVar, asdict, dataclass
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Self
 
 DEFAULT_SESSION_LIFETIME = 900
 COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE" in os.environ
@@ -112,12 +112,11 @@ class ConfigValue:
 	source: ConfigValueSource | None = None
 
 	def __setattr__(self, name: str, value: Any) -> None:
-		if name == "value" and value is not None:
-			if not isinstance(value, self.type):
-				if isinstance(value, dict):
-					value = self.type(**value)
-				else:
-					value = self.type(value)
+		if name == "value" and value is not None and not isinstance(value, self.type):
+			if isinstance(value, dict):
+				value = self.type(**value)
+			else:
+				value = self.type(value)
 		self.__dict__[name] = value
 
 	def __repr__(self) -> str:
@@ -242,9 +241,7 @@ class ConfigItem:
 		return self._default
 
 	def is_default(self) -> bool:
-		if isinstance(self._value, ConfigValue) and self._value.source == ConfigValueSource.DEFAULT:
-			return True
-		return False
+		return bool(isinstance(self._value, ConfigValue) and self._value.source == ConfigValueSource.DEFAULT)
 
 	def as_dict(self) -> dict[str, Any]:
 		dict_ = asdict(self)
@@ -501,7 +498,7 @@ def get_config_items() -> list[ConfigItem]:
 class Config:
 	_instance: Config | None = None
 
-	def __new__(cls) -> Config:
+	def __new__(cls) -> Self:
 		if cls._instance is None:
 			cls._instance = super().__new__(cls)
 		return cls._instance
@@ -704,9 +701,8 @@ class Config:
 		self._options_processed.add(param.name)
 
 		test_params = ("config_file_system", "config_file_user")
-		if param.name in test_params:
-			if all(param in self._options_processed for param in test_params):
-				self.read_config_files()
+		if param.name in test_params and all(param in self._options_processed for param in test_params):
+			self.read_config_files()
 
 		if param.name in ("log_file", "log_level_file", "log_level_stderr", "color"):
 			self.set_logging_config()

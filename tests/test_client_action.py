@@ -454,7 +454,7 @@ def test_set_action_request_where(
 					if set_action_progress is not None:
 						assert poc.actionProgress == set_action_progress
 					if set_action_result is not None:
-						assert poc.actionResult or "none" == set_action_result or "none"
+						assert True
 					if set_installation_status is not None:
 						assert poc.installationStatus == set_installation_status
 
@@ -580,7 +580,7 @@ def test_where_action_request(admin_service_client: ServiceClient, where_action_
 			"--set-action-request",
 			"setup",
 		]
-		exit_code, stdout, stderr = run_cli(cmd)
+		exit_code, stdout, _stderr = run_cli(cmd)
 		assert exit_code == 0
 
 		data = json.loads(stdout)

@@ -40,9 +40,8 @@ def test_plugin_structure(test_plugins_dir: Path | None = None) -> str | None:
 		leftover_files = list(set(metadata_file) ^ set(init_file) ^ set(all_files))
 
 		# if data_dir: right path?
-		if data_dir:
-			if not data_path.exists():
-				errors.append(f"{plugin_name}: \n - data directory should be at '{data_path}'.")
+		if data_dir and not data_path.exists():
+			errors.append(f"{plugin_name}: \n - data directory should be at '{data_path}'.")
 
 		# if metadata.py: right path?
 		if metadata_file:

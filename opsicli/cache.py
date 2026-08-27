@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
 import orjson
 from opsi.logging import get_logger
@@ -26,7 +26,7 @@ logger = get_logger("opsicli")
 class Cache:
 	_instance: Cache | None = None
 
-	def __new__(cls) -> Cache:
+	def __new__(cls) -> Self:
 		if cls._instance is None:
 			cls._instance = super().__new__(cls)
 		return cls._instance

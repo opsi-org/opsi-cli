@@ -140,7 +140,7 @@ def test_edit_config() -> None:
 		for system in True, False:
 			config_file = config_file_system if system else config_file_user
 			with patch("opsi.process.run_command") as mock_run_command:
-				exit_code, stdout, _stderr = run_cli(["config", "edit"] + (["--system"] if system else []))
+				exit_code, _stdout, _stderr = run_cli(["config", "edit"] + (["--system"] if system else []))
 				assert exit_code == 0
 				assert config_file.exists()
 				mock_run_command.assert_called_once()

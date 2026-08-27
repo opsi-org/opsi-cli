@@ -91,7 +91,7 @@ def get_depot_to_clients(service_connection: ServiceClient, client_ids: list[str
 def process_where(
 	where: tuple[str, ...], *, attributes: list[Attribute], operation: Literal["list", "update", "unlock", "purge", "delete"] = "list"
 ) -> dict[str, str | list[str]]:
-	where = where or tuple()
+	where = where or ()
 	condition_pattern = re.compile(r"^([a-zA-Z_]+)\s*(<|<=|=|>=|>)\s*(.*)$")
 	available_attributes_by_id = {attr.id: attr for attr in attributes}
 	general_help = Help.general_where(available_attributes=attributes)
@@ -132,7 +132,7 @@ def process_where(
 
 
 def process_set(set: tuple[str, ...], *, attributes: list[Attribute]) -> dict[str, str | list[str]]:
-	set = set or tuple()
+	set = set or ()
 	set_pattern: re.Pattern[str] = re.compile(r"^([a-zA -Z]+)\s*=\s*(.*)$")
 	attributes_by_id = {attr.id: attr for attr in attributes if not attr.identifier}  # identifying attributes shouldn't be changed
 	general_help = Help.general_set(available_attributes=list(attributes_by_id.values()))

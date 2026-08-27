@@ -22,7 +22,7 @@ from importlib._bootstrap import BuiltinImporter
 from importlib.machinery import ModuleSpec
 from pathlib import Path
 from types import ModuleType
-from typing import Any
+from typing import Any, Self
 
 import opsi
 from click import Command
@@ -101,7 +101,7 @@ sys.meta_path.append(PluginImporter)  # ty: ignore[invalid-argument-type]
 class PluginManager:
 	_instance: PluginManager | None = None
 
-	def __new__(cls) -> PluginManager:
+	def __new__(cls) -> Self:
 		if cls._instance is None:
 			cls._instance = super().__new__(cls)
 		return cls._instance

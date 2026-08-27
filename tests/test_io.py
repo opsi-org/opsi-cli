@@ -688,6 +688,6 @@ def test_input_separator(input_separator: str) -> None:
 	args = ["--dry-run", "client-action", "--clients", client_list, "set-action-request"]
 	if input_separator is not None:
 		args = ["--input-separator", input_separator] + args
-	_, stdout, stderr = run_cli(args)
+	_, _stdout, stderr = run_cli(args)
 	for client in ("client1.test.local", "client2.test.local", "client3.test.local"):
 		assert f"'{client}'" in stderr

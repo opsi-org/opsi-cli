@@ -135,7 +135,7 @@ def get_attributes(data: list[dict[str, Any]], all_elements: bool = True) -> lis
 		attributes_set |= set(element)
 		if not all_elements:
 			break
-	attributes = sorted(list(attributes_set))
+	attributes = sorted(attributes_set)
 	if len(attributes) > 1:
 		try:
 			# Move attribute id to first position

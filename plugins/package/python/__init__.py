@@ -123,7 +123,7 @@ def make(
 			)
 		except Exception as err:
 			logger.error(err, exc_info=True)
-			raise err
+			raise
 
 		md5_file: Path | None = None
 		zsync_file: Path | None = None
@@ -140,7 +140,7 @@ def make(
 				)
 		except Exception as err:
 			logger.error(err, exc_info=True)
-			raise err
+			raise
 
 	console_print(f"The opsi package was created at '{package_archive}'", output_type=OutputType.MESSAGE)
 	if md5_file:
@@ -205,7 +205,7 @@ def package_list(depots: str, product_type: str, product_ids: list[str]) -> None
 		)
 	except Exception as err:
 		logger.error(err, exc_info=True)
-		raise err
+		raise
 
 	product_dict = create_nested_dict(product_list, ["id", "productVersion", "packageVersion"])
 	product_on_depot_dict = create_nested_dict(product_on_depot_list, ["depotId", "productId"])
@@ -233,7 +233,7 @@ def control_to_toml(source_dir: Path) -> None:
 		opsi_package.generate_control_file(control_toml)
 	except Exception as err:
 		logger.error(err, exc_info=True)
-		raise err
+		raise
 
 	console_print("Control TOML has been successfully generated.", output_type=OutputType.MESSAGE)
 
@@ -308,7 +308,7 @@ def extract(package_archive: str, destination_dir: Path, new_product_id: str, ov
 				)
 			except Exception as err:
 				logger.error(err, exc_info=True)
-				raise err
+				raise
 
 	console_print(f"Package archive has been successfully extracted at {destination_dir}", output_type=OutputType.MESSAGE)
 

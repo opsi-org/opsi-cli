@@ -167,7 +167,7 @@ class SetActionRequestWorker(ClientActionWorker):
 		product_objects: list[Product] = self.service.jsonrpc(
 			"product_getObjects", [[], {"type": None if include_netboot else "LocalbootProduct", "id": products or None}]
 		)
-		self.product_ids = list(set(entry.id for entry in product_objects if entry.id not in exclude_products))
+		self.product_ids = list({entry.id for entry in product_objects if entry.id not in exclude_products})
 		self.products_with_only_uninstall = [
 			entry.id
 			for entry in product_objects
@@ -294,8 +294,8 @@ class SetActionRequestWorker(ClientActionWorker):
 		if args.uninstall_where_only_uninstall:
 			logger.notice("Uninstalling products (where installed): %s", self.products_with_only_uninstall)
 
-		reported_pocs: dict[str, dict[str, ProductOnClient]] = defaultdict(lambda: dict())
-		new_pocs: dict[str, dict[str, ProductOnClient]] = defaultdict(lambda: dict())
+		reported_pocs: dict[str, dict[str, ProductOnClient]] = defaultdict(dict)
+		new_pocs: dict[str, dict[str, ProductOnClient]] = defaultdict(dict)
 		if (
 			args.where_failed
 			or args.where_outdated

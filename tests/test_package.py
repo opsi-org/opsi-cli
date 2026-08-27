@@ -850,7 +850,7 @@ def test_package_installation_with_properties() -> None:
 			"systray_request_notify_format": ["productname : request"],
 		}
 		stdin = []
-		for property_id, values in interactive_defaults.items():
+		for values in interactive_defaults.values():
 			stdin.extend([str(v) for v in values])
 			if len(values) > 1:
 				stdin.append("done")
@@ -910,7 +910,7 @@ def test_package_fetch(tmp_path: Path) -> None:
 		"systray_request_notify_format": ["productname : request"],
 	}
 	stdin = []
-	for property_id, values in interactive_defaults.items():
+	for values in interactive_defaults.values():
 		stdin.extend([str(v) for v in values])
 		if len(values) > 1:
 			stdin.append("done")

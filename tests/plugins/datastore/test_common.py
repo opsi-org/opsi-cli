@@ -29,7 +29,7 @@ from plugins.datastore.python.common import _append_value, _parse_value, process
 			None,
 		),
 		(
-			tuple(),
+			(),
 			[Attribute(id="id", identifier=True), Attribute(id="name")],
 			"list",
 			None,
@@ -98,7 +98,7 @@ def test_process_where(
 			None,
 		),
 		(
-			tuple(),
+			(),
 			[Attribute(id="name", validator=lambda value: value)],
 			None,
 			"No attributes specified to update",
@@ -185,11 +185,6 @@ def test_append_value(
 	("raw_val", "operator", "expected", "hint", "error"),
 	(
 		# single values
-		("val", "=", "val", None, None),
-		("val", "<=", "<=val", None, None),
-		("val", "<", "<val", None, None),
-		("val", ">", ">val", None, None),
-		("val", ">=", ">=val", None, None),
 		("val", "=", "val", None, None),
 		("val", "<=", "<=val", None, None),
 		("val", "<", "<val", None, None),

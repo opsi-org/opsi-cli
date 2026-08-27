@@ -646,7 +646,7 @@ class TerminalMessagebusConnection(MessagebusConnection):
 		self.service_client.connect()
 		connected_host_ids = self.service_client.host_getMessagebusConnectedIds()  # ty: ignore[unresolved-attribute]
 		depots = self.service_client.host_getObjects(attributes=["id", "type"], type="OpsiDepotserver")  # ty: ignore[unresolved-attribute]
-		configserver_id = [depot.id for depot in depots if depot.getType() == "OpsiConfigserver"][0]
+		configserver_id = next(depot.id for depot in depots if depot.getType() == "OpsiConfigserver")
 		depotserver_ids = [depot.id for depot in depots]
 
 		logger.debug("Connected host IDs: %s", connected_host_ids)

@@ -15,7 +15,7 @@ import os
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 from urllib.parse import urlparse
 
 from opsicli.config import COMPLETION_MODE, DEFAULT_SESSION_LIFETIME
@@ -42,7 +42,7 @@ class LogLevel(int):
 		[f"[metavar]{name}[/metavar]/[metavar]{LEVEL_TO_OPSI_LEVEL[NAME_TO_LEVEL[name.upper()]]}[/metavar]" for name in possible_values]
 	)
 
-	def __new__(cls, value: str | int) -> LogLevel:
+	def __new__(cls, value: str | int) -> Self:
 		try:
 			value = min(9, max(0, int(value)))
 		except ValueError:
@@ -59,7 +59,7 @@ class LogLevel(int):
 class Limit(int):
 	click_type = click.IntRange(min=0)
 
-	def __new__(cls, value: str | int) -> Limit:
+	def __new__(cls, value: str | int) -> Self:
 		value = int(value)
 		if value < 0:
 			raise ValueError("limit must be greater than or equal to 0")
@@ -128,7 +128,7 @@ class Bool:
 
 
 class OPSIServiceUrl(str):
-	def __new__(cls: type[OPSIServiceUrl], value: str) -> OPSIServiceUrl:
+	def __new__(cls, value: str) -> Self:
 		value = str(value)
 		if "://" not in value:
 			value = f"https://{value}"
@@ -142,13 +142,13 @@ class OPSIServiceUrl(str):
 
 class OPSIServiceUrlOrServiceName(str):
 	def __new__(cls: type[OPSIServiceUrlOrServiceName], value: str) -> OPSIServiceUrl | str:
-		if value.startswith("http://") or value.startswith("https://"):
+		if value.startswith(("http://", "https://")):
 			return OPSIServiceUrl(value)
 		return value
 
 
 class Password(str):
-	def __new__(cls: type[Password], value: str | None) -> Password:
+	def __new__(cls, value: str | None) -> Self:
 		return super().__new__(cls, value or "")
 
 	def __repr__(self) -> str:
