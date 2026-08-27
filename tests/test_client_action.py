@@ -91,9 +91,11 @@ def test_where_action_request_does_not_expand_empty_client_selection() -> None:
 	empty_group = MagicMock(id="empty-group", parentGroupId=None)
 	service_client.jsonrpc.side_effect = [[], [empty_group], []]
 
-	with patch("plugins.client_action.python.client_action_worker.get_service_connection", return_value=service_client):
-		with pytest.raises(NoClientsSelected, match="No clients selected"):
-			ClientActionWorker(ClientActionArgs(client_groups="empty-group", where_action_request="setup"), default_all=False)
+	with (
+		patch("plugins.client_action.python.client_action_worker.get_service_connection", return_value=service_client),
+		pytest.raises(NoClientsSelected, match="No clients selected"),
+	):
+		ClientActionWorker(ClientActionArgs(client_groups="empty-group", where_action_request="setup"), default_all=False)
 
 	assert (
 		call("productOnClient_getIdents", ["tuple", {"clientId": [], "actionRequest": ["setup"]}])
@@ -774,56 +776,56 @@ def test_execute_opsiscript(admin_service_client: ServiceClient, tmp_path: Path,
 		},
 	}
 
-	with patch("opsicli.messagebus.JSONRPCMessagebusConnection.jsonrpc", return_value=mock_results):
-		with (
-			tmp_client(admin_service_client, CLIENT1),
-			tmp_client(admin_service_client, CLIENT2),
-			tmp_client(admin_service_client, CLIENT3),
-			contextlib.chdir(tmp_path),
-		):
-			cmd = [
-				"--no-color",
-				"client-action",
-				"--clients",
-				f"{CLIENT1},{CLIENT2},{CLIENT3}",
-				"execute",
-				"--opsi-script",
-				opsiscript_content,
-				"--opsi-script-log-level",
-				str(6),
-			]
-			exit_code, _stdout, _stderr = run_cli(cmd)
-			assert exit_code == highest_exit_code
+	with (
+		patch("opsicli.messagebus.JSONRPCMessagebusConnection.jsonrpc", return_value=mock_results),
+		tmp_client(admin_service_client, CLIENT1),
+		tmp_client(admin_service_client, CLIENT2),
+		tmp_client(admin_service_client, CLIENT3),
+		contextlib.chdir(tmp_path),
+	):
+		cmd = [
+			"--no-color",
+			"client-action",
+			"--clients",
+			f"{CLIENT1},{CLIENT2},{CLIENT3}",
+			"execute",
+			"--opsi-script",
+			opsiscript_content,
+			"--opsi-script-log-level",
+			str(6),
+		]
+		exit_code, _stdout, _stderr = run_cli(cmd)
+		assert exit_code == highest_exit_code
 
-			expected_output_pattern = (
-				rf"\n─+ {CLIENT1} ─+\n"
-				rf"{CLIENT1} \| {re.escape(str(test_exception))}\n\n"
-				rf"─+ {CLIENT2} ─+\n"
-				rf"{CLIENT2} \| EXIT CODE: {highest_exit_code}\n\n"
-				rf"{CLIENT2} \| LOG:\n"
-				rf"{CLIENT2} \| \[1\] Essential log message\n"
-				rf"{CLIENT2} \| \[2\] Critical log message\n"
-				rf"{CLIENT2} \| \[3\] Error log message\n"
-				rf"{CLIENT2} \| \[4\] Warning log message\n"
-				rf"{CLIENT2} \| \[5\] Notice log message\n"
-				rf"{CLIENT2} \| \[6\] Info log message\n\n"
-				rf"{CLIENT2} \| STDERR:\n"
-				rf"{CLIENT2} \| {re.escape(str(test_error))}\n\n"
-				rf"─+ {CLIENT3} ─+\n"
-				rf"{CLIENT3} \| EXIT CODE: 0\n\n"
-				rf"{CLIENT3} \| STDOUT:\n"
-				rf"{CLIENT3} \| Hello, World!\n"
-				rf"{CLIENT3} \| This is a multi-line opsi script.\n\n"
-				rf"{CLIENT3} \| LOG:\n"
-				rf"{CLIENT3} \| \[1\] Essential log message\n"
-				rf"{CLIENT3} \| \[2\] Critical log message\n"
-				rf"{CLIENT3} \| \[3\] Error log message\n"
-				rf"{CLIENT3} \| \[4\] Warning log message\n"
-				rf"{CLIENT3} \| \[5\] Notice log message\n"
-				rf"{CLIENT3} \| \[6\] Info log message\n"
-			)
-			assert re.fullmatch(expected_output_pattern, _stdout)
-			assert _stderr == ""
+		expected_output_pattern = (
+			rf"\n─+ {CLIENT1} ─+\n"
+			rf"{CLIENT1} \| {re.escape(str(test_exception))}\n\n"
+			rf"─+ {CLIENT2} ─+\n"
+			rf"{CLIENT2} \| EXIT CODE: {highest_exit_code}\n\n"
+			rf"{CLIENT2} \| LOG:\n"
+			rf"{CLIENT2} \| \[1\] Essential log message\n"
+			rf"{CLIENT2} \| \[2\] Critical log message\n"
+			rf"{CLIENT2} \| \[3\] Error log message\n"
+			rf"{CLIENT2} \| \[4\] Warning log message\n"
+			rf"{CLIENT2} \| \[5\] Notice log message\n"
+			rf"{CLIENT2} \| \[6\] Info log message\n\n"
+			rf"{CLIENT2} \| STDERR:\n"
+			rf"{CLIENT2} \| {re.escape(str(test_error))}\n\n"
+			rf"─+ {CLIENT3} ─+\n"
+			rf"{CLIENT3} \| EXIT CODE: 0\n\n"
+			rf"{CLIENT3} \| STDOUT:\n"
+			rf"{CLIENT3} \| Hello, World!\n"
+			rf"{CLIENT3} \| This is a multi-line opsi script.\n\n"
+			rf"{CLIENT3} \| LOG:\n"
+			rf"{CLIENT3} \| \[1\] Essential log message\n"
+			rf"{CLIENT3} \| \[2\] Critical log message\n"
+			rf"{CLIENT3} \| \[3\] Error log message\n"
+			rf"{CLIENT3} \| \[4\] Warning log message\n"
+			rf"{CLIENT3} \| \[5\] Notice log message\n"
+			rf"{CLIENT3} \| \[6\] Info log message\n"
+		)
+		assert re.fullmatch(expected_output_pattern, _stdout)
+		assert _stderr == ""
 
 
 @pytest.mark.opsi_service

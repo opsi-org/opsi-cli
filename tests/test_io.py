@@ -615,7 +615,7 @@ def test_get_selected_timezone(
 
 		if expected_offset_seconds is not None:
 			assert result is not None
-			assert result.utcoffset(datetime.now()) == timedelta(seconds=expected_offset_seconds)
+			assert result.utcoffset(datetime.now()) == timedelta(seconds=expected_offset_seconds)  # noqa: DTZ005
 
 
 @pytest.mark.parametrize(

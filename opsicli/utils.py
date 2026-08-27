@@ -152,7 +152,7 @@ def raw_terminal() -> Iterator[None]:
 				tty.setraw(sys.stdin.fileno())  # Set raw mode to access char by char
 				yield
 			except Exception as err:
-				logger.error(err, exc_info=True)
+				logger.error(err, exc_info=True)  # noqa: G201
 				termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, attrs)
 				print(err, file=sys.stderr)
 			else:
@@ -242,7 +242,7 @@ def install_binary(source: Path | str, destination: Path | str) -> None:
 	try:
 		source = source.resolve()
 		destination = destination.resolve()
-	except Exception as error:
+	except (OSError, RuntimeError) as error:
 		logger.debug("Failed to normalize binary paths '%s'", error)
 	if source == destination:
 		return
@@ -258,7 +258,7 @@ def install_binary(source: Path | str, destination: Path | str) -> None:
 				backup_path.unlink()
 			destination.rename(backup_path)
 		except Exception as err:
-			logger.error("Failed to create backup '%s' of existing binary '%s': %s", destination, backup_path, err, exc_info=True)
+			logger.error("Failed to create backup '%s' of existing binary '%s': %s", destination, backup_path, err, exc_info=True)  # noqa: G201
 			backup_path = None
 
 	try:
@@ -286,7 +286,7 @@ def install_binary(source: Path | str, destination: Path | str) -> None:
 	if backup_path:
 		try:
 			backup_path.unlink()
-		except Exception as err:
+		except OSError as err:
 			# Windows does not allow to delete a file that is in use
 			logger.debug("Failed to delete backup '%s': %s", backup_path, err)
 

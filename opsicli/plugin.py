@@ -58,11 +58,12 @@ class OPSICLIPlugin:
 	description: str = ""
 	version: str = ""
 	cli: Command | None = None
-	flags: list[str] = []
+	flags: list[str]
 
 	def __init__(self, path: Path) -> None:
 		self.path = path
 		self.data_path = self.path / "data"
+		self.flags = []
 
 	def on_load(self) -> None:
 		"""Called after loading the plugin"""
@@ -239,11 +240,11 @@ def set_plugin_permissions(path: Path) -> None:
 	else:
 		path.chmod(0o664)
 	# set rights 775 for path and all subdirs/files to allow usage by non-admin users on linux using pathlib iterdir
-	for path in Path(path).iterdir():
-		if path.is_dir():
-			path.chmod(0o775)
+	for subpath in Path(path).iterdir():
+		if subpath.is_dir():
+			subpath.chmod(0o775)
 		else:
-			path.chmod(0o664)
+			subpath.chmod(0o664)
 
 
 def install_plugin(source_dir: Path, plugin_id: str, system: bool = False) -> Path:
@@ -305,7 +306,7 @@ def install_python_package(target_dir: Path, package: dict[str, str]) -> None:
 			if result != 0:
 				raise RuntimeError("Failed to install dependencies (pip call).")
 		except Exception as error:
-			logger.error("Could not install %r, aborting: %s", package["name"], error, exc_info=True)
+			logger.error("Could not install %r, aborting: %s", package["name"], error, exc_info=True)  # noqa: G201
 			raise RuntimeError(f"Could not install {package['name']!r}, aborting") from error
 		finally:
 			config.set_logging_config()  # pip messes up logging config

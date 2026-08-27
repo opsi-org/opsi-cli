@@ -109,7 +109,7 @@ class MessagebusConnection(MessagebusListener):
 			else:
 				logger.debug("No available callback for event of message %r", message.type)
 		except Exception as err:
-			logger.error(err, exc_info=True)
+			logger.error(err, exc_info=True)  # noqa: G201
 
 	def _on_channel_subscription_event(self, message: ChannelSubscriptionEventMessage) -> None:
 		self.subscribed_channels = message.subscribed_channels
@@ -631,9 +631,8 @@ class TerminalMessagebusConnection(MessagebusConnection):
 		logger.notice("Requesting to open terminal with id %s", self.terminal_id)
 		self.send_message(message)
 
-		if not self._terminal_open_event.wait(CHANNEL_SUB_TIMEOUT) or self._terminal_write_channel is None:
-			if not self._terminal_error:
-				self._terminal_error = ConnectionError("Timed out waiting for terminal to open")
+		if (not self._terminal_open_event.wait(CHANNEL_SUB_TIMEOUT) or self._terminal_write_channel is None) and not self._terminal_error:
+			self._terminal_error = ConnectionError("Timed out waiting for terminal to open")
 		self._terminal_open_event.clear()  # Prepare for catching the next terminal_open_event
 
 	def close(self, message: str) -> None:
@@ -746,7 +745,7 @@ class TerminalMessagebusConnection(MessagebusConnection):
 
 
 class FileTransferMessagebusConnection(MessagebusConnection):
-	log_pattern = re.compile(r"\[(\d+)\] \[(.*?)\] \[(.*?)\] (.*?)\s+\((.*?)\)")
+	log_pattern = re.compile(r"\[(\d+)\] \[(.*?)\] \[(.*?)\] (.*?)\s+")
 	chunk_size: int = 1000
 	current_color: str = "white"
 

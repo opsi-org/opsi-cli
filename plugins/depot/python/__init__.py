@@ -8,6 +8,7 @@ opsi-cli depot plugin
 """
 
 import sys
+from pathlib import Path
 
 import rich_click as click
 from opsi.logging import get_logger
@@ -71,4 +72,8 @@ class CustomPlugin(OPSICLIPlugin):
 	description: str = __description__
 	version: str = __version__
 	cli = cli
-	flags: list[str] = []
+	flags: list[str]
+
+	def __init__(self, path: Path) -> None:
+		super().__init__(path)
+		self.flags = []

@@ -64,7 +64,7 @@ def _validate_input(
 	if attribute.validator:
 		try:
 			value = attribute.validator(value)
-		except Exception:
+		except Exception:  # noqa: BLE001
 			raise ValueError(Error.invalid_value_set(attribute.id, str(value), general_help))
 
 	return value
@@ -171,7 +171,7 @@ def validate_against_possible_values(
 
 	if isinstance(obj, BoolConfig | BoolProductProperty):
 		if not isinstance(val, str):
-			raise ValueError(Error.not_a_single_value(val, obj))
+			raise ValueError(Error.not_a_single_value(val, obj))  # noqa: TRY004
 		if val.lower() not in ["false", "true", "0", "1"]:
 			raise ValueError(Error.not_a_possible_value(val, obj))
 		return to_bool_list(val)

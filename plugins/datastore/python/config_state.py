@@ -237,7 +237,7 @@ def update_config_state(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 	config_id = filter.get("configId", None)
 
 	if not isinstance(config_id, str):
-		raise ValueError("Only one configId without wildcard is allowed.")
+		raise ValueError("Only one configId without wildcard is allowed.")  # noqa: TRY004
 	else:
 		config_obj = service_connection.config_getObjects(id=config_id)[0]  # ty: ignore[unresolved-attribute]
 

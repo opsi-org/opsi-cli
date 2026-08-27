@@ -15,7 +15,7 @@ import os
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Self
+from typing import Any, ClassVar, Self
 from urllib.parse import urlparse
 
 from opsicli.config import COMPLETION_MODE, DEFAULT_SESSION_LIFETIME
@@ -37,7 +37,7 @@ class classproperty(property):
 
 
 class LogLevel(int):
-	possible_values = list(reversed([v.lower() for v in NAME_TO_LEVEL]))
+	possible_values: ClassVar[list[str]] = list(reversed([v.lower() for v in NAME_TO_LEVEL]))
 	possible_values_for_description = ", ".join(
 		[f"[metavar]{name}[/metavar]/[metavar]{LEVEL_TO_OPSI_LEVEL[NAME_TO_LEVEL[name.upper()]]}[/metavar]" for name in possible_values]
 	)

@@ -34,7 +34,6 @@ logger = get_logger("opsicli")
 @click.pass_context
 @dry_run_capable
 def cli(ctx: click.Context) -> None:
-	""" """
 	logger.trace("support command")
 
 
@@ -82,4 +81,8 @@ class SupportPlugin(OPSICLIPlugin):
 	description: str = __description__
 	version: str = __version__
 	cli = cli
-	flags: list[str] = ["protected"]
+	flags: list[str]
+
+	def __init__(self, path: Path) -> None:
+		super().__init__(path)
+		self.flags = ["protected"]

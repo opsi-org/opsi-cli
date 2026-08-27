@@ -330,7 +330,7 @@ def install(ctx: click.Context, location: str, no_add_to_path: bool, system: boo
 				install_binary(source=src_binary, destination=binary)
 		except Exception as err:
 			exit_code = 1
-			logger.error("Failed to install opsi-cli to '%s': %s", binary, err, exc_info=True)
+			logger.error("Failed to install opsi-cli to '%s': %s", binary, err, exc_info=True)  # noqa: G201
 			console_print(f"Failed to install opsi-cli to '{binary}': {err}", output_type=OutputType.ERROR_MESSAGE)
 			continue
 
@@ -435,7 +435,7 @@ def upgrade(ctx: click.Context, branch: str, source_url: str, location: str, all
 
 			except Exception as err:
 				exit_code = 1
-				logger.error("Failed to install opsi-cli to '%s': %s", binary, err, exc_info=True)
+				logger.error("Failed to install opsi-cli to '%s': %s", binary, err, exc_info=True)  # noqa: G201
 				console_print(f"Failed to install opsi-cli to '{binary}': {err}", output_type=OutputType.ERROR_MESSAGE)
 				continue
 
@@ -485,7 +485,7 @@ def uninstall(ctx: click.Context, location: str, system: bool | None = None, bin
 			else:
 				logger.notice("Binary '%s' does not exist.", binary)
 				console_print(f"Binary '{binary}' does not exist.", output_type=OutputType.MESSAGE)
-		except Exception as err:
+		except OSError as err:
 			exit_code = 1
 			logger.error("Failed to remove binary '%s': %s", binary, err)
 			console_print(f"Failed to remove binary '{binary}': {err}", output_type=OutputType.ERROR_MESSAGE)
@@ -504,7 +504,7 @@ def uninstall(ctx: click.Context, location: str, system: bool | None = None, bin
 					logger.notice("Removing config file '%s'", config_file)
 					console_print(f"Removing config file '{config_file}'.", output_type=OutputType.MESSAGE)
 					config_file.unlink()
-		except Exception as err:
+		except OSError as err:
 			exit_code = 1
 			logger.error("Failed to remove config file '%s': %s", config_file, err)
 			console_print(f"Failed to remove config file '{config_file}': {err}", output_type=OutputType.ERROR_MESSAGE)
@@ -553,4 +553,8 @@ class SelfPlugin(OPSICLIPlugin):
 	description: str = "Manage opsi-cli"
 	version: str = __version__
 	cli = cli
-	flags: list[str] = ["protected"]
+	flags: list[str]
+
+	def __init__(self, path: Path) -> None:
+		super().__init__(path)
+		self.flags = ["protected"]

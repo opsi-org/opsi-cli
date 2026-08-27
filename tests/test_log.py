@@ -32,8 +32,7 @@ def test_log_view(admin_service_client: ServiceClient) -> None:
 	for line in lines_to_process:
 		match = log_line_pattern.match(line)
 		if match:
-			log_level = int(match.group(1))
-			assert log_level <= log_level
+			assert int(match.group(1)) <= log_level
 
 
 @pytest.mark.opsi_service

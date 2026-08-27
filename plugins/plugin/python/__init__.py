@@ -80,7 +80,7 @@ def add(paths: list[Path], system: bool) -> None:
 			try:
 				path = install_plugin(tmpdir_path, plugin_id, system)
 			except PermissionError as p_error:
-				logger.error(p_error, exc_info=True)
+				logger.error(p_error, exc_info=True)  # noqa: G201
 				continue
 		with warnings.catch_warnings():  # pip complains about importing something after it "started"
 			warnings.simplefilter("ignore")
@@ -268,9 +268,11 @@ def new(name: str, version: str, description: str, path: Path) -> None:
 		"{{DESCRIPTION}}": description,
 	}
 
-	with open(plugin_path / "python" / "__init__.py", "w", encoding="utf-8") as initfile:
-		with open(template_file_path, "r", encoding="utf-8") as templatefile:
-			initfile.writelines(replace_data(line, replacements) for line in templatefile)
+	with (
+		open(plugin_path / "python" / "__init__.py", "w", encoding="utf-8") as initfile,
+		open(template_file_path, "r", encoding="utf-8") as templatefile,
+	):
+		initfile.writelines(replace_data(line, replacements) for line in templatefile)
 	console_print(
 		f"Plugin {plugin_id!r} created at '{plugin_path}'.\n"
 		f"Add code to {path / 'python'} and optional data to {path / 'data'}\n"
@@ -284,4 +286,8 @@ class PluginPlugin(OPSICLIPlugin):
 	description: str = "Manage opsi-cli plugins"
 	version: str = __version__
 	cli = cli
-	flags: list[str] = ["protected"]
+	flags: list[str]
+
+	def __init__(self, path: Path) -> None:
+		super().__init__(path)
+		self.flags = ["protected"]

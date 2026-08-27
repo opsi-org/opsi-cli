@@ -205,7 +205,7 @@ class FileDownloadMessagebusConnection(MessagebusConnection):
 				logger.notice(
 					"Starting download of file '%s' (%r bytes) from client '%s'", source, self._file_download_information.size, client
 				)
-				ctx = stdout() if destination.name == "-" else open(destination, "wb")
+				ctx = stdout() if destination.name == "-" else open(destination, "wb")  # noqa: SIM115
 				with ctx as self._file_handle:
 					self._file_handle_ready.set()
 
@@ -221,7 +221,7 @@ class FileDownloadMessagebusConnection(MessagebusConnection):
 				return
 			except Exception as exc:
 				message = f"Error during file download: {exc}"
-				logger.error(message, exc_info=True)
+				logger.error(message, exc_info=True)  # noqa: G201
 				raise RuntimeError(message) from exc
 
 
@@ -263,7 +263,7 @@ class FileUploadMessagebusConnection(MessagebusConnection):
 			yield sys.stdin.buffer
 
 		with self.connection():
-			ctx = stdin() if source.name == "-" else open(source, "rb")
+			ctx = stdin() if source.name == "-" else open(source, "rb")  # noqa: SIM115
 			with ctx as self._file_handle:
 				size = source.stat().st_size if source.name != "-" else None
 				file_upload_request = FileUploadRequestMessage(
@@ -320,7 +320,7 @@ class FileUploadMessagebusConnection(MessagebusConnection):
 
 				except Exception as exc:
 					message = f"Error during file upload: {exc}"
-					logger.error(message, exc_info=True)
+					logger.error(message, exc_info=True)  # noqa: G201
 					raise RuntimeError(message) from exc
 
 
@@ -442,7 +442,7 @@ def download_file(client: str, source: str, destination: Path, follow: bool) -> 
 		source_path = PureWindowsPath(source)
 		if not source_path.drive and (r"\\" not in source):
 			raise ValueError("Not a Windows path")
-	except Exception:
+	except (ValueError, TypeError):
 		source_path = PurePosixPath(source)
 
 	if destination.is_dir():
@@ -472,7 +472,7 @@ def upload_file(client: str, source: Path, destination: str) -> None:
 		destination_path = PureWindowsPath(destination)
 		if not destination_path.drive and (r"\\" not in destination):
 			raise ValueError("Not a Windows path")
-	except Exception:
+	except (ValueError, TypeError):
 		destination_path = PurePosixPath(destination)
 
 	mbus_connection = FileUploadMessagebusConnection()
@@ -486,4 +486,8 @@ class MessagebusPlugin(OPSICLIPlugin):
 	description: str = __description__
 	version: str = __version__
 	cli = cli
-	flags: list[str] = ["protected"]
+	flags: list[str]
+
+	def __init__(self, path: Path) -> None:
+		super().__init__(path)
+		self.flags = ["protected"]

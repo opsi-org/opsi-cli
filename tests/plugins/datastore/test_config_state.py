@@ -84,9 +84,11 @@ def test_config_state_list_unmatched_object_id_stops_before_unfiltered_rpcs() ->
 	service_client = MagicMock()
 	service_client.host_getIdents.return_value = []
 
-	with patch("plugins.datastore.python.config_state.get_service_connection", return_value=service_client):
-		with pytest.raises(ValueError, match="No clients found matching the supplied objectId filter"):
-			_fetch_and_filter_config_states(("objectId=nonexistent.test.invalid",), all_flag=False)
+	with (
+		patch("plugins.datastore.python.config_state.get_service_connection", return_value=service_client),
+		pytest.raises(ValueError, match="No clients found matching the supplied objectId filter"),
+	):
+		_fetch_and_filter_config_states(("objectId=nonexistent.test.invalid",), all_flag=False)
 
 	service_client.config_getObjects.assert_not_called()
 	service_client.configState_getObjects.assert_not_called()
@@ -96,9 +98,11 @@ def test_config_state_update_unmatched_object_id_stops_before_unfiltered_rpcs() 
 	service_client = MagicMock()
 	service_client.host_getIdents.return_value = []
 
-	with patch("plugins.datastore.python.config_state.get_service_connection", return_value=service_client):
-		with pytest.raises(ValueError, match="No clients found matching the supplied objectId filter"):
-			update_config_state.callback(("objectId=nonexistent.test.invalid", "configId=opsi.check.enabled"), ("values=true",))  # ty: ignore[call-non-callable]
+	with (
+		patch("plugins.datastore.python.config_state.get_service_connection", return_value=service_client),
+		pytest.raises(ValueError, match="No clients found matching the supplied objectId filter"),
+	):
+		update_config_state.callback(("objectId=nonexistent.test.invalid", "configId=opsi.check.enabled"), ("values=true",))  # ty: ignore[call-non-callable]
 
 	service_client.config_getObjects.assert_not_called()
 	service_client.configState_getValues.assert_not_called()

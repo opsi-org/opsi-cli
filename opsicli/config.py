@@ -656,7 +656,7 @@ class Config:
 		if long_option is None:
 			long_option = f"--{name.replace('_', '-')}"
 			if isinstance(config_item.type, Bool):
-				long_option = f"{long_option}/--no-{long_option.lstrip('--')}"
+				long_option = f"{long_option}/--no-{long_option.removeprefix('--')}"
 
 		_kwargs = {
 			"type": kwargs.pop("click_type", getattr(config_item.type, "click_type", config_item.type)),

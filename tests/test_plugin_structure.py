@@ -44,11 +44,10 @@ def test_plugin_structure(test_plugins_dir: Path | None = None) -> str | None:
 			errors.append(f"{plugin_name}: \n - data directory should be at '{data_path}'.")
 
 		# if metadata.py: right path?
-		if metadata_file:
-			if not metadata_path.exists():
-				errors.append(
-					f"{plugin_name}: \n - metadata.py should be at '{metadata_path}' and named after corrsesponding command sequence. (e.g. 'datastore_config-state_list')"
-				)
+		if metadata_file and not metadata_path.exists():
+			errors.append(
+				f"{plugin_name}: \n - metadata.py should be at '{metadata_path}' and named after corrsesponding command sequence. (e.g. 'datastore_config-state_list')"
+			)
 
 		# if __init__.py: right path?
 		if init_file:

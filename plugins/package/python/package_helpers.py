@@ -148,7 +148,7 @@ def map_and_sort_packages(packages: list[str]) -> dict[Path, OpsiPackage]:
 			try:
 				opsi_package = OpsiPackage(Path(pkg))
 			except Exception as err:
-				logger.error(err, exc_info=True)
+				logger.error(err, exc_info=True)  # noqa: G201
 				raise RuntimeError(f"Failed to analyze package '{pkg}': {err}") from err
 
 			path_to_opsipackage[Path(pkg)] = opsi_package
@@ -180,7 +180,7 @@ def map_and_sort_packages(packages: list[str]) -> dict[Path, OpsiPackage]:
 		try:
 			visit(path)
 		except Exception as err:
-			logger.error(err, exc_info=True)
+			logger.error(err, exc_info=True)  # noqa: G201
 			raise RuntimeError(f"Failed to analyze package '{path}': {err}") from err
 	return result
 

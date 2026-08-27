@@ -212,9 +212,11 @@ def test_list_product_client_state_nonexistent_client() -> None:
 	service_client = MagicMock()
 	service_client.host_getIdents.return_value = []
 
-	with patch("plugins.datastore.python.product_client_state.get_service_connection", return_value=service_client):
-		with pytest.raises(ValueError, match="No clients found matching the supplied clientId filter: nonexistent.test.invalid"):
-			list_product_client_state.callback(("clientId=nonexistent.test.invalid",), False)  # ty: ignore[call-non-callable]
+	with (
+		patch("plugins.datastore.python.product_client_state.get_service_connection", return_value=service_client),
+		pytest.raises(ValueError, match="No clients found matching the supplied clientId filter: nonexistent.test.invalid"),
+	):
+		list_product_client_state.callback(("clientId=nonexistent.test.invalid",), False)  # ty: ignore[call-non-callable]
 
 	service_client.productOnDepot_getIdents.assert_not_called()
 	service_client.productOnClient_getObjects.assert_not_called()
