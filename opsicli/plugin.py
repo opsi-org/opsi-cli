@@ -100,7 +100,7 @@ sys.meta_path.append(PluginImporter)  # ty: ignore[invalid-argument-type]
 
 
 class PluginManager:
-	_instance: PluginManager | None = None
+	_instance: Self | None = None
 
 	def __new__(cls) -> Self:
 		if cls._instance is None:
@@ -289,7 +289,7 @@ def install_python_package(target_dir: Path, package: dict[str, str]) -> None:
 	pip._internal.commands.install.warn_if_run_as_root = lambda: None  # ty: ignore
 	# ScriptMaker is called by pip to create executable python scripts from libraries (i.e. .../bin)
 	# Monkeypatch here to avoid trying to create this (nasty in frozen context)
-	ScriptMaker.make_multiple = monkeypatched_make_multiple  # ty: ignore
+	ScriptMaker.make_multiple = monkeypatched_make_multiple
 
 	target_dir.mkdir(parents=True, exist_ok=True)
 	logger.info("Installing %r, version %r", package["name"], package["version"])

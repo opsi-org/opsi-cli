@@ -24,7 +24,7 @@ from .metadata import CLIENT_METADATA
 logger = get_logger("opsicli")
 
 
-def _get_clients_from_input() -> list[dict[str, str | datetime | None]]:
+def _get_clients_from_input() -> list[dict[str, str | list[str] | datetime | None]]:
 	data = read_input()
 	if not data:
 		return []
@@ -39,7 +39,9 @@ def _get_clients_from_input() -> list[dict[str, str | datetime | None]]:
 	return clients
 
 
-def _get_clients_from_service(filter: dict[str, str | list[str]], attributes: list[str]) -> list[dict[str, str | datetime | None]]:
+def _get_clients_from_service(
+	filter: dict[str, str | list[str]], attributes: list[str]
+) -> list[dict[str, str | list[str] | datetime | None]]:
 	service_connection = get_service_connection()
 	clients = []
 	for client in service_connection.host_getObjects(attributes=attributes, type="OpsiClient", **filter):  # ty: ignore[unresolved-attribute]
@@ -51,7 +53,7 @@ def _get_clients_from_service(filter: dict[str, str | list[str]], attributes: li
 	return clients
 
 
-def _update_clients(clients: list[dict[str, str | datetime | None]]) -> None:
+def _update_clients(clients: list[dict[str, str | list[str] | datetime | None]]) -> None:
 	if not config.dry_run:
 		service_connection = get_service_connection()
 		service_connection.host_updateObjects(clients)  # ty: ignore[unresolved-attribute]
@@ -169,11 +171,12 @@ def update_clients(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 		update_selected=True,
 	)
 
-	clients = _get_clients_from_service(filter=filter, attributes=selected_attributes)
+	clients: list[dict[str, str | list[str] | datetime | None]] = _get_clients_from_service(filter=filter, attributes=selected_attributes)
 	if not clients:
 		raise ValueError(Error.no_match())
 
 	for client in clients:
-		client.update(updates)
+		for key, value in updates.items():
+			client[key] = value
 
 	_update_clients(clients)

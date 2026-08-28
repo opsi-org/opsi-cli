@@ -35,7 +35,7 @@ def _parse_value(raw_val: str, operator: str) -> str | list[str]:
 	separate_input_enabled: bool = not (config.no_input_separation)
 
 	if has_separator:
-		console_print(Help.multiple_values_input(), output_type=OutputType.MESSAGE)
+		console_print(Help.input_separator_detected(), output_type=OutputType.MESSAGE)
 
 	if has_separator and separate_input_enabled:
 		if operator != "=":
@@ -208,7 +208,10 @@ def filter_by_attribute_values(
 	for attr, val in filter.items():
 		# Skip filters that do not correspond to known attributes
 		if attr in available_attributes:
-			prepared_filter[attr] = val.capitalize() if val in ("false", "true") else val
+			if isinstance(val, str):
+				prepared_filter[attr] = val.capitalize() if val in ("false", "true") else val
+			else:
+				prepared_filter[attr] = val
 
 	filtered_data = []
 

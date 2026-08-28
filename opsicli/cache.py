@@ -24,7 +24,7 @@ logger = get_logger("opsicli")
 
 
 class Cache:
-	_instance: Cache | None = None
+	_instance: Self | None = None
 
 	def __new__(cls) -> Self:
 		if cls._instance is None:

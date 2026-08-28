@@ -114,7 +114,7 @@ class HelpTemplates:
 		'Use one or more `[bold]--where "<attribute><operator><value>"[/]` options to define the filter.\n\nAvailable attributes are:\n'
 	)
 	GENERAL_SET = 'Use one or more `[bold]--set "<attribute>=<value>"[/]` options to define the attributes to update.\n\n'
-	MULTIPLE_VALUES_INPUT = (
+	INPUT_SEPARATOR_DETECTED = (
 		"Your input contains a comma `[bold yellow],[/]`.\n\n"
 		"If this is a single value and not a list, use the `[bold yellow]--no-input-separation[/]` flag.\n"
 		"To use a different list separator, set `[bold][yellow]--input-separator[/] <separator>[/]`"
@@ -293,5 +293,5 @@ class Help:
 			general_help += f"  [bold white]{attr.id.ljust(max_attr_len)}[/]  {type_str}  {attr.description}\n"
 		return general_help
 
-	def multiple_values_input() -> str:
-		return Panel.fit(HelpTemplates.MULTIPLE_VALUES_INPUT, title="[yellow]Hint", border_style="yellow", title_align="left")
+	def input_separator_detected() -> Panel:
+		return Panel.fit(HelpTemplates.INPUT_SEPARATOR_DETECTED, title="[yellow]Hint", border_style="yellow", title_align="left")

@@ -496,7 +496,7 @@ def get_config_items() -> list[ConfigItem]:
 
 
 class Config:
-	_instance: Config | None = None
+	_instance: Self | None = None
 
 	def __new__(cls) -> Self:
 		if cls._instance is None:
