@@ -9,6 +9,7 @@ opsi-cli basic command line interface for opsi
 config plugin
 """
 
+from pathlib import Path
 from urllib.parse import urlparse
 
 import rich_click as click
@@ -320,4 +321,8 @@ class ConfigPlugin(OPSICLIPlugin):
 	description: str = "Manage opsi-cli configuration"
 	version: str = __version__
 	cli = cli
-	flags: list[str] = ["protected"]
+	flags: list[str]
+
+	def __init__(self, path: Path):
+		super().__init__(path)
+		self.flags = ["protected"]

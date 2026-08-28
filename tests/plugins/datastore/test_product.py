@@ -4,8 +4,6 @@
 # License: AGPL-3.0-only
 
 import json
-import time
-from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -13,14 +11,13 @@ import pytest
 from opsi.opsi.service.client import ServiceClient
 
 from plugins.datastore.python.product_client_state import list_product_client_state
-from tests.utils import run_cli, stdout_into_list, tmp_client, tmp_product
+from tests.utils import get_depot_id, run_cli, stdout_into_list, tmp_client, tmp_product
 
 CLIENT_ID_1 = "pytest-client1.test.tld"
 CLIENT_ID_2 = "pytest-client2.test.tld"
 
 PRODUCT_ID_1 = "pytest-product1"
 PRODUCT_ID_2 = "pytest-product2"
-
 
 # ===============
 # HELP FUNCTIONS
@@ -29,7 +26,7 @@ PRODUCT_ID_2 = "pytest-product2"
 
 # get products from depot and setting locked to 'True' manually
 # update depot with locked products
-def lock_products(admin_service_client: ServiceClient, product_id: str | None = None) -> None:
+def _lock_products_manually(admin_service_client: ServiceClient, product_id: str | None = None) -> None:
 	products = admin_service_client.productOnDepot_getObjects(productId=product_id or [])  # ty: ignore[unresolved-attribute]
 	for product in products:
 		product.locked = True
@@ -37,36 +34,35 @@ def lock_products(admin_service_client: ServiceClient, product_id: str | None = 
 
 
 # unlock products with given product-id and depot-id
-def unlock_products(product_ids: list[str] = [], depot_ids: list[str] = []) -> tuple[int, str, str]:
-	args = ["datastore", "product", "unlock"]
-	if product_ids and not depot_ids:
-		args += ["--where", f"productId={','.join(product_ids)}", "--where", "depotId=*"]
-	if depot_ids and not product_ids:
-		args += ["--where", f"depotId={','.join(depot_ids)}", "--where", "productId=*"]
-	if depot_ids and product_ids:
-		args += ["--where", f"productId={','.join(product_ids)}", "--where", f"depotId={','.join(depot_ids)}"]
-	if not depot_ids and not product_ids:
-		args += ["--where", "productId=*", "--where", "depotId=*"]
+def _unlock_products_with_cli(filter: list[str], expected_output: list[str] | None = None, expected_error: list[str] | None = None) -> None:
+	args = ["datastore", "product", "unlock"] + filter
 
-	return run_cli(args)
+	exit_code, _stdout, _stderr = run_cli(args)
+
+	if expected_output:
+		assert exit_code == 0
+		for expect in expected_output:
+			assert expect in _stdout
+	elif expected_error:
+		assert exit_code != 0
+		for err in expected_error:
+			assert err in _stderr
+	else:
+		assert exit_code == 0
 
 
 # verify the given locked status (e.g. is product.locked = True or False?)
-def verify_lock_status(admin_service_client: ServiceClient, is_locked: bool, product_id: str | None = None) -> None:
+def _verify_lock_status(admin_service_client: ServiceClient, is_locked: bool, product_id: str | None = None) -> None:
 	products = admin_service_client.productOnDepot_getObjects(productId=product_id or [])  # ty: ignore[unresolved-attribute]
 	for prod in products:
 		assert prod.locked is is_locked
 
 
 # install broken package -> failed installation
-def install_broken_package() -> None:
+def _lock_products_by_installing_broken_package() -> None:
 	package_name = "gimp2_broken_1.0-1.opsi"
 	broken_package = Path(f"tests/test_data/plugins/package/{package_name}")
 	run_cli(["package", "install", str(broken_package)])
-
-
-def uninstall_broken_package() -> None:
-	run_cli(["package", "uninstall", "gimp2_broken_1.0-1.opsi"])
 
 
 # =========
@@ -75,118 +71,140 @@ def uninstall_broken_package() -> None:
 
 
 # ===================================(PRODUCT UNLOCK || TESTS)============================================
-# lock one product -> verify -> unlock (CLI) -> verify
-@pytest.mark.opsi_service
-def test_product_unlock_manual(admin_service_client: ServiceClient) -> None:
-	with tmp_product(admin_service_client, PRODUCT_ID_1), tmp_product(admin_service_client, PRODUCT_ID_2):
-		lock_products(admin_service_client)
-		verify_lock_status(admin_service_client, is_locked=True)
-		unlock_products()
-		verify_lock_status(admin_service_client, is_locked=False)
+# Locking the products -> verify the lock status -> unlock products with cli -> verify lock status again
 
 
-# lock list of products -> verify -> unlock (CLI) -> verify
-@pytest.mark.opsi_service
-def test_product_unlock_multiple(admin_service_client: ServiceClient) -> None:
-	with tmp_product(admin_service_client, PRODUCT_ID_1), tmp_product(admin_service_client, PRODUCT_ID_2):
-		lock_products(admin_service_client)
-		verify_lock_status(admin_service_client, is_locked=True)
-		unlock_products(product_ids=["gimp2", "test2", "pytest-product1", "pytest-product2", "opsi-client-agent"])
-		verify_lock_status(admin_service_client, is_locked=False)
+class TestProductUnlock:
+	# unlock single product
+	@staticmethod
+	@pytest.mark.opsi_service
+	def test_unlock_single_product(admin_service_client: ServiceClient) -> None:
+		with tmp_product(admin_service_client, PRODUCT_ID_1):
+			_lock_products_manually(admin_service_client, product_id=PRODUCT_ID_1)
+			_verify_lock_status(admin_service_client, is_locked=True)
+			_unlock_products_with_cli(
+				filter=["--where", f"productId={PRODUCT_ID_1}"],
+				expected_output=[PRODUCT_ID_1],
+			)
+			_verify_lock_status(admin_service_client, is_locked=False)
 
+	# unlock multiple products
+	@staticmethod
+	@pytest.mark.opsi_service
+	def test_unlock_multiple_products(admin_service_client: ServiceClient) -> None:
+		with tmp_product(admin_service_client, PRODUCT_ID_1), tmp_product(admin_service_client, PRODUCT_ID_2):
+			_lock_products_manually(admin_service_client)
+			_verify_lock_status(admin_service_client, is_locked=True)
+			_unlock_products_with_cli(
+				filter=["--where", f"productId={PRODUCT_ID_1}", "--where", f"productId={PRODUCT_ID_2}"],
+				expected_output=[PRODUCT_ID_1, PRODUCT_ID_2],
+			)
+			_verify_lock_status(admin_service_client, is_locked=False)
 
-# lock product (failed installation) -> verify -> unlock (CLI) -> verify
-@pytest.mark.opsi_service
-def test_product_unlock_installation(admin_service_client: ServiceClient) -> None:
-	with tmp_product(admin_service_client, PRODUCT_ID_1), tmp_product(admin_service_client, PRODUCT_ID_2):
-		install_broken_package()
-		verify_lock_status(admin_service_client, is_locked=True, product_id="gimp2")
-		unlock_products(product_ids=["gimp2"])
-		verify_lock_status(admin_service_client, is_locked=False, product_id="gimp2")
+	# unlock products after failed package installation
+	@staticmethod
+	@pytest.mark.opsi_service
+	def test_unlock_after_failed_installation(admin_service_client: ServiceClient) -> None:
+		with tmp_product(admin_service_client, PRODUCT_ID_1), tmp_product(admin_service_client, PRODUCT_ID_2):
+			_lock_products_by_installing_broken_package()
+			_verify_lock_status(
+				admin_service_client,
+				is_locked=True,
+				product_id="gimp2",
+			)
+			_unlock_products_with_cli(
+				filter=["--where", "productId=gimp2"],
+				expected_output=["gimp2"],
+			)
+			_verify_lock_status(admin_service_client, is_locked=False, product_id="gimp2")
 
-
-# lock products -> verify -> try unlock (wrong/mutliple depot-ids) -> verify error message
-@pytest.mark.opsi_service
-def test_wrong_depot_id(admin_service_client: ServiceClient) -> None:
-	with tmp_product(admin_service_client, PRODUCT_ID_1), tmp_product(admin_service_client, PRODUCT_ID_2):
-		lock_products(admin_service_client)
-		verify_lock_status(admin_service_client, is_locked=True)
-		exitcode, _stdout, stderr = unlock_products(depot_ids=["hallo,test"])
-		assert exitcode != 0
-		assert "No products found matching the filtering criteria." in stderr
-
-
-@pytest.mark.opsi_service
-def _test_product_property_list_stress_test(admin_service_client: ServiceClient) -> None:
-	num_clients = 1
-	num_products = 5
-	num_properties = 3
-	tmp_clients = []
-	tmp_products = []
-
-	# create clients
-	i = 0
-	while i < num_clients:
-		tmp_clients.append(tmp_client(admin_service_client, f"pytest-client{i}.test.tld"))
-		i += 1
-	# create products
-	j = 0
-	while j < num_products:
-		tmp_products.append(tmp_product(admin_service_client, f"pytest-product{j}"))
-		j += 1
-
-	with ExitStack() as stack:
-		for client in tmp_clients:
-			stack.enter_context(client)
-		for product in tmp_products:
-			stack.enter_context(product)
-
-		# create properties and their property-states
-		i = 0
-		while i < num_clients:
-			j = 0
-			while j < num_products:
-				k = 0
-				while k < num_properties:
-					admin_service_client.productProperty_create(  # ty: ignore[unresolved-attribute]
-						productId=f"pytest-product{j}",
-						productVersion="1",
-						packageVersion="1",
-						propertyId=f"property{k}",
-					)
-					admin_service_client.productPropertyState_create(  # ty: ignore[unresolved-attribute]
-						productId=f"pytest-product{j}",
-						propertyId=f"property{k}",
-						objectId=f"pytest-client{i}.test.tld",
-					)
-					print(f"pytest-client{i}.test.tld; pytest-product{j}; property{k}")
-					k += 1
-				j += 1
-			i += 1
-
-		start = time.perf_counter()
-		exit_code, _stdout, _stderr = run_cli(
-			[
-				"--output-format",
-				"csv",
-				"--sort-by",
-				"objectId",
-				"datastore",
-				"product-property-state",
-				"list",
-				"--object-ids",
-				"all",
-				"--product-ids",
-				"pytest*",
-				"--property-ids",
-				"property*",
-			]
+	# test wrong depotId
+	@staticmethod
+	@pytest.mark.opsi_service
+	def test_wrong_depot_id(admin_service_client: ServiceClient) -> None:
+		_unlock_products_with_cli(
+			filter=["--where", "depotId=hello,test", "--where", "productId=*"],
+			expected_error=[
+				"Invalid value in filter condition",
+				"The specified",
+				"was not found",
+				"Please use one or multiple",
+				"available depotId's",
+				f"{get_depot_id(admin_service_client)}",
+			],
 		)
-		assert exit_code == 0
-		assert len(stdout_into_list(_stdout)) - 1 == num_clients * num_products * num_properties
-	diff = time.perf_counter() - start
 
-	print(diff)
+	# wrong product_id
+	@staticmethod
+	@pytest.mark.opsi_service
+	def test_wrong_product_id() -> None:
+		_unlock_products_with_cli(
+			filter=["--where", "productId=non-existent-product-123"], expected_error=["No products found matching the filtering criteria."]
+		)
+
+	# test if product unlock defaults correctly when no depotId is given
+	@staticmethod
+	@pytest.mark.opsi_service
+	def test_no_depot_id(admin_service_client: ServiceClient) -> None:
+		with tmp_product(admin_service_client, PRODUCT_ID_1), tmp_product(admin_service_client, PRODUCT_ID_2):
+			_lock_products_manually(admin_service_client)
+			_verify_lock_status(admin_service_client, is_locked=True)
+			_unlock_products_with_cli(
+				filter=["--where", f"productId={PRODUCT_ID_1}", "--where", f"productId={PRODUCT_ID_2}"],
+				expected_output=[PRODUCT_ID_1, PRODUCT_ID_2],
+			)
+			_verify_lock_status(admin_service_client, is_locked=False)
+
+	# test --all flag
+	@staticmethod
+	@pytest.mark.opsi_service
+	def test_all_flag(admin_service_client: ServiceClient) -> None:
+		with (
+			tmp_product(admin_service_client, PRODUCT_ID_1),
+			tmp_product(admin_service_client, PRODUCT_ID_2),
+		):
+			_lock_products_manually(admin_service_client)
+			_verify_lock_status(admin_service_client, is_locked=True)
+			_unlock_products_with_cli(
+				filter=["--all"],
+				expected_output=[PRODUCT_ID_1, PRODUCT_ID_2],
+			)
+			_verify_lock_status(admin_service_client, is_locked=False)
+
+	# test unlocking unlocked product
+	@staticmethod
+	@pytest.mark.opsi_service
+	def test_unlock_already_unlocked(admin_service_client: ServiceClient) -> None:
+		with tmp_product(admin_service_client, PRODUCT_ID_1):
+			_verify_lock_status(admin_service_client, is_locked=False, product_id=PRODUCT_ID_1)
+			_unlock_products_with_cli(
+				filter=["--where", f"productId={PRODUCT_ID_1}"],
+				expected_output=[PRODUCT_ID_1],
+			)
+			_verify_lock_status(admin_service_client, is_locked=False, product_id=PRODUCT_ID_1)
+
+	# dry run:  no products should be unlocked
+	@staticmethod
+	@pytest.mark.opsi_service
+	def test_unlock_dry_run(admin_service_client: ServiceClient, capsys) -> None:
+		with tmp_product(admin_service_client, PRODUCT_ID_1):
+			_lock_products_manually(admin_service_client, product_id=PRODUCT_ID_1)
+			args = ["--dry-run", "datastore", "product", "unlock", "--where", f"productId={PRODUCT_ID_1}"]
+			exit_code, _stdout, _stderr = run_cli(args)
+
+			assert exit_code == 0
+			assert "Unlocking products skipped due to dry run" in _stderr
+			assert PRODUCT_ID_1 in _stdout
+			_verify_lock_status(admin_service_client, is_locked=True, product_id=PRODUCT_ID_1)
+
+	# no products on depot
+	@staticmethod
+	@pytest.mark.opsi_service
+	def test_unlock_on_empty_system(admin_service_client: ServiceClient) -> None:
+		_unlock_products_with_cli(
+			filter=["--where", "productId=non-existent-product"],
+			expected_error=["No products found matching the filtering criteria."],
+		)
 
 
 # ===================================(PRODUCT-CLIENT-STATE LIST || TESTS)============================================
@@ -194,14 +212,17 @@ def test_list_product_client_state_nonexistent_client() -> None:
 	service_client = MagicMock()
 	service_client.host_getIdents.return_value = []
 
-	with patch("plugins.datastore.python.product_client_state.get_service_connection", return_value=service_client):
-		with pytest.raises(ValueError, match="No clients found matching the supplied clientId filter: nonexistent.test.invalid"):
-			list_product_client_state.callback(("clientId=nonexistent.test.invalid",), False)  # ty: ignore[call-non-callable]
+	with (
+		patch("plugins.datastore.python.product_client_state.get_service_connection", return_value=service_client),
+		pytest.raises(ValueError, match="No clients found matching the supplied clientId filter: nonexistent.test.invalid"),
+	):
+		list_product_client_state.callback(("clientId=nonexistent.test.invalid",), False)  # ty: ignore[call-non-callable]
 
 	service_client.productOnDepot_getIdents.assert_not_called()
 	service_client.productOnClient_getObjects.assert_not_called()
 
 
+@pytest.mark.opsi_service
 def test_list_product_client_state_without_depot_mapping_skips_depot_products() -> None:
 	service_client = MagicMock()
 	service_client.host_getIdents.return_value = [CLIENT_ID_1]
@@ -209,8 +230,11 @@ def test_list_product_client_state_without_depot_mapping_skips_depot_products() 
 	service_client.productOnClient_getObjects.return_value = []
 
 	with patch("plugins.datastore.python.product_client_state.get_service_connection", return_value=service_client):
-		with pytest.raises(ValueError, match="No product-client-states found matching the filtering criteria"):
-			list_product_client_state.callback((f"clientId={CLIENT_ID_1}",), False)  # ty: ignore[call-non-callable]
+		exit_code, _stdout, stderr = run_cli(["datastore", "product-client-state", "list", "--where", f"clientId={CLIENT_ID_1}"])
+		assert exit_code != 0
+		assert "No clients found" in stderr
+		assert "supplied clientId filter:" in stderr
+		assert "pytest-client1.test.tld." in stderr
 
 	service_client.productOnDepot_getIdents.assert_not_called()
 
@@ -326,7 +350,7 @@ def test_list_product_client_state(admin_service_client: ServiceClient) -> None:
 
 
 @pytest.mark.opsi_service
-def test_update_product_client_state(admin_service_client: ServiceClient) -> None:
+def test_apply_product_client_state(admin_service_client: ServiceClient) -> None:
 	with (
 		tmp_client(admin_service_client, CLIENT_ID_1),
 		tmp_client(admin_service_client, CLIENT_ID_2),
@@ -360,7 +384,7 @@ def test_update_product_client_state(admin_service_client: ServiceClient) -> Non
 				"csv",
 				"datastore",
 				"product-client-state",
-				"update",
+				"apply",
 			],
 			stdin=[json.dumps(update_data)],
 		)

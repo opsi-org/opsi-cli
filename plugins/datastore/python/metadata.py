@@ -4,7 +4,7 @@
 # License: AGPL-3.0-only
 
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from opsi.opsi.service.model.type import (
 	to_bool,
@@ -96,7 +96,7 @@ CLIENT_METADATA = Metadata(
 			identifier=False,
 			data_type="datetime",
 			selected=False,
-			validator=lambda val: to_opsi_timestamp(datetime.fromisoformat(val).astimezone(timezone.utc).replace(microsecond=0)),
+			validator=lambda val: to_opsi_timestamp(datetime.fromisoformat(val).astimezone(UTC).replace(microsecond=0)),
 		),
 		Attribute(
 			id="lastSeen",
@@ -104,7 +104,7 @@ CLIENT_METADATA = Metadata(
 			identifier=False,
 			data_type="datetime",
 			selected=True,
-			validator=lambda val: to_opsi_timestamp(datetime.fromisoformat(val).astimezone(timezone.utc).replace(microsecond=0)),
+			validator=lambda val: to_opsi_timestamp(datetime.fromisoformat(val).astimezone(UTC).replace(microsecond=0)),
 		),
 		Attribute(
 			id="systemUUID",
@@ -243,7 +243,7 @@ is_default = Attribute(
 	id="isDefault",
 	description="Indicates if values are default.",
 	identifier=False,
-	data_type="str",
+	data_type="bool",
 	selected=False,
 	validator=lambda val: to_bool(val),
 )
@@ -327,7 +327,7 @@ COMMAND_METADATA = {
 			modification_time,
 		]
 	),
-	"datastore_product_unlock": Metadata(attributes=[product_id, replace(depot_id, identifier=True)]),
+	"datastore_product_unlock": Metadata(attributes=[product_id, depot_id]),
 	"datastore_product_purge": Metadata(attributes=[product_id]),
 	"datastore_client_apply": CLIENT_METADATA,
 	"datastore_client_edit": CLIENT_METADATA,

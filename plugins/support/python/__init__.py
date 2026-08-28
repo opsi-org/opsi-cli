@@ -34,7 +34,6 @@ logger = get_logger("opsicli")
 @click.pass_context
 @dry_run_capable
 def cli(ctx: click.Context) -> None:
-	""" """
 	logger.trace("support command")
 
 
@@ -74,8 +73,7 @@ def client_logs(client: str, path: Path) -> None:
 	response = service_client.get(f"/file-transfer/{result.get('file_id')}", raw_response=True)
 	console_print(f"Writing log archive at {path}")
 	with open(path, "wb") as file_handle:
-		for chunk in response.iter_content(chunk_size=8192):
-			file_handle.write(chunk)
+		file_handle.writelines(response.iter_content(chunk_size=8192))
 
 
 class SupportPlugin(OPSICLIPlugin):
@@ -83,4 +81,8 @@ class SupportPlugin(OPSICLIPlugin):
 	description: str = __description__
 	version: str = __version__
 	cli = cli
-	flags: list[str] = ["protected"]
+	flags: list[str]
+
+	def __init__(self, path: Path) -> None:
+		super().__init__(path)
+		self.flags = ["protected"]

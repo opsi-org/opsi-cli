@@ -122,8 +122,8 @@ def make(
 				custom_only=custom_only,
 			)
 		except Exception as err:
-			logger.error(err, exc_info=True)
-			raise err
+			logger.error(err, exc_info=True)  # noqa: G201
+			raise
 
 		md5_file: Path | None = None
 		zsync_file: Path | None = None
@@ -139,8 +139,8 @@ def make(
 					package_archive, progress_callback=ProgressCallbackAdapter(progress, "[cyan]Creating zsync file...").progress_callback
 				)
 		except Exception as err:
-			logger.error(err, exc_info=True)
-			raise err
+			logger.error(err, exc_info=True)  # noqa: G201
+			raise
 
 	console_print(f"The opsi package was created at '{package_archive}'", output_type=OutputType.MESSAGE)
 	if md5_file:
@@ -204,8 +204,8 @@ def package_list(depots: str, product_type: str, product_ids: list[str]) -> None
 			"productOnDepot_getObjects", [[], {"depotId": depot_list, "productId": product_ids, "productType": product_type}]
 		)
 	except Exception as err:
-		logger.error(err, exc_info=True)
-		raise err
+		logger.error(err, exc_info=True)  # noqa: G201
+		raise
 
 	product_dict = create_nested_dict(product_list, ["id", "productVersion", "packageVersion"])
 	product_on_depot_dict = create_nested_dict(product_on_depot_list, ["depotId", "productId"])
@@ -232,8 +232,8 @@ def control_to_toml(source_dir: Path) -> None:
 			raise FileExistsError(f"Control TOML '{control_toml}' already exists.")
 		opsi_package.generate_control_file(control_toml)
 	except Exception as err:
-		logger.error(err, exc_info=True)
-		raise err
+		logger.error(err, exc_info=True)  # noqa: G201
+		raise
 
 	console_print("Control TOML has been successfully generated.", output_type=OutputType.MESSAGE)
 
@@ -307,8 +307,8 @@ def extract(package_archive: str, destination_dir: Path, new_product_id: str, ov
 					custom_separated=True,
 				)
 			except Exception as err:
-				logger.error(err, exc_info=True)
-				raise err
+				logger.error(err, exc_info=True)  # noqa: G201
+				raise
 
 	console_print(f"Package archive has been successfully extracted at {destination_dir}", output_type=OutputType.MESSAGE)
 
@@ -684,9 +684,9 @@ def uninstall(product_ids: list[str], depots: str, force: bool, keep_files: bool
 		product_ids_by_depot[pod.depotId].append(pod.productId)
 
 	if config.dry_run:
-		for depot_id, product_ids in product_ids_by_depot.items():
+		for depot_id, current_product_ids in product_ids_by_depot.items():
 			console_print(
-				f"Products {', '.join(product_ids)} would be uninstalled from depot '{depot_id}' with force={force} and keep_files={keep_files}.",
+				f"Products {', '.join(current_product_ids)} would be uninstalled from depot '{depot_id}' with force={force} and keep_files={keep_files}.",
 				output_type=OutputType.WARNING_MESSAGE,
 			)
 		if purge:
@@ -789,4 +789,8 @@ class PackagePlugin(OPSICLIPlugin):
 	description: str = __description__
 	version: str = __version__
 	cli = cli
-	flags: list[str] = ["protected"]
+	flags: list[str]
+
+	def __init__(self, path: Path) -> None:
+		super().__init__(path)
+		self.flags = ["protected"]

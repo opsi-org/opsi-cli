@@ -40,16 +40,14 @@ def test_plugin_structure(test_plugins_dir: Path | None = None) -> str | None:
 		leftover_files = list(set(metadata_file) ^ set(init_file) ^ set(all_files))
 
 		# if data_dir: right path?
-		if data_dir:
-			if not data_path.exists():
-				errors.append(f"{plugin_name}: \n - data directory should be at '{data_path}'.")
+		if data_dir and not data_path.exists():
+			errors.append(f"{plugin_name}: \n - data directory should be at '{data_path}'.")
 
 		# if metadata.py: right path?
-		if metadata_file:
-			if not metadata_path.exists():
-				errors.append(
-					f"{plugin_name}: \n - metadata.py should be at '{metadata_path}' and named after corrsesponding command sequence. (e.g. 'datastore_config-state_list')"
-				)
+		if metadata_file and not metadata_path.exists():
+			errors.append(
+				f"{plugin_name}: \n - metadata.py should be at '{metadata_path}' and named after corrsesponding command sequence. (e.g. 'datastore_config-state_list')"
+			)
 
 		# if __init__.py: right path?
 		if init_file:
@@ -98,7 +96,7 @@ def test_metadata_naming() -> None:
 
 		# get metadata names
 		if hasattr(module, "COMMAND_METADATA"):
-			data = getattr(module, "COMMAND_METADATA")
+			data = module.COMMAND_METADATA
 			metadata_keys = data.keys()
 			functions_keys = functions.keys()
 

@@ -94,12 +94,11 @@ def test_get_events(types: list[str], output_type: str | None) -> None:
 
 	class CreateHostThread(Thread):
 		def run(self) -> None:
-			with log_context({"instance": "CreateHostThread"}):
-				with get_admin_service_client() as client:
-					time.sleep(7)
-					client.jsonrpc("host_createOpsiClient", params=[client_id])
-					time.sleep(1)
-					client.jsonrpc("host_delete", params=[client_id])
+			with log_context({"instance": "CreateHostThread"}), get_admin_service_client() as client:
+				time.sleep(7)
+				client.jsonrpc("host_createOpsiClient", params=[client_id])
+				time.sleep(1)
+				client.jsonrpc("host_delete", params=[client_id])
 
 	for cid in (client_id, "some.other.host"):
 		cht = CreateHostThread(daemon=True)
@@ -128,12 +127,11 @@ def test_wait_for_event(with_data: bool) -> None:
 
 	class CreateHostThread(Thread):
 		def run(self) -> None:
-			with log_context({"instance": "CreateHostThread"}):
-				with get_admin_service_client() as client:
-					time.sleep(7)
-					client.jsonrpc("host_createOpsiClient", params=[client_id])
-					time.sleep(1)
-					client.jsonrpc("host_delete", params=[client_id])
+			with log_context({"instance": "CreateHostThread"}), get_admin_service_client() as client:
+				time.sleep(7)
+				client.jsonrpc("host_createOpsiClient", params=[client_id])
+				time.sleep(1)
+				client.jsonrpc("host_delete", params=[client_id])
 
 	for cid in (client_id, "some.other.host"):
 		cht = CreateHostThread(daemon=True)
@@ -168,48 +166,47 @@ def test_wait_for_installation(installation_status: str, action_result: str | No
 	# action_result == None => timeout
 	class FakeInstallationThread(Thread):
 		def run(self) -> None:
-			with log_context({"instance": "FakeInstallationThread"}):
-				with get_admin_service_client() as client:
-					time.sleep(7)
-					if action_result is None:
-						time.sleep(5)
-					else:
-						client.jsonrpc(
-							"productOnClient_updateObjects",
-							params=[
-								{
-									"clientId": "client1.test.tld",
-									"productId": "testproduct",
-									"actionResult": action_result,
-									"installationStatus": installation_status,
-									"productType": "LocalbootProduct",
-								}
-							],
-						)
-
-	with admin_service_config():
-		with get_service_connection() as connection:
-			with (
-				tmp_client(connection, "client1.test.tld"),
-				tmp_product(connection, "testproduct"),
-			):
-				cht = FakeInstallationThread(daemon=True)
-				cht.start()
-				cmd = [
-					"messagebus",
-					"wait-for-installation",
-					"client1.test.tld",
-					"testproduct",
-					"--installation-status",
-					installation_status,
-					"--timeout",
-					"10",
-				]
-				exit_code, _stdout, _stderr = run_cli(cmd)
+			with log_context({"instance": "FakeInstallationThread"}), get_admin_service_client() as client:
+				time.sleep(7)
 				if action_result is None:
-					assert "Timed out after waiting" in _stderr
-				cht.join()
-				assert exit_code == 0 if action_result == "successful" else 1
+					time.sleep(5)
+				else:
+					client.jsonrpc(
+						"productOnClient_updateObjects",
+						params=[
+							{
+								"clientId": "client1.test.tld",
+								"productId": "testproduct",
+								"actionResult": action_result,
+								"installationStatus": installation_status,
+								"productType": "LocalbootProduct",
+							}
+						],
+					)
+
+	with (
+		admin_service_config(),
+		get_service_connection() as connection,
+		tmp_client(connection, "client1.test.tld"),
+		tmp_product(connection, "testproduct"),
+	):
+		cht = FakeInstallationThread(daemon=True)
+		cht.start()
+		cmd = [
+			"messagebus",
+			"wait-for-installation",
+			"client1.test.tld",
+			"testproduct",
+			"--installation-status",
+			installation_status,
+			"--timeout",
+			"10",
+		]
+		exit_code, _stdout, _stderr = run_cli(cmd)
+		if action_result is None:
+			assert "Timed out after waiting" in _stderr
+		cht.join()
+		assert exit_code == 0 if action_result == "successful" else 1
 
 
 @pytest.mark.opsi_service
@@ -221,21 +218,23 @@ def test_wait_for_host() -> None:
 				with get_host_service_client("client1.test.tld", "00000000000000000000000000000000") as client:
 					client.connect_messagebus()
 
-	with admin_service_config():
-		with get_service_connection() as connection:
-			with tmp_client(connection, "client1.test.tld", "00000000000000000000000000000000"):
-				thread = FakeHostConnectionThread(daemon=True)
-				thread.start()
-				cmd = [
-					"messagebus",
-					"wait-for-host",
-					"client1.test.tld",
-					"--timeout",
-					"10",
-				]
-				exit_code, _stdout, _stderr = run_cli(cmd)
-				thread.join()
-				assert exit_code == 0
+	with (
+		admin_service_config(),
+		get_service_connection() as connection,
+		tmp_client(connection, "client1.test.tld", "00000000000000000000000000000000"),
+	):
+		thread = FakeHostConnectionThread(daemon=True)
+		thread.start()
+		cmd = [
+			"messagebus",
+			"wait-for-host",
+			"client1.test.tld",
+			"--timeout",
+			"10",
+		]
+		exit_code, _stdout, _stderr = run_cli(cmd)
+		thread.join()
+		assert exit_code == 0
 
 
 @pytest.mark.opsi_service
@@ -259,45 +258,49 @@ def test_download(tmp_path: Path) -> None:
 		should_stop = False
 
 		def run(self) -> None:
-			with log_context({"instance": "FakeHostConnectionThread"}):
-				with get_host_service_client("client1.test.tld", "00000000000000000000000000000000") as client:
-					listener = TestDownloadMessagebusListener(client.messagebus)
-					client.messagebus.register_messagebus_listener(listener)
-					client.connect_messagebus()
-					while not self.should_stop:
-						time.sleep(1)
+			with (
+				log_context({"instance": "FakeHostConnectionThread"}),
+				get_host_service_client("client1.test.tld", "00000000000000000000000000000000") as client,
+			):
+				listener = TestDownloadMessagebusListener(client.messagebus)
+				client.messagebus.register_messagebus_listener(listener)
+				client.connect_messagebus()
+				while not self.should_stop:
+					time.sleep(1)
 
 	destination_file = tmp_path / "file.txt"
-	with chdir(tmp_path):
-		with admin_service_config():
-			with get_service_connection() as connection:
-				with tmp_client(connection, "client1.test.tld", "00000000000000000000000000000000"):
-					thread = FakeHostConnectionThread(daemon=True)
-					thread.start()
-					time.sleep(2)
-					for dest in None, "-", destination_file, destination_file.parent:
-						print("Downloading to", dest)
-						cmd = [
-							"messagebus",
-							"download",
-							"client1.test.tld",
-							"/path/to/source/file.txt",
-						]
-						if dest is not None:
-							cmd.append(str(dest))
-						exit_code, stdout, stderr = run_cli(cmd)
+	with (
+		chdir(tmp_path),
+		admin_service_config(),
+		get_service_connection() as connection,
+		tmp_client(connection, "client1.test.tld", "00000000000000000000000000000000"),
+	):
+		thread = FakeHostConnectionThread(daemon=True)
+		thread.start()
+		time.sleep(2)
+		for dest in None, "-", destination_file, destination_file.parent:
+			print("Downloading to", dest)
+			cmd = [
+				"messagebus",
+				"download",
+				"client1.test.tld",
+				"/path/to/source/file.txt",
+			]
+			if dest is not None:
+				cmd.append(str(dest))
+			exit_code, stdout, stderr = run_cli(cmd)
 
-						assert exit_code == 0
-						assert "File '/path/to/source/file.txt' downloaded successfully to" in stderr.replace("\n", "")
-						if dest == "-":
-							assert stdout == "chunk1chunk2"
-						else:
-							assert stdout == ""
-							assert destination_file.read_bytes() == b"chunk1chunk2"
-							destination_file.unlink()
+			assert exit_code == 0
+			assert "File '/path/to/source/file.txt' downloaded successfully to" in stderr.replace("\n", "")
+			if dest == "-":
+				assert stdout == "chunk1chunk2"
+			else:
+				assert stdout == ""
+				assert destination_file.read_bytes() == b"chunk1chunk2"
+				destination_file.unlink()
 
-					thread.should_stop = True
-					thread.join()
+		thread.should_stop = True
+		thread.join()
 
 
 @pytest.mark.opsi_service
@@ -319,37 +322,41 @@ def test_upload(tmp_path: Path) -> None:
 		should_stop = False
 
 		def run(self) -> None:
-			with log_context({"instance": "FakeHostConnectionThread"}):
-				with get_host_service_client("client1.test.tld", "00000000000000000000000000000000") as client:
-					listener = TestUploadMessagebusListener(client.messagebus)
-					client.messagebus.register_messagebus_listener(listener)
-					client.connect_messagebus()
-					while not self.should_stop:
-						time.sleep(1)
+			with (
+				log_context({"instance": "FakeHostConnectionThread"}),
+				get_host_service_client("client1.test.tld", "00000000000000000000000000000000") as client,
+			):
+				listener = TestUploadMessagebusListener(client.messagebus)
+				client.messagebus.register_messagebus_listener(listener)
+				client.connect_messagebus()
+				while not self.should_stop:
+					time.sleep(1)
 
 	source_file = tmp_path / "file.txt"
 	source_file.write_bytes(b"data")
-	with chdir(tmp_path):
-		with admin_service_config():
-			with get_service_connection() as connection:
-				with tmp_client(connection, "client1.test.tld", "00000000000000000000000000000000"):
-					thread = FakeHostConnectionThread(daemon=True)
-					thread.start()
-					time.sleep(2)
-					for src in "-", source_file:
-						print("Uploading", src)
-						cmd = [
-							"messagebus",
-							"upload",
-							"client1.test.tld",
-							str(src),
-							"/path/to/destination/file.txt",
-						]
-						exit_code, stdout, stderr = run_cli(cmd, stdin=(["data"] if src == "-" else None))
+	with (
+		chdir(tmp_path),
+		admin_service_config(),
+		get_service_connection() as connection,
+		tmp_client(connection, "client1.test.tld", "00000000000000000000000000000000"),
+	):
+		thread = FakeHostConnectionThread(daemon=True)
+		thread.start()
+		time.sleep(2)
+		for src in "-", source_file:
+			print("Uploading", src)
+			cmd = [
+				"messagebus",
+				"upload",
+				"client1.test.tld",
+				str(src),
+				"/path/to/destination/file.txt",
+			]
+			exit_code, stdout, stderr = run_cli(cmd, stdin=(["data"] if src == "-" else None))
 
-						assert exit_code == 0
-						assert f"File '{src}' uploaded successfully to '/remote/path'" in stderr.replace("\n", "")
-						assert stdout == ""
+			assert exit_code == 0
+			assert f"File '{src}' uploaded successfully to '/remote/path'" in stderr.replace("\n", "")
+			assert stdout == ""
 
-					thread.should_stop = True
-					thread.join()
+		thread.should_stop = True
+		thread.join()

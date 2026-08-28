@@ -34,7 +34,7 @@ def test_metafile_create(tmp_path: Path) -> None:
 	shutil.copytree(TEST_REPO, repository_dir)
 
 	cmd = ["manage-repo", "metafile", "create", str(repository_dir), "--scan"] + [f"--format={f}" for f in formats]
-	exit_code, stdout, _stderr = run_cli(cmd)
+	exit_code, _stdout, _stderr = run_cli(cmd)
 	assert exit_code == 0
 
 	for suffix in formats:
@@ -47,7 +47,7 @@ def test_metafile_create(tmp_path: Path) -> None:
 
 	# Recreate without scanning, other name and formats
 	cmd = ["manage-repo", "metafile", "create", str(repository_dir), "--format=json", "--repository-name=myrepo"]
-	exit_code, stdout, _stderr = run_cli(cmd)
+	exit_code, _stdout, _stderr = run_cli(cmd)
 	assert exit_code == 0
 
 	for suffix in formats:
@@ -71,7 +71,7 @@ def test_metafile_update(tmp_path: Path) -> None:
 	cmd = ["manage-repo", "metafile", "update", str(repository_dir), "--repository-name=myrepo", "--scan"] + [
 		f"--format={f}" for f in formats
 	]
-	exit_code, stdout, _stderr = run_cli(cmd)
+	exit_code, _stdout, _stderr = run_cli(cmd)
 	assert exit_code == 0
 
 	for suffix in formats:
@@ -84,7 +84,7 @@ def test_metafile_update(tmp_path: Path) -> None:
 
 	# Update without scanning, keep name and change formats
 	cmd = ["manage-repo", "metafile", "update", str(repository_dir), "--format=json"]
-	exit_code, stdout, _stderr = run_cli(cmd)
+	exit_code, _stdout, _stderr = run_cli(cmd)
 	assert exit_code == 0
 
 	for suffix in formats:
@@ -108,7 +108,7 @@ def test_metafile_scan_packages(tmp_path: Path, create: bool) -> None:
 
 	if create:
 		cmd = ["manage-repo", "metafile", "create", str(repository_dir)] + [f"--format={f}" for f in formats]
-		exit_code, stdout, _stderr = run_cli(cmd)
+		exit_code, _stdout, _stderr = run_cli(cmd)
 		assert exit_code == 0
 
 	cmd = ["manage-repo", "metafile", "scan-packages", str(repository_dir)]

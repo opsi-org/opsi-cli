@@ -3,6 +3,8 @@
 # All rights reserved.
 # License: AGPL-3.0-only
 
+from pathlib import Path
+
 from opsicli.plugin import OPSICLIPlugin
 
 from . import (
@@ -20,4 +22,8 @@ class DatastorePlugin(OPSICLIPlugin):
 	description: str = __description__
 	version: str = __version__
 	cli = cli
-	flags: list[str] = ["protected"]
+	flags: list[str]
+
+	def __init__(self, path: Path) -> None:
+		super().__init__(path)
+		self.flags = ["protected"]

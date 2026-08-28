@@ -18,13 +18,14 @@ import shlex
 import shutil
 import sys
 import zoneinfo
+from collections.abc import Callable, Generator, Iterable, Iterator
 from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import asdict, dataclass, field, is_dataclass
 from datetime import datetime, timedelta, timezone, tzinfo
 from enum import StrEnum
 from io import BytesIO, StringIO
-from typing import IO, Any, Callable, Generator, Iterable, Iterator, Literal, Type
+from typing import IO, Any, Literal
 
 import msgpack
 import orjson
@@ -134,7 +135,7 @@ def get_attributes(data: list[dict[str, Any]], all_elements: bool = True) -> lis
 		attributes_set |= set(element)
 		if not all_elements:
 			break
-	attributes = sorted(list(attributes_set))
+	attributes = sorted(attributes_set)
 	if len(attributes) > 1:
 		try:
 			# Move attribute id to first position
@@ -211,11 +212,10 @@ class QuietConsole(Console):
 		"""
 		Override get_console.print() method to not print anything
 		"""
-		pass
 
 
 @contextmanager
-def get_progress() -> Generator[Progress, None, None]:
+def get_progress() -> Generator[Progress]:
 	with Progress(console=get_console(output_type=OutputType.PROGRESS)) as progress:
 		yield progress
 
@@ -302,10 +302,10 @@ def prompt(
 	:param show_choices: If True, show the choices in the prompt
 	:return: The input from the user
 	"""
-	cls: Type[Prompt] | Type[IntPrompt] | Type[FloatPrompt] = Prompt
-	if return_type == int:  # noqa: E721
+	cls: type[Prompt | IntPrompt | FloatPrompt] = Prompt
+	if return_type is int:
 		cls = IntPrompt
-	elif return_type == float:  # noqa: E721
+	elif return_type is float:
 		cls = FloatPrompt
 	return cls.ask(
 		prompt=text,
@@ -563,11 +563,11 @@ def write_output(
 
 	if output_format in (OutputFormat.TABLE, OutputFormat.CSV, OutputFormat.KEY_VALUE):
 		stt = get_structure_type(data)
-		if stt == dict:  # noqa: E721
+		if stt is dict:
 			data = [data]
 			stt = list[dict]
 		if not metadata:
-			if stt == list:  # noqa: E721
+			if stt is list:
 				metadata = Metadata(attributes=[Attribute(id="value0")])
 			elif stt == list[list]:
 				metadata = Metadata(attributes=[Attribute(id=f"value{idx}") for idx in range(len(data[0]))])

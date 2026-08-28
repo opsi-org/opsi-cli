@@ -3,7 +3,7 @@
 # All rights reserved.
 # License: AGPL-3.0-only
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from tempfile import NamedTemporaryFile
 
 import rich_click as click
@@ -15,14 +15,16 @@ from opsicli.decorators import dry_run_capable, mutually_exclusive
 from opsicli.io import OutputType, console_print, get_editor, get_selected_attributes, read_input, write_output
 from opsicli.opsiservice import get_service_connection
 from opsicli.types import EditFormat, OutputFormat
+from plugins.datastore.data.help_texts import CLIENT_HELP as info
+from plugins.datastore.data.messages import Error, Status
 
-from .common import cli, get_msg, process_set, process_where
+from .common import cli, process_set, process_where
 from .metadata import CLIENT_METADATA
 
 logger = get_logger("opsicli")
 
 
-def _get_clients_from_input() -> list[dict[str, str | datetime | None]]:
+def _get_clients_from_input() -> list[dict[str, str | list[str] | datetime | None]]:
 	data = read_input()
 	if not data:
 		return []
@@ -32,12 +34,14 @@ def _get_clients_from_input() -> list[dict[str, str | datetime | None]]:
 		client["type"] = "OpsiClient"
 		for time_field in ["created", "lastSeen"]:
 			if value := client.get(time_field):
-				client[time_field] = datetime.fromisoformat(value).astimezone(timezone.utc).replace(microsecond=0)
+				client[time_field] = datetime.fromisoformat(value).astimezone(UTC).replace(microsecond=0)
 		clients.append(client)
 	return clients
 
 
-def _get_clients_from_service(filter: dict[str, str], attributes: list[str]) -> list[dict[str, str | datetime | None]]:
+def _get_clients_from_service(
+	filter: dict[str, str | list[str]], attributes: list[str]
+) -> list[dict[str, str | list[str] | datetime | None]]:
 	service_connection = get_service_connection()
 	clients = []
 	for client in service_connection.host_getObjects(attributes=attributes, type="OpsiClient", **filter):  # ty: ignore[unresolved-attribute]
@@ -49,46 +53,38 @@ def _get_clients_from_service(filter: dict[str, str], attributes: list[str]) -> 
 	return clients
 
 
-def _update_clients(clients: list[dict[str, str | datetime | None]]) -> None:
+def _update_clients(clients: list[dict[str, str | list[str] | datetime | None]]) -> None:
 	if not config.dry_run:
 		service_connection = get_service_connection()
 		service_connection.host_updateObjects(clients)  # ty: ignore[unresolved-attribute]
+		msg = Status.success()
+	else:
+		msg = Status.dry_run()
 
-	console_print(get_msg("clients"), style="green", output_type=OutputType.MESSAGE)
+	console_print(msg, style="green", output_type=OutputType.MESSAGE)
 	write_output(data=clients, metadata=CLIENT_METADATA)
 
 
-@cli.group(name="client", short_help="Manage OPSI clients.")
+@cli.group(name="client", short_help=info.GENERAL.short, help=info.GENERAL.long)
 def client() -> None:
-	"""
-	View, modify, or add client host-records in the OPSI backend database.
-	"""
 	pass
 
 
-@client.command(name="list", short_help="List registered clients.")
+@client.command(name="list", short_help=info.LIST.short, help=info.LIST.long)
 @click.option(
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter criteria matching OPSI host fields (e.g., --where 'hardwareAddress=00:1c:*' or --where 'description=*accounting*').",
+	help=info.LIST.where,
 )
 @click.option(
 	"--all",
 	is_flag=True,
-	help="Show all clients, ignoring any filters.",
+	help=info.LIST.all,
 )
 @mutually_exclusive("all", "where")
 @dry_run_capable
 def list_clients(where: tuple[str, ...], all: bool) -> None:
-	"""
-	Query the datastore and display OPSI client host records.
-
-	[bold]Examples:[/]
-	  opsi-cli datastore client list --where "id=*.domain.local"
-	  opsi-cli datastore client list --where "ipAddress=192.168.1.*"
-	  opsi-cli datastore client list --all
-	"""
 	if not all:
 		filter = process_where(where, attributes=CLIENT_METADATA.attributes, operation="list")
 	else:
@@ -101,37 +97,28 @@ def list_clients(where: tuple[str, ...], all: bool) -> None:
 	)
 
 
-@client.command(name="apply", short_help="Bulk import or modify clients using a JSON/YAML file.")
+@client.command(name="apply", short_help=info.APPLY.short, help=info.APPLY.long)
 @dry_run_capable
 def apply_clients() -> None:
-	"""
-	Create new client hosts or update existing client settings in bulk by piping a
-	JSON or YAML file containing client definitions via standard input (stdin) or using '--input-file'.
-	"""
 	clients = _get_clients_from_input()
 	if not clients:
-		raise ValueError(get_msg("clients", "no_input"))
+		raise ValueError(Error.no_input())
 
 	get_selected_attributes(attributes=CLIENT_METADATA.attributes, fallback_attributes=list(clients[0]), update_selected=True)
 	_update_clients(clients)
 
 
-@client.command(name="edit", short_help="Open and edit client attributes inside a terminal text editor.")
+@client.command(name="edit", short_help=info.EDIT.short, help=info.EDIT.long)
 @click.option(
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter query to select which client host configurations to pull into the editor (e.g., --where 'id=win10-*').",
+	help=info.EDIT.where,
 )
 @dry_run_capable
 def edit_clients(where: tuple[str, ...]) -> None:
-	"""
-	Fetch matching OPSI client definitions and automatically open them in a temporary text
-	file using your default system text editor (e.g., nano, vim, notepad). Saving and closing
-	the file will instantly write those modifications back to the OPSI database.
-	"""
 	if not config.interactive:
-		raise ValueError("Editing is not possible in non-interactive mode.")
+		raise ValueError(Error.not_interactive())
 
 	selected_attributes = get_selected_attributes(attributes=CLIENT_METADATA.attributes, update_selected=True)
 
@@ -153,37 +140,30 @@ def edit_clients(where: tuple[str, ...]) -> None:
 		changed_clients = [client for client in edited_clients if client not in clients]
 		logger.notice("Detected %d changed clients.", len(changed_clients))
 		if not changed_clients:
-			console_print("No changes detected, no clients were updated.", output_type=OutputType.MESSAGE)
+			console_print(Status.no_changes(), output_type=OutputType.MESSAGE)
 			return
 
 		config.output_file = orig_output_file
 		_update_clients(changed_clients)
 
 
-@client.command(name="update", short_help="Directly update specific host fields on targeted clients.")
+@client.command(name="update", short_help=info.UPDATE.short, help=info.UPDATE.long)
 @click.option(
 	"--where",
 	type=str,
 	multiple=True,
-	help="Filter expression to match target client hosts (e.g., --where 'id=pc-*').",
+	help=info.UPDATE.where,
 )
 @click.option(
 	"--set",
 	type=str,
 	multiple=True,
-	help="The host field and the new value to write into it (e.g., --set 'description=Updated Desktop' or --set 'opsiHostKey=1234abcd...').",
+	help=info.UPDATE.set,
 )
 @dry_run_capable
 def update_clients(where: tuple[str, ...], set: tuple[str, ...]) -> None:
-	"""
-	Modify specific backend host parameters directly on one or more OPSI clients.
-
-	[bold]Examples:[/]
-	  opsi-cli datastore client update --where "id=test-client.local" --set "notes=Assigned to Testing Team"
-	  opsi-cli datastore client update --where "hardwareAddress=bc:5f:f4:*" --set "description=New Batch Laptops"
-	"""
-	filter = process_where(where, attributes=CLIENT_METADATA.attributes, operation="update")
-	updates: dict[str, str] = process_set(set, attributes=CLIENT_METADATA.attributes)
+	filter: dict[str, str | list[str]] = process_where(where, attributes=CLIENT_METADATA.attributes, operation="update")
+	updates: dict[str, str | list[str]] = process_set(set, attributes=CLIENT_METADATA.attributes)
 
 	selected_attributes = get_selected_attributes(
 		attributes=CLIENT_METADATA.attributes,
@@ -191,11 +171,12 @@ def update_clients(where: tuple[str, ...], set: tuple[str, ...]) -> None:
 		update_selected=True,
 	)
 
-	clients = _get_clients_from_service(filter=filter, attributes=selected_attributes)
+	clients: list[dict[str, str | list[str] | datetime | None]] = _get_clients_from_service(filter=filter, attributes=selected_attributes)
 	if not clients:
-		raise ValueError("No clients found matching the filtering criteria.")
+		raise ValueError(Error.no_match())
 
 	for client in clients:
-		client.update(updates)
+		for key, value in updates.items():
+			client[key] = value
 
 	_update_clients(clients)

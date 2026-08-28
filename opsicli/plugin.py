@@ -22,7 +22,7 @@ from importlib._bootstrap import BuiltinImporter
 from importlib.machinery import ModuleSpec
 from pathlib import Path
 from types import ModuleType
-from typing import Any
+from typing import Any, Self
 
 import opsi
 from click import Command
@@ -58,11 +58,12 @@ class OPSICLIPlugin:
 	description: str = ""
 	version: str = ""
 	cli: Command | None = None
-	flags: list[str] = []
+	flags: list[str]
 
 	def __init__(self, path: Path) -> None:
 		self.path = path
 		self.data_path = self.path / "data"
+		self.flags = []
 
 	def on_load(self) -> None:
 		"""Called after loading the plugin"""
@@ -99,9 +100,9 @@ sys.meta_path.append(PluginImporter)  # ty: ignore[invalid-argument-type]
 
 
 class PluginManager:
-	_instance: PluginManager | None = None
+	_instance: Self | None = None
 
-	def __new__(cls) -> PluginManager:
+	def __new__(cls) -> Self:
 		if cls._instance is None:
 			cls._instance = super().__new__(cls)
 		return cls._instance
@@ -239,11 +240,11 @@ def set_plugin_permissions(path: Path) -> None:
 	else:
 		path.chmod(0o664)
 	# set rights 775 for path and all subdirs/files to allow usage by non-admin users on linux using pathlib iterdir
-	for path in Path(path).iterdir():
-		if path.is_dir():
-			path.chmod(0o775)
+	for subpath in Path(path).iterdir():
+		if subpath.is_dir():
+			subpath.chmod(0o775)
 		else:
-			path.chmod(0o664)
+			subpath.chmod(0o664)
 
 
 def install_plugin(source_dir: Path, plugin_id: str, system: bool = False) -> Path:
@@ -288,7 +289,7 @@ def install_python_package(target_dir: Path, package: dict[str, str]) -> None:
 	pip._internal.commands.install.warn_if_run_as_root = lambda: None  # ty: ignore
 	# ScriptMaker is called by pip to create executable python scripts from libraries (i.e. .../bin)
 	# Monkeypatch here to avoid trying to create this (nasty in frozen context)
-	ScriptMaker.make_multiple = monkeypatched_make_multiple  # ty: ignore
+	ScriptMaker.make_multiple = monkeypatched_make_multiple
 
 	target_dir.mkdir(parents=True, exist_ok=True)
 	logger.info("Installing %r, version %r", package["name"], package["version"])
@@ -305,7 +306,7 @@ def install_python_package(target_dir: Path, package: dict[str, str]) -> None:
 			if result != 0:
 				raise RuntimeError("Failed to install dependencies (pip call).")
 		except Exception as error:
-			logger.error("Could not install %r, aborting: %s", package["name"], error, exc_info=True)
+			logger.error("Could not install %r, aborting: %s", package["name"], error, exc_info=True)  # noqa: G201
 			raise RuntimeError(f"Could not install {package['name']!r}, aborting") from error
 		finally:
 			config.set_logging_config()  # pip messes up logging config

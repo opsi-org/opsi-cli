@@ -9,7 +9,7 @@ test_config
 
 import sys
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from io import BufferedReader, BytesIO, StringIO, TextIOWrapper
 from pathlib import Path
 from typing import Any
@@ -354,7 +354,7 @@ def test_blocking_input_timeout() -> None:
 @pytest.mark.parametrize(
 	("string", "input_type", "expected_result"), (("teststring", str, "teststring"), ("3.14159", float, 3.14159), ("42", int, 42))
 )
-def test_prompt(string: str, input_type: type, expected_result: str | float | int) -> None:
+def test_prompt(string: str, input_type: type, expected_result: str | float) -> None:
 	with TextIOWrapper(BufferedReader(BytesIO(string.encode("utf-8")))) as inputfile:
 		old_stdin = sys.stdin
 		sys.stdin = inputfile
@@ -615,7 +615,7 @@ def test_get_selected_timezone(
 
 		if expected_offset_seconds is not None:
 			assert result is not None
-			assert result.utcoffset(datetime.now()) == timedelta(seconds=expected_offset_seconds)
+			assert result.utcoffset(datetime.now()) == timedelta(seconds=expected_offset_seconds)  # noqa: DTZ005
 
 
 @pytest.mark.parametrize(
@@ -632,21 +632,21 @@ def test_get_selected_timezone(
 		(str, {}, None, "str", None),
 		("custom", {"value_styles": {"custom": "blue"}}, None, "[blue]custom[/blue]", None),
 		(
-			datetime(2025, 1, 15, 12, 30, tzinfo=timezone.utc),
+			datetime(2025, 1, 15, 12, 30, tzinfo=UTC),
 			{},
 			"Europe/Berlin",
 			"2025-01-15T13:30:00+01:00",
 			None,
 		),
 		(
-			datetime(2025, 1, 15, 12, 30, tzinfo=timezone.utc),
+			datetime(2025, 1, 15, 12, 30, tzinfo=UTC),
 			{},
 			"+01:00",
 			"2025-01-15T13:30:00+01:00",
 			None,
 		),
 		(
-			datetime(2025, 1, 15, 12, 30, tzinfo=timezone.utc),
+			datetime(2025, 1, 15, 12, 30, tzinfo=UTC),
 			{},
 			"Invalid/Timezone",
 			None,
@@ -688,6 +688,6 @@ def test_input_separator(input_separator: str) -> None:
 	args = ["--dry-run", "client-action", "--clients", client_list, "set-action-request"]
 	if input_separator is not None:
 		args = ["--input-separator", input_separator] + args
-	_, stdout, stderr = run_cli(args)
+	_, _stdout, stderr = run_cli(args)
 	for client in ("client1.test.local", "client2.test.local", "client3.test.local"):
 		assert f"'{client}'" in stderr

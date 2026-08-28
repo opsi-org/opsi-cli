@@ -18,7 +18,7 @@ logger = get_logger("opsicli")
 
 
 def dry_run_capable(func):
-	setattr(func, "is_dry_run_handled", True)
+	func.is_dry_run_handled = True
 	# add dry-run capability to docstring
 	dry_run_note = "\n\n* This command supports --dry-run: actions will be simulated and not performed."
 	func.__doc__ = (func.__doc__ or "") + dry_run_note
@@ -42,3 +42,11 @@ def mutually_exclusive(*options):
 		return wrapper
 
 	return decorator
+
+
+# add @staticmethod to every function in the decorated class
+def static_methods(cls):
+	for name, attr in list(cls.__dict__.items()):
+		if callable(attr) and not name.startswith("_"):
+			setattr(cls, name, staticmethod(attr))
+	return cls

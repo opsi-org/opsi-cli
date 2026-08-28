@@ -9,6 +9,7 @@ opsi-cli basic command line interface for opsi
 jsonrpc plugin
 """
 
+from pathlib import Path
 from typing import Any
 
 import orjson
@@ -142,4 +143,8 @@ class JSONRPCPlugin(OPSICLIPlugin):
 	description: str = "Opsi JSONRPC API client"
 	version: str = __version__
 	cli = cli
-	flags: list[str] = ["protected"]
+	flags: list[str]
+
+	def __init__(self, path: Path) -> None:
+		super().__init__(path)
+		self.flags = ["protected"]

@@ -4,7 +4,7 @@
 # License: AGPL-3.0-only
 
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import cast
 
 import rich_click as click
@@ -14,21 +14,15 @@ from opsi.opsi.service.model.type import to_action_request, to_installation_stat
 
 from opsicli.config import config
 from opsicli.decorators import dry_run_capable, mutually_exclusive
-from opsicli.io import OutputType, console_print, get_separated_entries, read_input, write_output
+from opsicli.io import OutputType, console_print, read_input, write_output
 from opsicli.opsiservice import get_service_connection
+from plugins.datastore.data.help_texts import PRODUCT_CLIENT_STATE_HELP as info
+from plugins.datastore.data.messages import Error, Status
 
 from .common import cli, filter_by_attribute_values, get_depot_to_clients, process_where
 from .metadata import COMMAND_METADATA
 
 logger = get_logger("opsicli")
-
-
-@cli.group(name="product-client-state", short_help="Manage product installation states and action requests on clients.")
-def product_client_state() -> None:
-	"""
-	View or trigger software installation statuses, setup switches, and uninstall commands on OPSI client hosts.
-	"""
-	pass
 
 
 @dataclass
@@ -55,45 +49,42 @@ PRODUCT_CLIENT_STATE_VALUE_STYLES = {
 }
 
 
-@product_client_state.command(name="list", short_help="List what software products are installed or pending actions on clients.")
-@click.option(
-	"--where",
-	type=str,
-	multiple=True,
-	help="Filter states by fields like productId, clientHostName, installationStatus, or pendingAction (e.g., --where 'actionRequest=setup' or --where 'installationStatus=failed').",
-)
+@cli.group(name="product-client-state", short_help=info.GENERAL.short, help=info.GENERAL.long)
+def product_client_state() -> None:
+	pass
+
+
+@product_client_state.command(name="list", short_help=info.LIST.short, help=info.LIST.long)
+@click.option("--where", type=str, multiple=True, help=info.LIST.where)
 @click.option(
 	"--all",
 	is_flag=True,
-	help="Show installation status records for every product on every client host across the network.",
+	help=info.LIST.all,
 )
 @mutually_exclusive("where", "all")
 def list_product_client_state(where: tuple[str, ...], all: bool) -> None:
-	"""
-	Query the client software deployment grid to review which packages are currently 'installed',
-	which have active action requests pending (like 'setup', 'uninstall', 'update'), and which installations 'failed'.
-	"""
 	service_connection = get_service_connection()
 	metadata = COMMAND_METADATA["datastore_product-client-state_list"]
 	if not all:
 		filter = process_where(where, attributes=metadata.attributes, operation="list")
-		filter = {k: (v if v != "*" else "") for k, v in filter.items()}  # process wildcards
 	else:
 		filter = {}
 
-	requested_client_ids = get_separated_entries(filter.pop("clientId", None))
-	filter_client_ids = service_connection.host_getIdents(id=requested_client_ids, type="OpsiClient")  # ty: ignore[unresolved-attribute]
-	if requested_client_ids and not filter_client_ids:
-		raise ValueError(f"No clients found matching the supplied clientId filter: {', '.join(requested_client_ids)}.")
-	filter_product_ids = get_separated_entries(filter.pop("productId", None))
+	client_ids = filter.pop("clientId", None)
+	final_client_ids = service_connection.host_getIdents(id=client_ids, type="OpsiClient")  # ty: ignore[unresolved-attribute]
+	if not final_client_ids:
+		raise ValueError(f"No clients found matching the supplied clientId filter: {client_ids}.")
+	filter_product_ids = filter.pop("productId", None)
 
-	tmp_list = get_separated_entries(filter.pop("installationStatus", None))
+	tmp_list = filter.pop("intallationStatus", None)
+	tmp_list = [tmp_list] if isinstance(tmp_list, str) else tmp_list
 	if not tmp_list:
 		filter_installation_statuses = ["installed", "not_installed", "unknown"]
 	else:
 		filter_installation_statuses = [to_installation_status(item) for item in tmp_list]
 
-	tmp_list = get_separated_entries(filter.pop("actionRequest", None))
+	tmp_list = filter.pop("actionRequest", None)
+	tmp_list = [tmp_list] if isinstance(tmp_list, str) else tmp_list
 	if not tmp_list:
 		filter_action_requests = ["setup", "uninstall", "update", "always", "once", "custom", "none"]
 	else:
@@ -101,7 +92,7 @@ def list_product_client_state(where: tuple[str, ...], all: bool) -> None:
 
 	product_states: dict[str, ProductClientState] = {}
 	if "none" in filter_action_requests and "not_installed" in filter_installation_statuses:
-		depot_to_clients = get_depot_to_clients(service_connection, filter_client_ids)
+		depot_to_clients = get_depot_to_clients(service_connection, final_client_ids)
 		depot_ids = list(depot_to_clients)
 		if depot_ids:
 			for pod in service_connection.productOnDepot_getIdents(returnType="dict", productId=filter_product_ids, depotId=depot_ids):  # ty: ignore[unresolved-attribute]
@@ -115,7 +106,7 @@ def list_product_client_state(where: tuple[str, ...], all: bool) -> None:
 					)
 
 	for poc in service_connection.productOnClient_getObjects(  # ty: ignore[unresolved-attribute]
-		clientId=filter_client_ids,
+		clientId=final_client_ids,
 		productId=filter_product_ids or [],
 		installationStatus=filter_installation_statuses,
 		actionRequest=filter_action_requests,
@@ -138,7 +129,7 @@ def list_product_client_state(where: tuple[str, ...], all: bool) -> None:
 
 	# empty result
 	if not filtered_data:
-		raise ValueError("No product-client-states found matching the filtering criteria.")
+		raise ValueError(Error.no_match())
 
 	write_output(
 		# data=sorted(filtered_data, key=lambda x: x["clientId"]),
@@ -148,19 +139,15 @@ def list_product_client_state(where: tuple[str, ...], all: bool) -> None:
 	)
 
 
-@product_client_state.command(name="update", short_help="Batch update client product action requests via file input or stdin.")
+@product_client_state.command(name="apply", short_help=info.APPLY.short, help=info.APPLY.long)
 @dry_run_capable
 def apply_product_client_state() -> None:
-	"""
-	Set software action requests in bulk (such as setting an on-demand 'setup' or 'uninstall' flag
-	for specific packages on targeted client hosts) by piping a structured dataset into this command via stdin or a file.
-	"""
 	data = read_input()
 	if not data:
-		raise ValueError("No input data provided for updating product client states.")
+		raise ValueError(Error.no_input())
 
 	pcs = []
-	modification_time = datetime.now(tz=timezone.utc).replace(microsecond=0)
+	modification_time = datetime.now(tz=UTC).replace(microsecond=0)
 	for product_state in data:
 		pcs.append(
 			ProductClientState(
@@ -176,13 +163,13 @@ def apply_product_client_state() -> None:
 		)
 
 	if not pcs:
-		raise ValueError("No product-client-states found matching the filtering criteria.")
+		raise ValueError(Error.no_match())
 	if config.dry_run:
-		msg = "Update skipped due to dry run. Here are the product client states that would have been updated:\n"
+		msg = Status.dry_run()
 	else:
 		service_connection = get_service_connection()
 		service_connection.productOnClient_updateObjects(pcs)  # ty: ignore[unresolved-attribute]
-		msg = "Product client states updated successfully. Here are the updated states:\n"
+		msg = Status.success()
 
 	console_print(msg, style="green", output_type=OutputType.MESSAGE)
 	write_output(

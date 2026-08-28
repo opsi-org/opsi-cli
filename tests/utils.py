@@ -11,12 +11,20 @@ Test utilities
 
 import os
 import tempfile
+from collections.abc import Generator, Sequence
 from contextlib import contextmanager, nullcontext
 from pathlib import Path
-from typing import Generator, Sequence
 
 from click.testing import CliRunner
-from opsi.opsi.service.model.object import BoolConfig, ConfigState, LocalbootProduct, OpsiClient, Product, ProductOnDepot, UnicodeConfig
+from opsi.opsi.service.model.object import (
+	BoolConfig,
+	ConfigState,
+	LocalbootProduct,
+	OpsiClient,
+	Product,
+	ProductOnDepot,
+	UnicodeConfig,
+)
 
 from opsicli.__main__ import main
 from opsicli.config import config
@@ -47,7 +55,7 @@ def run_cli(args: Sequence[str], service_config: bool = True, stdin: list[str] |
 
 
 @contextmanager
-def tmp_client(service: ServiceClient, name: str, key: str = "") -> Generator[None, None, None]:
+def tmp_client(service: ServiceClient, name: str, key: str = "") -> Generator[None]:
 	params = [name]
 	if key:
 		params.append(key)
@@ -59,7 +67,7 @@ def tmp_client(service: ServiceClient, name: str, key: str = "") -> Generator[No
 
 
 @contextmanager
-def tmp_clients(service: ServiceClient, clients: list[OpsiClient]) -> Generator[None, None, None]:
+def tmp_clients(service: ServiceClient, clients: list[OpsiClient]) -> Generator[None]:
 	try:
 		service.jsonrpc("host_createObjects", params=[clients])
 		yield
@@ -68,7 +76,7 @@ def tmp_clients(service: ServiceClient, clients: list[OpsiClient]) -> Generator[
 
 
 @contextmanager
-def tmp_configs(service: ServiceClient, configs: list[BoolConfig | UnicodeConfig]) -> Generator[None, None, None]:
+def tmp_configs(service: ServiceClient, configs: list[BoolConfig | UnicodeConfig]) -> Generator[None]:
 	try:
 		service.jsonrpc("config_createObjects", params=[configs])
 		yield
@@ -77,7 +85,7 @@ def tmp_configs(service: ServiceClient, configs: list[BoolConfig | UnicodeConfig
 
 
 @contextmanager
-def tmp_config_states(service: ServiceClient, config_states: list[ConfigState]) -> Generator[None, None, None]:
+def tmp_config_states(service: ServiceClient, config_states: list[ConfigState]) -> Generator[None]:
 	try:
 		service.jsonrpc("configState_createObjects", params=[config_states])
 		yield
@@ -86,7 +94,7 @@ def tmp_config_states(service: ServiceClient, config_states: list[ConfigState]) 
 
 
 @contextmanager
-def tmp_product(service: ServiceClient, name: str, product_type: type[Product] = LocalbootProduct) -> Generator[Product, None, None]:
+def tmp_product(service: ServiceClient, name: str, product_type: type[Product] = LocalbootProduct) -> Generator[Product]:
 	try:
 		depot_id = service.jsonrpc("host_getObjects", [[], {"type": "OpsiConfigserver"}])[0].id
 		product = product_type(
@@ -113,7 +121,7 @@ def tmp_product(service: ServiceClient, name: str, product_type: type[Product] =
 @contextmanager
 def tmp_host_group(
 	service: ServiceClient, name: str, clients: set[str] | None = None, parent: str | None = None
-) -> Generator[None, None, None]:
+) -> Generator[None]:
 	try:
 		params = [name]
 		if parent:
@@ -128,7 +136,7 @@ def tmp_host_group(
 
 
 @contextmanager
-def tmp_product_group(service: ServiceClient, name: str, products: list[str] | None = None) -> Generator[None, None, None]:
+def tmp_product_group(service: ServiceClient, name: str, products: list[str] | None = None) -> Generator[None]:
 	try:
 		service.jsonrpc("group_createObjects", params=[{"id": name, "type": "ProductGroup"}])
 		for product in products or []:
@@ -139,7 +147,7 @@ def tmp_product_group(service: ServiceClient, name: str, products: list[str] | N
 
 
 @contextmanager
-def temp_context() -> Generator[Path, None, None]:
+def temp_context() -> Generator[Path]:
 	values = config.get_values()
 	try:
 		# ignore_cleanup_errors because:
@@ -158,7 +166,7 @@ def temp_context() -> Generator[Path, None, None]:
 
 
 @contextmanager
-def temp_env(**environ: str | None) -> Generator[dict[str, str], None, None]:
+def temp_env(**environ: str | None) -> Generator[dict[str, str]]:
 	old_environ = dict(os.environ)
 	for name, value in environ.items():
 		if value is None:
@@ -173,7 +181,7 @@ def temp_env(**environ: str | None) -> Generator[dict[str, str], None, None]:
 
 
 @contextmanager
-def admin_service_config() -> Generator[tuple[str, str, str], None, None]:
+def admin_service_config() -> Generator[tuple[str, str, str]]:
 	address, username, password = admin_service_connection_params()
 	current_values = config.service, config.username, config.password
 	config.service = address
@@ -209,5 +217,4 @@ def stdout_into_list(_stdout: str) -> list[list[str]]:
 
 
 def get_depot_id(admin_service_client: ServiceClient) -> str:
-	client_to_depot_objects = admin_service_client.jsonrpc("configState_getClientToDepotserver", [])
-	return client_to_depot_objects[0]["depotId"]
+	return admin_service_client.jsonrpc("host_getIdents", [[], {"type": "OpsiDepotserver"}])[0]

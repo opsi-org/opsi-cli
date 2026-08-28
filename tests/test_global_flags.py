@@ -59,7 +59,7 @@ def test_list_attributes_flag(capsys) -> None:
 def test_dry_run_capability(capsys) -> None:
 	for path, func in functions.items():
 		source = inspect.getsource(func)
-		exit_code, stdout, stderr = run_cli(["--dry-run", "--no-color"] + path.split("_"))
+		_exit_code, _stdout, _stderr = run_cli(["--dry-run", "--no-color"] + path.split("_"))
 
 		captured = capsys.readouterr()
 		raw_output = captured.out + captured.err
@@ -74,6 +74,6 @@ def test_dry_run_capability(capsys) -> None:
 
 @pytest.mark.opsi_service
 def test_help_priority(capsys) -> None:
-	for path, func in functions.items():
-		exit_code, stdout, stderr = run_cli(["--dry-run", "--no-color"] + path.split("_") + ["--help"])
+	for path in functions:
+		_exit_code, stdout, _stderr = run_cli(["--dry-run", "--no-color"] + path.split("_") + ["--help"])
 		assert "GLOBAL OPTIONS" in stdout

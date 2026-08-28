@@ -16,11 +16,12 @@ import selectors
 import shutil
 import sys
 import time
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from threading import Event, Lock
 from types import FrameType
-from typing import Any, Callable, Generator, Literal
+from typing import Any, Literal
 from uuid import uuid4
 
 from opsi.logging import DEBUG, get_logger
@@ -108,7 +109,7 @@ class MessagebusConnection(MessagebusListener):
 			else:
 				logger.debug("No available callback for event of message %r", message.type)
 		except Exception as err:
-			logger.error(err, exc_info=True)
+			logger.error(err, exc_info=True)  # noqa: G201
 
 	def _on_channel_subscription_event(self, message: ChannelSubscriptionEventMessage) -> None:
 		self.subscribed_channels = message.subscribed_channels
@@ -145,7 +146,7 @@ class MessagebusConnection(MessagebusListener):
 				self.channel_subscription_events.pop(c, None)
 
 	@contextmanager
-	def connection(self) -> Generator[MessagebusConnection, None, None]:
+	def connection(self) -> Generator[MessagebusConnection]:
 		try:
 			with self.register(self.service_client.messagebus):
 				self.service_client.connect_messagebus()
@@ -630,9 +631,8 @@ class TerminalMessagebusConnection(MessagebusConnection):
 		logger.notice("Requesting to open terminal with id %s", self.terminal_id)
 		self.send_message(message)
 
-		if not self._terminal_open_event.wait(CHANNEL_SUB_TIMEOUT) or self._terminal_write_channel is None:
-			if not self._terminal_error:
-				self._terminal_error = ConnectionError("Timed out waiting for terminal to open")
+		if (not self._terminal_open_event.wait(CHANNEL_SUB_TIMEOUT) or self._terminal_write_channel is None) and not self._terminal_error:
+			self._terminal_error = ConnectionError("Timed out waiting for terminal to open")
 		self._terminal_open_event.clear()  # Prepare for catching the next terminal_open_event
 
 	def close(self, message: str) -> None:
@@ -645,7 +645,7 @@ class TerminalMessagebusConnection(MessagebusConnection):
 		self.service_client.connect()
 		connected_host_ids = self.service_client.host_getMessagebusConnectedIds()  # ty: ignore[unresolved-attribute]
 		depots = self.service_client.host_getObjects(attributes=["id", "type"], type="OpsiDepotserver")  # ty: ignore[unresolved-attribute]
-		configserver_id = [depot.id for depot in depots if depot.getType() == "OpsiConfigserver"][0]
+		configserver_id = next(depot.id for depot in depots if depot.getType() == "OpsiConfigserver")
 		depotserver_ids = [depot.id for depot in depots]
 
 		logger.debug("Connected host IDs: %s", connected_host_ids)
@@ -745,7 +745,7 @@ class TerminalMessagebusConnection(MessagebusConnection):
 
 
 class FileTransferMessagebusConnection(MessagebusConnection):
-	log_pattern = re.compile(r"\[(\d+)\] \[(.*?)\] \[(.*?)\] (.*?)\s+\((.*?)\)")
+	log_pattern = re.compile(r"\[(\d+)\] \[(.*?)\] \[(.*?)\] (.*?)\s+")
 	chunk_size: int = 1000
 	current_color: str = "white"
 
@@ -843,9 +843,9 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 				else:
 					await asyncio.wait_for(self._download_complete_event.wait(), timeout=5)
 				if self._error:
-					logger.error(f"Error: {str(self._error)}")
+					logger.error(f"Error: {self._error!s}")
 					raise self._error
-			except asyncio.TimeoutError:
+			except TimeoutError:
 				logger.info("Download complete event timed out")
 				self.abort_file_download()
 			finally:

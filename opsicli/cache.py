@@ -11,9 +11,9 @@ general configuration
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
 import orjson
 from opsi.logging import get_logger
@@ -24,9 +24,9 @@ logger = get_logger("opsicli")
 
 
 class Cache:
-	_instance: Cache | None = None
+	_instance: Self | None = None
 
-	def __new__(cls) -> Cache:
+	def __new__(cls) -> Self:
 		if cls._instance is None:
 			cls._instance = super().__new__(cls)
 		return cls._instance
@@ -85,7 +85,7 @@ class Cache:
 
 	def set(self, name: str, value: Any, ttl: int = 0, store: bool = False) -> None:
 		self._ensure_loaded()
-		self._data[name] = {"date": datetime.now(tz=timezone.utc).isoformat(), "ttl": max(int(ttl), 0), "value": value}
+		self._data[name] = {"date": datetime.now(tz=UTC).isoformat(), "ttl": max(int(ttl), 0), "value": value}
 		self._modified = True
 		if store:
 			self.store()
@@ -109,7 +109,7 @@ class Cache:
 		iso_date = self._data[name]["date"]
 		if "+" not in iso_date:
 			iso_date += "+00:00"
-		return int((datetime.now(tz=timezone.utc) - datetime.fromisoformat(iso_date)).total_seconds())
+		return int((datetime.now(tz=UTC) - datetime.fromisoformat(iso_date)).total_seconds())
 
 
 cache = Cache()

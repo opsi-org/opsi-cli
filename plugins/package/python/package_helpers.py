@@ -92,7 +92,7 @@ def download_package(url: str, temp_dir: Path) -> str:
 			download_with_progress(url + ext, temp_dir)
 	elif any(
 		filename.endswith(ext)
-		for ext in {".tar", ".gz", ".gzip", ".bz2", ".bzip2", ".zstd", ".cpio", ".tar.gz", ".tgz", ".tar.bz2", ".tbz", ".tar.xz", ".txz"}
+		for ext in (".tar", ".gz", ".gzip", ".bz2", ".bzip2", ".zstd", ".cpio", ".tar.gz", ".tgz", ".tar.bz2", ".tbz", ".tar.xz", ".txz")
 	):
 		extract_dir = temp_dir / f"extract_{filename}"
 		with get_progress() as progress:
@@ -148,7 +148,7 @@ def map_and_sort_packages(packages: list[str]) -> dict[Path, OpsiPackage]:
 			try:
 				opsi_package = OpsiPackage(Path(pkg))
 			except Exception as err:
-				logger.error(err, exc_info=True)
+				logger.error(err, exc_info=True)  # noqa: G201
 				raise RuntimeError(f"Failed to analyze package '{pkg}': {err}") from err
 
 			path_to_opsipackage[Path(pkg)] = opsi_package
@@ -180,7 +180,7 @@ def map_and_sort_packages(packages: list[str]) -> dict[Path, OpsiPackage]:
 		try:
 			visit(path)
 		except Exception as err:
-			logger.error(err, exc_info=True)
+			logger.error(err, exc_info=True)  # noqa: G201
 			raise RuntimeError(f"Failed to analyze package '{path}': {err}") from err
 	return result
 

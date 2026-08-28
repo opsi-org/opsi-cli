@@ -42,7 +42,7 @@ def python(ctx: click.Context, version: bool, command: str, file: Path | None, a
 		return
 
 	if command:
-		exec(command)
+		exec(command)  # noqa: S102
 		return
 
 	if file:
@@ -53,7 +53,7 @@ def python(ctx: click.Context, version: bool, command: str, file: Path | None, a
 		new_module.__dict__["__name__"] = "__main__"
 		new_module.__dict__["__file__"] = file
 
-		exec(file.read_text(encoding="utf-8"), new_module.__dict__)
+		exec(file.read_text(encoding="utf-8"), new_module.__dict__)  # noqa: S102
 		return
 
 	code.interact(local=locals())
@@ -64,4 +64,8 @@ class PythonPlugin(OPSICLIPlugin):
 	description: str = "Run opsi-cli internal python interpreter"
 	version: str = __version__
 	cli = python
-	flags: list[str] = ["protected"]
+	flags: list[str]
+
+	def __init__(self, path: Path) -> None:
+		super().__init__(path)
+		self.flags = ["protected"]

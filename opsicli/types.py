@@ -15,7 +15,7 @@ import os
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Type
+from typing import Any, ClassVar, Self
 from urllib.parse import urlparse
 
 from opsicli.config import COMPLETION_MODE, DEFAULT_SESSION_LIFETIME
@@ -37,12 +37,12 @@ class classproperty(property):
 
 
 class LogLevel(int):
-	possible_values = list(reversed([v.lower() for v in NAME_TO_LEVEL]))
+	possible_values: ClassVar[list[str]] = list(reversed([v.lower() for v in NAME_TO_LEVEL]))
 	possible_values_for_description = ", ".join(
 		[f"[metavar]{name}[/metavar]/[metavar]{LEVEL_TO_OPSI_LEVEL[NAME_TO_LEVEL[name.upper()]]}[/metavar]" for name in possible_values]
 	)
 
-	def __new__(cls, value: str | int) -> LogLevel:
+	def __new__(cls, value: str | int) -> Self:
 		try:
 			value = min(9, max(0, int(value)))
 		except ValueError:
@@ -59,7 +59,7 @@ class LogLevel(int):
 class Limit(int):
 	click_type = click.IntRange(min=0)
 
-	def __new__(cls, value: str | int) -> Limit:
+	def __new__(cls, value: str | int) -> Self:
 		value = int(value)
 		if value < 0:
 			raise ValueError("limit must be greater than or equal to 0")
@@ -121,14 +121,14 @@ class Attributes(list):
 class Bool:
 	click_type = bool
 
-	def __new__(cls: Type[Bool], value: Any) -> bool:
+	def __new__(cls: type[Bool], value: Any) -> bool:
 		if isinstance(value, str):
 			value = value.lower() in ("1", "true", "yes")
 		return bool(value)
 
 
 class OPSIServiceUrl(str):
-	def __new__(cls: Type[OPSIServiceUrl], value: str) -> OPSIServiceUrl:
+	def __new__(cls, value: str) -> Self:
 		value = str(value)
 		if "://" not in value:
 			value = f"https://{value}"
@@ -141,14 +141,14 @@ class OPSIServiceUrl(str):
 
 
 class OPSIServiceUrlOrServiceName(str):
-	def __new__(cls: Type[OPSIServiceUrlOrServiceName], value: str) -> OPSIServiceUrl | str:
-		if value.startswith("http://") or value.startswith("https://"):
+	def __new__(cls: type[OPSIServiceUrlOrServiceName], value: str) -> OPSIServiceUrl | str:
+		if value.startswith(("http://", "https://")):
 			return OPSIServiceUrl(value)
 		return value
 
 
 class Password(str):
-	def __new__(cls: Type[Password], value: str | None) -> Password:
+	def __new__(cls, value: str | None) -> Self:
 		return super().__new__(cls, value or "")
 
 	def __repr__(self) -> str:
@@ -171,7 +171,7 @@ class File(Path):
 	def cwd(cls) -> Path:
 		return Path(os.getcwd())
 
-	def __new__(cls: Type[File], *args: Any, **kwargs: Any) -> Type[Path]:
+	def __new__(cls: type[File], *args: Any, **kwargs: Any) -> type[Path]:
 		path = Path(*args, **kwargs)
 		if str(path) != "-":
 			path = path.expanduser().absolute()
@@ -186,7 +186,7 @@ class File(Path):
 class Directory(Path):
 	click_type = click.Path(file_okay=False)
 
-	def __new__(cls: Type[Directory], *args: Any, **kwargs: Any) -> Type[Path]:
+	def __new__(cls: type[Directory], *args: Any, **kwargs: Any) -> type[Path]:
 		path = Path(*args, **kwargs).expanduser().absolute()
 		if path.exists() and not path.is_dir():
 			raise ValueError(f"Not a directory: {path!r}")

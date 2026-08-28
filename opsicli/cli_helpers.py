@@ -8,7 +8,7 @@ from __future__ import annotations
 import importlib
 import os
 import re
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from rich.panel import Panel
 from rich.text import Text
@@ -24,7 +24,7 @@ if COMPLETION_MODE:
 	import click
 else:
 	import rich_click as click
-	import rich_click.rich_click as rich_click
+	from rich_click import rich_click
 	from rich_click.rich_click import rich_format_help
 
 	rich_click.STYLE_OPTIONS_PANEL_BORDER = "bold"
@@ -107,7 +107,7 @@ def _format_help(command: click.Command, ctx: click.Context, formatter: click.He
 		config = formatter.config
 
 		class UsageHighlighter(rich_click.RegexHighlighter):
-			highlights = [
+			highlights: ClassVar[list[str]] = [
 				r"(?P<argument>\[.*?\])",
 			]
 
@@ -136,6 +136,7 @@ def _format_help(command: click.Command, ctx: click.Context, formatter: click.He
 		return [param for param in orig_get_params(current_ctx) if not isinstance(param, click.Option)]
 
 	command.get_params = _get_non_option_params  # ty: ignore[invalid-assignment]
+
 	try:
 		rich_format_help(command, ctx, formatter)
 	finally:
@@ -154,7 +155,7 @@ def _get_usage(ctx: click.Context) -> str:
 	parts = usage_body.split()
 
 	command_path: list[tuple[str, bool]] = []
-	current: Optional[click.Context] = ctx
+	current: click.Context | None = ctx
 	while current:
 		cmd = current.command
 		if cmd.name:
@@ -178,7 +179,7 @@ def _handle_list_attributes_flag(ctx: click.Context):
 	plugin_name = raw_arg_sequence[0].replace("-", "_")
 	command_sequence = "_".join(raw_arg_sequence)
 	module = importlib.import_module(f"plugins.{plugin_name}.python.metadata")
-	COMMAND_METADATA = getattr(module, "COMMAND_METADATA")
+	COMMAND_METADATA = module.COMMAND_METADATA
 	metadata = COMMAND_METADATA.get(command_sequence)
 	if not metadata:
 		raise click.UsageError(f"ERROR: The command 'opsi-cli {' '.join(raw_arg_sequence)}' does not support --list-attributes. Aborting")
@@ -249,7 +250,7 @@ class OPSICLICommand(click.Command):
 
 
 class OPSICLIGroup(click.Group):
-	def add_command(self, cmd: click.Command, name: Optional[str] = None) -> None:
+	def add_command(self, cmd: click.Command, name: str | None = None) -> None:
 		if isinstance(cmd, click.Group) and not isinstance(cmd, OPSICLIGroup):
 			cmd.__class__ = OPSICLIGroup
 		elif not isinstance(cmd, OPSICLICommand):

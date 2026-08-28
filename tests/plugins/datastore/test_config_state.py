@@ -84,9 +84,11 @@ def test_config_state_list_unmatched_object_id_stops_before_unfiltered_rpcs() ->
 	service_client = MagicMock()
 	service_client.host_getIdents.return_value = []
 
-	with patch("plugins.datastore.python.config_state.get_service_connection", return_value=service_client):
-		with pytest.raises(ValueError, match="No clients found matching the supplied objectId filter"):
-			_fetch_and_filter_config_states(("objectId=nonexistent.test.invalid",), all_flag=False)
+	with (
+		patch("plugins.datastore.python.config_state.get_service_connection", return_value=service_client),
+		pytest.raises(ValueError, match="No clients found matching the supplied objectId filter"),
+	):
+		_fetch_and_filter_config_states(("objectId=nonexistent.test.invalid",), all_flag=False)
 
 	service_client.config_getObjects.assert_not_called()
 	service_client.configState_getObjects.assert_not_called()
@@ -96,9 +98,11 @@ def test_config_state_update_unmatched_object_id_stops_before_unfiltered_rpcs() 
 	service_client = MagicMock()
 	service_client.host_getIdents.return_value = []
 
-	with patch("plugins.datastore.python.config_state.get_service_connection", return_value=service_client):
-		with pytest.raises(ValueError, match="No clients found matching the supplied objectId filter"):
-			update_config_state.callback(("objectId=nonexistent.test.invalid", "configId=opsi.check.enabled"), ("values=true",))  # ty: ignore[call-non-callable]
+	with (
+		patch("plugins.datastore.python.config_state.get_service_connection", return_value=service_client),
+		pytest.raises(ValueError, match="No clients found matching the supplied objectId filter"),
+	):
+		update_config_state.callback(("objectId=nonexistent.test.invalid", "configId=opsi.check.enabled"), ("values=true",))  # ty: ignore[call-non-callable]
 
 	service_client.config_getObjects.assert_not_called()
 	service_client.configState_getValues.assert_not_called()
@@ -432,7 +436,7 @@ def test_config_state_list(
 		if expected_output:
 			expected_output = sorted(expected_output, key=lambda x: x["objectId"])
 		if expected_values:
-			expected_values = sorted(expected_values, key=lambda x: x["objectId"])
+			expected_values = sorted(expected_values, key=lambda x: x["objectId"] if x["objectId"] is not None else "")
 		if expected_error:
 			assert exit_code != 0
 			assert_error_contains(stderr, expected_error)
@@ -723,7 +727,7 @@ def test_config_state_list(
 			],
 			None,
 			None,
-			("Possible values for:"),
+			("Invalid value `wrong` for the given"),
 		),
 		# BoolConfig // multiple values
 		(
@@ -742,7 +746,7 @@ def test_config_state_list(
 			],
 			None,
 			None,
-			("Only one value is allowed for ", "Possible values are:"),
+			("Multiple values `wrong, more_wrong`", "are not allowed", "BoolConfig:"),
 		),
 		# UnicodeConfig // wrong value
 		(
@@ -761,7 +765,7 @@ def test_config_state_list(
 			],
 			None,
 			None,
-			("Possible values for:"),
+			("Invalid value `wrong` for the given"),
 		),
 		# UnicodeConfig // not multiValue
 		(
@@ -780,7 +784,7 @@ def test_config_state_list(
 			],
 			None,
 			None,
-			("Multiple values are not allowed for ", "Possible values are:"),
+			("Multiple values `bonidepot.uib.local, bonifax.uib.local`", "are not allowed", "UnicodeConfig:"),
 		),
 		# Missing configId
 		(
@@ -892,7 +896,7 @@ def test_config_state_update(
 		if expected_output:
 			expected_output = sorted(expected_output, key=lambda x: x["objectId"])
 		if expected_values:
-			expected_values = sorted(expected_values, key=lambda x: x["objectId"])
+			expected_values = sorted(expected_values, key=lambda x: x["objectId"] if x["objectId"] is not None else "")
 		exit_code, stdout, stderr = run_cli(command)
 		if expected_error:
 			assert exit_code != 0
