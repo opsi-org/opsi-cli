@@ -27,6 +27,7 @@ from typing import Any, Self
 import opsi
 from click import Command
 from opsi.logging import get_logger
+from packaging.requirements import Requirement
 from packaging.version import parse
 
 from opsicli.config import COMPLETION_MODE, config
@@ -350,6 +351,12 @@ def install_dependencies(path: Path, target_dir: Path) -> None:
 	logger.debug("Got dependencies: %s", dependencies)
 	for dependency in dependencies:
 		logger.debug("Checking dependency %s", dependency["name"])
+		# Direct references must use their specified source, even when the
+		# package is already importable.
+		if Requirement(dependency["name"]).url is not None:
+			install_python_package(target_dir, dependency)
+			continue
+
 		try:
 			temp_module = importlib.import_module(dependency["name"])
 			logger.trace("found present %s, version %s", dependency["name"], temp_module.__version__)

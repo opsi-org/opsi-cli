@@ -3,19 +3,38 @@
 Main script to use with pyinstaller
 """
 
+import runpy
 import sys
 import traceback
+from pathlib import Path
 
 try:
-	from opsicli.__main__ import main
+	python_runner = None
+	bundle_dir = getattr(sys, "_MEIPASS", None)
+	if getattr(sys, "frozen", False) and bundle_dir is not None and len(sys.argv) > 1:
+		bundle_path = Path(bundle_dir)
+		allowed_runners = {
+			(bundle_path / "pip/__pip-runner__.py").resolve(),
+			(bundle_path / "pip/_vendor/pyproject_hooks/_in_process/_in_process.py").resolve(),
+		}
+		requested_runner = Path(sys.argv[1]).resolve()
+		if requested_runner in allowed_runners:
+			python_runner = requested_runner
 
-	main()
+	if python_runner is not None:
+		sys.argv = sys.argv[1:]
+		sys.path.insert(0, str(python_runner.parent))
+		runpy.run_path(str(python_runner), run_name="__main__")
+	else:
+		from opsicli.__main__ import main
+
+		main()
 except SystemExit as err:
 	sys.exit(err.code)
 except KeyboardInterrupt:
 	print("Interrupted", file=sys.stderr)
 	sys.exit(1)
-except Exception:
+except Exception:  # noqa: BLE001
 	# Do not let pyinstaller handle exceptions and print:
 	# "Failed to execute script run-opsiconfd"
 	traceback.print_exc()
