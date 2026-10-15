@@ -16,7 +16,6 @@ pyinstaller:
     all:
       - orjson
       - psutil
-      - pip._internal.commands.install
       - rich.tree
       - rich.progress
       - purecrypt
@@ -30,6 +29,9 @@ pyinstaller:
     - opsi
     - opsi.opsi
     - code
+  collect_all:
+    - pip
+    - setuptools
   extra_args:
     - --exclude-module=tkinter
     - --exclude-module=pytest
