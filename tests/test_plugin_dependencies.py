@@ -33,13 +33,23 @@ def test_install_dependencies_installs_direct_reference(
 		"parse_requirements",
 		Mock(return_value=[dependency]),
 	)
-	import_module = Mock(return_value=SimpleNamespace(__version__="999.0"))
+	real_import_module = plugin.importlib.import_module
+
+	def import_module_side_effect(name: str, package: str | None = None):
+		if name == "requests":
+			return SimpleNamespace(__version__="999.0")
+		return real_import_module(name, package)
+
+	import_module = Mock(side_effect=import_module_side_effect)
 	monkeypatch.setattr(plugin.importlib, "import_module", import_module)
 	install_package = Mock()
 	monkeypatch.setattr(plugin, "install_python_package", install_package)
 
 	plugin.install_dependencies(plugin_dir, target_dir)
 
-	import_module.assert_not_called()
+	# Platform-specific imports are allowed, but this dependency must bypass
+	# the import/version shortcut and go directly to the installer.
+	dependency_imports = [call for call in import_module.call_args_list if call.args and call.args[0] in ("requests", requirement)]
+	assert dependency_imports == []
 	install_package.assert_called_once_with(target_dir, dependency)
 	assert (target_dir / "requirements.txt").read_text(encoding="utf-8") == f"{requirement}\n"
