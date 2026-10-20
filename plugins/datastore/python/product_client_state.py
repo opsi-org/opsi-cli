@@ -76,7 +76,7 @@ def list_product_client_state(where: tuple[str, ...], all: bool) -> None:
 		raise ValueError(f"No clients found matching the supplied clientId filter: {client_ids}.")
 	filter_product_ids = filter.pop("productId", None)
 
-	tmp_list = filter.pop("intallationStatus", None)
+	tmp_list = filter.pop("installationStatus", None)
 	tmp_list = [tmp_list] if isinstance(tmp_list, str) else tmp_list
 	if not tmp_list:
 		filter_installation_statuses = ["installed", "not_installed", "unknown"]

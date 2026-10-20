@@ -60,7 +60,6 @@ def _append_value(current: str | list[str], new: str | list[str]) -> list[str]:
 def _validate_input(
 	attribute: Attribute, value: str | list[str], updates: dict[str, str | list[str]], general_help: str
 ) -> str | list[str]:
-
 	if attribute.validator:
 		try:
 			value = attribute.validator(value)
@@ -191,7 +190,7 @@ def filter_by_attribute_values(
 
 	Args:
 	    data: A list of dictionaries representing the records to filter.
-	    filter: A mapping of attribute-value pairs.
+	    filter: A mapping of attribute-value pairs. A list of values matches if any value matches (OR).
 	    attributes: A list of Attribute objects used to validate filter keys.
 
 	Returns:
@@ -204,20 +203,18 @@ def filter_by_attribute_values(
 	available_attributes = {attr.id: attr for attr in attributes}
 
 	# Normalize boolean-like filter strings to capitalized format (e.g., "true" -> "True")
-	prepared_filter = {}
+	prepared_filter: dict[str, list[str]] = {}
 	for attr, val in filter.items():
 		# Skip filters that do not correspond to known attributes
 		if attr in available_attributes:
-			if isinstance(val, str):
-				prepared_filter[attr] = val.capitalize() if val in ("false", "true") else val
-			else:
-				prepared_filter[attr] = val
+			values = [val] if isinstance(val, str) else val
+			prepared_filter[attr] = [v.capitalize() if v in ("false", "true") else v for v in values]
 
 	filtered_data = []
 
 	for entry in data:
 		match = True
-		for attr, filter_value in prepared_filter.items():
+		for attr, filter_values in prepared_filter.items():
 			data_value = entry.get(attr)
 
 			# Normalize data values to string for comparison.
@@ -227,8 +224,7 @@ def filter_by_attribute_values(
 			else:
 				data_value = str(data_value) if data_value is not None else ""
 
-			# compare
-			if data_value != filter_value:
+			if data_value not in filter_values:
 				match = False
 				break
 		if match:
