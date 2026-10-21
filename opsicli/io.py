@@ -18,7 +18,7 @@ import shlex
 import shutil
 import sys
 import zoneinfo
-from collections.abc import Callable, Generator, Iterable, Iterator
+from collections.abc import Callable, Generator, Iterable
 from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import asdict, dataclass, field, is_dataclass
@@ -185,7 +185,7 @@ def output_file_is_a_tty() -> bool:
 
 
 @contextmanager
-def output_file_bin() -> Iterator[IO[bytes]]:
+def output_file_bin() -> Generator[IO[bytes]]:
 	if not config.output_file or str(config.output_file) == "-":
 		yield sys.stdout.buffer
 		sys.stdout.flush()
@@ -196,7 +196,7 @@ def output_file_bin() -> Iterator[IO[bytes]]:
 
 
 @contextmanager
-def output_file_str(encoding: str | None = "utf-8") -> Iterator[IO[str]]:
+def output_file_str(encoding: str | None = "utf-8") -> Generator[IO[str]]:
 	encoding = encoding or "utf-8"
 	if not config.output_file or str(config.output_file) == "-":
 		yield sys.stdout
@@ -629,7 +629,7 @@ def input_file_is_a_tty() -> bool:
 
 
 @contextmanager
-def input_file_bin() -> Iterator[IO[bytes]]:
+def input_file_bin() -> Generator[IO[bytes]]:
 	if not config.input_file or str(config.input_file) == "-":
 		if input_file_is_a_tty():
 			logger.debug("Binary input from tty")
@@ -644,7 +644,7 @@ def input_file_bin() -> Iterator[IO[bytes]]:
 
 
 @contextmanager
-def input_file_str(encoding: str | None = "utf-8") -> Iterator[IO[str]]:
+def input_file_str(encoding: str | None = "utf-8") -> Generator[IO[str]]:
 	encoding = encoding or "utf-8"
 	if not config.input_file or str(config.input_file) == "-":
 		if input_file_is_a_tty():

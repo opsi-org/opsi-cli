@@ -8,6 +8,7 @@ from __future__ import annotations
 import importlib
 import os
 import re
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from rich.panel import Panel
@@ -107,7 +108,7 @@ def _format_help(command: click.Command, ctx: click.Context, formatter: click.He
 		config = formatter.config
 
 		class UsageHighlighter(rich_click.RegexHighlighter):
-			highlights: ClassVar[list[str]] = [
+			highlights: ClassVar[Sequence[str]] = [
 				r"(?P<argument>\[.*?\])",
 			]
 

@@ -32,7 +32,7 @@ class ExecuteWorker(ClientActionWorker):
 
 	def execute(
 		self,
-		command: tuple[str],
+		command: tuple[str, ...],
 		shell: bool = False,
 		concurrent: int = 100,
 		show_host_names: bool = True,

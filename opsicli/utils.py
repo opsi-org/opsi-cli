@@ -20,7 +20,7 @@ import stat
 import string
 import sys
 from collections import defaultdict
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
@@ -131,7 +131,7 @@ def add_to_env_variable(key: str, value: str, system: bool = False) -> None:
 
 
 @contextmanager
-def raw_terminal() -> Iterator[None]:
+def raw_terminal() -> Generator[None]:
 	with use_logging_config(stderr_level=0):
 		if sys.platform == "win32":
 			con_buf_in = win32console.GetStdHandle(-10)  # STD_INPUT_HANDLE /  CONIN$

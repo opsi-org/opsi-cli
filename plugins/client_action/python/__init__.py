@@ -255,7 +255,7 @@ def trigger_event(ctx: click.Context, event: str, wakeup: bool, wakeup_timeout: 
 @dry_run_capable
 def execute(
 	ctx: click.Context,
-	command: tuple[str],
+	command: tuple[str, ...],
 	shell: bool,
 	host_names: bool,
 	encoding: str,

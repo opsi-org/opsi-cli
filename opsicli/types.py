@@ -168,7 +168,8 @@ class File(Path):
 	click_type = click.Path(dir_okay=False)
 
 	@classmethod
-	def cwd(cls) -> Path:
+	def cwd(cls) -> Path:  # ty: ignore[invalid-method-override]
+		# Return a plain Path: constructing File would reject the current directory.
 		return Path(os.getcwd())
 
 	def __new__(cls: type[File], *args: Any, **kwargs: Any) -> type[Path]:

@@ -20,7 +20,7 @@ functions = _get_opsi_commands_and_functions()  # {command_sequence: func}
 @pytest.mark.opsi_service
 def test_list_attributes_flag(capsys) -> None:
 	plugin_path = Path("./plugins")
-	plugins = [f.name for f in plugin_path.iterdir() if f.is_dir]
+	plugins = [f.name for f in plugin_path.iterdir() if f.is_dir()]
 	for p in plugins:
 		# check for metadata.py
 		module_path = Path(f"./plugins/{p}/python/metadata.py").resolve()
