@@ -56,7 +56,8 @@ def health_check(category: str | None = None, detailed: bool = False) -> None:
 @cli.command(short_help="Get logfile archive from client")
 @click.argument("client", type=str)
 @click.option("--path", help="Path to put log archive", type=click.Path(file_okay=False, dir_okay=True, path_type=Path), default=Path())
-def client_logs(client: str, path: Path) -> None:
+@click.option("--timeout", help="Timeout for the log retrieval in seconds", type=int, default=60)
+def client_logs(client: str, path: Path, timeout: int) -> None:
 	"""
 	This command instructs an opsi client to pack its logs and deliver them as an archive.
 	"""
@@ -64,7 +65,7 @@ def client_logs(client: str, path: Path) -> None:
 		path = path / f"{client}.zip"
 	messagebus = JSONRPCMessagebusConnection()
 	with messagebus.connection():
-		result = messagebus.jsonrpc([f"host:{client}"], "getLogs")[f"host:{client}"]
+		result = messagebus.jsonrpc([f"host:{client}"], "getLogs", timeout=timeout)[f"host:{client}"]
 	if isinstance(result, Exception):  # jsonrpc method may return TimeoutError or other exceptions
 		raise result
 	if not result.get("file_id"):
