@@ -34,7 +34,7 @@ from plugins.package.python import combine_products, complete_installed_products
 from plugins.package.python.package_helpers import get_clients_from_depot, get_product_on_clients
 
 from .conftest import get_admin_service_client
-from .utils import run_cli, tmp_clients, tmp_product
+from .utils import assert_error_contains, run_cli, tmp_clients, tmp_product
 
 TEST_DATA_PATH = Path("tests/test_data/plugins/package")
 
@@ -166,7 +166,8 @@ def test_make(tmp_path: Path, test_product_source: Path, control_files: bool | s
 	exit_code, _stdout, _stderr = run_cli(cli_args)
 
 	if control_files == "legacy":
-		assert "Control file is newer. Please update the control.toml file." in _stderr
+		assert exit_code != 0
+		assert_error_contains(_stderr, ("control file contains", "higher version than", "control.toml", "Please update"))
 	elif control_files:
 		package_archive = tmp_path / f"{TESTPRODUCT}_{PRODUCT_VERSION}-{PACKAGE_VERSION}.opsi"
 		assert exit_code == 0 and package_archive.exists()

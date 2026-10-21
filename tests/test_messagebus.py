@@ -12,6 +12,7 @@ import time
 from contextlib import chdir
 from pathlib import Path
 from threading import Thread
+from unittest.mock import patch
 
 import pytest
 from opsi.logging import get_logger, log_context
@@ -26,7 +27,7 @@ from opsi.opsi.messagebus import (
 	Message,
 )
 
-from opsicli.messagebus import JSONRPCMessagebusConnection, MessagebusListener
+from opsicli.messagebus import JSONRPCMessagebusConnection, MessagebusConnection, MessagebusListener
 from opsicli.opsiservice import get_service_connection
 
 from .conftest import get_admin_service_client, get_host_service_client
@@ -91,33 +92,30 @@ def test_messagebus_jsonrpc_multiple() -> None:
 )
 def test_get_events(types: list[str], output_type: str | None) -> None:
 	client_id = "dummy1.test.tld"
+	subscribe_to_channel = MessagebusConnection.subscribe_to_channel
 
-	class CreateHostThread(Thread):
-		def run(self) -> None:
-			with log_context({"instance": "CreateHostThread"}), get_admin_service_client() as client:
-				time.sleep(7)
-				client.jsonrpc("host_createOpsiClient", params=[client_id])
-				time.sleep(1)
-				client.jsonrpc("host_delete", params=[client_id])
+	def subscribe_and_create_host(connection: MessagebusConnection, channel: str | list[str]) -> None:
+		subscribe_to_channel(connection, channel)
+		with get_admin_service_client() as client:
+			client.jsonrpc("host_createOpsiClient", params=[client_id])
+			client.jsonrpc("host_delete", params=[client_id])
 
-	for cid in (client_id, "some.other.host"):
-		cht = CreateHostThread(daemon=True)
-		cht.start()
-		cmd = ["--output-format", "json", "messagebus", "get-events", "--timeout", "10"]
-		for event_type in types:
-			cmd += ["--type", event_type]
-		if output_type:
-			cmd += ["--output-type", output_type]
+	cmd = ["--output-format", "json", "messagebus", "get-events", "--timeout", "10"]
+	for event_type in types:
+		cmd += ["--type", event_type]
+	if output_type:
+		cmd += ["--output-type", output_type]
 
+	with patch.object(MessagebusConnection, "subscribe_to_channel", subscribe_and_create_host):
 		exit_code, _stdout, _stderr = run_cli(cmd)
-		cht.join()
-		data = [json.loads(line.strip()) for line in _stdout.splitlines() if line]
-		assert len(data) == len(types) if types else 2
-		if output_type == "message":
-			assert data[0]["sender"]
-		else:
-			assert "sender" not in data[0]
-		assert exit_code == 0
+
+	assert exit_code == 0, _stderr
+	data = [json.loads(line.strip()) for line in _stdout.splitlines() if line]
+	assert len(data) == (len(types) if types else 2)
+	if output_type == "message":
+		assert data[0]["sender"]
+	else:
+		assert "sender" not in data[0]
 
 
 @pytest.mark.opsi_service
