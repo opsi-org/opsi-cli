@@ -12,12 +12,13 @@ import time
 from contextlib import chdir
 from pathlib import Path
 from threading import Thread
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from opsi.logging import get_logger, log_context
 from opsi.opsi.messagebus import (
 	CONNECTION_USER_CHANNEL,
+	ChannelSubscriptionEventMessage,
 	FileChunkMessage,
 	FileDownloadInformationMessage,
 	FileDownloadRequestMessage,
@@ -26,14 +27,101 @@ from opsi.opsi.messagebus import (
 	FileUploadResultMessage,
 	Message,
 )
+from opsi.opsi.service.client import ServiceClient
 
-from opsicli.messagebus import JSONRPCMessagebusConnection, MessagebusConnection, MessagebusListener
+from opsicli.messagebus import MESSAGEBUS_DISCONNECT_TIMEOUT, JSONRPCMessagebusConnection, MessagebusConnection, MessagebusListener
 from opsicli.opsiservice import get_service_connection
 
 from .conftest import get_admin_service_client, get_host_service_client
 from .utils import admin_service_config, run_cli, tmp_client, tmp_product
 
 logger = get_logger()
+
+
+@pytest.mark.parametrize("fail_in_context", (False, True))
+def test_messagebus_waits_for_disconnect(fail_in_context: bool) -> None:
+	service_client = MagicMock(spec=ServiceClient)
+	service_client.messagebus_connected = False
+	with patch("opsicli.messagebus.get_service_connection", return_value=service_client):
+		connection = MessagebusConnection()
+	connection.connection_closed_event.set()
+
+	def connect() -> None:
+		service_client.messagebus_connected = True
+		connection._on_channel_subscription_event(
+			ChannelSubscriptionEventMessage(sender="service:messagebus", channel="session:test", subscribed_channels=["session:test"])
+		)
+
+	def disconnect() -> None:
+		service_client.messagebus_connected = False
+
+	def wait_for_close(timeout: float) -> bool:
+		service_client.disconnect_messagebus.assert_called_once()
+		service_client.messagebus.unregister_messagebus_listener.assert_not_called()
+		# No reconnect delay must be scheduled by the close callback of a deliberate disconnect
+		assert service_client.messagebus.reconnect_wait_min == 0
+		assert service_client.messagebus.reconnect_wait_max == 0
+		assert not connection.connection_closed_event.is_set()
+		connection.messagebus_connection_closed(service_client.messagebus)
+		return connection.connection_closed_event.is_set()
+
+	service_client.messagebus.reconnect_wait_min = 5
+	service_client.messagebus.reconnect_wait_max = 10
+	service_client.connect_messagebus.side_effect = connect
+	service_client.disconnect_messagebus.side_effect = disconnect
+	with patch.object(connection.connection_closed_event, "wait", side_effect=wait_for_close) as wait:
+		if fail_in_context:
+			with pytest.raises(RuntimeError, match="context failed"), connection.connection():
+				raise RuntimeError("context failed")
+		else:
+			with connection.connection():
+				pass
+		wait.assert_called_once_with(MESSAGEBUS_DISCONNECT_TIMEOUT)
+	service_client.messagebus.unregister_messagebus_listener.assert_called_once_with(connection)
+	assert service_client.messagebus.reconnect_wait_min == 5
+	assert service_client.messagebus.reconnect_wait_max == 10
+
+
+def test_messagebus_disconnect_timeout() -> None:
+	service_client = MagicMock(spec=ServiceClient)
+	service_client.messagebus_connected = True
+	service_client.messagebus.reconnect_wait_min = 5
+	service_client.messagebus.reconnect_wait_max = 5
+	with patch("opsicli.messagebus.get_service_connection", return_value=service_client):
+		connection = MessagebusConnection()
+	with (
+		patch.object(connection.initial_subscription_event, "wait", return_value=True),
+		patch.object(connection.connection_closed_event, "wait", return_value=False),
+		patch("opsicli.messagebus.logger") as logger_mock,
+		connection.connection(),
+	):
+		pass
+	logger_mock.warning.assert_called_once()
+	service_client.messagebus.unregister_messagebus_listener.assert_called_once_with(connection)
+	assert service_client.messagebus.reconnect_wait_min == 5
+	assert service_client.messagebus.reconnect_wait_max == 5
+
+
+def test_messagebus_reconnect_clears_subscriptions() -> None:
+	service_client = MagicMock(spec=ServiceClient)
+	service_client.messagebus_connected = True
+	service_client.messagebus.reconnect_wait_min = 5
+	service_client.messagebus.reconnect_wait_max = 5
+	with patch("opsicli.messagebus.get_service_connection", return_value=service_client):
+		connection = MessagebusConnection()
+
+	def connect() -> None:
+		assert not connection.initial_subscription_event.is_set()
+		assert not connection.subscribed_channels
+		connection._on_channel_subscription_event(
+			ChannelSubscriptionEventMessage(sender="service:messagebus", channel="session:test", subscribed_channels=["session:test"])
+		)
+
+	service_client.connect_messagebus.side_effect = connect
+	service_client.disconnect_messagebus.side_effect = lambda: connection.messagebus_connection_closed(service_client.messagebus)
+	for _ in range(2):
+		with connection.connection():
+			assert connection.subscribed_channels == ["session:test"]
 
 
 @pytest.mark.opsi_service

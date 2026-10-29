@@ -53,7 +53,7 @@ from opsi.opsi.messagebus import (
 	TerminalOpenRequestMessage,
 	TerminalResizeRequestMessage,
 )
-from opsi.opsi.service.client import MessagebusListener
+from opsi.opsi.service.client import Messagebus, MessagebusListener
 from opsi.opsi.service.model.type import to_host_id
 from opsi.system.info import is_windows
 from rich.color import Color
@@ -71,6 +71,7 @@ else:
 	from signal import SIGWINCH, signal
 
 CHANNEL_SUB_TIMEOUT = 15.0
+MESSAGEBUS_DISCONNECT_TIMEOUT = 5.0
 JSONRPC_TIMEOUT = 15.0
 PROCESS_START_TIMEOUT = 15.0
 
@@ -93,7 +94,11 @@ class MessagebusConnection(MessagebusListener):
 		self.channel_subscription_events: dict[str, Event] = {}
 		self.subscribed_channels: list[str] = []
 		self.initial_subscription_event = Event()
+		self.connection_closed_event = Event()
 		self.service_client = get_service_connection(verify)
+
+	def messagebus_connection_closed(self, messagebus: Messagebus) -> None:
+		self.connection_closed_event.set()
 
 	def send_message(self, message: Message) -> None:
 		log_message(message, direction="out")
@@ -145,18 +150,35 @@ class MessagebusConnection(MessagebusListener):
 			for c in channels:
 				self.channel_subscription_events.pop(c, None)
 
+	def _disconnect(self, messagebus: Messagebus) -> None:
+		logger.debug("Disconnecting from messagebus.")
+		# On close, the messagebus adds a reconnect delay meant for lost connections.
+		# The (cached) service client may be reconnected right away, so suppress it for a deliberate disconnect.
+		reconnect_wait = (messagebus.reconnect_wait_min, messagebus.reconnect_wait_max)
+		messagebus.reconnect_wait_min = messagebus.reconnect_wait_max = 0
+		self.connection_closed_event.clear()
+		try:
+			self.service_client.disconnect_messagebus()
+			# The websocket close callback can run in the messagebus thread after disconnect returned.
+			if not self.connection_closed_event.wait(MESSAGEBUS_DISCONNECT_TIMEOUT):
+				logger.warning("Timed out after %s seconds waiting for messagebus connection to close", MESSAGEBUS_DISCONNECT_TIMEOUT)
+		finally:
+			messagebus.reconnect_wait_min, messagebus.reconnect_wait_max = reconnect_wait
+
 	@contextmanager
 	def connection(self) -> Generator[MessagebusConnection]:
-		try:
-			with self.register(self.service_client.messagebus):
+		self.initial_subscription_event.clear()
+		self.subscribed_channels.clear()
+		messagebus = self.service_client.messagebus
+		with self.register(messagebus):
+			try:
 				self.service_client.connect_messagebus()
 				if not self.initial_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
 					raise ConnectionError("Failed to subscribe to session channel.")
 				yield self
-		finally:
-			if self.service_client.messagebus_connected:
-				logger.debug("Disconnecting from messagebus.")
-				self.service_client.disconnect_messagebus()
+			finally:
+				if self.service_client.messagebus_connected:
+					self._disconnect(messagebus)
 
 
 class JSONRPCMessagebusConnection(MessagebusConnection):
