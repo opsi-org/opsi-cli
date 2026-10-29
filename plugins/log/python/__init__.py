@@ -41,7 +41,7 @@ def cli(ctx: click.Context) -> None:
 @click.argument("host_id", type=str, required=True)
 @click.option(
 	"--log-type",
-	type=click.Choice(["opsiconfd", "opsiclientd"], case_sensitive=False),
+	type=click.Choice(["opsiconfd", "opsiclientd", "opsi-script"], case_sensitive=False),
 	default="opsiclientd",
 	help="Specify the type of log to view.",
 	show_default=True,
@@ -49,7 +49,7 @@ def cli(ctx: click.Context) -> None:
 @click.option(
 	"--live",
 	is_flag=True,
-	help="Show live logs directly from the client (only for opsiclientd) or view client logs stored on the server.",
+	help="Show live logs directly from the client (opsiclientd or opsi-script) or view client logs stored on the server.",
 	default=False,
 )
 @click.option("--follow", is_flag=True, help="Follow the log file for real-time updates.", default=False)
@@ -73,10 +73,12 @@ async def view_command(host_id: str, log_type: str, live: bool, follow: bool, lo
 
 	if log_type == "opsiclientd":
 		log_path = "{OPSICLIENTD_LOG_FILE_PATH}" if live else f"/var/log/opsi/clientconnect/{host_id}.log"
+	elif log_type == "opsi-script":
+		log_path = "{OPSI_SCRIPT_LOG_FILE_PATH}" if live else f"/var/log/opsi/instlog/{host_id}.log"
 	else:
 		if live:
-			logger.error("--live option is only available for log type 'opsiclientd'.")
-			raise ValueError("--live option is only available for log type 'opsiclientd'.")
+			logger.error("--live option is only available for log types 'opsiclientd' and 'opsi-script'.")
+			raise ValueError("--live option is only available for log types 'opsiclientd' and 'opsi-script'.")
 		log_path = "/var/log/opsi/opsiconfd/opsiconfd.log"
 
 	messagebus_connection = FileTransferMessagebusConnection(

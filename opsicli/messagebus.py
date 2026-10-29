@@ -745,7 +745,7 @@ class TerminalMessagebusConnection(MessagebusConnection):
 
 
 class FileTransferMessagebusConnection(MessagebusConnection):
-	log_pattern = re.compile(r"\[(\d+)\] \[(.*?)\] \[(.*?)\] (.*?)\s+")
+	log_pattern = re.compile(r"^\[(\d+)\]\s+")
 	chunk_size: int = 1000
 	current_color: str = "white"
 
@@ -776,7 +776,7 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 		if host_id != configserver_id and host_id not in connected_host_ids:
 			raise ConnectionError(f"Host {host_id} is currently not connected to messagebus")
 
-		if self.log_type == "opsiclientd":
+		if self.log_type in ("opsiclientd", "opsi-script"):
 			if self.live:
 				return f"host:{host_id}"
 			return f"service:depot:{configserver_id}:filetransfer"
@@ -799,7 +799,7 @@ class FileTransferMessagebusConnection(MessagebusConnection):
 	def _process_line(self, line: str) -> None:
 		match = self.log_pattern.match(line)
 		if match:
-			log_level, _, _, _, _ = match.groups()
+			log_level = match.group(1)
 			self._current_log_level = int(log_level)
 			if self._current_log_level <= self.log_level:
 				self.current_color = LOG_COLORS.get(log_level, "white")

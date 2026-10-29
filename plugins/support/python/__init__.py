@@ -14,7 +14,7 @@ from opsi.logging import get_logger
 
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_capable
-from opsicli.io import console_print, write_output
+from opsicli.io import console_print, get_progress, write_output
 from opsicli.messagebus import JSONRPCMessagebusConnection
 from opsicli.opsiservice import get_service_connection
 from opsicli.plugin import OPSICLIPlugin
@@ -73,8 +73,15 @@ def client_logs(client: str, path: Path, timeout: int) -> None:
 	service_client = get_service_connection()
 	response = service_client.get(f"/file-transfer/{result.get('file_id')}", raw_response=True)
 	console_print(f"Writing log archive at {path}")
-	with open(path, "wb") as file_handle:
-		file_handle.writelines(response.iter_content(chunk_size=8192))
+	total = int(response.headers.get("Content-Length") or "0") or None
+	with open(path, "wb") as file_handle, get_progress() as progress:
+		task = progress.add_task(f"Downloading {path.name}", total=total)
+		for chunk in response.iter_content(chunk_size=8192):
+			if chunk:
+				file_handle.write(chunk)
+				progress.advance(task, len(chunk))
+		if total is None:
+			progress.update(task, total=file_handle.tell())
 
 
 class SupportPlugin(OPSICLIPlugin):
