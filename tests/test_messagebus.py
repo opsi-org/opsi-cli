@@ -302,7 +302,8 @@ def test_download(tmp_path: Path) -> None:
 
 
 @pytest.mark.opsi_service
-def test_upload(tmp_path: Path) -> None:
+@pytest.mark.parametrize("source", ("-", "file.txt"))
+def test_upload(tmp_path: Path, source: str) -> None:
 	class TestUploadMessagebusListener(MessagebusListener):
 		def message_received(self, message: Message) -> None:
 			assert self.messagebus
@@ -340,8 +341,9 @@ def test_upload(tmp_path: Path) -> None:
 	):
 		thread = FakeHostConnectionThread(daemon=True)
 		thread.start()
-		time.sleep(2)
-		for src in "-", source_file:
+		try:
+			time.sleep(2)
+			src = "-" if source == "-" else source_file
 			print("Uploading", src)
 			cmd = [
 				"messagebus",
@@ -355,6 +357,6 @@ def test_upload(tmp_path: Path) -> None:
 			assert exit_code == 0
 			assert f"File '{src}' uploaded successfully to '/remote/path'" in stderr.replace("\n", "")
 			assert stdout == ""
-
-		thread.should_stop = True
-		thread.join()
+		finally:
+			thread.should_stop = True
+			thread.join()
