@@ -29,7 +29,13 @@ from opsi.opsi.messagebus import (
 )
 from opsi.opsi.service.client import ServiceClient
 
-from opsicli.messagebus import MESSAGEBUS_DISCONNECT_TIMEOUT, JSONRPCMessagebusConnection, MessagebusConnection, MessagebusListener
+from opsicli.messagebus import (
+	CHANNEL_SUB_TIMEOUT,
+	MESSAGEBUS_DISCONNECT_TIMEOUT,
+	JSONRPCMessagebusConnection,
+	MessagebusConnection,
+	MessagebusListener,
+)
 from opsicli.opsiservice import get_service_connection
 
 from .conftest import get_admin_service_client, get_host_service_client
@@ -122,6 +128,50 @@ def test_messagebus_reconnect_clears_subscriptions() -> None:
 	for _ in range(2):
 		with connection.connection():
 			assert connection.subscribed_channels == ["session:test"]
+
+
+def test_messagebus_nested_connection_keeps_subscription() -> None:
+	service_client = MagicMock(spec=ServiceClient)
+	service_client.messagebus_connected = False
+	service_client.messagebus.reconnect_wait_min = 5
+	service_client.messagebus.reconnect_wait_max = 5
+	with patch("opsicli.messagebus.get_service_connection", return_value=service_client):
+		connection = MessagebusConnection()
+
+	def connect() -> None:
+		# Like the real messagebus, connecting an already connected bus sends no new subscription event
+		if service_client.messagebus_connected:
+			return
+		service_client.messagebus_connected = True
+		connection._on_channel_subscription_event(
+			ChannelSubscriptionEventMessage(sender="service:messagebus", channel="session:test", subscribed_channels=["session:test"])
+		)
+
+	def disconnect() -> None:
+		service_client.messagebus_connected = False
+		connection.messagebus_connection_closed(service_client.messagebus)
+
+	service_client.connect_messagebus.side_effect = connect
+	service_client.disconnect_messagebus.side_effect = disconnect
+	with patch.object(connection.initial_subscription_event, "wait", wraps=connection.initial_subscription_event.wait) as wait:
+		with connection.connection(), connection.connection():
+			assert connection.subscribed_channels == ["session:test"]
+		wait.assert_called_once_with(CHANNEL_SUB_TIMEOUT)
+	assert not connection.initial_subscription_event.is_set()
+	assert not connection.subscribed_channels
+
+
+def test_messagebus_connected_by_other_connection_does_not_wait() -> None:
+	service_client = MagicMock(spec=ServiceClient)
+	service_client.messagebus_connected = True
+	service_client.messagebus.reconnect_wait_min = 5
+	service_client.messagebus.reconnect_wait_max = 5
+	with patch("opsicli.messagebus.get_service_connection", return_value=service_client):
+		connection = MessagebusConnection()
+	service_client.disconnect_messagebus.side_effect = lambda: connection.messagebus_connection_closed(service_client.messagebus)
+	with patch.object(connection.initial_subscription_event, "wait", return_value=False) as wait, connection.connection():
+		pass
+	wait.assert_not_called()
 
 
 @pytest.mark.opsi_service

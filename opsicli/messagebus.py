@@ -71,7 +71,9 @@ else:
 	from signal import SIGWINCH, signal
 
 CHANNEL_SUB_TIMEOUT = 15.0
-MESSAGEBUS_DISCONNECT_TIMEOUT = 5.0
+# Has to exceed the messagebus ping timeout (10s): if the websocket is closed from another thread,
+# the websocket thread may only notice it after its select() call timed out.
+MESSAGEBUS_DISCONNECT_TIMEOUT = 15.0
 JSONRPC_TIMEOUT = 15.0
 PROCESS_START_TIMEOUT = 15.0
 
@@ -167,18 +169,21 @@ class MessagebusConnection(MessagebusListener):
 
 	@contextmanager
 	def connection(self) -> Generator[MessagebusConnection]:
-		self.initial_subscription_event.clear()
-		self.subscribed_channels.clear()
 		messagebus = self.service_client.messagebus
 		with self.register(messagebus):
 			try:
+				# Only a new websocket connection sends the initial session channel subscription event
+				already_connected = self.service_client.messagebus_connected
 				self.service_client.connect_messagebus()
-				if not self.initial_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
+				if not already_connected and not self.initial_subscription_event.wait(CHANNEL_SUB_TIMEOUT):
 					raise ConnectionError("Failed to subscribe to session channel.")
 				yield self
 			finally:
 				if self.service_client.messagebus_connected:
 					self._disconnect(messagebus)
+				# Session subscriptions end with the websocket; a reconnect sends a new subscription event.
+				self.initial_subscription_event.clear()
+				self.subscribed_channels = []
 
 
 class JSONRPCMessagebusConnection(MessagebusConnection):
