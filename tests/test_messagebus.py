@@ -9,16 +9,18 @@ test_messagebus
 
 import json
 import time
-from contextlib import chdir
+from contextlib import chdir, nullcontext
 from pathlib import Path
 from threading import Thread
 from unittest.mock import MagicMock, patch
 
 import pytest
+from click.testing import CliRunner
 from opsi.logging import get_logger, log_context
 from opsi.opsi.messagebus import (
 	CONNECTION_USER_CHANNEL,
 	ChannelSubscriptionEventMessage,
+	EventMessage,
 	FileChunkMessage,
 	FileDownloadInformationMessage,
 	FileDownloadRequestMessage,
@@ -42,6 +44,104 @@ from .conftest import get_admin_service_client, get_host_service_client
 from .utils import admin_service_config, run_cli, tmp_client, tmp_product
 
 logger = get_logger()
+
+
+@pytest.mark.parametrize("started, completed", [(False, False), (True, False), (True, True), (False, True)])
+def test_installation_event_timeouts(started: bool, completed: bool) -> None:
+	from plugins.messagebus.python import EventMessagebusConnection
+
+	with patch("opsicli.messagebus.get_service_connection", return_value=MagicMock(spec=ServiceClient)):
+		connection = EventMessagebusConnection()
+	start_data = {"clientId": "client1.test.tld", "productId": "testproduct", "installationStatus": "unknown"}
+	completed_data = dict(start_data, installationStatus="installed", actionResult="successful")
+
+	def receive_events(timeout: float) -> bool:
+		assert timeout == 120
+		connection._on_event(EventMessage(sender="service:messagebus", channel="event:host_updated", event="host_updated", data=start_data))
+		connection._on_event(
+			EventMessage(
+				sender="service:messagebus",
+				channel="event:productOnClient_updated",
+				event="productOnClient_updated",
+				data=dict(start_data, clientId="other.test.tld"),
+			)
+		)
+		assert not connection.event_started_event.is_set()
+		if started:
+			connection._on_event(
+				EventMessage(
+					sender="service:messagebus", channel="event:productOnClient_updated", event="productOnClient_updated", data=start_data
+				)
+			)
+		if completed:
+			connection._on_event(
+				EventMessage(
+					sender="service:messagebus",
+					channel="event:productOnClient_updated",
+					event="productOnClient_updated",
+					data=completed_data,
+				)
+			)
+		return connection.event_started_event.is_set()
+
+	with (
+		patch.object(connection, "connection", return_value=nullcontext()),
+		patch.object(connection, "subscribe_to_channel") as subscribe,
+		patch.object(connection.event_started_event, "wait", side_effect=receive_events),
+		patch.object(connection.event_found_event, "wait", return_value=completed) as completion_wait,
+	):
+		if completed:
+			result = connection.wait_for_event(
+				type="productOnClient_updated", data_all=[completed_data], start_data=[start_data], start_timeout=120, timeout=10
+			)
+			assert [message.data for message in result] == [completed_data]
+		else:
+			with pytest.raises(TimeoutError, match="start event" if not started else "event"):
+				connection.wait_for_event(
+					type="productOnClient_updated", data_all=[completed_data], start_data=[start_data], start_timeout=120, timeout=10
+				)
+		subscribe.assert_called_once_with(["event:productOnClient_updated"])
+		if started or completed:
+			completion_wait.assert_called_once_with(10)
+		else:
+			completion_wait.assert_not_called()
+
+
+@pytest.mark.parametrize("start_timeout", [None, "2.5"])
+@pytest.mark.parametrize("outcome", ["successful", "failed", "start_timeout", "completion_timeout"])
+def test_wait_for_installation_options(start_timeout: str | None, outcome: str) -> None:
+	from plugins.messagebus.python import EventMessagebusConnection, wait_for_installation
+
+	args = ["client1.test.tld", "testproduct", "otherproduct", "--timeout", "10"]
+	if start_timeout is not None:
+		args.extend(["--start-timeout", start_timeout])
+	with patch("plugins.messagebus.python.EventMessagebusConnection", spec=EventMessagebusConnection) as connection:
+		wait = connection.return_value.wait_for_event
+		if outcome.endswith("timeout"):
+			wait.side_effect = TimeoutError("start event" if outcome == "start_timeout" else "completion event")
+		else:
+			wait.return_value = [
+				EventMessage(
+					sender="service:messagebus",
+					channel="event:productOnClient_updated",
+					event="productOnClient_updated",
+					data={"installationStatus": "installed" if outcome == "successful" else "unknown", "actionResult": outcome},
+				)
+			]
+		result = CliRunner(mix_stderr=False).invoke(wait_for_installation, args)
+		assert result.exit_code == (0 if outcome == "successful" else 1)
+		assert wait.call_count == 1
+		assert wait.call_args.kwargs["start_timeout"] == (120 if start_timeout is None else float(start_timeout))
+		assert wait.call_args.kwargs["timeout"] == 10
+		assert wait.call_args.kwargs["start_data"] == [
+			{"clientId": "client1.test.tld", "productId": product, "installationStatus": "unknown"}
+			for product in ("testproduct", "otherproduct")
+		]
+		if outcome.endswith("timeout"):
+			assert isinstance(result.exception, RuntimeError)
+			assert ("start event" if outcome == "start_timeout" else "completion event") in str(result.exception)
+		else:
+			assert json.loads(result.stdout)["actionResult"] == outcome
 
 
 @pytest.mark.parametrize("fail_in_context", (False, True))

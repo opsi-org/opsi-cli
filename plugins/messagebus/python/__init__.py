@@ -71,8 +71,10 @@ class EventMessagebusConnection(MessagebusConnection):
 		self.event_types: set[str] = set()
 		self.event_data_any: list[dict[str, Any]] = []  # List of data dicts to match against the event data (OR logic)
 		self.event_data_all: list[dict[str, Any]] = []  # List of data dicts to match against the event data (AND logic)
+		self.event_start_data: list[dict[str, Any]] = []
 		self._waiting_for_event: bool = False
 		self._output_type: Literal["message", "event"] | None = None
+		self.event_started_event = Event()
 		self.event_found_event = Event()
 		self.result: list[EventMessage] = []
 
@@ -85,12 +87,18 @@ class EventMessagebusConnection(MessagebusConnection):
 			data = {"event": message.event} | dict(message.data) if self._output_type == "event" else message.to_dict()
 			write_output(data, default_output_format=OutputFormat.PRETTY_JSON, force_newline=True)
 
+		if self._waiting_for_event and any(
+			all(message.data.get(attr) == val for attr, val in event_data.items()) for event_data in self.event_start_data
+		):
+			self.event_started_event.set()
+
 		for event_data in self.event_data_any:
 			if all(message.data.get(attr) == val for attr, val in event_data.items()):
 				logger.notice("Received event with matching data: %s (data=%s)", message, message.data)
 				if self._waiting_for_event:
 					self.result = [message]
 					self.event_found_event.set()
+					self.event_started_event.set()
 				return
 		for event_data in self.event_data_all:
 			if all(message.data.get(attr) == val for attr, val in event_data.items()):
@@ -101,6 +109,7 @@ class EventMessagebusConnection(MessagebusConnection):
 						self.event_found_event.set()
 					else:
 						self.event_data_all.remove(event_data)
+					self.event_started_event.set()
 				return
 
 		logger.debug("Received event with non matching data: %s (data=%s)", message, message.data)
@@ -125,21 +134,28 @@ class EventMessagebusConnection(MessagebusConnection):
 		data_any: list[dict[str, Any]] | None = None,
 		data_all: list[dict[str, Any]] | None = None,
 		timeout: float | None = None,
+		start_data: list[dict[str, Any]] | None = None,
+		start_timeout: float | None = None,
 	) -> list[EventMessage]:
 		self.event_types = {type}
 		self.event_data_any = data_any or []
 		self.event_data_all = data_all or []
+		self.event_start_data = start_data or []
 		self._waiting_for_event = True
 		logger.notice("Waiting for event of type %r to occur", self.event_types)
 		logger.info("Listening until any of %s is found or all of %s is found", self.event_data_any, self.event_data_all)
 		try:
 			with self.connection():
 				self.subscribe_to_channel([f"event:{evt}" for evt in self.event_types])
+				if self.event_start_data and not self.event_started_event.wait(start_timeout):
+					raise TimeoutError(f"Timed out after waiting {start_timeout:0.1f} seconds for the start event")
 				if not self.event_found_event.wait(timeout):
-					raise TimeoutError("Timeout waiting for event")
+					raise TimeoutError(f"Timed out after waiting {timeout:0.1f} seconds for events")
 				return self.result
 		finally:
+			self._waiting_for_event = False
 			self.result = []
+			self.event_started_event.clear()
 			self.event_found_event.clear()
 
 
@@ -399,8 +415,9 @@ def wait_for_host(hostname: str, timeout: float | None) -> None:
 @click.argument("client", type=str)
 @click.argument("products", type=str, nargs=-1)
 @click.option("--installation-status", help="Status to wait for", type=click.Choice(("installed", "not_installed")), default="installed")
-@click.option("--timeout", help="Timeout in seconds", type=float, default=None)
-def wait_for_installation(client: str, products: str, installation_status: str, timeout: float | None) -> None:
+@click.option("--start-timeout", help="Timeout in seconds for installation to start", type=float, default=120, show_default=True)
+@click.option("--timeout", help="Timeout in seconds after installation starts", type=float, default=None)
+def wait_for_installation(client: str, products: str, installation_status: str, timeout: float | None, start_timeout: float) -> None:
 	"""
 	Wait for product installations on a client
 	"""
@@ -412,11 +429,19 @@ def wait_for_installation(client: str, products: str, installation_status: str, 
 		{"clientId": client, "productId": product, "installationStatus": installation_status, "actionResult": "successful"}
 		for product in products
 	]
+	start_data = [{"clientId": client, "productId": product, "installationStatus": "unknown"} for product in products]
 
 	try:
-		result = mbus_connection.wait_for_event(type="productOnClient_updated", data_any=data_any, data_all=data_all, timeout=timeout)
-	except TimeoutError:
-		msg = f"Timed out after waiting {timeout:0.1f} seconds for installation events"
+		result = mbus_connection.wait_for_event(
+			type="productOnClient_updated",
+			data_any=data_any,
+			data_all=data_all,
+			timeout=timeout,
+			start_data=start_data,
+			start_timeout=start_timeout,
+		)
+	except TimeoutError as err:
+		msg = f"Waiting for installation events failed: {err}"
 		logger.error(msg)
 		raise RuntimeError(msg) from None
 
