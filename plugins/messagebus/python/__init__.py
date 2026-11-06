@@ -36,7 +36,7 @@ from opsi.opsi.messagebus import (
 from opsicli.cli_helpers import OPSICLIGroup
 from opsicli.decorators import dry_run_capable
 from opsicli.io import OutputType, console_print, write_output
-from opsicli.messagebus import MessagebusConnection
+from opsicli.messagebus import DEFAULT_START_TIMEOUT, MessagebusConnection
 from opsicli.plugin import OPSICLIPlugin
 from opsicli.types import OutputFormat
 
@@ -59,7 +59,6 @@ DEFAULT_EVENTS = [
 	"user_connected",
 	"user_disconnected",
 ]
-DEFAULT_START_TIMEOUT = 600
 __version__ = "0.3.1"
 __description__ = "This command can be used to interact with the opsi message bus."
 
