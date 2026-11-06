@@ -415,7 +415,7 @@ def wait_for_host(hostname: str, timeout: float | None) -> None:
 @click.argument("client", type=str)
 @click.argument("products", type=str, nargs=-1)
 @click.option("--installation-status", help="Status to wait for", type=click.Choice(("installed", "not_installed")), default="installed")
-@click.option("--start-timeout", help="Timeout in seconds for installation to start", type=float, default=120, show_default=True)
+@click.option("--start-timeout", help="Timeout in seconds for installation to start", type=float, default=600, show_default=True)
 @click.option("--timeout", help="Timeout in seconds after installation starts", type=float, default=None)
 def wait_for_installation(client: str, products: str, installation_status: str, timeout: float | None, start_timeout: float) -> None:
 	"""
