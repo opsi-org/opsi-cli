@@ -33,6 +33,7 @@ from opsi.opsi.service.client import ServiceClient
 
 from opsicli.messagebus import (
 	CHANNEL_SUB_TIMEOUT,
+	DEFAULT_START_TIMEOUT,
 	MESSAGEBUS_DISCONNECT_TIMEOUT,
 	JSONRPCMessagebusConnection,
 	MessagebusConnection,
@@ -131,7 +132,7 @@ def test_wait_for_installation_options(start_timeout: str | None, outcome: str) 
 		result = CliRunner(mix_stderr=False).invoke(wait_for_installation, args)
 		assert result.exit_code == (0 if outcome == "successful" else 1)
 		assert wait.call_count == 1
-		assert wait.call_args.kwargs["start_timeout"] == (120 if start_timeout is None else float(start_timeout))
+		assert wait.call_args.kwargs["start_timeout"] == (DEFAULT_START_TIMEOUT if start_timeout is None else float(start_timeout))
 		assert wait.call_args.kwargs["timeout"] == 10
 		assert wait.call_args.kwargs["start_data"] == [
 			{"clientId": "client1.test.tld", "productId": product, "installationStatus": "unknown"}
