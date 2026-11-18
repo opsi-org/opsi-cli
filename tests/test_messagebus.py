@@ -8,10 +8,9 @@ test_messagebus
 """
 
 import json
-import time
 from contextlib import chdir, nullcontext
 from pathlib import Path
-from threading import Thread
+from threading import Event, Thread
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -380,7 +379,7 @@ def test_get_events(types: list[str], output_type: str | None) -> None:
 			client.jsonrpc("host_createOpsiClient", params=[client_id])
 			client.jsonrpc("host_delete", params=[client_id])
 
-	cmd = ["--output-format", "json", "messagebus", "get-events", "--timeout", "10"]
+	cmd = ["--output-format", "json", "messagebus", "get-events", "--timeout", "3"]
 	for event_type in types:
 		cmd += ["--type", event_type]
 	if output_type:
@@ -402,27 +401,25 @@ def test_get_events(types: list[str], output_type: str | None) -> None:
 @pytest.mark.parametrize("with_data", (True, False))
 def test_wait_for_event(with_data: bool) -> None:
 	client_id = "dummy1.test.tld"
+	subscribe_to_channel = MessagebusConnection.subscribe_to_channel
 
-	class CreateHostThread(Thread):
-		def run(self) -> None:
-			with log_context({"instance": "CreateHostThread"}), get_admin_service_client() as client:
-				time.sleep(7)
-				client.jsonrpc("host_createOpsiClient", params=[client_id])
-				time.sleep(1)
-				client.jsonrpc("host_delete", params=[client_id])
+	def subscribe_and_create_host(connection: MessagebusConnection, channel: str | list[str]) -> None:
+		# Subscription is confirmed by the service at this point, so the event can not be missed
+		subscribe_to_channel(connection, channel)
+		with get_admin_service_client() as client:
+			client.jsonrpc("host_createOpsiClient", params=[client_id])
+			client.jsonrpc("host_delete", params=[client_id])
 
 	for cid in (client_id, "some.other.host"):
-		cht = CreateHostThread(daemon=True)
-		cht.start()
-		cmd = ["messagebus", "wait-for-event", "host_created", "--timeout", "10"]
+		cmd = ["messagebus", "wait-for-event", "host_created", "--timeout", "3"]
 		if with_data:
 			cmd += ["--data", f"id={cid}"]
-		exit_code, stdout, stderr = run_cli(cmd)
-		cht.join()
+		with patch.object(MessagebusConnection, "subscribe_to_channel", subscribe_and_create_host):
+			exit_code, stdout, stderr = run_cli(cmd)
 		if with_data and cid != client_id:
 			# Timeout reached
 			assert exit_code == 1
-			assert "Timed out after waiting 10.0 seconds for the event" in stderr
+			assert "Timed out after waiting 3.0 seconds for the event" in stderr
 		else:
 			# 'host_created' event found
 			assert exit_code == 0
@@ -433,34 +430,39 @@ def test_wait_for_event(with_data: bool) -> None:
 
 @pytest.mark.opsi_service
 @pytest.mark.parametrize(
-	"installation_status, action_result",
+	"cli_status, event_status, action_result, expected_exit_code",
 	[
-		("installed", "successful"),
-		("not_installed", "failed"),
-		("installed", None),
+		("installed", "installed", "successful", 0),
+		("not_installed", "not_installed", "successful", 0),
+		("installed", "unknown", "failed", 1),
+		# No result event => timeout
+		("installed", None, None, 1),
 	],
 )
-def test_wait_for_installation(installation_status: str, action_result: str | None) -> None:
-	# action_result == None => timeout
-	class FakeInstallationThread(Thread):
-		def run(self) -> None:
-			with log_context({"instance": "FakeInstallationThread"}), get_admin_service_client() as client:
-				time.sleep(7)
-				if action_result is None:
-					time.sleep(5)
-				else:
-					client.jsonrpc(
-						"productOnClient_updateObjects",
-						params=[
-							{
-								"clientId": "client1.test.tld",
-								"productId": "testproduct",
-								"actionResult": action_result,
-								"installationStatus": installation_status,
-								"productType": "LocalbootProduct",
-							}
-						],
-					)
+def test_wait_for_installation(cli_status: str, event_status: str | None, action_result: str | None, expected_exit_code: int) -> None:
+	subscribe_to_channel = MessagebusConnection.subscribe_to_channel
+	# The command waits for a start event (status unknown) before it waits for the result
+	updates = [("unknown", "none")]
+	if event_status:
+		updates.append((event_status, action_result or "none"))
+
+	def subscribe_and_update(connection: MessagebusConnection, channel: str | list[str]) -> None:
+		# Subscription is confirmed by the service at this point, so the events can not be missed
+		subscribe_to_channel(connection, channel)
+		with get_admin_service_client() as client:
+			for installation_status, result in updates:
+				client.jsonrpc(
+					"productOnClient_updateObjects",
+					params=[
+						{
+							"clientId": "client1.test.tld",
+							"productId": "testproduct",
+							"actionResult": result,
+							"installationStatus": installation_status,
+							"productType": "LocalbootProduct",
+						}
+					],
+				)
 
 	with (
 		admin_service_config(),
@@ -468,41 +470,40 @@ def test_wait_for_installation(installation_status: str, action_result: str | No
 		tmp_client(connection, "client1.test.tld"),
 		tmp_product(connection, "testproduct"),
 	):
-		cht = FakeInstallationThread(daemon=True)
-		cht.start()
 		cmd = [
 			"messagebus",
 			"wait-for-installation",
 			"client1.test.tld",
 			"testproduct",
 			"--installation-status",
-			installation_status,
-			"--timeout",
+			cli_status,
+			"--start-timeout",
 			"10",
+			"--timeout",
+			"3" if event_status is None else "10",
 		]
-		exit_code, _stdout, _stderr = run_cli(cmd)
-		if action_result is None:
-			assert "Timed out after waiting" in _stderr
-		cht.join()
-		assert exit_code == 0 if action_result == "successful" else 1
+		with patch.object(MessagebusConnection, "subscribe_to_channel", subscribe_and_update):
+			exit_code, _stdout, _stderr = run_cli(cmd)
+		if event_status is None:
+			assert "Timed out after waiting 3.0 seconds" in _stderr
+		assert exit_code == expected_exit_code
 
 
 @pytest.mark.opsi_service
 def test_wait_for_host() -> None:
-	class FakeHostConnectionThread(Thread):
-		def run(self) -> None:
-			with log_context({"instance": "FakeHostConnectionThread"}):
-				time.sleep(2)
-				with get_host_service_client("client1.test.tld", "00000000000000000000000000000000") as client:
-					client.connect_messagebus()
+	subscribe_to_channel = MessagebusConnection.subscribe_to_channel
+
+	def subscribe_and_connect_host(connection: MessagebusConnection, channel: str | list[str]) -> None:
+		# Subscription is confirmed by the service at this point, so the event can not be missed
+		subscribe_to_channel(connection, channel)
+		with get_host_service_client("client1.test.tld", "00000000000000000000000000000000") as client:
+			client.connect_messagebus()
 
 	with (
 		admin_service_config(),
 		get_service_connection() as connection,
 		tmp_client(connection, "client1.test.tld", "00000000000000000000000000000000"),
 	):
-		thread = FakeHostConnectionThread(daemon=True)
-		thread.start()
 		cmd = [
 			"messagebus",
 			"wait-for-host",
@@ -510,17 +511,21 @@ def test_wait_for_host() -> None:
 			"--timeout",
 			"10",
 		]
-		exit_code, _stdout, _stderr = run_cli(cmd)
-		thread.join()
+		with patch.object(MessagebusConnection, "subscribe_to_channel", subscribe_and_connect_host):
+			exit_code, _stdout, _stderr = run_cli(cmd)
 		assert exit_code == 0
 
 
 @pytest.mark.opsi_service
 def test_download(tmp_path: Path) -> None:
+	host_ready = Event()
+
 	class TestDownloadMessagebusListener(MessagebusListener):
 		def message_received(self, message: Message) -> None:
 			assert self.messagebus
 			# print(f"Message received: {message.to_dict()}")
+			if isinstance(message, ChannelSubscriptionEventMessage):
+				host_ready.set()
 			if isinstance(message, FileDownloadRequestMessage):
 				self.messagebus.send_message(
 					FileDownloadInformationMessage(sender=CONNECTION_USER_CHANNEL, channel=message.response_channel, size=12)
@@ -533,7 +538,7 @@ def test_download(tmp_path: Path) -> None:
 				)
 
 	class FakeHostConnectionThread(Thread):
-		should_stop = False
+		should_stop = Event()
 
 		def run(self) -> None:
 			with (
@@ -543,8 +548,7 @@ def test_download(tmp_path: Path) -> None:
 				listener = TestDownloadMessagebusListener(client.messagebus)
 				client.messagebus.register_messagebus_listener(listener)
 				client.connect_messagebus()
-				while not self.should_stop:
-					time.sleep(1)
+				self.should_stop.wait()
 
 	destination_file = tmp_path / "file.txt"
 	with (
@@ -555,7 +559,7 @@ def test_download(tmp_path: Path) -> None:
 	):
 		thread = FakeHostConnectionThread(daemon=True)
 		thread.start()
-		time.sleep(2)
+		assert host_ready.wait(10), "Fake host did not connect to the messagebus"
 		for dest in None, "-", destination_file, destination_file.parent:
 			print("Downloading to", dest)
 			cmd = [
@@ -577,17 +581,21 @@ def test_download(tmp_path: Path) -> None:
 				assert destination_file.read_bytes() == b"chunk1chunk2"
 				destination_file.unlink()
 
-		thread.should_stop = True
+		thread.should_stop.set()
 		thread.join()
 
 
 @pytest.mark.opsi_service
 @pytest.mark.parametrize("source", ("-", "file.txt"))
 def test_upload(tmp_path: Path, source: str) -> None:
+	host_ready = Event()
+
 	class TestUploadMessagebusListener(MessagebusListener):
 		def message_received(self, message: Message) -> None:
 			assert self.messagebus
 			# print(f"Message received: {message.to_dict()}")
+			if isinstance(message, ChannelSubscriptionEventMessage):
+				host_ready.set()
 			if isinstance(message, FileUploadRequestMessage):
 				self.messagebus.send_message(
 					FileUploadResponseMessage(sender=CONNECTION_USER_CHANNEL, channel=message.response_channel, path="/remote/path")
@@ -598,7 +606,7 @@ def test_upload(tmp_path: Path, source: str) -> None:
 				)
 
 	class FakeHostConnectionThread(Thread):
-		should_stop = False
+		should_stop = Event()
 
 		def run(self) -> None:
 			with (
@@ -608,8 +616,7 @@ def test_upload(tmp_path: Path, source: str) -> None:
 				listener = TestUploadMessagebusListener(client.messagebus)
 				client.messagebus.register_messagebus_listener(listener)
 				client.connect_messagebus()
-				while not self.should_stop:
-					time.sleep(1)
+				self.should_stop.wait()
 
 	source_file = tmp_path / "file.txt"
 	source_file.write_bytes(b"data")
@@ -622,7 +629,7 @@ def test_upload(tmp_path: Path, source: str) -> None:
 		thread = FakeHostConnectionThread(daemon=True)
 		thread.start()
 		try:
-			time.sleep(2)
+			assert host_ready.wait(10), "Fake host did not connect to the messagebus"
 			src = "-" if source == "-" else source_file
 			print("Uploading", src)
 			cmd = [
@@ -638,5 +645,5 @@ def test_upload(tmp_path: Path, source: str) -> None:
 			assert f"File '{src}' uploaded successfully to '/remote/path'" in stderr.replace("\n", "")
 			assert stdout == ""
 		finally:
-			thread.should_stop = True
+			thread.should_stop.set()
 			thread.join()
