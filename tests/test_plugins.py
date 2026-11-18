@@ -22,9 +22,14 @@ MISSINGPLUGIN = Path("tests") / "test_data" / "plugins" / "missing"
 
 def test_initial() -> None:
 	with temp_context():
-		for args in [["--help"], ["plugin"], ["plugin", "--help"], ["plugin", "add", "--help"], ["--version"], ["plugin", "--version"]]:
+		for args in [["--help"], ["plugin", "--help"], ["plugin", "add", "--help"], ["--version"], ["plugin", "--version"]]:
 			exit_code, _stdout, stderr = run_cli(args)
 			assert exit_code == 0, stderr
+
+		# Since click 8.2 a group invoked without a command exits with code 2 and shows the help
+		exit_code, stdout, _stderr = run_cli(["plugin"])
+		assert exit_code == 2
+		assert "Commands" in stdout
 
 
 def test_install() -> None:
@@ -134,7 +139,9 @@ def test_plugin_new(tmp_path: Path) -> None:
 		exit_code, _stdout, stderr = run_cli(["-l", "4", "plugin", "compress", str(destination), str(tmp_path)])
 		assert exit_code == 0
 		plugin_archive = tmp_path / "new-plugin-1.opsicliplug"
-		assert f"Plugin source '{destination}' compressed to '{plugin_archive}'" in stderr.replace("\n", "")
+		expected = f"Plugin source '{destination}' compressed to '{plugin_archive}'"
+		# The output may be wrapped by the console
+		assert "".join(expected.split()) in "".join(stderr.split())
 		assert plugin_archive.exists()
 
 		exit_code, _stdout, stderr = run_cli(["-l", "4", "plugin", "add", str(plugin_archive)])

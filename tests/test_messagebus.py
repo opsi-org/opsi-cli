@@ -129,7 +129,7 @@ def test_wait_for_installation_options(start_timeout: str | None, outcome: str) 
 					data={"installationStatus": "installed" if outcome == "successful" else "unknown", "actionResult": outcome},
 				)
 			]
-		result = CliRunner(mix_stderr=False).invoke(wait_for_installation, args)
+		result = CliRunner().invoke(wait_for_installation, args)
 		assert result.exit_code == (0 if outcome == "successful" else 1)
 		assert wait.call_count == 1
 		assert wait.call_args.kwargs["start_timeout"] == (DEFAULT_START_TIMEOUT if start_timeout is None else float(start_timeout))
@@ -174,7 +174,7 @@ def test_wait_for_installation_prints_progress(second_product_fails: bool) -> No
 		patch.object(connection, "connection", return_value=nullcontext()),
 		patch.object(connection, "subscribe_to_channel", side_effect=receive_events),
 	):
-		result = CliRunner(mix_stderr=False).invoke(wait_for_installation, [client, "first", "second", "--timeout", "0"])
+		result = CliRunner().invoke(wait_for_installation, [client, "first", "second", "--timeout", "0"])
 
 	assert result.exit_code == 1
 	expected = [f"Installation started for first on {client}.", f"Installation completed successfully for first on {client}."]

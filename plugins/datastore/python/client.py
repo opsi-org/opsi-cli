@@ -44,7 +44,7 @@ def _get_clients_from_service(
 ) -> list[dict[str, str | list[str] | datetime | None]]:
 	service_connection = get_service_connection()
 	clients = []
-	for client in service_connection.host_getObjects(attributes=attributes, type="OpsiClient", **filter):  # ty: ignore[unresolved-attribute]
+	for client in service_connection.host_getObjects(attributes=attributes, type="OpsiClient", **filter):  # ty: ignore[missing-attribute]
 		client_hash = {attr: val for attr, val in client.to_hash().items() if attr in ("id", "type") or attr in attributes}
 		for time_field in ["created", "lastSeen"]:
 			if val := client_hash.get(time_field):
@@ -56,7 +56,7 @@ def _get_clients_from_service(
 def _update_clients(clients: list[dict[str, str | list[str] | datetime | None]]) -> None:
 	if not config.dry_run:
 		service_connection = get_service_connection()
-		service_connection.host_updateObjects(clients)  # ty: ignore[unresolved-attribute]
+		service_connection.host_updateObjects(clients)  # ty: ignore[missing-attribute]
 		msg = Status.success()
 	else:
 		msg = Status.dry_run()

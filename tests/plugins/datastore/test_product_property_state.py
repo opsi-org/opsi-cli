@@ -28,7 +28,7 @@ def test_product_property_state_unmatched_object_id_stops_before_unfiltered_rpcs
 		patch("plugins.datastore.python.product_property_state.get_service_connection", return_value=service_client),
 		pytest.raises(ValueError, match="No clients found matching the supplied objectId filter"),
 	):
-		list_product_property_state.callback(("objectId=nonexistent.test.invalid",), False)  # ty: ignore[call-non-callable]
+		list_product_property_state.callback(("objectId=nonexistent.test.invalid",), False)  # ty: ignore[not-callable]
 
 	service_client.productProperty_getObjects.assert_not_called()
 	service_client.productPropertyState_getObjects.assert_not_called()
@@ -43,33 +43,33 @@ def test_product_property_list(admin_service_client: ServiceClient) -> None:
 		tmp_product(admin_service_client, PRODUCT_ID_1),
 		tmp_product(admin_service_client, PRODUCT_ID_2),
 	):
-		client_to_depot_objects = admin_service_client.configState_getClientToDepotserver()  # ty: ignore[unresolved-attribute]
+		client_to_depot_objects = admin_service_client.configState_getClientToDepotserver()  # ty: ignore[missing-attribute]
 		DEPOT_ID = client_to_depot_objects[0]["depotId"]
 
 		# add PRODUCT-PROPERTIES
-		admin_service_client.productProperty_create(  # ty: ignore[unresolved-attribute]
+		admin_service_client.productProperty_create(  # ty: ignore[missing-attribute]
 			productId=PRODUCT_ID_1, productVersion="1", packageVersion="1", propertyId=PROPERTY_ID_1, type="BoolProductProperty"
 		)
-		admin_service_client.productProperty_create(  # ty: ignore[unresolved-attribute]
+		admin_service_client.productProperty_create(  # ty: ignore[missing-attribute]
 			productId=PRODUCT_ID_2, productVersion="1", packageVersion="1", propertyId=PROPERTY_ID_2, type="UnicodeProductProperty"
 		)
-		admin_service_client.productProperty_create(  # ty: ignore[unresolved-attribute]
+		admin_service_client.productProperty_create(  # ty: ignore[missing-attribute]
 			productId=PRODUCT_ID_1, productVersion="1", packageVersion="1", propertyId=PROPERTY_ID_2, type="BoolProductProperty"
 		)
-		admin_service_client.productProperty_create(  # ty: ignore[unresolved-attribute]
+		admin_service_client.productProperty_create(  # ty: ignore[missing-attribute]
 			productId=PRODUCT_ID_2, productVersion="1", packageVersion="1", propertyId=PROPERTY_ID_1, type="UnicodeProductProperty"
 		)
 
 		# add PRODUCT-PROPERTY-STATES for client 1 & 2
-		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_1, propertyId=PROPERTY_ID_1, objectId=CLIENT_ID_1)  # ty: ignore[unresolved-attribute]
-		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_1, propertyId=PROPERTY_ID_1, objectId=CLIENT_ID_2)  # ty: ignore[unresolved-attribute]
-		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_1, propertyId=PROPERTY_ID_2, objectId=CLIENT_ID_1)  # ty: ignore[unresolved-attribute]
-		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_1, propertyId=PROPERTY_ID_2, objectId=CLIENT_ID_2)  # ty: ignore[unresolved-attribute]
+		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_1, propertyId=PROPERTY_ID_1, objectId=CLIENT_ID_1)  # ty: ignore[missing-attribute]
+		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_1, propertyId=PROPERTY_ID_1, objectId=CLIENT_ID_2)  # ty: ignore[missing-attribute]
+		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_1, propertyId=PROPERTY_ID_2, objectId=CLIENT_ID_1)  # ty: ignore[missing-attribute]
+		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_1, propertyId=PROPERTY_ID_2, objectId=CLIENT_ID_2)  # ty: ignore[missing-attribute]
 
-		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_2, propertyId=PROPERTY_ID_1, objectId=CLIENT_ID_1)  # ty: ignore[unresolved-attribute]
-		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_2, propertyId=PROPERTY_ID_1, objectId=CLIENT_ID_2)  # ty: ignore[unresolved-attribute]
-		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_2, propertyId=PROPERTY_ID_2, objectId=CLIENT_ID_1)  # ty: ignore[unresolved-attribute]
-		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_2, propertyId=PROPERTY_ID_2, objectId=CLIENT_ID_2)  # ty: ignore[unresolved-attribute]
+		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_2, propertyId=PROPERTY_ID_1, objectId=CLIENT_ID_1)  # ty: ignore[missing-attribute]
+		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_2, propertyId=PROPERTY_ID_1, objectId=CLIENT_ID_2)  # ty: ignore[missing-attribute]
+		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_2, propertyId=PROPERTY_ID_2, objectId=CLIENT_ID_1)  # ty: ignore[missing-attribute]
+		admin_service_client.productPropertyState_create(productId=PRODUCT_ID_2, propertyId=PROPERTY_ID_2, objectId=CLIENT_ID_2)  # ty: ignore[missing-attribute]
 
 		# One productId, one propertyId, no object-id
 		exit_code, _stdout, _stderr = run_cli(

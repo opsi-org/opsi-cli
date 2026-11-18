@@ -678,7 +678,7 @@ def uninstall(product_ids: list[str], depots: str, force: bool, keep_files: bool
 		raise click.UsageError(f"No depots found for '{depots}'. Please specify valid depot IDs or 'all'.")
 
 	product_ids_by_depot: dict[str, list[str]] = {}
-	for pod in service_client.productOnDepot_getObjects(depotId=[depot.id for depot in depot_objects], productId=product_ids):  # ty: ignore[unresolved-attribute]
+	for pod in service_client.productOnDepot_getObjects(depotId=[depot.id for depot in depot_objects], productId=product_ids):  # ty: ignore[missing-attribute]
 		if pod.depotId not in product_ids_by_depot:
 			product_ids_by_depot[pod.depotId] = []
 		product_ids_by_depot[pod.depotId].append(pod.productId)
@@ -698,7 +698,7 @@ def uninstall(product_ids: list[str], depots: str, force: bool, keep_files: bool
 
 	if not product_ids_by_depot:
 		if purge:
-			service_client.product_purge(product_ids)  # ty: ignore[unresolved-attribute]
+			service_client.product_purge(product_ids)  # ty: ignore[missing-attribute]
 			return
 		raise click.UsageError("No products found to uninstall.")
 
@@ -717,7 +717,7 @@ def uninstall(product_ids: list[str], depots: str, force: bool, keep_files: bool
 			depot_connection.disconnect()
 
 	if purge:
-		service_client.product_purge(product_ids)  # ty: ignore[unresolved-attribute]
+		service_client.product_purge(product_ids)  # ty: ignore[missing-attribute]
 
 
 @cli.command(short_help="Fetch installed product(s) from depot and create an .opsi package archive. Use 'all' for all products.")

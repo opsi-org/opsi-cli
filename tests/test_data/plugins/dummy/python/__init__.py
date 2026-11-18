@@ -10,7 +10,7 @@ dummy command - proof of concept
 """
 
 import click
-import git  # ty: ignore[unresolved-import] # noqa: F401
+import git  # ty: ignore[import-not-found] # noqa: F401
 import requests
 from opsi.logging import get_logger
 

@@ -27,10 +27,10 @@ PRODUCT_ID_2 = "pytest-product2"
 # get products from depot and setting locked to 'True' manually
 # update depot with locked products
 def _lock_products_manually(admin_service_client: ServiceClient, product_id: str | None = None) -> None:
-	products = admin_service_client.productOnDepot_getObjects(productId=product_id or [])  # ty: ignore[unresolved-attribute]
+	products = admin_service_client.productOnDepot_getObjects(productId=product_id or [])  # ty: ignore[missing-attribute]
 	for product in products:
 		product.locked = True
-	admin_service_client.productOnDepot_updateObjects(products)  # ty: ignore[unresolved-attribute]
+	admin_service_client.productOnDepot_updateObjects(products)  # ty: ignore[missing-attribute]
 
 
 # unlock products with given product-id and depot-id
@@ -53,7 +53,7 @@ def _unlock_products_with_cli(filter: list[str], expected_output: list[str] | No
 
 # verify the given locked status (e.g. is product.locked = True or False?)
 def _verify_lock_status(admin_service_client: ServiceClient, is_locked: bool, product_id: str | None = None) -> None:
-	products = admin_service_client.productOnDepot_getObjects(productId=product_id or [])  # ty: ignore[unresolved-attribute]
+	products = admin_service_client.productOnDepot_getObjects(productId=product_id or [])  # ty: ignore[missing-attribute]
 	for prod in products:
 		assert prod.locked is is_locked
 
@@ -216,7 +216,7 @@ def test_list_product_client_state_nonexistent_client() -> None:
 		patch("plugins.datastore.python.product_client_state.get_service_connection", return_value=service_client),
 		pytest.raises(ValueError, match="No clients found matching the supplied clientId filter: nonexistent.test.invalid"),
 	):
-		list_product_client_state.callback(("clientId=nonexistent.test.invalid",), False)  # ty: ignore[call-non-callable]
+		list_product_client_state.callback(("clientId=nonexistent.test.invalid",), False)  # ty: ignore[not-callable]
 
 	service_client.productOnDepot_getIdents.assert_not_called()
 	service_client.productOnClient_getObjects.assert_not_called()
@@ -390,7 +390,7 @@ def test_apply_product_client_state(admin_service_client: ServiceClient) -> None
 		)
 		assert exit_code == 0
 
-		pocs = admin_service_client.productOnClient_getObjects(  # ty: ignore[unresolved-attribute]
+		pocs = admin_service_client.productOnClient_getObjects(  # ty: ignore[missing-attribute]
 			clientId=[CLIENT_ID_1, CLIENT_ID_2],
 			productId=[PRODUCT_ID_1, PRODUCT_ID_2],
 		)

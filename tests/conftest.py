@@ -68,12 +68,12 @@ def clean_backend() -> None:
 	with get_admin_service_client() as service_client, service_client.connection(connect_messagebus=False):
 		delete_host_ids = [
 			host.id
-			for host in service_client.host_getObjects(attributes=["id", "type"])  # ty: ignore[unresolved-attribute]
+			for host in service_client.host_getObjects(attributes=["id", "type"])  # ty: ignore[missing-attribute]
 			if host.getType() != "OpsiConfigserver"
 		]
 		if delete_host_ids:
-			service_client.host_delete(id=delete_host_ids)  # ty: ignore[unresolved-attribute]
-		service_client.product_delete(id=[])  # ty: ignore[unresolved-attribute]
+			service_client.host_delete(id=delete_host_ids)  # ty: ignore[missing-attribute]
+		service_client.product_delete(id=[])  # ty: ignore[missing-attribute]
 
 
 def _update_depot_info() -> None:

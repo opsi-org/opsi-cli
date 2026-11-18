@@ -168,7 +168,7 @@ class File(Path):
 	click_type = click.Path(dir_okay=False)
 
 	@classmethod
-	def cwd(cls) -> Path:  # ty: ignore[invalid-method-override]
+	def cwd(cls) -> Path:  # ty: ignore[incompatible-method-override]
 		# Return a plain Path: constructing File would reject the current directory.
 		return Path(os.getcwd())
 
@@ -178,7 +178,7 @@ class File(Path):
 			path = path.expanduser().absolute()
 			if path.exists() and not path.is_file():
 				raise ValueError(f"Not a file: {path!r}")
-		return path  # ty: ignore[invalid-return-type]
+		return path  # ty: ignore[invalid-explicit-return]
 
 	def to_yaml(self) -> str:
 		return str(self)
@@ -191,7 +191,7 @@ class Directory(Path):
 		path = Path(*args, **kwargs).expanduser().absolute()
 		if path.exists() and not path.is_dir():
 			raise ValueError(f"Not a directory: {path!r}")
-		return path  # ty: ignore[invalid-return-type]
+		return path  # ty: ignore[invalid-explicit-return]
 
 	def to_yaml(self) -> str:
 		return str(self)

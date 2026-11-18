@@ -71,7 +71,7 @@ def list_product_client_state(where: tuple[str, ...], all: bool) -> None:
 		filter = {}
 
 	client_ids = filter.pop("clientId", None)
-	final_client_ids = service_connection.host_getIdents(id=client_ids, type="OpsiClient")  # ty: ignore[unresolved-attribute]
+	final_client_ids = service_connection.host_getIdents(id=client_ids, type="OpsiClient")  # ty: ignore[missing-attribute]
 	if not final_client_ids:
 		raise ValueError(f"No clients found matching the supplied clientId filter: {client_ids}.")
 	filter_product_ids = filter.pop("productId", None)
@@ -95,7 +95,7 @@ def list_product_client_state(where: tuple[str, ...], all: bool) -> None:
 		depot_to_clients = get_depot_to_clients(service_connection, final_client_ids)
 		depot_ids = list(depot_to_clients)
 		if depot_ids:
-			for pod in service_connection.productOnDepot_getIdents(returnType="dict", productId=filter_product_ids, depotId=depot_ids):  # ty: ignore[unresolved-attribute]
+			for pod in service_connection.productOnDepot_getIdents(returnType="dict", productId=filter_product_ids, depotId=depot_ids):  # ty: ignore[missing-attribute]
 				for client_id in depot_to_clients.get(pod["depotId"], []):
 					product_states[f"{client_id};{pod['productId']}"] = ProductClientState(
 						productType=pod["productType"],
@@ -105,7 +105,7 @@ def list_product_client_state(where: tuple[str, ...], all: bool) -> None:
 						actionRequest="none",
 					)
 
-	for poc in service_connection.productOnClient_getObjects(  # ty: ignore[unresolved-attribute]
+	for poc in service_connection.productOnClient_getObjects(  # ty: ignore[missing-attribute]
 		clientId=final_client_ids,
 		productId=filter_product_ids or [],
 		installationStatus=filter_installation_statuses,
@@ -168,7 +168,7 @@ def apply_product_client_state() -> None:
 		msg = Status.dry_run()
 	else:
 		service_connection = get_service_connection()
-		service_connection.productOnClient_updateObjects(pcs)  # ty: ignore[unresolved-attribute]
+		service_connection.productOnClient_updateObjects(pcs)  # ty: ignore[missing-attribute]
 		msg = Status.success()
 
 	console_print(msg, style="green", output_type=OutputType.MESSAGE)

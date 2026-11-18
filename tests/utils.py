@@ -32,7 +32,7 @@ from opsicli.opsiservice import ServiceClient
 
 from .conftest import admin_service_connection_params
 
-runner = CliRunner(mix_stderr=False)
+runner = CliRunner()
 
 
 def assert_error_contains(stderr: str, expected_parts: tuple[str, ...]) -> None:
@@ -119,9 +119,7 @@ def tmp_product(service: ServiceClient, name: str, product_type: type[Product] =
 
 
 @contextmanager
-def tmp_host_group(
-	service: ServiceClient, name: str, clients: set[str] | None = None, parent: str | None = None
-) -> Generator[None]:
+def tmp_host_group(service: ServiceClient, name: str, clients: set[str] | None = None, parent: str | None = None) -> Generator[None]:
 	try:
 		params = [name]
 		if parent:

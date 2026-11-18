@@ -698,7 +698,7 @@ class Config:
 		except ValueError as err:
 			msg = str(err)
 			if hasattr(err, "errors"):
-				msg = err.errors()[0]["msg"]  # ty: ignore[call-non-callable]
+				msg = err.errors()[0]["msg"]  # ty: ignore[not-callable]
 			raise click.BadParameter(msg, ctx=ctx, param=param) from err
 
 		ctx.default_map = {}

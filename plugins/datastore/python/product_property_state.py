@@ -32,7 +32,7 @@ def _get_default_property_states(
 		True if value in ("True", "true", "1") else False if value in ("False", "false", "0") else None for value in bool_attr
 	]
 
-	default_property_objects = service_connection.productProperty_getObjects(  # ty: ignore[unresolved-attribute]
+	default_property_objects = service_connection.productProperty_getObjects(  # ty: ignore[missing-attribute]
 		productId=product_ids,
 		productVersion=filter.pop("productVersion", None),
 		packageVersion=filter.pop("packageVersion", None),
@@ -79,7 +79,7 @@ def _update_default_states(
 	default_states: dict[str, dict[str, dict[str, dict[str, Any]]]],
 ) -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
 
-	depot_property_states = service_connection.productPropertyState_getObjects(  # ty: ignore[unresolved-attribute]
+	depot_property_states = service_connection.productPropertyState_getObjects(  # ty: ignore[missing-attribute]
 		objectId=depot_ids, productId=product_ids, propertyId=property_ids
 	)
 
@@ -113,7 +113,7 @@ def _update_depot_states(
 	depot_states: dict[str, dict[str, dict[str, dict[str, Any]]]],
 ) -> dict[str, dict[str, dict[str, dict[str, Any]]]]:
 
-	client_property_states = service_connection.productPropertyState_getObjects(  # ty: ignore[unresolved-attribute]
+	client_property_states = service_connection.productPropertyState_getObjects(  # ty: ignore[missing-attribute]
 		objectId=object_ids, productId=product_ids, propertyId=property_ids
 	)
 
@@ -158,13 +158,13 @@ def list_product_property_state(where: tuple[str, ...], all: bool) -> None:
 		filter: dict[str, str | list[str]] = {}
 
 	# get separated Id's from filter
-	object_ids = service_connection.host_getIdents(id=filter.get("objectId", None))  # ty: ignore[unresolved-attribute]
+	object_ids = service_connection.host_getIdents(id=filter.get("objectId", None))  # ty: ignore[missing-attribute]
 	if not object_ids:
 		raise ValueError(f"No clients found matching the supplied objectId filter: {filter['objectId']}.")
 
 	product_ids: str | list[str] = filter.get("productId", [])
 	property_ids: str | list[str] = filter.get("propertyId", [])
-	depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # ty: ignore[unresolved-attribute]
+	depot_ids = service_connection.host_getIdents(type="OpsiDepotServer")  # ty: ignore[missing-attribute]
 
 	# map clients to depots
 	client_to_depot = create_client_depot_mapping(service_connection, object_ids)

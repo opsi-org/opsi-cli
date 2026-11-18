@@ -102,7 +102,7 @@ def test_config_state_update_unmatched_object_id_stops_before_unfiltered_rpcs() 
 		patch("plugins.datastore.python.config_state.get_service_connection", return_value=service_client),
 		pytest.raises(ValueError, match="No clients found matching the supplied objectId filter"),
 	):
-		update_config_state.callback(("objectId=nonexistent.test.invalid", "configId=opsi.check.enabled"), ("values=true",))  # ty: ignore[call-non-callable]
+		update_config_state.callback(("objectId=nonexistent.test.invalid", "configId=opsi.check.enabled"), ("values=true",))  # ty: ignore[not-callable]
 
 	service_client.config_getObjects.assert_not_called()
 	service_client.configState_getValues.assert_not_called()
@@ -450,7 +450,7 @@ def test_config_state_list(
 
 		config_id = [] if config_id == "*" else config_id
 		object_id = [] if object_id == "*" else object_id
-		states = admin_service_client.configState_getObjects(configId=config_id, objectId=object_id)  # ty: ignore[unresolved-attribute]
+		states = admin_service_client.configState_getObjects(configId=config_id, objectId=object_id)  # ty: ignore[missing-attribute]
 		if expected_output and config_id and object_id:
 			for state, expect in zip(states, expected_values):
 				assert state.__dict__ == expect
@@ -909,7 +909,7 @@ def test_config_state_update(
 		config_id = next((arg.split("=")[1] for arg in command if arg.startswith("configId=")), None)
 		object_id = next((arg.split("=")[1] for arg in command if arg.startswith("objectId=")), None)
 
-		states = admin_service_client.configState_getObjects(configId=config_id, objectId=object_id)  # ty: ignore[unresolved-attribute]
+		states = admin_service_client.configState_getObjects(configId=config_id, objectId=object_id)  # ty: ignore[missing-attribute]
 		if expected_output and config_id and object_id:
 			for state, expect in zip(states, expected_values):
 				assert state.__dict__ == expect

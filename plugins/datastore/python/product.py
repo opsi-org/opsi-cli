@@ -32,7 +32,7 @@ def _unlock_and_update(product_on_depots: list[ProductOnDepot]) -> None:
 	for product_on_depot in product_on_depots:
 		product_on_depot.locked = False
 	# update
-	service_connection.productOnDepot_updateObjects(product_on_depots)  # ty: ignore[unresolved-attribute]
+	service_connection.productOnDepot_updateObjects(product_on_depots)  # ty: ignore[missing-attribute]
 
 
 @cli.group(name="product", short_help=info.GENERAL.short, help=info.GENERAL.long)
@@ -56,7 +56,7 @@ def product() -> None:
 @dry_run_capable
 def product_unlock(where: tuple[str, ...], all: bool) -> None:
 	service_connection = get_service_connection()
-	available_depot_ids = service_connection.host_getIdents(id=[], type="OpsiDepotserver")  # ty: ignore[unresolved-attribute]
+	available_depot_ids = service_connection.host_getIdents(id=[], type="OpsiDepotserver")  # ty: ignore[missing-attribute]
 	if all:
 		product_ids = []
 		depot_ids = []
@@ -66,8 +66,8 @@ def product_unlock(where: tuple[str, ...], all: bool) -> None:
 		product_ids = filter.get("productId", None)
 		depot_ids = filter.get("depotId", None)
 
-	final_depot_ids = service_connection.host_getIdents(id=depot_ids, type="OpsiDepotserver")  # ty: ignore[unresolved-attribute]
-	product_idents = service_connection.productOnDepot_getIdents(productId=product_ids, depotId=final_depot_ids)  # ty: ignore[unresolved-attribute]
+	final_depot_ids = service_connection.host_getIdents(id=depot_ids, type="OpsiDepotserver")  # ty: ignore[missing-attribute]
+	product_idents = service_connection.productOnDepot_getIdents(productId=product_ids, depotId=final_depot_ids)  # ty: ignore[missing-attribute]
 	final_product_ids = [id.split(";")[0] for id in product_idents]
 
 	# help for wrong depotId
@@ -80,7 +80,7 @@ def product_unlock(where: tuple[str, ...], all: bool) -> None:
 	if not final_product_ids:
 		raise ValueError(Error.no_match())
 
-	product_on_depots = service_connection.productOnDepot_getObjects(productId=product_ids, depotId=depot_ids)  # ty: ignore[unresolved-attribute]
+	product_on_depots = service_connection.productOnDepot_getObjects(productId=product_ids, depotId=depot_ids)  # ty: ignore[missing-attribute]
 	if not config.dry_run:
 		_unlock_and_update(product_on_depots)
 		msg = Status.success()
@@ -109,7 +109,7 @@ def product_purge(where: tuple[str, ...], all: bool) -> None:
 		filter = {k: (v if v != "*" else "") for k, v in filter.items()}  # process wildcards
 	else:
 		filter = {}
-	product_idents = service_connection.product_getIdents(filter.pop("productId", None))  # ty: ignore[unresolved-attribute]
+	product_idents = service_connection.product_getIdents(filter.pop("productId", None))  # ty: ignore[missing-attribute]
 	product_ids = [id.split(";")[0] for id in product_idents]
 	# empty result
 	if not product_ids:
@@ -119,7 +119,7 @@ def product_purge(where: tuple[str, ...], all: bool) -> None:
 		msg = Status.dry_run()
 	else:
 		msg = Status.success()
-		service_connection.product_purge(id=product_ids)  # ty: ignore[unresolved-attribute]
+		service_connection.product_purge(id=product_ids)  # ty: ignore[missing-attribute]
 
 	console_print(msg, style="green", output_type=OutputType.MESSAGE)
 	write_output(data=product_ids, metadata=COMMAND_METADATA["datastore_product_purge"])

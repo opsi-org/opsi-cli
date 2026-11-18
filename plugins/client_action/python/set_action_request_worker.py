@@ -324,11 +324,19 @@ class SetActionRequestWorker(ClientActionWorker):
 				add_pocs: list[ProductOnClient] = []
 				if args.uninstall_where_only_uninstall and poc.productId in self.products_with_only_uninstall:
 					add_pocs = self.set_single_action_request(poc, action_request="uninstall", force=True)
-				elif args.where_failed and poc.actionResult == "failed" or args.where_installed and poc.installationStatus == "installed" or (
-					args.where_unknown
-					and poc.installationStatus == "unknown"
-					and poc.actionRequest not in ("setup", "uninstall", "once", "update")
-				) or args.where_not_installed and poc.installationStatus != "installed":
+				elif (
+					args.where_failed
+					and poc.actionResult == "failed"
+					or args.where_installed
+					and poc.installationStatus == "installed"
+					or (
+						args.where_unknown
+						and poc.installationStatus == "unknown"
+						and poc.actionRequest not in ("setup", "uninstall", "once", "update")
+					)
+					or args.where_not_installed
+					and poc.installationStatus != "installed"
+				):
 					add_pocs = self.set_single_action_request(poc, action_request=args.set_action_request, force=True)
 				elif (
 					args.where_outdated

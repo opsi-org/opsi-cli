@@ -13,7 +13,7 @@ import builtins
 import re
 import sys
 from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from click.exceptions import Abort, ClickException
 from click.shell_completion import CompletionItem
@@ -30,30 +30,40 @@ from opsicli.types import OpsiCliRuntimeError
 
 original_print = builtins.print
 
-if not COMPLETION_MODE:
+if TYPE_CHECKING:
+	# Type checkers always see the rich variants
 	import rich_click as click
-	from rich_click.rich_click import _get_rich_formatter, rich_abort_error, rich_format_error, rich_format_help
+	import rich_click.rich_click as rich_click_config
 
 	from opsicli.io import get_console
+
+	BaseGroup = click.RichGroup
+elif not COMPLETION_MODE:
+	import rich_click as click
+	import rich_click.rich_click as rich_click_config
+
+	from opsicli.io import get_console
+
+	BaseGroup = click.RichGroup
 else:
 	# Loads faster
 	import click
 
-if not COMPLETION_MODE:
-	assert hasattr(click, "rich_click")
+	BaseGroup = click.Group
 
-	click.rich_click.USE_RICH_MARKUP = True
-	click.rich_click.MAX_WIDTH = 140
+if not COMPLETION_MODE:
+	rich_click_config.USE_RICH_MARKUP = True
+	rich_click_config.MAX_WIDTH = 140
 
 	# https://rich.readthedocs.io/en/stable/style.html
 	# https://rich.readthedocs.io/en/stable/appendix/colors.html#appendix-colors
-	click.rich_click.STYLE_USAGE = "bold cyan3"
-	click.rich_click.STYLE_OPTION = "bold cyan"
-	click.rich_click.STYLE_SWITCH = "bold light_sea_green"
-	click.rich_click.STYLE_METAVAR = "cyan3"
-	click.rich_click.STYLE_ERRORS_SUGGESTION = ""
+	rich_click_config.STYLE_USAGE = "bold cyan3"
+	rich_click_config.STYLE_OPTION = "bold cyan"
+	rich_click_config.STYLE_SWITCH = "bold light_sea_green"
+	rich_click_config.STYLE_METAVAR = "cyan3"
+	rich_click_config.STYLE_ERRORS_SUGGESTION = ""
 
-	click.rich_click.OPTION_GROUPS = {"opsi-cli": []}
+	rich_click_config.OPTION_GROUPS = {"opsi-cli": []}
 	for group, items in config.get_items_by_group().items():
 		if not group:
 			continue
@@ -65,13 +75,13 @@ if not COMPLETION_MODE:
 		if group == "General":
 			options.extend(["--help", "--version"])
 		if options:
-			click.rich_click.OPTION_GROUPS["opsi-cli"].append({"name": f"{group} options", "options": options})
+			rich_click_config.OPTION_GROUPS["opsi-cli"].append({"name": f"{group} options", "options": options})
 
 logger = get_logger("opsicli")
 
 
 # https://click.palletsprojects.com/en/8.1.x/commands/#custom-multi-commands
-class OpsiCLI(click.MultiCommand):  # ty: ignore
+class OpsiCLI(BaseGroup):
 	def main(
 		self,
 		args: Sequence[str] | None = None,
@@ -96,7 +106,7 @@ class OpsiCLI(click.MultiCommand):  # ty: ignore
 
 			if not isinstance(err, ClickException):
 				err = ClickException(str(err))
-			err.message += additional_info
+			err.message += additional_info  # ty: ignore[invalid-assignment]
 
 			if COMPLETION_MODE:
 				# rich / get_console is not available in completion mode
@@ -105,14 +115,13 @@ class OpsiCLI(click.MultiCommand):  # ty: ignore
 
 			err_console = get_console(output_type=OutputType.ERROR_MESSAGE)
 			if config.color:
-				err.message = re.sub(r"\[/?metavar\]", "", err.message)
-				formatter = _get_rich_formatter()
-				formatter._console = err_console
+				err.message = re.sub(r"\[/?metavar\]", "", err.message)  # ty: ignore[invalid-assignment]
+				formatter = click.RichHelpFormatter(console=err_console, config=click.RichHelpConfiguration.load_from_globals())
 				formatter.config.highlighter = lambda x: x  # ty: ignore[invalid-assignment]
 				if issubclass(exc_type, Abort):
-					rich_abort_error()
+					formatter.write_abort()
 				else:
-					rich_format_error(err)
+					formatter.write_error(err)
 			else:
 				if issubclass(exc_type, Abort):
 					err_console.print("Aborted.")
@@ -128,9 +137,7 @@ class OpsiCLI(click.MultiCommand):  # ty: ignore
 		# configs are evaluated lazily. Config files are only read on click processing option "config_file_system" and "config_file_user"
 		# This does not happen if click realizes an argument (command) is missing
 		config.read_config_files()
-		if not config.color or "rich_format_help" not in globals():
-			return super().format_help(ctx, formatter)
-		return rich_format_help(self, ctx, formatter)
+		return super().format_help(ctx, formatter)  # ty: ignore[invalid-argument-type]
 
 	def list_commands(self, ctx: click.Context) -> list[str]:
 		logger.debug("list_commands")

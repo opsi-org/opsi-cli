@@ -83,7 +83,7 @@ class OPSICLIPlugin:
 
 class PluginImporter(BuiltinImporter):
 	@classmethod
-	def find_spec(cls, fullname: str, path: None = None, target: None = None) -> ModuleSpec | None:  # ty: ignore[invalid-method-override]
+	def find_spec(cls, fullname: str, path: None = None, target: None = None) -> ModuleSpec | None:  # ty: ignore[incompatible-method-override]
 		if not fullname.startswith("opsicli.addon"):
 			return None
 		encoded = fullname.split("_", 1)[1]
@@ -325,7 +325,7 @@ def install_dependencies(path: Path, target_dir: Path) -> None:
 		import _frozen_importlib_external
 
 		try:
-			import pyimod02_importers  # ty: ignore[unresolved-import]
+			import pyimod02_importers  # ty: ignore[import-not-found]
 		except ImportError:
 			from PyInstaller.loader import pyimod02_importers
 

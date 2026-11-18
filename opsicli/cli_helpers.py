@@ -8,9 +8,10 @@ from __future__ import annotations
 import importlib
 import os
 import re
-from collections.abc import Sequence
+from collections.abc import Callable, Iterable, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
+from rich.highlighter import RegexHighlighter
 from rich.panel import Panel
 from rich.text import Text
 
@@ -21,15 +22,28 @@ from opsicli.plugin import plugin_manager
 
 COMPLETION_MODE = "_OPSI_CLI_COMPLETE" in os.environ or "_OPSI_CLI_EXE_COMPLETE" in os.environ
 
-if COMPLETION_MODE:
+if TYPE_CHECKING:
+	# Type checkers always see the rich variants
+	import rich_click as click
+	from rich_click import rich_help_rendering
+
+	BaseCommand = click.RichCommand
+	BaseGroup = click.RichGroup
+elif COMPLETION_MODE:
 	import click
+
+	BaseCommand = click.Command
+	BaseGroup = click.Group
 else:
 	import rich_click as click
-	from rich_click import rich_click
-	from rich_click.rich_click import rich_format_help
+	import rich_click.rich_click as rich_click_config
+	from rich_click import rich_help_rendering
 
-	rich_click.STYLE_OPTIONS_PANEL_BORDER = "bold"
-	rich_click.OPTIONS_PANEL_TITLE = "[bold cyan]OPTIONS[/bold cyan]"
+	rich_click_config.STYLE_OPTIONS_PANEL_BORDER = "bold"
+	rich_click_config.OPTIONS_PANEL_TITLE = "[bold cyan]OPTIONS[/bold cyan]"
+
+	BaseCommand = click.RichCommand
+	BaseGroup = click.RichGroup
 
 if TYPE_CHECKING:
 	from rich import Console
@@ -92,7 +106,7 @@ def _format_option_lines(opts: list[click.Option], col_width: int, console: Cons
 	return lines
 
 
-def _format_help(command: click.Command, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+def _format_help(command: click.Command, ctx: click.Context, formatter: click.HelpFormatter, render_help: Callable[[], None]) -> None:
 	global _config_loaded
 	if not _config_loaded:
 		config.read_config_files()
@@ -103,34 +117,24 @@ def _format_help(command: click.Command, ctx: click.Context, formatter: click.He
 
 	custom_usage = command.get_usage(ctx)
 
-	def _custom_get_rich_usage(obj: Any, ctx: click.Context, formatter: click.HelpFormatter) -> None:
-		formatter = rich_click._get_rich_formatter(formatter)
-		config = formatter.config
+	class UsageHighlighter(RegexHighlighter):
+		highlights: ClassVar[Sequence[str]] = [
+			r"(?P<argument>\[.*?\])",
+		]
 
-		class UsageHighlighter(rich_click.RegexHighlighter):
-			highlights: ClassVar[Sequence[str]] = [
-				r"(?P<argument>\[.*?\])",
-			]
+	usage_str = custom_usage
+	if usage_str.lower().startswith("usage:"):
+		usage_str = usage_str[len("usage:") :].strip()
 
-		usage_highlighter = UsageHighlighter()
+	# The usage is printed directly (before the rich help output), the rich usage rendering is suppressed.
+	# Soft wrap: do not break the usage line inside of placeholders like [SERVICE OPTIONS].
+	usage_style = str(formatter.config.style_usage)  # ty: ignore[missing-attribute]
+	console.print()
+	console.print(Text.assemble(" ", ("Usage: ", usage_style), UsageHighlighter()(usage_str)), soft_wrap=True)
+	console.print()
 
-		usage_str = custom_usage
-		if usage_str.lower().startswith("usage:"):
-			usage_str = usage_str[len("usage:") :].strip()
-
-		console.print(
-			rich_click.Padding(
-				rich_click.Columns(
-					(
-						rich_click.Text("Usage:", style=config.style_usage),
-						usage_highlighter(usage_str),
-					)
-				),
-				1,
-			),
-		)
-
-	rich_click.get_rich_usage = _custom_get_rich_usage  # ty: ignore[invalid-assignment]
+	orig_get_rich_usage = rich_help_rendering.get_rich_usage
+	rich_help_rendering.get_rich_usage = lambda *args, **kwargs: None  # ty: ignore[invalid-assignment]
 	orig_get_params = command.get_params
 
 	def _get_non_option_params(current_ctx: click.Context) -> list[click.Parameter]:
@@ -139,15 +143,17 @@ def _format_help(command: click.Command, ctx: click.Context, formatter: click.He
 	command.get_params = _get_non_option_params  # ty: ignore[invalid-assignment]
 
 	try:
-		rich_format_help(command, ctx, formatter)
+		render_help()
 	finally:
-		command.get_params = orig_get_params  # ty: ignore[invalid-assignment]
+		command.get_params = orig_get_params
+		rich_help_rendering.get_rich_usage = orig_get_rich_usage
 
 
 def _get_usage(ctx: click.Context) -> str:
-	cls = type(ctx.command)
-	assert issubclass(cls, click.Command)
-	orig_usage = super(cls, ctx.command).get_usage(ctx)
+	# Use a plain formatter, the rich formatter would render the usage with padding and styling.
+	plain_formatter = click.HelpFormatter(width=140)
+	ctx.command.format_usage(ctx, plain_formatter)
+	orig_usage = plain_formatter.getvalue().rstrip("\n")
 	match = re.match(r"(Usage:\s*)(.*)", orig_usage)
 	if not match:
 		return orig_usage
@@ -225,9 +231,9 @@ def _get_opsi_commands_and_functions() -> dict[str, Any]:
 	return commands_dict
 
 
-class OPSICLICommand(click.Command):
-	def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
-		_format_help(self, ctx, formatter)
+class OPSICLICommand(BaseCommand):
+	def format_help(self, ctx: click.RichContext, formatter: click.RichHelpFormatter) -> None:
+		_format_help(self, ctx, formatter, lambda: super(OPSICLICommand, self).format_help(ctx, formatter))
 
 	def get_usage(self, ctx: click.Context) -> str:
 		return _get_usage(ctx)
@@ -250,16 +256,26 @@ class OPSICLICommand(click.Command):
 		return super().parse_args(ctx, args)
 
 
-class OPSICLIGroup(click.Group):
-	def add_command(self, cmd: click.Command, name: str | None = None) -> None:
-		if isinstance(cmd, click.Group) and not isinstance(cmd, OPSICLIGroup):
-			cmd.__class__ = OPSICLIGroup
+class OPSICLIGroup(BaseGroup):
+	def add_command(
+		self,
+		cmd: click.Command,
+		name: str | None = None,
+		aliases: Iterable[str] | None = None,
+		panel: str | list[str] | None = None,
+	) -> None:
+		if isinstance(cmd, click.Group):
+			if not isinstance(cmd, OPSICLIGroup):
+				cmd.__class__ = OPSICLIGroup
 		elif not isinstance(cmd, OPSICLICommand):
 			cmd.__class__ = OPSICLICommand
-		super().add_command(cmd, name)
+		if aliases or panel:
+			super().add_command(cmd, name, aliases=aliases, panel=panel)  # ty: ignore[invalid-argument-type]
+		else:
+			super().add_command(cmd, name)
 
-	def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
-		_format_help(self, ctx, formatter)
+	def format_help(self, ctx: click.RichContext, formatter: click.RichHelpFormatter) -> None:
+		_format_help(self, ctx, formatter, lambda: super(OPSICLIGroup, self).format_help(ctx, formatter))
 
 	def get_usage(self, ctx: click.Context) -> str:
 		return _get_usage(ctx)
