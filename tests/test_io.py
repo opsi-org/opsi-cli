@@ -248,6 +248,33 @@ def test_limit_config_rejects_negative_values() -> None:
 		config.set_values({"limit": -1})
 
 
+@pytest.mark.parametrize(
+	"data,expected",
+	[
+		([{"a": 1}, {"a": 2}, {"a": 3}], "3"),
+		([["x", "y"], ["z", "w"]], "2"),
+		(["a"], "1"),
+		([], "0"),
+		({"a": 1}, "1"),
+	],
+)
+@pytest.mark.parametrize("output_format", ["table", "csv", "json"])
+def test_output_count(capsys: CaptureFixture[str], data: Any, expected: str, output_format: str) -> None:
+	config.set_values({"count": True, "limit": 1, "output_format": output_format})
+	try:
+		write_output(data)
+	finally:
+		config.set_values({"count": False, "limit": None, "output_format": "auto"})
+	assert capsys.readouterr().out == f"{expected}\n"
+
+
+def test_output_count_config() -> None:
+	exit_code, stdout, _stderr = run_cli(["--count", "config", "list"])
+	config.set_values({"count": False})
+	assert exit_code == 0
+	assert stdout.strip().isdigit()
+
+
 def test_output_sort_unsupported_data_type() -> None:
 	data = {"a": "test_1", "b": "dummy", "c": "string"}
 	config.set_values({"sort_by": "b", "output_format": "json"})

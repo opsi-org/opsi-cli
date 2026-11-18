@@ -543,6 +543,12 @@ def write_output_msgpack(data: Any, metadata: Metadata | None = None) -> None:
 		)
 
 
+def write_output_count(data: Any) -> None:
+	count = len(data) if isinstance(data, list) else 1
+	with output_file_str() as file:
+		file.write(f"{count}\n")
+
+
 def write_output(
 	data: Any,
 	metadata: Metadata | None = None,
@@ -552,6 +558,10 @@ def write_output(
 ) -> None:
 	if output_file_is_stdout() and config.quiet:
 		logger.debug("Quiet mode enabled, skipping output")
+		return
+
+	if config.count:
+		write_output_count(data)
 		return
 
 	if isinstance(default_output_format, str):

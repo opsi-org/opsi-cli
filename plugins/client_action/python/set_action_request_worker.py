@@ -369,6 +369,8 @@ class SetActionRequestWorker(ClientActionWorker):
 			msg = "No action requests to set."
 			logger.notice(msg)
 			console_print(f"{msg}\n", output_type=OutputType.MESSAGE)
+			if config.count:
+				write_output([])
 			return
 
 		result_pocs: list[ProductOnClient] = []

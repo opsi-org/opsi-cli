@@ -373,6 +373,13 @@ def get_config_items() -> list[ConfigItem]:
 			description="Sort the output data by the specified attribute(s).",
 		),
 		ConfigItem(
+			name="count",
+			type=Bool,
+			group="IO",
+			default=False,
+			description="Output only the number of records (ignores --limit, --header and --metadata).",
+		),
+		ConfigItem(
 			name="limit",
 			type=Limit,
 			group="IO",
