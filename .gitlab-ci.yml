@@ -121,6 +121,7 @@ lint-pytest:
     - uv sync --frozen
     - uv run ruff check opsicli plugins tests
     - uv run ty check opsicli plugins tests
+    - uv audit
     - opsi-dev-cli self upgrade
     - opsi-dev-cli -l info testing merge-junit-testreports testreport_*.xml testreport.xml
     - opsi-dev-cli -l info testing merge-coverage-files coverage_* .coverage
@@ -237,7 +238,7 @@ macos-x64-pyinstaller:
     paths:
       - CLIENT_DATA/opsi-cli-macos-x64
 
-windows-x86_64-pyinstaller:
+windows-x64-pyinstaller:
   stage: build
   tags:
     - win10-x64
