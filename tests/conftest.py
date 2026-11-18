@@ -62,8 +62,8 @@ def reset_service_client() -> None:
 
 
 @pytest.fixture(autouse=True)
-def clean_backend() -> None:
-	if not _opsi_service_available():
+def clean_backend(request: pytest.FixtureRequest) -> None:
+	if not request.node.get_closest_marker("opsi_service") or not _opsi_service_available():
 		return
 	with get_admin_service_client() as service_client, service_client.connection(connect_messagebus=False):
 		delete_host_ids = [
@@ -86,8 +86,6 @@ def _update_depot_info() -> None:
 
 
 def pytest_runtest_setup(item: Item) -> None:
-	if _opsi_service_available():
-		_update_depot_info()
 	for marker in item.iter_markers():
 		if marker.name == "opsi_service" and not _opsi_service_available():
 			pytest.skip("No opsi service available")
@@ -95,6 +93,8 @@ def pytest_runtest_setup(item: Item) -> None:
 		if marker.name == "not_windows" and PLATFORM == "windows":
 			pytest.skip("Not running test on Windows")
 			return
+	if item.get_closest_marker("opsi_service"):
+		_update_depot_info()
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
