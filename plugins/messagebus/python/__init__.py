@@ -11,7 +11,7 @@ messagebus plugin
 
 import sys
 import time
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from threading import Event
@@ -64,6 +64,8 @@ __description__ = "This command can be used to interact with the opsi message bu
 
 logger = get_logger("opsicli")
 
+EventProgressCallback = Callable[[EventMessage, Literal["start", "result"]], None]
+
 
 class EventMessagebusConnection(MessagebusConnection):
 	def __init__(self) -> None:
@@ -73,6 +75,7 @@ class EventMessagebusConnection(MessagebusConnection):
 		self.event_data_all: list[dict[str, Any]] = []  # List of data dicts to match against the event data (AND logic)
 		self.event_start_data: list[dict[str, Any]] = []
 		self._waiting_for_event: bool = False
+		self._on_progress: EventProgressCallback | None = None
 		self._output_type: Literal["message", "event"] | None = None
 		self.event_started_event = Event()
 		self.event_found_event = Event()
@@ -87,15 +90,12 @@ class EventMessagebusConnection(MessagebusConnection):
 			data = {"event": message.event} | dict(message.data) if self._output_type == "event" else message.to_dict()
 			write_output(data, default_output_format=OutputFormat.PRETTY_JSON, force_newline=True)
 
-		if self._waiting_for_event and any(
-			all(message.data.get(attr) == val for attr, val in event_data.items()) for event_data in self.event_start_data
-		):
-			self.event_started_event.set()
-
 		for event_data in self.event_data_any:
 			if all(message.data.get(attr) == val for attr, val in event_data.items()):
 				logger.notice("Received event with matching data: %s (data=%s)", message, message.data)
 				if self._waiting_for_event:
+					if self._on_progress:
+						self._on_progress(message, "result")
 					self.result = [message]
 					self.event_found_event.set()
 					self.event_started_event.set()
@@ -104,6 +104,8 @@ class EventMessagebusConnection(MessagebusConnection):
 			if all(message.data.get(attr) == val for attr, val in event_data.items()):
 				logger.notice("Received event with matching data: %s (data=%s)", message, message.data)
 				if self._waiting_for_event:
+					if self._on_progress:
+						self._on_progress(message, "result")
 					self.result.append(message)
 					if len(self.event_data_all) == 1:
 						self.event_found_event.set()
@@ -111,6 +113,14 @@ class EventMessagebusConnection(MessagebusConnection):
 						self.event_data_all.remove(event_data)
 					self.event_started_event.set()
 				return
+
+		if self._waiting_for_event and any(
+			all(message.data.get(attr) == val for attr, val in event_data.items()) for event_data in self.event_start_data
+		):
+			if self._on_progress:
+				self._on_progress(message, "start")
+			self.event_started_event.set()
+			return
 
 		logger.debug("Received event with non matching data: %s (data=%s)", message, message.data)
 
@@ -136,11 +146,13 @@ class EventMessagebusConnection(MessagebusConnection):
 		timeout: float | None = None,
 		start_data: list[dict[str, Any]] | None = None,
 		start_timeout: float | None = None,
+		on_progress: EventProgressCallback | None = None,
 	) -> list[EventMessage]:
 		self.event_types = {type}
 		self.event_data_any = data_any or []
 		self.event_data_all = data_all or []
 		self.event_start_data = start_data or []
+		self._on_progress = on_progress
 		self._waiting_for_event = True
 		logger.notice("Waiting for event of type %r to occur", self.event_types)
 		logger.info("Listening until any of %s is found or all of %s is found", self.event_data_any, self.event_data_all)
@@ -154,6 +166,7 @@ class EventMessagebusConnection(MessagebusConnection):
 				return self.result
 		finally:
 			self._waiting_for_event = False
+			self._on_progress = None
 			self.result = []
 			self.event_started_event.clear()
 			self.event_found_event.clear()
@@ -433,6 +446,10 @@ def wait_for_installation(client: str, products: str, installation_status: str, 
 	]
 	start_data = [{"clientId": client, "productId": product, "installationStatus": "unknown"} for product in products]
 
+	def report_progress(message: EventMessage, phase: Literal["start", "result"]) -> None:
+		status = "started" if phase == "start" else "failed" if message.data["actionResult"] == "failed" else "completed successfully"
+		console_print(f"Installation {status} for {message.data['productId']} on {client}.", file=sys.stdout, markup=False)
+
 	try:
 		result = mbus_connection.wait_for_event(
 			type="productOnClient_updated",
@@ -441,6 +458,7 @@ def wait_for_installation(client: str, products: str, installation_status: str, 
 			timeout=timeout,
 			start_data=start_data,
 			start_timeout=start_timeout,
+			on_progress=report_progress,
 		)
 	except TimeoutError as err:
 		msg = f"Waiting for installation events failed: {err}"

@@ -145,6 +145,47 @@ def test_wait_for_installation_options(start_timeout: str | None, outcome: str) 
 			assert json.loads(result.stdout)["actionResult"] == outcome
 
 
+@pytest.mark.parametrize("second_product_fails", [False, True])
+def test_wait_for_installation_prints_progress(second_product_fails: bool) -> None:
+	from plugins.messagebus.python import EventMessagebusConnection, wait_for_installation
+
+	client = "client1.test.tld"
+	event = "productOnClient_updated"
+	with patch("opsicli.messagebus.get_service_connection", return_value=MagicMock(spec=ServiceClient)):
+		connection = EventMessagebusConnection()
+
+	def receive_events(channels: list[str]) -> None:
+		assert channels == [f"event:{event}"]
+		updates = [("unrelated", "unknown", "none"), ("first", "unknown", "none"), ("first", "installed", "successful")]
+		if second_product_fails:
+			updates.append(("second", "unknown", "failed"))
+		for product, status, action_result in updates:
+			connection._on_event(
+				EventMessage(
+					sender="service:messagebus",
+					channel=f"event:{event}",
+					event=event,
+					data={"clientId": client, "productId": product, "installationStatus": status, "actionResult": action_result},
+				)
+			)
+
+	with (
+		patch("plugins.messagebus.python.EventMessagebusConnection", return_value=connection),
+		patch.object(connection, "connection", return_value=nullcontext()),
+		patch.object(connection, "subscribe_to_channel", side_effect=receive_events),
+	):
+		result = CliRunner(mix_stderr=False).invoke(wait_for_installation, [client, "first", "second", "--timeout", "0"])
+
+	assert result.exit_code == 1
+	expected = [f"Installation started for first on {client}.", f"Installation completed successfully for first on {client}."]
+	if second_product_fails:
+		expected.append(f"Installation failed for second on {client}.")
+		assert json.loads(result.stdout.split("\n", len(expected))[-1])["actionResult"] == "failed"
+	else:
+		assert "Timed out" in str(result.exception)
+	assert [line for line in result.stdout.splitlines() if line.startswith("Installation ")] == expected
+
+
 @pytest.mark.parametrize("fail_in_context", (False, True))
 def test_messagebus_waits_for_disconnect(fail_in_context: bool) -> None:
 	service_client = MagicMock(spec=ServiceClient)
