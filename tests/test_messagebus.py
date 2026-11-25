@@ -52,8 +52,8 @@ def test_installation_event_timeouts(started: bool, completed: bool) -> None:
 
 	with patch("opsicli.messagebus.get_service_connection", return_value=MagicMock(spec=ServiceClient)):
 		connection = EventMessagebusConnection()
-	start_data = {"clientId": "client1.test.tld", "productId": "testproduct", "installationStatus": "unknown"}
-	completed_data = dict(start_data, installationStatus="installed", actionResult="successful")
+	start_data = {"clientId": "client1.test.tld", "installationStatus": "unknown"}
+	completed_data = dict(start_data, productId="testproduct", installationStatus="installed", actionResult="successful")
 
 	def receive_events(timeout: float) -> bool:
 		assert timeout == 120
@@ -70,7 +70,10 @@ def test_installation_event_timeouts(started: bool, completed: bool) -> None:
 		if started:
 			connection._on_event(
 				EventMessage(
-					sender="service:messagebus", channel="event:productOnClient_updated", event="productOnClient_updated", data=start_data
+					sender="service:messagebus",
+					channel="event:productOnClient_updated",
+					event="productOnClient_updated",
+					data=dict(start_data, productId="dependency"),
 				)
 			)
 		if completed:
@@ -134,8 +137,7 @@ def test_wait_for_installation_options(start_timeout: str | None, outcome: str) 
 		assert wait.call_args.kwargs["start_timeout"] == (DEFAULT_START_TIMEOUT if start_timeout is None else float(start_timeout))
 		assert wait.call_args.kwargs["timeout"] == 10
 		assert wait.call_args.kwargs["start_data"] == [
-			{"clientId": "client1.test.tld", "productId": product, "installationStatus": "unknown"}
-			for product in ("testproduct", "otherproduct")
+			{"clientId": "client1.test.tld", "installationStatus": "unknown"}
 		]
 		if outcome.endswith("timeout"):
 			assert isinstance(result.exception, RuntimeError)

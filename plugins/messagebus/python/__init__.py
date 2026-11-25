@@ -429,7 +429,11 @@ def wait_for_host(hostname: str, timeout: float | None) -> None:
 @click.argument("products", type=str, nargs=-1)
 @click.option("--installation-status", help="Status to wait for", type=click.Choice(("installed", "not_installed")), default="installed")
 @click.option(
-	"--start-timeout", help="Timeout in seconds for installation to start", type=float, default=DEFAULT_START_TIMEOUT, show_default=True
+	"--start-timeout",
+	help="Timeout in seconds for the first product installation to start",
+	type=float,
+	default=DEFAULT_START_TIMEOUT,
+	show_default=True,
 )
 @click.option("--timeout", help="Timeout in seconds after installation starts", type=float, default=None)
 def wait_for_installation(client: str, products: str, installation_status: str, timeout: float | None, start_timeout: float) -> None:
@@ -444,7 +448,7 @@ def wait_for_installation(client: str, products: str, installation_status: str, 
 		{"clientId": client, "productId": product, "installationStatus": installation_status, "actionResult": "successful"}
 		for product in products
 	]
-	start_data = [{"clientId": client, "productId": product, "installationStatus": "unknown"} for product in products]
+	start_data = [{"clientId": client, "installationStatus": "unknown"}]
 
 	def report_progress(message: EventMessage, phase: Literal["start", "result"]) -> None:
 		status = "started" if phase == "start" else "failed" if message.data["actionResult"] == "failed" else "completed successfully"
