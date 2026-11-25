@@ -178,7 +178,11 @@ def test_wait_for_installation_prints_progress(second_product_fails: bool) -> No
 		result = CliRunner().invoke(wait_for_installation, [client, "first", "second", "--timeout", "0"])
 
 	assert result.exit_code == 1
-	expected = [f"Installation started for first on {client}.", f"Installation completed successfully for first on {client}."]
+	expected = [
+		f"Installation started for unrelated on {client}.",
+		f"Installation started for first on {client}.",
+		f"Installation completed successfully for first on {client}.",
+	]
 	if second_product_fails:
 		expected.append(f"Installation failed for second on {client}.")
 		assert json.loads(result.stdout.split("\n", len(expected))[-1])["actionResult"] == "failed"
