@@ -11,7 +11,7 @@ pyinstaller:
   one_file: no
   strip: yes
   before_script:
-    - find plugins -name __pycache__ -exec rm -rf {} +
+    - python -c "import pathlib, shutil; [shutil.rmtree(p) for p in pathlib.Path('plugins').rglob('__pycache__') if p.is_dir() and not p.is_symlink()]"
   hidden_imports:
     all:
       - orjson
